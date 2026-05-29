@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Search, Mail, X } from "lucide-react";
+import { Search, Mail, X, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { enqueue } from "@/lib/sync-queue";
+import { analyzeTaskText } from "@/lib/api/task-analysis.functions";
 import {
   Sheet,
   SheetContent,
@@ -70,6 +71,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
   const [emailSearch, setEmailSearch] = useState("");
   const [emailResults, setEmailResults] = useState<EmailLite[]>([]);
   const [saving, setSaving] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -134,6 +136,32 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
   }, [emailSearch]);
 
   const sectionsAll = Array.from(new Set([...DEFAULT_SECTIONS, ...sections]));
+
+  const runAi = async () => {
+    const text = `${title}\n${description}\n${comments}`.trim();
+    if (!text) { toast.error("Remplis au moins le titre ou la description avant d'analyser."); return; }
+    setAnalyzing(true);
+    try {
+      const res = await analyzeTaskText({ data: { text } });
+      if (res.title) setTitle(res.title);
+      if (res.description) setDescription(res.description);
+      if (res.comments) setComments(res.comments);
+      if (res.priority) setPriority(res.priority);
+      if (res.due_date) setDue(res.due_date);
+      if (res.gantt_start) setStart(res.gantt_start);
+      if (res.tags && res.tags.length > 0) {
+        const existing = tagsText.split(",").map((t) => t.trim()).filter(Boolean);
+        const merged = Array.from(new Set([...existing, ...res.tags]));
+        setTagsText(merged.join(", "));
+      }
+      if (res.section && sectionsAll.includes(res.section)) setSection(res.section);
+      toast.success("Champs pré-remplis par l'IA");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur d'analyse IA");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   const submit = async () => {
     if (!title.trim()) { toast.error("Titre requis"); return; }
@@ -213,7 +241,20 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
           <SheetTitle>{editing ? "Modifier la tâche" : "Nouvelle tâche"}</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 space-y-4">
+        <button
+          type="button"
+          onClick={runAi}
+          disabled={analyzing}
+          className={cn(
+            "mt-4 flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-opacity",
+            analyzing ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:opacity-90"
+          )}
+        >
+          <Sparkles className="h-4 w-4" />
+          {analyzing ? "Analyse en cours…" : "✨ Analyser avec l'IA"}
+        </button>
+
+        <div className="mt-3 space-y-4">
           <div>
             <Label htmlFor="t-title">Titre *</Label>
             <Input id="t-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Préparer la présentation" />
