@@ -43,41 +43,72 @@ type Participant = {
 };
 
 function MeetingsPage() {
+  const { user } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const [m, p, t] = await Promise.all([
+      supabase.from("meetings").select("*").order("start_at", { ascending: false }),
+      supabase.from("meeting_participants").select("*"),
+      supabase.from("meeting_tasks").select("meeting_id"),
+    ]);
+    setMeetings((m.data as Meeting[]) ?? []);
+    setParticipants((p.data as Participant[]) ?? []);
+    const counts: Record<string, number> = {};
+    ((t.data ?? []) as { meeting_id: string }[]).forEach((row) => {
+      counts[row.meeting_id] = (counts[row.meeting_id] ?? 0) + 1;
+    });
+    setTaskCounts(counts);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      const [m, p, t] = await Promise.all([
-        supabase.from("meetings").select("*").order("start_at", { ascending: false }),
-        supabase.from("meeting_participants").select("*"),
-        supabase.from("meeting_tasks").select("meeting_id"),
-      ]);
-      if (!active) return;
-      setMeetings((m.data as Meeting[]) ?? []);
-      setParticipants((p.data as Participant[]) ?? []);
-      const counts: Record<string, number> = {};
-      ((t.data ?? []) as { meeting_id: string }[]).forEach((row) => {
-        counts[row.meeting_id] = (counts[row.meeting_id] ?? 0) + 1;
-      });
-      setTaskCounts(counts);
-      setLoading(false);
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
+    load();
+  }, [load]);
 
   const now = useMemo(() => new Date(), []);
   const upcoming = meetings.filter((m) => new Date(m.end_at) >= now && m.status !== "cancelled");
   const past = meetings.filter((m) => new Date(m.end_at) < now || m.status === "completed");
+  const myEmail = user?.email?.toLowerCase();
   const invitations = meetings.filter((m) => {
-    const p = participants.find((x) => x.meeting_id === m.id && x.role !== "organizer");
-    return p?.rsvp_status === "pending";
+    const mine = participants.find((x) => x.meeting_id === m.id && x.email.toLowerCase() === myEmail && x.role !== "organizer");
+    return mine?.rsvp_status === "pending";
   });
+
+  const openNew = () => { setEditId(null); setDialogOpen(true); };
+  const openEdit = (id: string) => { setEditId(id); setDialogOpen(true); };
+
+  async function rsvp(meetingId: string, status: "accepted" | "declined" | "tentative") {
+    if (!myEmail) return;
+    const { error } = await supabase
+      .from("meeting_participants")
+      .update({ rsvp_status: status, responded_at: new Date().toISOString() })
+      .eq("meeting_id", meetingId)
+      .eq("email", myEmail);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Réponse enregistrée");
+    load();
+  }
+
+  function exportIcs(m: Meeting) {
+    const ps = participants.filter((p) => p.meeting_id === m.id && p.role !== "organizer");
+    downloadIcs({
+      uid: `${m.id}@myhubpro`,
+      title: m.title,
+      description: m.description,
+      location: m.is_online ? m.online_link ?? m.location : m.location,
+      startAt: new Date(m.start_at),
+      endAt: new Date(m.end_at),
+      organizer: m.organizer_email ? { email: m.organizer_email, name: m.organizer_name } : null,
+      participants: ps.map((p) => ({ email: p.email, name: p.name, role: (p.role as "required" | "optional") })),
+      url: m.is_online ? m.online_link : null,
+    });
+  }
 
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-5xl">
@@ -91,7 +122,7 @@ function MeetingsPage() {
             Planifiez, suivez et débriefez vos réunions.
           </p>
         </div>
-        <Button disabled title="Disponible en Phase 2">＋ Nouvelle réunion</Button>
+        <Button onClick={openNew}>＋ Nouvelle réunion</Button>
       </div>
 
       <Tabs defaultValue="upcoming" className="w-full">
@@ -108,15 +139,17 @@ function MeetingsPage() {
         </TabsList>
 
         <TabsContent value="upcoming" className="mt-4">
-          <MeetingList loading={loading} meetings={upcoming} participants={participants} taskCounts={taskCounts} empty="Aucune réunion à venir." />
+          <MeetingList loading={loading} meetings={upcoming} participants={participants} taskCounts={taskCounts} empty="Aucune réunion à venir." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} />
         </TabsContent>
         <TabsContent value="past" className="mt-4">
-          <MeetingList loading={loading} meetings={past} participants={participants} taskCounts={taskCounts} empty="Aucune réunion passée." />
+          <MeetingList loading={loading} meetings={past} participants={participants} taskCounts={taskCounts} empty="Aucune réunion passée." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} />
         </TabsContent>
         <TabsContent value="invitations" className="mt-4">
-          <MeetingList loading={loading} meetings={invitations} participants={participants} taskCounts={taskCounts} empty="Aucune invitation en attente." />
+          <MeetingList loading={loading} meetings={invitations} participants={participants} taskCounts={taskCounts} empty="Aucune invitation en attente." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} showRsvp />
         </TabsContent>
       </Tabs>
+
+      <MeetingDialog open={dialogOpen} onOpenChange={setDialogOpen} meetingId={editId} onSaved={load} />
     </div>
   );
 }
