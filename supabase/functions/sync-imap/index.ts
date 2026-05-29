@@ -276,7 +276,8 @@ function indicesOf(haystack: Uint8Array, needle: Uint8Array): number[] {
   return out;
 }
 
-type ParsedPart = { textPlain: string; textHtml: string; attachments: number };
+type AttachmentFile = { filename: string; mimeType: string; data: Uint8Array };
+type ParsedPart = { textPlain: string; textHtml: string; attachments: number; files: AttachmentFile[] };
 
 function decodePartBody(body: Uint8Array, encoding: string, charset: string): string {
   const enc = (encoding || "7bit").toLowerCase();
@@ -290,6 +291,22 @@ function decodePartBody(body: Uint8Array, encoding: string, charset: string): st
   }
   try { return new TextDecoder(charset || "utf-8", { fatal: false }).decode(bytes); }
   catch { return new TextDecoder("utf-8", { fatal: false }).decode(bytes); }
+}
+
+function decodePartBytes(body: Uint8Array, encoding: string): Uint8Array {
+  const enc = (encoding || "7bit").toLowerCase();
+  if (enc === "base64") return decodeBase64(new TextDecoder("ascii").decode(body));
+  if (enc === "quoted-printable") return decodeQuotedPrintable(new TextDecoder("ascii", { fatal: false }).decode(body));
+  return body;
+}
+
+function extractFilename(headers: MimeHeaders, ctParams: Record<string, string>): string | null {
+  const disp = headers["content-disposition"] || "";
+  const m = disp.match(/filename\*?=(?:UTF-8'')?["']?([^"';\r\n]+)["']?/i);
+  if (m) { try { return decodeURIComponent(decodeMimeWord(m[1])); } catch { return decodeMimeWord(m[1]); } }
+  if (ctParams["name"]) return decodeMimeWord(ctParams["name"]);
+  if (ctParams["filename"]) return decodeMimeWord(ctParams["filename"]);
+  return null;
 }
 
 function walkMime(raw: Uint8Array, out: ParsedPart) {
@@ -306,11 +323,9 @@ function walkMime(raw: Uint8Array, out: ParsedPart) {
     const positions = indicesOf(body, delim);
     for (let i = 0; i < positions.length - 1; i++) {
       let start = positions[i] + delim.length;
-      // skip CRLF after boundary
       if (body[start] === 0x0d && body[start + 1] === 0x0a) start += 2;
       else if (body[start] === 0x0a) start += 1;
       let end = positions[i + 1];
-      // trim trailing CRLF before next boundary
       if (end >= 2 && body[end - 2] === 0x0d && body[end - 1] === 0x0a) end -= 2;
       else if (end >= 1 && body[end - 1] === 0x0a) end -= 1;
       if (end > start) walkMime(body.subarray(start, end), out);
@@ -318,14 +333,92 @@ function walkMime(raw: Uint8Array, out: ParsedPart) {
     return;
   }
 
-  // Leaf part
-  const isAttachment = disp.includes("attachment") || !!ct.params["name"] || !!(headers["content-disposition"] || "").match(/filename=/i);
-  if (isAttachment) { out.attachments++; return; }
+  const filename = extractFilename(headers, ct.params);
+  const isAttachment = disp.includes("attachment") || !!filename;
+  if (isAttachment) {
+    out.attachments++;
+    const data = decodePartBytes(body, enc);
+    if (data.length > 0 && data.length <= 10 * 1024 * 1024) {
+      out.files.push({
+        filename: filename || `attachment-${out.attachments}`,
+        mimeType: ct.type || "application/octet-stream",
+        data,
+      });
+    }
+    return;
+  }
 
   if (ct.type === "text/plain" && !out.textPlain) {
     out.textPlain = decodePartBody(body, enc, ct.params["charset"] || "utf-8");
   } else if (ct.type === "text/html" && !out.textHtml) {
     out.textHtml = decodePartBody(body, enc, ct.params["charset"] || "utf-8");
+  }
+}
+
+async function sha256Hex(data: Uint8Array): Promise<string> {
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function safeFilename(name: string): string {
+  return name.replace(/[^\w.\-]+/g, "_").slice(0, 120);
+}
+
+async function persistAttachment(
+  admin: any,
+  userId: string,
+  accountId: string,
+  emailId: string,
+  emailSensitive: boolean,
+  file: AttachmentFile,
+): Promise<void> {
+  try {
+    // Pièces jointes d'emails sensibles : on n'envoie rien dans Storage (RGPD / HDS).
+    if (emailSensitive) {
+      console.log(`[sync-imap] skip attachment (sensitive email) ${file.filename}`);
+      return;
+    }
+    const checksum = await sha256Hex(file.data);
+    const { data: existing } = await admin
+      .from("documents")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("checksum", checksum)
+      .maybeSingle();
+    if (existing) return;
+
+    const docId = crypto.randomUUID();
+    const safe = safeFilename(file.filename);
+    const path = `${userId}/email/${docId}-${safe}`;
+
+    const { error: upErr } = await admin.storage.from("documents").upload(path, file.data, {
+      contentType: file.mimeType,
+      upsert: false,
+    });
+    if (upErr) { console.error(`[sync-imap] storage upload failed`, upErr); return; }
+
+    const { error: insErr } = await admin.from("documents").insert({
+      id: docId,
+      user_id: userId,
+      account_id: accountId,
+      source_type: "email",
+      source_id: emailId,
+      filename: safe,
+      original_filename: file.filename,
+      mime_type: file.mimeType,
+      file_size: file.data.length,
+      storage_path: path,
+      checksum,
+      tags: ["email"],
+      is_sensitive: false,
+      local_only: false,
+    });
+    if (insErr) {
+      console.error(`[sync-imap] document insert failed`, insErr);
+      await admin.storage.from("documents").remove([path]).catch(() => {});
+    }
+  } catch (e) {
+    console.error(`[sync-imap] persistAttachment error`, e);
   }
 }
 
@@ -397,11 +490,11 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
     const toFetch = !account.last_sync_at ? uids.slice(-200) : uids;
 
     let count = 0;
-    // Cap each message at 500KB to keep memory under control
-    for (let i = 0; i < toFetch.length; i += 15) {
-      const batch = toFetch.slice(i, i + 15);
+    // Cap each message at 10MB to capture attachments while keeping memory bounded.
+    for (let i = 0; i < toFetch.length; i += 5) {
+      const batch = toFetch.slice(i, i + 5);
       const fetchRes = await imap.cmd(
-        `UID FETCH ${batch.join(",")} (UID FLAGS BODY.PEEK[]<0.524288>)`
+        `UID FETCH ${batch.join(",")} (UID FLAGS BODY.PEEK[]<0.10485760>)`
       );
       if (!fetchRes.ok) {
         console.error(`[sync-imap] FETCH batch failed: ${fetchRes.statusLine}`);
@@ -411,7 +504,7 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
       for (const msg of messages) {
         try {
           const { headers } = splitRawMime(msg.raw);
-          const parsed: ParsedPart = { textPlain: "", textHtml: "", attachments: 0 };
+          const parsed: ParsedPart = { textPlain: "", textHtml: "", attachments: 0, files: [] };
           walkMime(msg.raw, parsed);
 
           const from = parseAddress(headers["from"] || "");
@@ -427,7 +520,7 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
             body_text: bodyText,
           }, secLevel, whitelist, blacklist);
 
-          const { error: upErr } = await admin.from("emails").upsert({
+          const { data: upserted, error: upErr } = await admin.from("emails").upsert({
             account_id: account.id,
             user_id: account.user_id,
             message_id: messageId,
@@ -446,15 +539,25 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
             is_sensitive: sens.isSensitive,
             sensitive_reason: sens.isSensitive ? sens.reasons.join(" · ") : null,
             sensitive_score: sens.isSensitive ? sens.score : null,
-          }, { onConflict: "account_id,message_id", ignoreDuplicates: false });
+          }, { onConflict: "account_id,message_id", ignoreDuplicates: false })
+            .select("id")
+            .maybeSingle();
 
-          if (upErr) console.error(`[sync-imap] upsert error`, upErr);
-          else count++;
+          if (upErr) { console.error(`[sync-imap] upsert error`, upErr); continue; }
+          count++;
+
+          // Persist attachments → bucket "documents" + table documents
+          if (upserted?.id && parsed.files.length > 0) {
+            for (const file of parsed.files) {
+              await persistAttachment(admin, account.user_id, account.id, upserted.id, sens.isSensitive, file);
+            }
+          }
         } catch (e) {
           console.error(`[sync-imap] msg parse failed`, e);
         }
       }
     }
+
 
     await imap.cmd("LOGOUT").catch(() => {});
     imap.close();
