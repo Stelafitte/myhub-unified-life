@@ -105,12 +105,17 @@ Deno.serve(async (req: Request) => {
     let body: { account_id?: string; test?: boolean } = {};
     try { body = await req.json(); } catch { /* empty */ }
 
-    // Quick connection test — fetch the mailbox profile
+    // Quick connection test — use a Mail endpoint (the /me profile endpoint requires User.Read which isn't granted)
     if (body.test) {
-      const r = await fetch(`${GATEWAY}/me?$select=mail,userPrincipalName,displayName`, { headers: gh() });
+      const r = await fetch(`${GATEWAY}/me/messages?$top=1&$select=id,from,toRecipients`, { headers: gh() });
       const data = await r.json().catch(() => ({}));
-      const emailAddress = data?.mail || data?.userPrincipalName || null;
-      return new Response(JSON.stringify({ ok: r.ok, status: r.status, profile: { emailAddress, displayName: data?.displayName } }), {
+      // Extract email from @odata.context: users('foo%40bar.com')/messages...
+      let emailAddress: string | null = null;
+      const ctx: string = data?.["@odata.context"] ?? "";
+      const m = ctx.match(/users\(['"]([^'"]+)['"]\)/);
+      if (m) emailAddress = decodeURIComponent(m[1]);
+      if (!emailAddress) emailAddress = data?.value?.[0]?.toRecipients?.[0]?.emailAddress?.address ?? null;
+      return new Response(JSON.stringify({ ok: r.ok, status: r.status, profile: { emailAddress } }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
