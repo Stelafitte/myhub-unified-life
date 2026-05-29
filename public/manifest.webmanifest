@@ -1,0 +1,14 @@
+{
+  "name": "MyHub Pro",
+  "short_name": "MyHub",
+  "description": "Hub unifié emails, tâches, agenda et contacts",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon" }
+  ]
+}
