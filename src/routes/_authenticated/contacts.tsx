@@ -436,7 +436,7 @@ function ContactsPage() {
           b={mergeOpen.b}
           onClose={() => setMergeOpen(null)}
           onMerged={async (merged, removedId) => {
-            const { error: e1 } = await supabase.from("contacts").update(merged).eq("id", merged.id);
+            const { error: e1 } = await supabase.from("contacts").update(merged as never).eq("id", merged.id);
             if (e1) return toast.error(e1.message);
             const { error: e2 } = await supabase.from("contacts").delete().eq("id", removedId);
             if (e2) return toast.error(e2.message);
