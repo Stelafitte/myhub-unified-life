@@ -32,7 +32,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
 
+    const cleanOAuthUrl = () => {
+      window.history.replaceState({}, document.title, window.location.pathname || "/");
+    };
+
+    const restoreOAuthCallbackSession = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const searchParams = new URLSearchParams(window.location.search);
+      const accessToken = hashParams.get("access_token") ?? searchParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token") ?? searchParams.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (!error) cleanOAuthUrl();
+        return;
+      }
+
+      const code = searchParams.get("code");
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) cleanOAuthUrl();
+      }
+    };
+
     const syncSession = async () => {
+      await restoreOAuthCallbackSession();
       const { data } = await supabase.auth.getSession();
       if (!active) return;
       setSession(data.session);
