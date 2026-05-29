@@ -91,10 +91,25 @@ export function AccountsSection() {
   };
 
   const testConnection = async (acc: Account) => {
-    toast.loading("Test en cours…", { id: `test-${acc.id}` });
-    await new Promise((r) => setTimeout(r, 1200));
-    toast.success(`Connexion OK pour ${acc.name}`, { id: `test-${acc.id}` });
-    await supabase.from("accounts").update({ last_sync_at: new Date().toISOString() }).eq("id", acc.id);
+    const tid = `test-${acc.id}`;
+    toast.loading("Synchronisation…", { id: tid });
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const fn = acc.type === "gmail" ? "sync-gmail" : "sync-imap";
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ account_id: acc.id }),
+      });
+      const data = await res.json().catch(() => ({ ok: false }));
+      if (data.ok) toast.success(`${acc.name} — ${data.synced ?? 0} mails`, { id: tid });
+      else toast.error(`${acc.name} — ${data.error ?? "échec"}`, { id: tid });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec sync", { id: tid });
+    }
     load();
   };
 
