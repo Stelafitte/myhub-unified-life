@@ -252,6 +252,9 @@ function InboxPage() {
               <span className="text-[11px] text-muted-foreground">{counts.byAccount.get(a.id) ?? 0}</span>
             </button>
           ))}
+          {!accounts.some((a) => a.name === "CHU" || a.type === "imap") && (
+            <QuickAddOvh onAdded={() => setReloadKey((k) => k + 1)} />
+          )}
         </nav>
 
         {usingCache && (
