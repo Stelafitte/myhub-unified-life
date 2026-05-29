@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Inbox, CheckSquare, Calendar, Users, Map, Settings, Lock, CalendarClock, FolderOpen, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Inbox, CheckSquare, Calendar, Users, Map, Settings, Lock, CalendarClock, FolderOpen, BarChart3, Shield } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -11,8 +11,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useIsAdmin } from "@/lib/use-role";
 
-const items = [
+const baseItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "Inbox", url: "/inbox", icon: Inbox },
   { title: "Coffre sécurisé", url: "/secure-box", icon: Lock },
@@ -23,11 +24,17 @@ const items = [
   { title: "Contacts", url: "/contacts", icon: Users },
   { title: "Retroplanning", url: "/retroplanning", icon: Map },
   { title: "Stats", url: "/stats", icon: BarChart3 },
-  { title: "Paramètres", url: "/settings", icon: Settings },
-];
+] as const;
 
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
+  const { isAdmin } = useIsAdmin();
+  const items = [
+    ...baseItems,
+    ...(isAdmin ? [{ title: "Administration", url: "/admin", icon: Shield } as const] : []),
+    { title: "Paramètres", url: "/settings", icon: Settings } as const,
+  ];
+
 
   return (
     <Sidebar collapsible="icon">

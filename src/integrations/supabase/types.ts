@@ -95,6 +95,39 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          ip: string | null
+          metadata: Json | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          ip?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          ip?: string | null
+          metadata?: Json | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       calendar_events: {
         Row: {
           account_id: string | null
@@ -408,6 +441,39 @@ export type Database = {
           },
         ]
       }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: Database["public"]["Enums"]["app_role"]
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          role?: Database["public"]["Enums"]["app_role"]
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          token?: string
+        }
+        Relationships: []
+      }
       meeting_participants: {
         Row: {
           contact_id: string | null
@@ -564,27 +630,51 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          email: string | null
+          first_name: string | null
           hds_notice_accepted_at: string | null
           id: string
+          is_suspended: boolean
+          last_name: string | null
+          onboarding_completed_at: string | null
+          quota_emails: number
+          quota_storage_mb: number
           theme: string
+          totp_enabled: boolean
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
+          first_name?: string | null
           hds_notice_accepted_at?: string | null
           id: string
+          is_suspended?: boolean
+          last_name?: string | null
+          onboarding_completed_at?: string | null
+          quota_emails?: number
+          quota_storage_mb?: number
           theme?: string
+          totp_enabled?: boolean
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          email?: string | null
+          first_name?: string | null
           hds_notice_accepted_at?: string | null
           id?: string
+          is_suspended?: boolean
+          last_name?: string | null
+          onboarding_completed_at?: string | null
+          quota_emails?: number
+          quota_storage_mb?: number
           theme?: string
+          totp_enabled?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -765,15 +855,43 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       account_type: "gmail" | "outlook" | "imap" | "icloud"
+      app_role: "admin" | "user"
       calendar_source: "google" | "icloud" | "outlook"
       email_origin: "chu" | "univ" | "gmail" | "outlook" | "imap"
       sync_direction: "push" | "pull" | "bidirectional" | "disabled"
@@ -911,6 +1029,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ["gmail", "outlook", "imap", "icloud"],
+      app_role: ["admin", "user"],
       calendar_source: ["google", "icloud", "outlook"],
       email_origin: ["chu", "univ", "gmail", "outlook", "imap"],
       sync_direction: ["push", "pull", "bidirectional", "disabled"],
