@@ -20,6 +20,8 @@ import {
   ChevronDown,
   Sparkles,
   Check,
+  Lock,
+  ShieldAlert,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
@@ -408,9 +410,17 @@ function InboxPage() {
                       </div>
                     )}
                     <div className="mt-1 flex items-center gap-2 text-muted-foreground">
+                      {e.is_sensitive && (
+                        <span
+                          className="flex items-center gap-0.5 rounded bg-red-500/15 px-1 text-[10px] font-medium text-red-600 dark:text-red-400"
+                          title={e.sensitive_reason ?? "Données de santé détectées"}
+                        >
+                          <Lock className="h-2.5 w-2.5" /> Sensible
+                        </span>
+                      )}
                       {e.is_starred && <Star className="h-3 w-3 fill-amber-400 text-amber-400" />}
                       {e.has_attachment && <Paperclip className="h-3 w-3" />}
-                      {e.ai_category && (
+                      {e.ai_category && !e.is_sensitive && (
                         <span className="flex items-center gap-0.5 rounded bg-primary/10 px-1 text-[10px] text-primary">
                           {categoryLabel(e.ai_category)}
                         </span>
@@ -571,21 +581,37 @@ function Reader({
         </div>
       </header>
 
-      <AiClassificationFeedback
-        emailId={email.id}
-        priority={email.ai_priority}
-        category={email.ai_category}
-        onUpdated={() => { /* cache will refresh on next sync */ }}
-      />
-
-      <AiSuggestionsPanel
-        emailId={email.id}
-        fromAddress={email.from_address}
-        subject={email.subject}
-        userId={userId}
-        onCreateTask={() => onCreateTask()}
-        onArchive={onArchive}
-      />
+      {email.is_sensitive ? (
+        <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-3">
+          <div className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <div className="font-semibold">Email marqué sensible (HDS)</div>
+              <div className="mt-0.5 opacity-90">
+                Données de santé potentielles détectées : {email.sensitive_reason ?? "motif inconnu"}.
+                Aucune analyse IA n'est effectuée sur ce message.
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <AiClassificationFeedback
+            emailId={email.id}
+            priority={email.ai_priority}
+            category={email.ai_category}
+            onUpdated={() => { /* cache will refresh on next sync */ }}
+          />
+          <AiSuggestionsPanel
+            emailId={email.id}
+            fromAddress={email.from_address}
+            subject={email.subject}
+            userId={userId}
+            onCreateTask={() => onCreateTask()}
+            onArchive={onArchive}
+          />
+        </>
+      )}
 
 
 
