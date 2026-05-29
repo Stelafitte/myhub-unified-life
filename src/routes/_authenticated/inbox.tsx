@@ -455,6 +455,7 @@ function InboxPage() {
           <Reader
             email={selected}
             account={accountById.get(selected.account_id)}
+            userId={user?.id ?? ""}
             onStar={() => toggleStar(selected)}
             onArchive={() => archive(selected)}
             onDelete={() => remove(selected)}
