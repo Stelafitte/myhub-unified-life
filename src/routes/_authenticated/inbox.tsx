@@ -338,6 +338,9 @@ function InboxPage() {
                   <IconBtn label="Créer une tâche" onClick={(ev) => { ev.stopPropagation(); setSelectedId(e.id); setTaskOpen(true); }}>
                     <Plus className="h-3.5 w-3.5" />
                   </IconBtn>
+                  <IconBtn label="Reporter en tâche à traiter" onClick={(ev) => { ev.stopPropagation(); postponeAsTask(e); }}>
+                    <Clock className="h-3.5 w-3.5" />
+                  </IconBtn>
                 </div>
               </li>
             );
