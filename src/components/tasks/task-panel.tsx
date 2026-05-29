@@ -54,6 +54,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [comments, setComments] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("medium");
   const [status, setStatus] = useState<TaskStatus>("todo");
   const [section, setSection] = useState<string>("Autre");
@@ -75,6 +76,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
     if (task) {
       setTitle(task.title);
       setDescription(task.description ?? "");
+      setComments((task as Task & { comments?: string | null }).comments ?? "");
       setPriority(task.priority);
       setStatus(task.status);
       setSection(getSection(task));
@@ -90,6 +92,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
     } else {
       setTitle("");
       setDescription("");
+      setComments("");
       setPriority("medium");
       setStatus(defaultStatus ?? "todo");
       setSection("Autre");
@@ -148,6 +151,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
       user_id: user.id,
       title: title.trim(),
       description: description || null,
+      comments: comments || null,
       priority,
       status,
       due_date: due ? new Date(due).toISOString() : null,
@@ -219,6 +223,36 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
             <Label htmlFor="t-desc">Description</Label>
             <Textarea id="t-desc" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
+
+          <div>
+            <Label htmlFor="t-comments">Commentaires</Label>
+            <Textarea
+              id="t-comments"
+              rows={3}
+              placeholder="Notes libres, contexte, points d'attention…"
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+            />
+          </div>
+
+          {task && Array.isArray((task as Task & { attachments?: unknown[] }).attachments) && ((task as Task & { attachments?: unknown[] }).attachments?.length ?? 0) > 0 && (
+            <div>
+              <Label className="mb-1.5 block">Pièces jointes ({(task as Task & { attachments?: unknown[] }).attachments!.length})</Label>
+              <ul className="space-y-1 rounded-md border bg-muted/30 p-2 text-xs">
+                {((task as Task & { attachments?: Array<{ name?: string; url?: string | null }> }).attachments ?? []).map((a, i) => (
+                  <li key={i} className="flex items-center gap-1.5">
+                    📎 {a.url ? <a href={a.url} target="_blank" rel="noreferrer" className="underline">{a.name ?? `Fichier ${i + 1}`}</a> : <span>{a.name ?? `Fichier ${i + 1}`}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {task && (task as Task & { calendar_event_id?: string | null }).calendar_event_id && (
+            <div className="rounded-md border bg-muted/30 p-2 text-xs">
+              📅 Lié à un événement de l'agenda
+            </div>
+          )}
 
           <div>
             <Label className="mb-1.5 block">Priorité</Label>

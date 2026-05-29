@@ -1,5 +1,7 @@
 import type { Database } from "@/integrations/supabase/types";
 
+export type TaskAttachment = { name: string; size?: number | null; mime?: string | null; url?: string | null };
+
 export type Task = Database["public"]["Tables"]["tasks"]["Row"] & {
   _pending?: boolean;
 };
