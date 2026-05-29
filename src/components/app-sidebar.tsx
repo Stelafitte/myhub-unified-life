@@ -17,7 +17,7 @@ const items = [
   { title: "Tâches", url: "/tasks", icon: CheckSquare },
   { title: "Agenda", url: "/calendar", icon: Calendar },
   { title: "Contacts", url: "/contacts", icon: Users },
-  { title: "Retroplanning", url: "/roadmap", icon: Map },
+  { title: "Retroplanning", url: "/retroplanning", icon: Map },
   { title: "Paramètres", url: "/settings", icon: Settings },
 ];
 
