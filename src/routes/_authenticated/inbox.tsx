@@ -16,29 +16,14 @@ import {
   Zap,
   Tag,
   Circle,
+  Clock,
 } from "lucide-react";
+import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input as DateInput } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
@@ -187,6 +172,14 @@ function InboxPage() {
     else toast.success("Email supprimé");
   };
 
+  const postponeAsTask = async (e: Email) => {
+    const labels = Array.from(new Set([...(e.labels ?? []), "task-todo"]));
+    setEmails((prev) => prev.map((x) => (x.id === e.id ? { ...x, labels } : x)));
+    const { error } = await supabase.from("emails").update({ labels }).eq("id", e.id);
+    if (error) toast.error(error.message);
+    else toast.success("Ajouté aux demandes de tâches à traiter");
+  };
+
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     if (!e.is_read) patch(e.id, { is_read: true });
@@ -328,6 +321,9 @@ function InboxPage() {
                   <IconBtn label="Créer une tâche" onClick={(ev) => { ev.stopPropagation(); setSelectedId(e.id); setTaskOpen(true); }}>
                     <Plus className="h-3.5 w-3.5" />
                   </IconBtn>
+                  <IconBtn label="Reporter en tâche à traiter" onClick={(ev) => { ev.stopPropagation(); postponeAsTask(e); }}>
+                    <Clock className="h-3.5 w-3.5" />
+                  </IconBtn>
                 </div>
               </li>
             );
@@ -349,12 +345,13 @@ function InboxPage() {
             onArchive={() => archive(selected)}
             onDelete={() => remove(selected)}
             onCreateTask={() => setTaskOpen(true)}
+            onPostpone={() => postponeAsTask(selected)}
           />
         )}
       </aside>
 
       {selected && (
-        <CreateTaskDialog
+        <CreateTaskFromEmailDialog
           open={taskOpen}
           onOpenChange={setTaskOpen}
           email={selected}
@@ -400,6 +397,7 @@ function Reader({
   onArchive,
   onDelete,
   onCreateTask,
+  onPostpone,
 }: {
   email: Email;
   account?: Account;
@@ -407,7 +405,9 @@ function Reader({
   onArchive: () => void;
   onDelete: () => void;
   onCreateTask: () => void;
+  onPostpone: () => void;
 }) {
+  const isPostponed = (email.labels ?? []).includes("task-todo");
   return (
     <div className="flex h-full flex-col">
       <header className="border-b p-4">
@@ -434,10 +434,24 @@ function Reader({
           <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}><Archive className="h-3 w-3" /> Archiver</Button>
           <Button size="sm" variant="outline" className="h-7 gap-1 text-destructive" onClick={onDelete}><Trash2 className="h-3 w-3" /> Suppr.</Button>
         </div>
-        <Button size="sm" className="mt-2 w-full gap-1" onClick={onCreateTask}>
-          <Plus className="h-3.5 w-3.5" /> Créer une tâche depuis ce mail
-        </Button>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Button size="sm" className="gap-1" onClick={onCreateTask}>
+            <Plus className="h-3.5 w-3.5" /> Créer une tâche
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={onPostpone}
+            disabled={isPostponed}
+          >
+            <Clock className="h-3.5 w-3.5" />
+            {isPostponed ? "Déjà reportée" : "Reporter (à traiter)"}
+          </Button>
+        </div>
       </header>
+
+
 
       {email.has_attachment && (
         <div className="border-b bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
@@ -460,227 +474,4 @@ function Reader({
   );
 }
 
-function CreateTaskDialog({
-  open,
-  onOpenChange,
-  email,
-  userId,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  email: Email;
-  userId: string;
-}) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [comments, setComments] = useState("");
-  const [priority, setPriority] = useState<"low" | "medium" | "high" | "urgent">("medium");
-  const [dueDate, setDueDate] = useState("");
-  const [createEvent, setCreateEvent] = useState(false);
-  const [eventStart, setEventStart] = useState("");
-  const [eventEnd, setEventEnd] = useState("");
-  const [eventTitle, setEventTitle] = useState("");
-  const [analyzing, setAnalyzing] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setTitle(email.subject ?? "");
-      const extract = (email.body_text ?? "").replace(/\s+/g, " ").slice(0, 280);
-      const from = email.from_name || email.from_address || "";
-      setDescription(`Depuis : ${from}\n\n${extract}${extract.length === 280 ? "…" : ""}`);
-      setComments("");
-      setPriority("medium");
-      setDueDate("");
-      setCreateEvent(false);
-      setEventStart("");
-      setEventEnd("");
-      setEventTitle("");
-    }
-  }, [open, email]);
-
-  const runAi = async () => {
-    setAnalyzing(true);
-    try {
-      const { analyzeEmailForTask } = await import("@/lib/api/email-analysis.functions");
-      const res = await analyzeEmailForTask({
-        data: {
-          subject: email.subject,
-          from: email.from_name || email.from_address,
-          body: email.body_text ?? email.body_html ?? "",
-          receivedAt: email.received_at,
-        },
-      });
-      setTitle(res.title);
-      setDescription(res.summary);
-      setComments(res.comments);
-      setPriority(res.priority);
-      if (res.due_date) setDueDate(res.due_date.slice(0, 10));
-      if (res.has_event && res.event_start) {
-        setCreateEvent(true);
-        setEventStart(res.event_start.slice(0, 16));
-        setEventEnd((res.event_end ?? res.event_start).slice(0, 16));
-        setEventTitle(res.event_title ?? res.title);
-      }
-      toast.success("Analyse IA terminée");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur IA");
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  const submit = async () => {
-    if (!title.trim()) {
-      toast.error("Titre requis");
-      return;
-    }
-    setSaving(true);
-    try {
-      let calendarEventId: string | null = null;
-      if (createEvent && eventStart) {
-        const { data: ev, error: evErr } = await supabase.from("calendar_events").insert({
-          user_id: userId,
-          title: eventTitle || title.trim(),
-          description: `Créé depuis l'email : ${email.subject ?? ""}`,
-          start_at: new Date(eventStart).toISOString(),
-          end_at: new Date(eventEnd || eventStart).toISOString(),
-          color: "#6366f1",
-        }).select("id").single();
-        if (evErr) throw evErr;
-        calendarEventId = ev.id;
-      }
-
-      const dueIso = dueDate ? new Date(dueDate).toISOString() : null;
-      const attachments = email.has_attachment
-        ? [{ name: `Pièces jointes de "${email.subject ?? "email"}"`, mime: null, size: null, url: null }]
-        : [];
-
-      const { error } = await supabase.from("tasks").insert({
-        user_id: userId,
-        title: title.trim(),
-        description,
-        comments: comments || null,
-        priority,
-        due_date: dueIso,
-        gantt_start: dueIso,
-        gantt_end: dueIso,
-        source_app: "myhubpro",
-        source_email_id: email.id,
-        calendar_event_id: calendarEventId,
-        attachments,
-        status: "todo",
-      });
-      if (error) throw error;
-      toast.success(calendarEventId ? "Tâche + événement créés" : "Tâche créée");
-      onOpenChange(false);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Créer une tâche depuis ce mail</DialogTitle>
-        </DialogHeader>
-        <Button
-          type="button"
-          onClick={runAi}
-          disabled={analyzing}
-          className="w-full gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white hover:from-violet-700 hover:to-fuchsia-700"
-        >
-          <Zap className="h-4 w-4" />
-          {analyzing ? "Analyse en cours…" : "✨ Pré-remplir avec l'IA"}
-        </Button>
-        <div className="space-y-3">
-          <div>
-            <Label htmlFor="t-title">Titre</Label>
-            <Input id="t-title" value={title} onChange={(e) => setTitle(e.target.value)} />
-          </div>
-          <div>
-            <Label htmlFor="t-desc">Description</Label>
-            <Textarea id="t-desc" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-          <div>
-            <Label htmlFor="t-comments">Commentaires (texte libre)</Label>
-            <Textarea
-              id="t-comments"
-              rows={3}
-              placeholder="Notes, contexte, points d'attention…"
-              value={comments}
-              onChange={(e) => setComments(e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Priorité</Label>
-              <Select value={priority} onValueChange={(v) => setPriority(v as typeof priority)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">🟢 Basse</SelectItem>
-                  <SelectItem value="medium">🟡 Moyenne</SelectItem>
-                  <SelectItem value="high">🟠 Haute</SelectItem>
-                  <SelectItem value="urgent">🔴 Urgente</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="t-due">Échéance</Label>
-              <DateInput id="t-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="rounded-md border bg-muted/30 p-3">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={createEvent}
-                onChange={(e) => setCreateEvent(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <span>📅 Créer aussi un événement dans l'agenda</span>
-            </label>
-            {createEvent && (
-              <div className="mt-2 space-y-2">
-                <Input
-                  placeholder="Titre de l'événement"
-                  value={eventTitle}
-                  onChange={(e) => setEventTitle(e.target.value)}
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs">Début</Label>
-                    <Input type="datetime-local" value={eventStart} onChange={(e) => setEventStart(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Fin</Label>
-                    <Input type="datetime-local" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-1 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
-            <div>🔗 Lien vers l'email source conservé (id : {email.id.slice(0, 8)}…)</div>
-            {email.has_attachment && (
-              <div className="flex items-center gap-1">
-                <Paperclip className="h-3 w-3" /> Pièce(s) jointe(s) du mail rattachée(s) à la tâche
-              </div>
-            )}
-            {dueDate && <div>📊 La tâche apparaîtra dans le rétroplanning (Gantt)</div>}
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
-          <Button onClick={submit} disabled={saving}>{saving ? "Création…" : "Créer la tâche"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
