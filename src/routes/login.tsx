@@ -117,8 +117,10 @@ function LoginPage() {
     let completedFromMessage = false;
     const onOAuthMessage = (event: MessageEvent) => {
       if (!trustedOAuthMessageOrigins().has(event.origin)) return;
-      const response = (event.data as { type?: string; response?: Record<string, unknown> } | null)?.response;
-      if ((event.data as { type?: string } | null)?.type !== "authorization_response" || !response) return;
+      const response = (event.data as { type?: string; response?: Record<string, unknown> } | null)
+        ?.response;
+      if ((event.data as { type?: string } | null)?.type !== "authorization_response" || !response)
+        return;
 
       const accessToken = response.access_token;
       const refreshToken = response.refresh_token;
@@ -127,7 +129,9 @@ function LoginPage() {
       completedFromMessage = true;
       void completeOAuthSession({ access_token: accessToken, refresh_token: refreshToken })
         .then(() => navigate({ to: "/inbox", replace: true }))
-        .catch((error) => toast.error(error instanceof Error ? error.message : "Échec de connexion"))
+        .catch((error) =>
+          toast.error(error instanceof Error ? error.message : "Échec de connexion"),
+        )
         .finally(() => setBusy(false));
     };
 
