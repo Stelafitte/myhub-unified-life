@@ -375,6 +375,10 @@ function InboxPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
+                      <span
+                        className={cn("h-2 w-2 shrink-0 rounded-full", priorityDotClass(e.ai_priority))}
+                        title={e.ai_priority ? `Priorité IA : ${e.ai_priority}` : "Priorité non analysée"}
+                      />
                       <span className={cn("truncate text-sm", !e.is_read && "font-semibold")}>
                         {e.from_name || e.from_address || "Inconnu"}
                       </span>
@@ -390,12 +394,24 @@ function InboxPage() {
                     <div className={cn("truncate text-sm", !e.is_read ? "font-semibold" : "text-foreground/80")}>
                       {e.subject || "(sans objet)"}
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">
-                      {(e.body_text ?? "").replace(/\s+/g, " ").slice(0, 120)}
-                    </div>
+                    {e.ai_summary ? (
+                      <div className="mt-0.5 flex items-start gap-1 text-xs italic text-muted-foreground">
+                        <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" />
+                        <span className="line-clamp-2">{e.ai_summary}</span>
+                      </div>
+                    ) : (
+                      <div className="truncate text-xs text-muted-foreground">
+                        {(e.body_text ?? "").replace(/\s+/g, " ").slice(0, 120)}
+                      </div>
+                    )}
                     <div className="mt-1 flex items-center gap-2 text-muted-foreground">
                       {e.is_starred && <Star className="h-3 w-3 fill-amber-400 text-amber-400" />}
                       {e.has_attachment && <Paperclip className="h-3 w-3" />}
+                      {e.ai_category && (
+                        <span className="flex items-center gap-0.5 rounded bg-primary/10 px-1 text-[10px] text-primary">
+                          {categoryLabel(e.ai_category)}
+                        </span>
+                      )}
                       {(e.labels ?? []).slice(0, 2).map((l) => (
                         <span key={l} className="flex items-center gap-0.5 text-[10px]">
                           <Tag className="h-2.5 w-2.5" /> {l}
