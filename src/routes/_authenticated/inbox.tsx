@@ -17,6 +17,8 @@ import {
   Tag,
   Circle,
   Clock,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +26,13 @@ import { useAuth } from "@/lib/auth-context";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
@@ -252,8 +261,61 @@ function InboxPage() {
 
       {/* CENTER — list */}
       <section className="flex min-w-0 flex-1 flex-col border-r">
-        <div className="flex items-center justify-between border-b px-4 py-2 text-xs text-muted-foreground">
-          <span>{filtered.length} email{filtered.length > 1 ? "s" : ""}</span>
+        <div className="flex items-center justify-between border-b px-4 py-2">
+          <div className="flex items-center gap-3">
+            <Select
+              value={filter.startsWith("account:") ? filter : "all"}
+              onValueChange={(v) => setFilter(v as Filter)}
+            >
+              <SelectTrigger className="h-7 w-auto gap-1 border-0 bg-transparent px-1 text-xs font-medium text-foreground hover:bg-accent/50 focus:ring-0 [&>svg]:hidden">
+                <SelectValue placeholder="Tous les comptes" />
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value="all" className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                    Tous les comptes
+                    <span className="ml-auto text-[10px] text-muted-foreground">{counts.all}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="unread" className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <Circle className="h-3.5 w-3.5 fill-current text-muted-foreground" />
+                    Non lus
+                    <span className="ml-auto text-[10px] text-muted-foreground">{counts.unread}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="starred" className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <Star className="h-3.5 w-3.5 text-amber-400" />
+                    Suivis
+                    <span className="ml-auto text-[10px] text-muted-foreground">{counts.starred}</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="attachments" className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                    Pièces jointes
+                    <span className="ml-auto text-[10px] text-muted-foreground">{counts.attachments}</span>
+                  </div>
+                </SelectItem>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={`account:${a.id}`} className="text-xs">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-2.5 w-2.5 rounded-full"
+                        style={{ background: a.color ?? "#64748b" }}
+                      />
+                      {a.name}
+                      <span className="ml-auto text-[10px] text-muted-foreground">{counts.byAccount.get(a.id) ?? 0}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <span className="text-xs text-muted-foreground">{filtered.length} email{filtered.length > 1 ? "s" : ""}</span>
         </div>
         <ul className="flex-1 divide-y overflow-y-auto">
           {filtered.length === 0 && (
