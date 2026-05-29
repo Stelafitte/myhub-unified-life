@@ -61,7 +61,7 @@ export function AiSuggestionsPanel({
       title: data.event.title,
       start_at: data.event.start,
       end_at: data.event.end ?? data.event.start,
-      source: "myhubpro",
+      source: null,
     });
     if (err) toast.error(err.message);
     else toast.success("Événement ajouté à l'agenda");
