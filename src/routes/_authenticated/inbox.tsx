@@ -508,6 +508,7 @@ function IconBtn({ children, label, onClick }: { children: React.ReactNode; labe
 function Reader({
   email,
   account,
+  userId,
   onStar,
   onArchive,
   onDelete,
@@ -516,6 +517,7 @@ function Reader({
 }: {
   email: Email;
   account?: Account;
+  userId: string;
   onStar: () => void;
   onArchive: () => void;
   onDelete: () => void;
