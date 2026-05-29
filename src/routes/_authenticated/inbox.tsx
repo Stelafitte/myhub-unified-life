@@ -65,6 +65,7 @@ function InboxPage() {
   const [offline, setOffline] = useState(!navigator.onLine);
   const [usingCache, setUsingCache] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Online/offline awareness
   useEffect(() => {
