@@ -189,6 +189,14 @@ function InboxPage() {
     else toast.success("Email supprimé");
   };
 
+  const postponeAsTask = async (e: Email) => {
+    const labels = Array.from(new Set([...(e.labels ?? []), "task-todo"]));
+    setEmails((prev) => prev.map((x) => (x.id === e.id ? { ...x, labels } : x)));
+    const { error } = await supabase.from("emails").update({ labels }).eq("id", e.id);
+    if (error) toast.error(error.message);
+    else toast.success("Ajouté aux demandes de tâches à traiter");
+  };
+
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     if (!e.is_read) patch(e.id, { is_read: true });
