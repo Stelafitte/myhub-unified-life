@@ -490,11 +490,11 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
     const toFetch = !account.last_sync_at ? uids.slice(-200) : uids;
 
     let count = 0;
-    // Cap each message at 500KB to keep memory under control
-    for (let i = 0; i < toFetch.length; i += 15) {
-      const batch = toFetch.slice(i, i + 15);
+    // Cap each message at 10MB to capture attachments while keeping memory bounded.
+    for (let i = 0; i < toFetch.length; i += 5) {
+      const batch = toFetch.slice(i, i + 5);
       const fetchRes = await imap.cmd(
-        `UID FETCH ${batch.join(",")} (UID FLAGS BODY.PEEK[]<0.524288>)`
+        `UID FETCH ${batch.join(",")} (UID FLAGS BODY.PEEK[]<0.10485760>)`
       );
       if (!fetchRes.ok) {
         console.error(`[sync-imap] FETCH batch failed: ${fetchRes.statusLine}`);
@@ -504,7 +504,7 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
       for (const msg of messages) {
         try {
           const { headers } = splitRawMime(msg.raw);
-          const parsed: ParsedPart = { textPlain: "", textHtml: "", attachments: 0 };
+          const parsed: ParsedPart = { textPlain: "", textHtml: "", attachments: 0, files: [] };
           walkMime(msg.raw, parsed);
 
           const from = parseAddress(headers["from"] || "");
@@ -520,7 +520,7 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
             body_text: bodyText,
           }, secLevel, whitelist, blacklist);
 
-          const { error: upErr } = await admin.from("emails").upsert({
+          const { data: upserted, error: upErr } = await admin.from("emails").upsert({
             account_id: account.id,
             user_id: account.user_id,
             message_id: messageId,
@@ -539,15 +539,25 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
             is_sensitive: sens.isSensitive,
             sensitive_reason: sens.isSensitive ? sens.reasons.join(" · ") : null,
             sensitive_score: sens.isSensitive ? sens.score : null,
-          }, { onConflict: "account_id,message_id", ignoreDuplicates: false });
+          }, { onConflict: "account_id,message_id", ignoreDuplicates: false })
+            .select("id")
+            .maybeSingle();
 
-          if (upErr) console.error(`[sync-imap] upsert error`, upErr);
-          else count++;
+          if (upErr) { console.error(`[sync-imap] upsert error`, upErr); continue; }
+          count++;
+
+          // Persist attachments → bucket "documents" + table documents
+          if (upserted?.id && parsed.files.length > 0) {
+            for (const file of parsed.files) {
+              await persistAttachment(admin, account.user_id, account.id, upserted.id, sens.isSensitive, file);
+            }
+          }
         } catch (e) {
           console.error(`[sync-imap] msg parse failed`, e);
         }
       }
     }
+
 
     await imap.cmd("LOGOUT").catch(() => {});
     imap.close();
