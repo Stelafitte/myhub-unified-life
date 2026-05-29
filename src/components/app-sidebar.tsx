@@ -1,0 +1,58 @@
+import { Link, useRouterState } from "@tanstack/react-router";
+import { Inbox, CheckSquare, Calendar, Users, Map, Settings } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
+
+const items = [
+  { title: "Inbox", url: "/inbox", icon: Inbox },
+  { title: "Tâches", url: "/tasks", icon: CheckSquare },
+  { title: "Agenda", url: "/calendar", icon: Calendar },
+  { title: "Contacts", url: "/contacts", icon: Users },
+  { title: "Retroplanning", url: "/roadmap", icon: Map },
+  { title: "Paramètres", url: "/settings", icon: Settings },
+];
+
+export function AppSidebar() {
+  const pathname = useRouterState({ select: (r) => r.location.pathname });
+
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="border-b px-4 py-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">
+            M
+          </div>
+          <span className="font-semibold text-sm">MyHub Pro</span>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {items.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
+                    <Link to={item.url}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
+  );
+}
