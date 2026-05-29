@@ -51,7 +51,7 @@ type Contact = {
   notes: string | null;
   tags: string[] | null;
   sources: string[] | null;
-  external_ids: Record<string, unknown> | null;
+  external_ids: unknown;
   created_at: string;
   updated_at: string;
 };
