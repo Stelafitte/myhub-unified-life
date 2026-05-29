@@ -137,6 +137,32 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
 
   const sectionsAll = Array.from(new Set([...DEFAULT_SECTIONS, ...sections]));
 
+  const runAi = async () => {
+    const text = `${title}\n${description}\n${comments}`.trim();
+    if (!text) { toast.error("Remplis au moins le titre ou la description avant d'analyser."); return; }
+    setAnalyzing(true);
+    try {
+      const res = await analyzeTaskText({ data: { text } });
+      if (res.title) setTitle(res.title);
+      if (res.description) setDescription(res.description);
+      if (res.comments) setComments(res.comments);
+      if (res.priority) setPriority(res.priority);
+      if (res.due_date) setDue(res.due_date);
+      if (res.gantt_start) setStart(res.gantt_start);
+      if (res.tags && res.tags.length > 0) {
+        const existing = tagsText.split(",").map((t) => t.trim()).filter(Boolean);
+        const merged = Array.from(new Set([...existing, ...res.tags]));
+        setTagsText(merged.join(", "));
+      }
+      if (res.section && sectionsAll.includes(res.section)) setSection(res.section);
+      toast.success("Champs pré-remplis par l'IA");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur d'analyse IA");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   const submit = async () => {
     if (!title.trim()) { toast.error("Titre requis"); return; }
     if (!user) return;
