@@ -577,8 +577,18 @@ Deno.serve(async (req: Request) => {
 
   try {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    let body: { account_id?: string; force_full?: boolean } = {};
+    let body: { account_id?: string; force_full?: boolean; test_credentials?: { server: string; port: number; username: string; password: string } } = {};
     try { body = await req.json(); } catch { /* empty body OK for cron */ }
+
+    // Test de connexion rapide (sans compte enregistré)
+    if (body.test_credentials) {
+      const tc = body.test_credentials;
+      const r = await syncOne({ credentials: tc } as any, admin, tc);
+      return new Response(
+        JSON.stringify(r),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const authHeader = req.headers.get("Authorization");
     let userId: string | null = null;
