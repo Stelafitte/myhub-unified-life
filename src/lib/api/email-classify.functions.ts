@@ -105,6 +105,7 @@ export const classifyPendingEmails = createServerFn({ method: "POST" })
       .from("emails")
       .select("id,subject,from_address,from_name,body_text,received_at")
       .eq("user_id", userId)
+      .eq("is_sensitive", false)
       .is("ai_processed_at", null)
       .order("received_at", { ascending: false })
       .limit(8);
