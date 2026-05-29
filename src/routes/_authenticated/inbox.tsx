@@ -69,6 +69,7 @@ function InboxPage() {
   const [usingCache, setUsingCache] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const classifyFn = useServerFn(classifyPendingEmails);
 
   // Online/offline awareness
   useEffect(() => {
