@@ -40,6 +40,7 @@ export async function enqueue(op: Omit<QueuedOp, "id" | "created_at">): Promise<
   tx.objectStore(STORE).put(record);
   await new Promise<void>((r) => { tx.oncomplete = () => r(); });
   db.close();
+  window.dispatchEvent(new CustomEvent("sync-queue-changed"));
   return id;
 }
 
@@ -82,20 +83,58 @@ export async function flushQueue(onProgress?: () => void): Promise<{ ok: number;
         } else if (op.action === "delete" && op.entity_id) {
           await supabase.from("tasks").delete().eq("id", op.entity_id);
         }
+      } else if (op.entity_type === "email") {
+        // Email mutations: read/starred/archived flags
+        if (op.action === "update" && op.entity_id && op.payload) {
+          await supabase.from("emails").update(op.payload as never).eq("id", op.entity_id);
+        } else if (op.action === "delete" && op.entity_id) {
+          await supabase.from("emails").delete().eq("id", op.entity_id);
+        }
+      } else if (op.entity_type === "calendar_event") {
+        if (op.action === "create" && op.payload) {
+          await supabase.from("calendar_events").insert(op.payload as never);
+        } else if (op.action === "update" && op.entity_id && op.payload) {
+          await supabase.from("calendar_events").update(op.payload as never).eq("id", op.entity_id);
+        } else if (op.action === "delete" && op.entity_id) {
+          await supabase.from("calendar_events").delete().eq("id", op.entity_id);
+        }
+      } else if (op.entity_type === "contact") {
+        if (op.action === "create" && op.payload) {
+          await supabase.from("contacts").insert(op.payload as never);
+        } else if (op.action === "update" && op.entity_id && op.payload) {
+          await supabase.from("contacts").update(op.payload as never).eq("id", op.entity_id);
+        } else if (op.action === "delete" && op.entity_id) {
+          await supabase.from("contacts").delete().eq("id", op.entity_id);
+        }
       }
       await removeOp(op.id);
       ok++;
-    } catch {
+    } catch (err) {
+      console.warn("[sync-queue] flush failed for op", op.id, err);
       failed++;
     }
     onProgress?.();
   }
+  // Notify listeners of queue size change
+  window.dispatchEvent(new CustomEvent("sync-queue-changed"));
   return { ok, failed };
 }
 
 export function installOnlineFlusher(cb?: () => void) {
-  const handler = () => { flushQueue().then(() => cb?.()); };
+  const handler = async () => {
+    const res = await flushQueue();
+    cb?.();
+    if (res.ok > 0) {
+      const { toast } = await import("sonner");
+      toast.success(`${res.ok} action${res.ok > 1 ? "s" : ""} synchronisée${res.ok > 1 ? "s" : ""}`);
+    }
+  };
   window.addEventListener("online", handler);
   if (navigator.onLine) handler();
   return () => window.removeEventListener("online", handler);
+}
+
+/** Notify other tabs / hooks that the queue changed (after enqueue). */
+export function notifyQueueChanged() {
+  window.dispatchEvent(new CustomEvent("sync-queue-changed"));
 }
