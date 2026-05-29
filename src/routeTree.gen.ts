@@ -19,6 +19,7 @@ import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedRetroplanningRouteImport } from './routes/_authenticated/retroplanning'
 import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticated/meetings'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
+import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
@@ -73,6 +74,11 @@ const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
   path: '/inbox',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedDocumentsRoute = AuthenticatedDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/contacts': typeof AuthenticatedContactsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/documents': typeof AuthenticatedDocumentsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/retroplanning': typeof AuthenticatedRetroplanningRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AuthenticatedCalendarRoute
   '/contacts': typeof AuthenticatedContactsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/documents': typeof AuthenticatedDocumentsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/retroplanning': typeof AuthenticatedRetroplanningRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/contacts': typeof AuthenticatedContactsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/meetings': typeof AuthenticatedMeetingsRoute
   '/_authenticated/retroplanning': typeof AuthenticatedRetroplanningRoute
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/contacts'
     | '/dashboard'
+    | '/documents'
     | '/inbox'
     | '/meetings'
     | '/retroplanning'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/contacts'
     | '/dashboard'
+    | '/documents'
     | '/inbox'
     | '/meetings'
     | '/retroplanning'
@@ -170,6 +181,7 @@ export interface FileRouteTypes {
     | '/_authenticated/calendar'
     | '/_authenticated/contacts'
     | '/_authenticated/dashboard'
+    | '/_authenticated/documents'
     | '/_authenticated/inbox'
     | '/_authenticated/meetings'
     | '/_authenticated/retroplanning'
@@ -257,6 +269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInboxRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/documents': {
+      id: '/_authenticated/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof AuthenticatedDocumentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -285,6 +304,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
   AuthenticatedContactsRoute: typeof AuthenticatedContactsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRoute
   AuthenticatedRetroplanningRoute: typeof AuthenticatedRetroplanningRoute
@@ -298,6 +318,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
   AuthenticatedContactsRoute: AuthenticatedContactsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedMeetingsRoute: AuthenticatedMeetingsRoute,
   AuthenticatedRetroplanningRoute: AuthenticatedRetroplanningRoute,
@@ -319,13 +340,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

@@ -214,6 +214,105 @@ export type Database = {
         }
         Relationships: []
       }
+      document_retention_settings: {
+        Row: {
+          created_at: string
+          email_retention_days: number
+          manual_retention_days: number
+          max_file_size_mb: number
+          meeting_retention_days: number
+          task_retention_days: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_retention_days?: number
+          manual_retention_days?: number
+          max_file_size_mb?: number
+          meeting_retention_days?: number
+          task_retention_days?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_retention_days?: number
+          manual_retention_days?: number
+          max_file_size_mb?: number
+          meeting_retention_days?: number
+          task_retention_days?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          account_id: string | null
+          checksum: string | null
+          created_at: string
+          description: string | null
+          file_size: number
+          filename: string
+          id: string
+          is_sensitive: boolean
+          local_only: boolean
+          mime_type: string | null
+          original_filename: string
+          sensitive_reason: string | null
+          sensitive_score: number | null
+          source_id: string | null
+          source_type: string
+          storage_path: string | null
+          tags: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          checksum?: string | null
+          created_at?: string
+          description?: string | null
+          file_size?: number
+          filename: string
+          id?: string
+          is_sensitive?: boolean
+          local_only?: boolean
+          mime_type?: string | null
+          original_filename: string
+          sensitive_reason?: string | null
+          sensitive_score?: number | null
+          source_id?: string | null
+          source_type?: string
+          storage_path?: string | null
+          tags?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          checksum?: string | null
+          created_at?: string
+          description?: string | null
+          file_size?: number
+          filename?: string
+          id?: string
+          is_sensitive?: boolean
+          local_only?: boolean
+          mime_type?: string | null
+          original_filename?: string
+          sensitive_reason?: string | null
+          sensitive_score?: number | null
+          source_id?: string | null
+          source_type?: string
+          storage_path?: string | null
+          tags?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       emails: {
         Row: {
           account_id: string
