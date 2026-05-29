@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
 import { cacheEmails, loadCachedEmails, type CachedEmail } from "@/lib/inbox-cache";
+import { QuickAddOvh } from "@/components/inbox/quick-add-ovh";
 
 type Account = {
   id: string;
@@ -64,6 +65,7 @@ function InboxPage() {
   const [offline, setOffline] = useState(!navigator.onLine);
   const [usingCache, setUsingCache] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Online/offline awareness
   useEffect(() => {
@@ -113,7 +115,7 @@ function InboxPage() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, reloadKey]);
 
   const accountById = useMemo(() => {
     const m = new Map<string, Account>();
@@ -250,6 +252,9 @@ function InboxPage() {
               <span className="text-[11px] text-muted-foreground">{counts.byAccount.get(a.id) ?? 0}</span>
             </button>
           ))}
+          {!accounts.some((a) => a.name === "CHU" || a.type === "imap") && (
+            <QuickAddOvh onAdded={() => setReloadKey((k) => k + 1)} />
+          )}
         </nav>
 
         {usingCache && (
