@@ -29,6 +29,7 @@ function SettingsPage() {
           <TabsTrigger value="accounts">Comptes</TabsTrigger>
           <TabsTrigger value="sync">Synchronisation</TabsTrigger>
           <TabsTrigger value="preferences">Préférences</TabsTrigger>
+          <TabsTrigger value="documents">📁 Documents</TabsTrigger>
           <TabsTrigger value="security">🔒 Sécurité & Conformité</TabsTrigger>
         </TabsList>
         <TabsContent value="accounts">
@@ -39,6 +40,9 @@ function SettingsPage() {
         </TabsContent>
         <TabsContent value="preferences">
           <PreferencesSection />
+        </TabsContent>
+        <TabsContent value="documents">
+          <DocumentsSection />
         </TabsContent>
         <TabsContent value="security">
           <SecuritySection />
