@@ -241,7 +241,20 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
           <SheetTitle>{editing ? "Modifier la tâche" : "Nouvelle tâche"}</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-4 space-y-4">
+        <button
+          type="button"
+          onClick={runAi}
+          disabled={analyzing}
+          className={cn(
+            "mt-4 flex w-full items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-white transition-opacity",
+            analyzing ? "bg-muted text-muted-foreground cursor-not-allowed" : "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:opacity-90"
+          )}
+        >
+          <Sparkles className="h-4 w-4" />
+          {analyzing ? "Analyse en cours…" : "✨ Analyser avec l'IA"}
+        </button>
+
+        <div className="mt-3 space-y-4">
           <div>
             <Label htmlFor="t-title">Titre *</Label>
             <Input id="t-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Préparer la présentation" />
