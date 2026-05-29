@@ -151,6 +151,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
       user_id: user.id,
       title: title.trim(),
       description: description || null,
+      comments: comments || null,
       priority,
       status,
       due_date: due ? new Date(due).toISOString() : null,
