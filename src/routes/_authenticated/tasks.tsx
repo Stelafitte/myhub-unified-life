@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { CheckSquare, LayoutGrid, GanttChart, Wifi, WifiOff, RefreshCw } from "lucide-react";
+import { CheckSquare, LayoutGrid, GanttChart, Wifi, WifiOff, RefreshCw, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -145,19 +145,24 @@ function TasksPage() {
           </Button>
         )}
 
-        <div className="ml-auto inline-flex overflow-hidden rounded-md border">
-          <button
-            onClick={() => setView("kanban")}
-            className={cn("flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors", view === "kanban" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
-          >
-            <LayoutGrid className="h-4 w-4" /> Kanban
-          </button>
-          <button
-            onClick={() => setView("gantt")}
-            className={cn("flex items-center gap-1.5 border-l px-3 py-1.5 text-sm transition-colors", view === "gantt" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
-          >
-            <GanttChart className="h-4 w-4" /> Gantt
-          </button>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="inline-flex overflow-hidden rounded-md border">
+            <button
+              onClick={() => setView("kanban")}
+              className={cn("flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors", view === "kanban" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
+            >
+              <LayoutGrid className="h-4 w-4" /> Kanban
+            </button>
+            <button
+              onClick={() => setView("gantt")}
+              className={cn("flex items-center gap-1.5 border-l px-3 py-1.5 text-sm transition-colors", view === "gantt" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
+            >
+              <GanttChart className="h-4 w-4" /> Gantt
+            </button>
+          </div>
+          <Button onClick={() => openCreate("todo")} className="gap-1.5">
+            <Plus className="h-4 w-4" /> Nouvelle tâche
+          </Button>
         </div>
       </div>
 
