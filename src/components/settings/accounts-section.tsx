@@ -398,14 +398,23 @@ function AccountWizard({
     setBusy(true);
     try {
       if (provider === "gmail") {
-        const result = await lovable.auth.signInWithOAuth("google", {
-          redirect_uri: window.location.origin + "/settings",
+        // Gmail est branché via le connector Lovable (OAuth fait au niveau workspace).
+        const { data: sess } = await supabase.auth.getSession();
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-gmail`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
+          },
+          body: JSON.stringify({ test: true }),
         });
-        if (result.error) throw new Error(result.error.message);
-        if (!result.redirected) {
-          setName("Gmail");
-          setStep(2);
-        }
+        const data = await res.json().catch(() => ({ ok: false }));
+        if (!data.ok) throw new Error(data.error || `Connector Gmail KO (${res.status})`);
+        const email = data.profile?.emailAddress || "Gmail";
+        setName(`Gmail (${email})`);
+        setImap((s) => ({ ...s, email, username: email }));
+        setTested("ok");
+        setStep(2);
       } else {
         toast.info("Connexion Outlook OAuth — bientôt disponible");
         setName("Outlook");
