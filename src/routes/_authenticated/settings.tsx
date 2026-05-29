@@ -1,16 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Settings as SettingsIcon } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AccountsSection } from "@/components/settings/accounts-section";
+import { SyncSection } from "@/components/settings/sync-section";
+import { PreferencesSection } from "@/components/settings/preferences-section";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
 });
 
 function SettingsPage() {
-  const { user } = useAuth();
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto max-w-4xl">
       <div className="mb-6 flex items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <SettingsIcon className="h-6 w-6" />
@@ -20,26 +21,23 @@ function SettingsPage() {
           <p className="text-sm text-muted-foreground">Comptes, synchronisation, préférences</p>
         </div>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Compte</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Email</span>
-            <span className="font-medium">{user?.email}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">ID utilisateur</span>
-            <span className="font-mono text-xs">{user?.id.slice(0, 8)}…</span>
-          </div>
-        </CardContent>
-      </Card>
-      <div className="mt-6 rounded-xl border border-dashed bg-muted/30 p-12 text-center">
-        <p className="text-sm text-muted-foreground">
-          Connexion des comptes Gmail / Outlook / iCloud / IMAP à venir dans la prochaine itération.
-        </p>
-      </div>
+
+      <Tabs defaultValue="accounts">
+        <TabsList className="mb-6">
+          <TabsTrigger value="accounts">Comptes</TabsTrigger>
+          <TabsTrigger value="sync">Synchronisation</TabsTrigger>
+          <TabsTrigger value="preferences">Préférences</TabsTrigger>
+        </TabsList>
+        <TabsContent value="accounts">
+          <AccountsSection />
+        </TabsContent>
+        <TabsContent value="sync">
+          <SyncSection />
+        </TabsContent>
+        <TabsContent value="preferences">
+          <PreferencesSection />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
