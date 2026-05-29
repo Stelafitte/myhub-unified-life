@@ -582,7 +582,7 @@ function Reader({
       </header>
 
       {email.is_sensitive ? (
-        <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-3">
+        <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-3 space-y-2">
           <div className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
@@ -593,6 +593,7 @@ function Reader({
               </div>
             </div>
           </div>
+          <VaultActions email={email} onMoved={onArchive} />
         </div>
       ) : (
         <>
