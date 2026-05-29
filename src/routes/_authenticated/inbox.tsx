@@ -473,8 +473,14 @@ function CreateTaskDialog({
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [comments, setComments] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high" | "urgent">("medium");
   const [dueDate, setDueDate] = useState("");
+  const [createEvent, setCreateEvent] = useState(false);
+  const [eventStart, setEventStart] = useState("");
+  const [eventEnd, setEventEnd] = useState("");
+  const [eventTitle, setEventTitle] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -483,10 +489,46 @@ function CreateTaskDialog({
       const extract = (email.body_text ?? "").replace(/\s+/g, " ").slice(0, 280);
       const from = email.from_name || email.from_address || "";
       setDescription(`Depuis : ${from}\n\n${extract}${extract.length === 280 ? "…" : ""}`);
+      setComments("");
       setPriority("medium");
       setDueDate("");
+      setCreateEvent(false);
+      setEventStart("");
+      setEventEnd("");
+      setEventTitle("");
     }
   }, [open, email]);
+
+  const runAi = async () => {
+    setAnalyzing(true);
+    try {
+      const { analyzeEmailForTask } = await import("@/lib/api/email-analysis.functions");
+      const res = await analyzeEmailForTask({
+        data: {
+          subject: email.subject,
+          from: email.from_name || email.from_address,
+          body: email.body_text ?? email.body_html ?? "",
+          receivedAt: email.received_at,
+        },
+      });
+      setTitle(res.title);
+      setDescription(res.summary);
+      setComments(res.comments);
+      setPriority(res.priority);
+      if (res.due_date) setDueDate(res.due_date.slice(0, 10));
+      if (res.has_event && res.event_start) {
+        setCreateEvent(true);
+        setEventStart(res.event_start.slice(0, 16));
+        setEventEnd((res.event_end ?? res.event_start).slice(0, 16));
+        setEventTitle(res.event_title ?? res.title);
+      }
+      toast.success("Analyse IA terminée");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur IA");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
 
   const submit = async () => {
     if (!title.trim()) {
@@ -494,29 +536,61 @@ function CreateTaskDialog({
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from("tasks").insert({
-      user_id: userId,
-      title: title.trim(),
-      description,
-      priority,
-      due_date: dueDate ? new Date(dueDate).toISOString() : null,
-      source_app: "myhubpro",
-      source_email_id: email.id,
-      status: "todo",
-    });
-    setSaving(false);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Tâche créée");
+    try {
+      let calendarEventId: string | null = null;
+      if (createEvent && eventStart) {
+        const { data: ev, error: evErr } = await supabase.from("calendar_events").insert({
+          user_id: userId,
+          title: eventTitle || title.trim(),
+          description: `Créé depuis l'email : ${email.subject ?? ""}`,
+          start_at: new Date(eventStart).toISOString(),
+          end_at: new Date(eventEnd || eventStart).toISOString(),
+          color: "#6366f1",
+        }).select("id").single();
+        if (evErr) throw evErr;
+        calendarEventId = ev.id;
+      }
+
+      const dueIso = dueDate ? new Date(dueDate).toISOString() : null;
+      const attachments = email.has_attachment
+        ? [{ name: `Pièces jointes de "${email.subject ?? "email"}"`, mime: null, size: null, url: null }]
+        : [];
+
+      const { error } = await supabase.from("tasks").insert({
+        user_id: userId,
+        title: title.trim(),
+        description,
+        comments: comments || null,
+        priority,
+        due_date: dueIso,
+        gantt_start: dueIso,
+        gantt_end: dueIso,
+        source_app: "myhubpro",
+        source_email_id: email.id,
+        calendar_event_id: calendarEventId,
+        attachments,
+        status: "todo",
+      });
+      if (error) throw error;
+      toast.success(calendarEventId ? "Tâche + événement créés" : "Tâche créée");
       onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Créer une tâche</DialogTitle>
+          <DialogTitle className="flex items-center justify-between gap-2">
+            Créer une tâche depuis ce mail
+            <Button size="sm" variant="outline" onClick={runAi} disabled={analyzing} className="gap-1.5">
+              <Zap className="h-3.5 w-3.5" /> {analyzing ? "Analyse…" : "Pré-remplir avec l'IA"}
+            </Button>
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div>
@@ -525,7 +599,17 @@ function CreateTaskDialog({
           </div>
           <div>
             <Label htmlFor="t-desc">Description</Label>
-            <Textarea id="t-desc" rows={5} value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Textarea id="t-desc" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="t-comments">Commentaires (texte libre)</Label>
+            <Textarea
+              id="t-comments"
+              rows={3}
+              placeholder="Notes, contexte, points d'attention…"
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -533,10 +617,10 @@ function CreateTaskDialog({
               <Select value={priority} onValueChange={(v) => setPriority(v as typeof priority)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="low">Basse</SelectItem>
-                  <SelectItem value="medium">Moyenne</SelectItem>
-                  <SelectItem value="high">Haute</SelectItem>
-                  <SelectItem value="urgent">Urgente</SelectItem>
+                  <SelectItem value="low">🟢 Basse</SelectItem>
+                  <SelectItem value="medium">🟡 Moyenne</SelectItem>
+                  <SelectItem value="high">🟠 Haute</SelectItem>
+                  <SelectItem value="urgent">🔴 Urgente</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -545,9 +629,47 @@ function CreateTaskDialog({
               <DateInput id="t-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            Lien vers l'email source conservé (id : {email.id.slice(0, 8)}…)
-          </p>
+
+          <div className="rounded-md border bg-muted/30 p-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={createEvent}
+                onChange={(e) => setCreateEvent(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <span>📅 Créer aussi un événement dans l'agenda</span>
+            </label>
+            {createEvent && (
+              <div className="mt-2 space-y-2">
+                <Input
+                  placeholder="Titre de l'événement"
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Début</Label>
+                    <Input type="datetime-local" value={eventStart} onChange={(e) => setEventStart(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Fin</Label>
+                    <Input type="datetime-local" value={eventEnd} onChange={(e) => setEventEnd(e.target.value)} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+            <div>🔗 Lien vers l'email source conservé (id : {email.id.slice(0, 8)}…)</div>
+            {email.has_attachment && (
+              <div className="flex items-center gap-1">
+                <Paperclip className="h-3 w-3" /> Pièce(s) jointe(s) du mail rattachée(s) à la tâche
+              </div>
+            )}
+            {dueDate && <div>📊 La tâche apparaîtra dans le rétroplanning (Gantt)</div>}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
@@ -557,3 +679,4 @@ function CreateTaskDialog({
     </Dialog>
   );
 }
+
