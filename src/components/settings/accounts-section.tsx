@@ -38,11 +38,25 @@ type Account = {
 const ICONS = ["🏥", "🎓", "💼", "📧", "🏠", "🎨", "⚡", "🌟"];
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#64748b"];
 
-const TYPE_LABEL: Record<AccountType, string> = {
+const TYPE_LABEL: Record<AccountType | string, string> = {
   gmail: "Gmail",
   outlook: "Outlook",
   imap: "IMAP / SMTP",
   icloud: "iCloud",
+  ovh: "OVH",
+  univ: "Université",
+  echo: "Echo Bordeaux",
+};
+
+type Preset = {
+  key: string;
+  label: string;
+  emoji: string;
+  type: AccountType;
+  server: string;
+  port: string;
+  ssl: boolean;
+  domain?: string;
 };
 
 export function AccountsSection() {
