@@ -76,6 +76,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
     if (task) {
       setTitle(task.title);
       setDescription(task.description ?? "");
+      setComments((task as Task & { comments?: string | null }).comments ?? "");
       setPriority(task.priority);
       setStatus(task.status);
       setSection(getSection(task));
@@ -91,6 +92,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
     } else {
       setTitle("");
       setDescription("");
+      setComments("");
       setPriority("medium");
       setStatus(defaultStatus ?? "todo");
       setSection("Autre");
