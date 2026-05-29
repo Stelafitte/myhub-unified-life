@@ -65,6 +65,9 @@ self.addEventListener("fetch", (event) => {
   // Bypass dev/HMR
   if (url.pathname.startsWith("/@") || url.pathname.includes("__vite") || url.pathname.includes("hot-update")) return;
 
+  // OAuth callbacks must always hit the network so auth tokens are never served from cache.
+  if (url.pathname.startsWith("/~oauth")) return;
+
   // Navigations
   if (req.mode === "navigate") {
     event.respondWith(networkFirst(req, APP_SHELL, 2500));
