@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Inbox, CheckSquare, Calendar, Users, Map, Settings, Lock, CalendarClock, FolderOpen } from "lucide-react";
+import { LayoutDashboard, Inbox, CheckSquare, Calendar, Users, Map, Settings, Lock, CalendarClock, FolderOpen, BarChart3 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,6 +22,7 @@ const items = [
   { title: "Documents", url: "/documents", icon: FolderOpen },
   { title: "Contacts", url: "/contacts", icon: Users },
   { title: "Retroplanning", url: "/retroplanning", icon: Map },
+  { title: "Stats", url: "/stats", icon: BarChart3 },
   { title: "Paramètres", url: "/settings", icon: Settings },
 ];
 
