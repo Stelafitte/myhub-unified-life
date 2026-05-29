@@ -115,7 +115,7 @@ function InboxPage() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, reloadKey]);
 
   const accountById = useMemo(() => {
     const m = new Map<string, Account>();
