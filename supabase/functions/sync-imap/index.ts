@@ -348,7 +348,17 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
   const pass = creds.password;
   if (!host || !user || !pass) return { ok: false, count: 0, error: "missing credentials" };
 
-  console.log(`[sync-imap] connecting account=${account.name} host=${host}:${port}`);
+  // Charge les paramètres de sécurité de l'utilisateur (HDS)
+  const { data: secRow } = await admin
+    .from("security_settings")
+    .select("sensitivity_level,whitelist,blacklist")
+    .eq("user_id", account.user_id)
+    .maybeSingle();
+  const secLevel = (secRow?.sensitivity_level ?? "normal") as "strict" | "normal" | "permissive";
+  const whitelist: string[] = secRow?.whitelist ?? [];
+  const blacklist: string[] = secRow?.blacklist ?? [];
+
+  console.log(`[sync-imap] connecting account=${account.name} host=${host}:${port} sec=${secLevel}`);
 
   let imap: Imap | null = null;
   try {
@@ -415,7 +425,7 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
             subject,
             from_address: from.address,
             body_text: bodyText,
-          }, "normal");
+          }, secLevel, whitelist, blacklist);
 
           const { error: upErr } = await admin.from("emails").upsert({
             account_id: account.id,
