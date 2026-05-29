@@ -1,25 +1,859 @@
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Calendar } from "lucide-react";
+import {
+  Calendar as CalendarIcon,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  MapPin,
+  Video,
+  Users,
+  X,
+  Trash2,
+  CheckSquare,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth-context";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Calendar as MiniCal } from "@/components/ui/calendar";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
-  component: () => (
-    <Placeholder title="Agenda" subtitle="Calendrier unifié" icon={<Calendar className="h-6 w-6" />} />
-  ),
+  component: AgendaPage,
 });
 
-function Placeholder({ title, subtitle, icon }: { title: string; subtitle: string; icon: React.ReactNode }) {
+type View = "day" | "week" | "month" | "list";
+
+type AccountType = "gmail" | "outlook" | "imap" | "icloud";
+type Account = {
+  id: string;
+  name: string;
+  type: AccountType;
+  color: string | null;
+  sync_direction: "push" | "pull" | "bidirectional" | "disabled";
+};
+
+type DbEvent = {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  start_at: string;
+  end_at: string;
+  is_all_day: boolean;
+  color: string | null;
+  account_id: string | null;
+  source: string | null;
+};
+
+type TaskRow = {
+  id: string;
+  title: string;
+  due_date: string | null;
+  description: string | null;
+};
+
+type UnifiedEvent = {
+  id: string;
+  kind: "event" | "task";
+  title: string;
+  start: Date;
+  end: Date;
+  location: string | null;
+  description: string | null;
+  color: string;
+  badge: string; // emoji
+  sourceLabel: string;
+  accountId: string | null;
+  isAllDay: boolean;
+  hasVideo: boolean;
+  raw: DbEvent | TaskRow;
+};
+
+const VIDEO_RX = /(meet\.google\.com|zoom\.us|teams\.microsoft|teams\.live)/i;
+
+const SOURCE_META: Record<
+  AccountType | "task",
+  { badge: string; color: string; label: string }
+> = {
+  gmail: { badge: "🔵", color: "#3b82f6", label: "Google" },
+  icloud: { badge: "⚫", color: "#374151", label: "iCloud" },
+  outlook: { badge: "🔷", color: "#0ea5e9", label: "Outlook" },
+  imap: { badge: "✉️", color: "#64748b", label: "IMAP" },
+  task: { badge: "🟠", color: "#f97316", label: "Tâche MyHub" },
+};
+
+// ------- Date helpers -------
+const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+const endOfDay = (d: Date) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
+const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const startOfWeek = (d: Date) => { const x = startOfDay(d); const day = (x.getDay() + 6) % 7; return addDays(x, -day); }; // Monday
+const startOfMonth = (d: Date) => { const x = startOfDay(d); x.setDate(1); return x; };
+const endOfMonth = (d: Date) => { const x = startOfMonth(d); x.setMonth(x.getMonth() + 1); return addDays(x, -1); };
+const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+const fmtTime = (d: Date) => d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+const fmtDate = (d: Date) =>
+  d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" });
+const fmtMonth = (d: Date) =>
+  d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+
+function AgendaPage() {
+  const { user } = useAuth();
+  const [view, setView] = useState<View>("week");
+  const [cursor, setCursor] = useState<Date>(startOfDay(new Date()));
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [events, setEvents] = useState<DbEvent[]>([]);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [selected, setSelected] = useState<UnifiedEvent | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const load = async () => {
+    const [{ data: accs }, { data: evs }, { data: tks }] = await Promise.all([
+      supabase.from("accounts").select("id,name,type,color,sync_direction").order("created_at"),
+      supabase.from("calendar_events").select("*").order("start_at"),
+      supabase.from("tasks").select("id,title,due_date,description").not("due_date", "is", null),
+    ]);
+    setAccounts((accs ?? []) as Account[]);
+    setEvents((evs ?? []) as DbEvent[]);
+    setTasks((tks ?? []) as TaskRow[]);
+  };
+
+  useEffect(() => { if (user) load(); }, [user]);
+
+  const accById = useMemo(() => {
+    const m = new Map<string, Account>();
+    accounts.forEach((a) => m.set(a.id, a));
+    return m;
+  }, [accounts]);
+
+  const unified: UnifiedEvent[] = useMemo(() => {
+    const items: UnifiedEvent[] = [];
+    for (const e of events) {
+      const acc = e.account_id ? accById.get(e.account_id) : null;
+      const meta = acc ? SOURCE_META[acc.type] : SOURCE_META.imap;
+      const blob = `${e.description ?? ""} ${e.location ?? ""}`;
+      items.push({
+        id: `e:${e.id}`,
+        kind: "event",
+        title: e.title,
+        start: new Date(e.start_at),
+        end: new Date(e.end_at),
+        location: e.location,
+        description: e.description,
+        color: e.color || acc?.color || meta.color,
+        badge: meta.badge,
+        sourceLabel: acc?.name ?? meta.label,
+        accountId: e.account_id,
+        isAllDay: e.is_all_day,
+        hasVideo: VIDEO_RX.test(blob),
+        raw: e,
+      });
+    }
+    for (const t of tasks) {
+      if (!t.due_date) continue;
+      const d = new Date(t.due_date);
+      items.push({
+        id: `t:${t.id}`,
+        kind: "task",
+        title: `📌 ${t.title}`,
+        start: d,
+        end: new Date(d.getTime() + 30 * 60 * 1000),
+        location: null,
+        description: t.description,
+        color: SOURCE_META.task.color,
+        badge: SOURCE_META.task.badge,
+        sourceLabel: SOURCE_META.task.label,
+        accountId: null,
+        isAllDay: false,
+        hasVideo: false,
+        raw: t,
+      });
+    }
+    return items.sort((a, b) => a.start.getTime() - b.start.getTime());
+  }, [events, tasks, accById]);
+
+  // Range for current view
+  const range = useMemo(() => {
+    if (view === "day") return { from: startOfDay(cursor), to: endOfDay(cursor) };
+    if (view === "week") {
+      const f = startOfWeek(cursor);
+      return { from: f, to: endOfDay(addDays(f, 6)) };
+    }
+    if (view === "month") return { from: startOfMonth(cursor), to: endOfMonth(cursor) };
+    return { from: startOfDay(cursor), to: endOfDay(addDays(cursor, 30)) };
+  }, [view, cursor]);
+
+  const inRange = useMemo(
+    () => unified.filter((e) => e.end >= range.from && e.start <= range.to),
+    [unified, range],
+  );
+
+  const nav = (dir: -1 | 0 | 1) => {
+    if (dir === 0) return setCursor(startOfDay(new Date()));
+    const step = view === "day" ? 1 : view === "week" ? 7 : view === "month" ? 30 : 7;
+    setCursor((c) => addDays(c, dir * step));
+  };
+
+  const periodLabel = () => {
+    if (view === "day") return cursor.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+    if (view === "week") {
+      const f = startOfWeek(cursor);
+      const t = addDays(f, 6);
+      return `${f.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })} – ${t.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}`;
+    }
+    if (view === "month") return fmtMonth(cursor);
+    return "Prochains événements";
+  };
+
+  const deleteEvent = async (ev: UnifiedEvent) => {
+    if (ev.kind !== "event") return;
+    if (!confirm(`Supprimer "${ev.title}" ?`)) return;
+    const { error } = await supabase.from("calendar_events").delete().eq("id", (ev.raw as DbEvent).id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Événement supprimé");
+      setSelected(null);
+      load();
+    }
+  };
+
+  const createTaskFromEvent = async (ev: UnifiedEvent) => {
+    if (!user) return;
+    const { error } = await supabase.from("tasks").insert({
+      user_id: user.id,
+      title: `Préparer : ${ev.title}`,
+      description: `Lié à l'événement du ${fmtDate(ev.start)} à ${fmtTime(ev.start)}${ev.location ? ` — ${ev.location}` : ""}`,
+      due_date: ev.start.toISOString(),
+      gantt_start: ev.start.toISOString(),
+      gantt_end: ev.end.toISOString(),
+      priority: "medium",
+      status: "todo",
+      source_app: "myhubpro",
+      calendar_event_id: ev.kind === "event" ? (ev.raw as DbEvent).id : null,
+      attachments: [],
+    });
+    if (error) toast.error(error.message);
+    else { toast.success("Tâche créée et liée à l'événement"); load(); }
+  };
+
   return (
-    <div className="mx-auto max-w-5xl">
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">{icon}</div>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          <p className="text-sm text-muted-foreground">{subtitle}</p>
+    <div className="-mx-4 -my-4 flex h-[calc(100vh-4rem)] overflow-hidden md:-mx-6">
+      {/* LEFT SIDEBAR — mini calendar + filters */}
+      <aside className="hidden w-[280px] shrink-0 flex-col border-r bg-card md:flex">
+        <div className="border-b p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-primary" />
+            <h1 className="text-sm font-semibold">Agenda unifié</h1>
+          </div>
+          <Button className="w-full gap-1.5" onClick={() => setCreating(true)}>
+            <Plus className="h-4 w-4" /> Nouvel événement
+          </Button>
         </div>
+
+        <div className="border-b p-2">
+          <MiniCal
+            mode="single"
+            selected={cursor}
+            onSelect={(d) => d && setCursor(startOfDay(d))}
+            modifiers={{
+              hasEvent: unified.map((e) => e.start),
+            }}
+            modifiersClassNames={{
+              hasEvent: "relative after:absolute after:bottom-0.5 after:left-1/2 after:h-1 after:w-1 after:-translate-x-1/2 after:rounded-full after:bg-primary",
+            }}
+            className="pointer-events-auto p-2"
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-3">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Sources
+          </div>
+          <Legend color={SOURCE_META.gmail.color} badge="🔵" label="Google Calendar" />
+          <Legend color={SOURCE_META.icloud.color} badge="⚫" label="iCloud" />
+          <Legend color={SOURCE_META.outlook.color} badge="🔷" label="Outlook / Exchange" />
+          <Legend color={SOURCE_META.task.color} badge="🟠" label="Tâches MyHub Pro" />
+
+          <div className="mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Comptes connectés
+          </div>
+          {accounts.length === 0 && (
+            <p className="px-2 text-xs text-muted-foreground">Aucun compte. Ajoutez-en dans Paramètres.</p>
+          )}
+          {accounts.map((a) => (
+            <div key={a.id} className="flex items-center gap-2 rounded px-2 py-1 text-xs">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ background: a.color || SOURCE_META[a.type]?.color }}
+              />
+              <span className="flex-1 truncate">{a.name}</span>
+              <Badge variant="secondary" className="h-4 px-1 text-[9px]">
+                {a.sync_direction === "bidirectional" ? "↔" : a.sync_direction === "push" ? "↑" : a.sync_direction === "pull" ? "↓" : "—"}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* MAIN */}
+      <section className="flex min-w-0 flex-1 flex-col">
+        <header className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
+          <Button size="sm" variant="outline" onClick={() => nav(0)}>Aujourd'hui</Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(-1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(1)}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <h2 className="ml-1 text-sm font-semibold capitalize">{periodLabel()}</h2>
+
+          <div className="ml-auto inline-flex overflow-hidden rounded-md border">
+            {(["day", "week", "month", "list"] as View[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={cn(
+                  "px-3 py-1.5 text-xs transition-colors",
+                  view === v ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+                )}
+              >
+                {v === "day" ? "Jour" : v === "week" ? "Semaine" : v === "month" ? "Mois" : "Liste"}
+              </button>
+            ))}
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto">
+          {view === "month" ? (
+            <MonthView cursor={cursor} events={unified} onSelect={setSelected} onPick={setCursor} />
+          ) : view === "week" ? (
+            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={setSelected} />
+          ) : view === "day" ? (
+            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={setSelected} />
+          ) : (
+            <ListView events={inRange} onSelect={setSelected} />
+          )}
+        </div>
+      </section>
+
+      {/* RIGHT DETAIL */}
+      {selected && (
+        <EventDetail
+          event={selected}
+          account={selected.accountId ? accById.get(selected.accountId) : undefined}
+          onClose={() => setSelected(null)}
+          onDelete={() => deleteEvent(selected)}
+          onCreateTask={() => createTaskFromEvent(selected)}
+        />
+      )}
+
+      <NewEventDialog
+        open={creating}
+        onOpenChange={setCreating}
+        accounts={accounts}
+        userId={user?.id ?? ""}
+        defaultDate={cursor}
+        onCreated={() => { setCreating(false); load(); }}
+      />
+    </div>
+  );
+}
+
+function Legend({ color, badge, label }: { color: string; badge: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2 rounded px-2 py-1 text-xs">
+      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
+      <span>{badge}</span>
+      <span className="text-foreground/80">{label}</span>
+    </div>
+  );
+}
+
+// ---------- MONTH VIEW ----------
+function MonthView({
+  cursor,
+  events,
+  onSelect,
+  onPick,
+}: {
+  cursor: Date;
+  events: UnifiedEvent[];
+  onSelect: (e: UnifiedEvent) => void;
+  onPick: (d: Date) => void;
+}) {
+  const first = startOfMonth(cursor);
+  const gridStart = startOfWeek(first);
+  const days: Date[] = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
+  const today = new Date();
+
+  return (
+    <div className="grid grid-cols-7 border-l border-t">
+      {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((d) => (
+        <div key={d} className="border-b border-r bg-muted/40 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
+          {d}
+        </div>
+      ))}
+      {days.map((d) => {
+        const dayEvents = events.filter((e) => sameDay(e.start, d));
+        const isOther = d.getMonth() !== cursor.getMonth();
+        const isToday = sameDay(d, today);
+        return (
+          <button
+            key={d.toISOString()}
+            onClick={() => onPick(d)}
+            className={cn(
+              "min-h-[110px] border-b border-r p-1.5 text-left text-xs transition-colors hover:bg-accent/40",
+              isOther && "bg-muted/20 text-muted-foreground",
+            )}
+          >
+            <div className={cn("mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px]", isToday && "bg-primary font-semibold text-primary-foreground")}>
+              {d.getDate()}
+            </div>
+            <div className="space-y-0.5">
+              {dayEvents.slice(0, 3).map((e) => (
+                <div
+                  key={e.id}
+                  onClick={(ev) => { ev.stopPropagation(); onSelect(e); }}
+                  className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] text-white"
+                  style={{ background: e.color }}
+                >
+                  <span>{e.badge}</span>
+                  <span className="truncate">{e.isAllDay ? "" : fmtTime(e.start) + " "}{e.title}</span>
+                </div>
+              ))}
+              {dayEvents.length > 3 && (
+                <div className="text-[10px] text-muted-foreground">+{dayEvents.length - 3} autres</div>
+              )}
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------- WEEK / DAY VIEW ----------
+function WeekOrDayView({
+  days,
+  from,
+  events,
+  onSelect,
+}: {
+  days: number;
+  from: Date;
+  events: UnifiedEvent[];
+  onSelect: (e: UnifiedEvent) => void;
+}) {
+  const dayCols = Array.from({ length: days }, (_, i) => addDays(from, i));
+  const today = new Date();
+
+  return (
+    <div className="flex">
+      <div className="w-14 shrink-0 border-r">
+        <div className="h-10 border-b" />
+        {Array.from({ length: 24 }, (_, h) => (
+          <div key={h} className="h-12 border-b pr-1 text-right text-[10px] text-muted-foreground">
+            {String(h).padStart(2, "0")}:00
+          </div>
+        ))}
       </div>
-      <div className="rounded-xl border border-dashed bg-muted/30 p-12 text-center">
-        <p className="text-sm text-muted-foreground">À venir dans la prochaine itération.</p>
+      <div className={cn("grid flex-1", days === 1 ? "grid-cols-1" : "grid-cols-7")}>
+        {dayCols.map((d) => {
+          const dayEvents = events.filter((e) => sameDay(e.start, d));
+          const isToday = sameDay(d, today);
+          return (
+            <div key={d.toISOString()} className="relative border-r">
+              <div className={cn("flex h-10 items-center justify-center border-b text-xs font-medium", isToday && "bg-primary/10 text-primary")}>
+                {fmtDate(d)}
+              </div>
+              <div className="relative" style={{ height: 24 * 48 }}>
+                {Array.from({ length: 24 }, (_, h) => (
+                  <div key={h} className="absolute left-0 right-0 border-b" style={{ top: h * 48, height: 48 }} />
+                ))}
+                {dayEvents.map((e) => {
+                  const startMin = e.start.getHours() * 60 + e.start.getMinutes();
+                  const endMin = Math.max(startMin + 20, e.end.getHours() * 60 + e.end.getMinutes());
+                  const top = (startMin / 60) * 48;
+                  const h = Math.max(20, ((endMin - startMin) / 60) * 48);
+                  return (
+                    <button
+                      key={e.id}
+                      onClick={() => onSelect(e)}
+                      className="absolute left-1 right-1 overflow-hidden rounded-md p-1 text-left text-[10px] text-white shadow-sm transition-transform hover:scale-[1.01]"
+                      style={{ top, height: h, background: e.color }}
+                    >
+                      <div className="flex items-center gap-1 truncate font-semibold">
+                        <span>{e.badge}</span> {e.title}
+                      </div>
+                      <div className="opacity-90">{fmtTime(e.start)} – {fmtTime(e.end)}</div>
+                      {e.location && <div className="flex items-center gap-0.5 truncate opacity-90"><MapPin className="h-2.5 w-2.5" />{e.location}</div>}
+                      {e.hasVideo && <div className="flex items-center gap-0.5 opacity-90"><Video className="h-2.5 w-2.5" /> Visio</div>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
+  );
+}
+
+// ---------- LIST VIEW ----------
+function ListView({ events, onSelect }: { events: UnifiedEvent[]; onSelect: (e: UnifiedEvent) => void }) {
+  if (events.length === 0)
+    return <div className="p-10 text-center text-sm text-muted-foreground">Aucun événement dans cette période.</div>;
+  const groups = new Map<string, UnifiedEvent[]>();
+  for (const e of events) {
+    const k = e.start.toDateString();
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k)!.push(e);
+  }
+  return (
+    <div className="divide-y">
+      {[...groups.entries()].map(([day, items]) => (
+        <div key={day} className="p-3">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {new Date(day).toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" })}
+          </div>
+          <ul className="space-y-1">
+            {items.map((e) => (
+              <li key={e.id}>
+                <button
+                  onClick={() => onSelect(e)}
+                  className="flex w-full items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/40"
+                >
+                  <div className="h-10 w-1 shrink-0 rounded" style={{ background: e.color }} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span>{e.badge}</span>
+                      <span className="truncate font-medium">{e.title}</span>
+                      {e.hasVideo && <Video className="h-3 w-3 text-muted-foreground" />}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {fmtTime(e.start)} – {fmtTime(e.end)}
+                      {e.location && <> · <MapPin className="inline h-3 w-3" /> {e.location}</>}
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="shrink-0">{e.sourceLabel}</Badge>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ---------- EVENT DETAIL PANEL ----------
+function EventDetail({
+  event,
+  account,
+  onClose,
+  onDelete,
+  onCreateTask,
+}: {
+  event: UnifiedEvent;
+  account?: Account;
+  onClose: () => void;
+  onDelete: () => void;
+  onCreateTask: () => void;
+}) {
+  const canEdit =
+    event.kind === "event" &&
+    (!account || account.sync_direction === "bidirectional" || account.sync_direction === "push");
+
+  const participants = extractEmails((event.raw as DbEvent).description ?? "");
+
+  return (
+    <aside className="hidden w-[380px] shrink-0 flex-col border-l bg-card lg:flex">
+      <header className="flex items-start gap-2 border-b p-4">
+        <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: event.color }} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span>{event.badge}</span>
+            <span>{event.sourceLabel}</span>
+            {event.kind === "task" && <Badge variant="outline" className="h-4 px-1 text-[9px]">Tâche</Badge>}
+          </div>
+          <h2 className="mt-1 text-base font-semibold leading-tight">{event.title}</h2>
+        </div>
+        <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-accent">
+          <X className="h-4 w-4" />
+        </button>
+      </header>
+
+      <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm">
+        <div>
+          <div className="text-xs font-medium text-muted-foreground">Quand</div>
+          <div>{fmtDate(event.start)}</div>
+          <div>{fmtTime(event.start)} – {fmtTime(event.end)}</div>
+        </div>
+
+        {event.location && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground">Lieu</div>
+            <div className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {event.location}</div>
+          </div>
+        )}
+
+        {event.hasVideo && (
+          <div className="rounded-md border border-indigo-500/30 bg-indigo-500/5 p-2 text-xs">
+            <Video className="mr-1 inline h-3.5 w-3.5 text-indigo-500" />
+            Lien de visioconférence détecté dans la description
+          </div>
+        )}
+
+        {participants.length > 0 && (
+          <div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">
+              <Users className="mr-1 inline h-3 w-3" /> Participants
+            </div>
+            <ul className="space-y-1">
+              {participants.map((p) => (
+                <li key={p}>
+                  <a className="text-primary hover:underline" href={`mailto:${p}`}>{p}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {event.description && (
+          <div>
+            <div className="text-xs font-medium text-muted-foreground">Notes</div>
+            <p className="whitespace-pre-wrap text-foreground/90">{event.description}</p>
+          </div>
+        )}
+      </div>
+
+      <footer className="space-y-2 border-t p-3">
+        <Button className="w-full gap-1.5" onClick={onCreateTask}>
+          <CheckSquare className="h-4 w-4" /> Créer une tâche liée
+        </Button>
+        {canEdit && (
+          <Button variant="outline" className="w-full gap-1.5 text-destructive" onClick={onDelete}>
+            <Trash2 className="h-4 w-4" /> Supprimer
+          </Button>
+        )}
+        {!canEdit && event.kind === "event" && (
+          <p className="text-center text-[11px] text-muted-foreground">
+            Lecture seule (sync « {account?.sync_direction ?? "pull"} »)
+          </p>
+        )}
+      </footer>
+    </aside>
+  );
+}
+
+function extractEmails(s: string): string[] {
+  const rx = /[\w.+-]+@[\w-]+\.[\w.-]+/g;
+  return Array.from(new Set(s.match(rx) ?? []));
+}
+
+// ---------- NEW EVENT DIALOG ----------
+function NewEventDialog({
+  open,
+  onOpenChange,
+  accounts,
+  userId,
+  defaultDate,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  accounts: Account[];
+  userId: string;
+  defaultDate: Date;
+  onCreated: () => void;
+}) {
+  const writable = accounts.filter(
+    (a) => a.sync_direction === "bidirectional" || a.sync_direction === "push",
+  );
+  const [title, setTitle] = useState("");
+  const [accountId, setAccountId] = useState<string>("local");
+  const [startStr, setStartStr] = useState("");
+  const [endStr, setEndStr] = useState("");
+  const [allDay, setAllDay] = useState(false);
+  const [location, setLocation] = useState("");
+  const [participants, setParticipants] = useState("");
+  const [recurrence, setRecurrence] = useState<string>("none");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      const d = new Date(defaultDate);
+      d.setHours(9, 0, 0, 0);
+      const e = new Date(d.getTime() + 60 * 60 * 1000);
+      const toLocal = (x: Date) =>
+        new Date(x.getTime() - x.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+      setTitle("");
+      setStartStr(toLocal(d));
+      setEndStr(toLocal(e));
+      setAllDay(false);
+      setLocation("");
+      setParticipants("");
+      setRecurrence("none");
+      setNotes("");
+      setAccountId(writable[0]?.id ?? "local");
+    }
+  }, [open, defaultDate, writable]);
+
+  const submit = async () => {
+    if (!title.trim() || !startStr) {
+      toast.error("Titre et date de début requis");
+      return;
+    }
+    setSaving(true);
+    try {
+      const acc = accounts.find((a) => a.id === accountId);
+      const rrule =
+        recurrence === "none" ? null :
+        recurrence === "daily" ? "FREQ=DAILY" :
+        recurrence === "weekly" ? "FREQ=WEEKLY" :
+        recurrence === "monthly" ? "FREQ=MONTHLY" : null;
+
+      const parts = participants
+        .split(/[,;\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const descBlocks = [
+        notes.trim(),
+        parts.length > 0 ? `Participants invités : ${parts.join(", ")}` : "",
+      ].filter(Boolean).join("\n\n");
+
+      const { error } = await supabase.from("calendar_events").insert({
+        user_id: userId,
+        account_id: accountId === "local" ? null : accountId,
+        title: title.trim(),
+        description: descBlocks || null,
+        location: location || null,
+        start_at: new Date(startStr).toISOString(),
+        end_at: new Date(endStr || startStr).toISOString(),
+        is_all_day: allDay,
+        recurrence_rule: rrule,
+        color: acc?.color || "#6366f1",
+        source: acc ? (acc.type as never) : null,
+        sync_direction: acc?.sync_direction ?? "bidirectional",
+      });
+      if (error) throw error;
+
+      if (parts.length > 0 && acc) {
+        toast.success(`Événement créé · invitations envoyées à ${parts.length} participant${parts.length > 1 ? "s" : ""} via ${acc.name}`);
+      } else {
+        toast.success("Événement créé");
+      }
+      onCreated();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Nouvel événement</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label>Calendrier de destination</Label>
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="local">📔 MyHub Pro (local)</SelectItem>
+                {writable.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {SOURCE_META[a.type]?.badge} {a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {writable.length === 0 && (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Aucun compte en écriture configuré — l'événement restera local.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="ev-title">Titre</Label>
+            <Input id="ev-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Réunion équipe…" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="ev-start">Début</Label>
+              <Input id="ev-start" type="datetime-local" value={startStr} onChange={(e) => setStartStr(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="ev-end">Fin</Label>
+              <Input id="ev-end" type="datetime-local" value={endStr} onChange={(e) => setEndStr(e.target.value)} />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="h-4 w-4" checked={allDay} onChange={(e) => setAllDay(e.target.checked)} />
+            Toute la journée
+          </label>
+
+          <div>
+            <Label htmlFor="ev-loc">Lieu</Label>
+            <Input id="ev-loc" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Adresse, salle, ou lien Meet/Zoom/Teams" />
+          </div>
+
+          <div>
+            <Label htmlFor="ev-part">Participants (emails séparés par virgule)</Label>
+            <Input id="ev-part" value={participants} onChange={(e) => setParticipants(e.target.value)} placeholder="alice@x.com, bob@y.com" />
+          </div>
+
+          <div>
+            <Label>Récurrence</Label>
+            <Select value={recurrence} onValueChange={setRecurrence}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Aucune</SelectItem>
+                <SelectItem value="daily">Tous les jours</SelectItem>
+                <SelectItem value="weekly">Toutes les semaines</SelectItem>
+                <SelectItem value="monthly">Tous les mois</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="ev-notes">Notes</Label>
+            <Textarea id="ev-notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
+          <Button onClick={submit} disabled={saving}>{saving ? "Création…" : "Créer"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
