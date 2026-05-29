@@ -1,0 +1,369 @@
+import { useEffect, useState } from "react";
+import { Search, Mail, X } from "lucide-react";
+import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth-context";
+import { enqueue } from "@/lib/sync-queue";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import {
+  type Task,
+  type TaskPriority,
+  type TaskStatus,
+  type TaskSource,
+  PRIORITY_META,
+  STATUS_COLUMNS,
+  SOURCE_META,
+  DEFAULT_SECTIONS,
+  getSection,
+  withoutSection,
+} from "@/lib/tasks-model";
+
+type Props = {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  task: Task | null;
+  defaultStatus?: TaskStatus;
+  sections: string[];
+  onSaved: (task: Task) => void;
+};
+
+type EmailLite = { id: string; subject: string | null; from_name: string | null; from_address: string | null };
+
+export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, onSaved }: Props) {
+  const { user } = useAuth();
+  const editing = !!task;
+
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<TaskPriority>("medium");
+  const [status, setStatus] = useState<TaskStatus>("todo");
+  const [section, setSection] = useState<string>("Autre");
+  const [newSection, setNewSection] = useState("");
+  const [start, setStart] = useState("");
+  const [due, setDue] = useState("");
+  const [reminder, setReminder] = useState("");
+  const [tagsText, setTagsText] = useState("");
+  const [source, setSource] = useState<TaskSource>("myhubpro");
+  const [recurrence, setRecurrence] = useState<"none" | "daily" | "weekly" | "monthly">("none");
+  const [emailId, setEmailId] = useState<string | null>(null);
+  const [emailLabel, setEmailLabel] = useState<string>("");
+  const [emailSearch, setEmailSearch] = useState("");
+  const [emailResults, setEmailResults] = useState<EmailLite[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    if (task) {
+      setTitle(task.title);
+      setDescription(task.description ?? "");
+      setPriority(task.priority);
+      setStatus(task.status);
+      setSection(getSection(task));
+      setStart(task.gantt_start ? task.gantt_start.slice(0, 10) : "");
+      setDue(task.due_date ? task.due_date.slice(0, 10) : "");
+      setReminder(task.reminder_at ? task.reminder_at.slice(0, 16) : "");
+      setTagsText(withoutSection(task.tags).filter((t) => !t.startsWith("recurrence:")).join(", "));
+      const rec = (task.tags ?? []).find((t) => t.startsWith("recurrence:"));
+      setRecurrence((rec ? rec.slice(11) : "none") as typeof recurrence);
+      setSource(task.source_app);
+      setEmailId(task.source_email_id);
+      setEmailLabel("");
+    } else {
+      setTitle("");
+      setDescription("");
+      setPriority("medium");
+      setStatus(defaultStatus ?? "todo");
+      setSection("Autre");
+      setStart("");
+      setDue("");
+      setReminder("");
+      setTagsText("");
+      setRecurrence("none");
+      setSource("myhubpro");
+      setEmailId(null);
+      setEmailLabel("");
+    }
+    setNewSection("");
+    setEmailSearch("");
+    setEmailResults([]);
+  }, [open, task, defaultStatus]);
+
+  // Load linked email label
+  useEffect(() => {
+    if (!emailId) { setEmailLabel(""); return; }
+    supabase.from("emails").select("subject,from_name,from_address").eq("id", emailId).maybeSingle()
+      .then(({ data }) => {
+        if (data) setEmailLabel(`${data.subject ?? "(sans objet)"} — ${data.from_name || data.from_address || ""}`);
+      });
+  }, [emailId]);
+
+  // Email search
+  useEffect(() => {
+    if (!emailSearch.trim()) { setEmailResults([]); return; }
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from("emails")
+        .select("id,subject,from_name,from_address")
+        .or(`subject.ilike.%${emailSearch}%,from_name.ilike.%${emailSearch}%,from_address.ilike.%${emailSearch}%`)
+        .limit(8);
+      setEmailResults((data ?? []) as EmailLite[]);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [emailSearch]);
+
+  const sectionsAll = Array.from(new Set([...DEFAULT_SECTIONS, ...sections]));
+
+  const submit = async () => {
+    if (!title.trim()) { toast.error("Titre requis"); return; }
+    if (!user) return;
+    setSaving(true);
+
+    const finalSection = newSection.trim() || section;
+    const tags = [
+      ...tagsText.split(",").map((t) => t.trim()).filter(Boolean),
+      `section:${finalSection}`,
+      ...(recurrence !== "none" ? [`recurrence:${recurrence}`] : []),
+    ];
+
+    const payload = {
+      user_id: user.id,
+      title: title.trim(),
+      description: description || null,
+      priority,
+      status,
+      due_date: due ? new Date(due).toISOString() : null,
+      gantt_start: start ? new Date(start).toISOString() : null,
+      gantt_end: due ? new Date(due).toISOString() : null,
+      reminder_at: reminder ? new Date(reminder).toISOString() : null,
+      source_app: source,
+      source_email_id: emailId,
+      tags,
+      kanban_column: status,
+    };
+
+    try {
+      if (navigator.onLine) {
+        if (editing && task) {
+          const { data, error } = await supabase.from("tasks").update(payload).eq("id", task.id).select().single();
+          if (error) throw error;
+          onSaved(data as Task);
+          toast.success("Tâche mise à jour");
+        } else {
+          const { data, error } = await supabase.from("tasks").insert(payload).select().single();
+          if (error) throw error;
+          onSaved(data as Task);
+          toast.success("Tâche créée");
+        }
+      } else {
+        // Offline: queue and create optimistic record
+        const optimistic: Task = {
+          ...(task ?? {}),
+          ...payload,
+          id: task?.id ?? crypto.randomUUID(),
+          created_at: task?.created_at ?? new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          assigned_to: task?.assigned_to ?? null,
+          gantt_color: task?.gantt_color ?? null,
+          _pending: true,
+        } as Task;
+        await enqueue({
+          entity_type: "task",
+          entity_id: editing ? task!.id : optimistic.id,
+          action: editing ? "update" : "create",
+          payload: editing ? payload : { ...payload, id: optimistic.id },
+        });
+        onSaved(optimistic);
+        toast.success(editing ? "Modification mise en file (offline)" : "Création mise en file (offline)");
+      }
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>{editing ? "Modifier la tâche" : "Nouvelle tâche"}</SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-4 space-y-4">
+          <div>
+            <Label htmlFor="t-title">Titre *</Label>
+            <Input id="t-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex. Préparer la présentation" />
+          </div>
+
+          <div>
+            <Label htmlFor="t-desc">Description</Label>
+            <Textarea id="t-desc" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
+          </div>
+
+          <div>
+            <Label className="mb-1.5 block">Priorité</Label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {(Object.keys(PRIORITY_META) as TaskPriority[]).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPriority(p)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 rounded-md border p-2 text-xs transition-colors",
+                    priority === p ? "border-primary bg-primary/5" : "hover:bg-accent",
+                  )}
+                >
+                  <span>{PRIORITY_META[p].emoji}</span>
+                  <span>{PRIORITY_META[p].label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Statut</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as TaskStatus)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {STATUS_COLUMNS.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.icon} {c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Source</Label>
+              <Select value={source} onValueChange={(v) => setSource(v as TaskSource)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(SOURCE_META) as TaskSource[]).map((s) => (
+                    <SelectItem key={s} value={s}>{SOURCE_META[s].emoji} {SOURCE_META[s].label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="t-start">Date début</Label>
+              <Input id="t-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="t-due">Échéance</Label>
+              <Input id="t-due" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="t-rem">Rappel</Label>
+            <Input id="t-rem" type="datetime-local" value={reminder} onChange={(e) => setReminder(e.target.value)} />
+          </div>
+
+          <div>
+            <Label>Section / projet</Label>
+            <div className="flex gap-2">
+              <Select value={section} onValueChange={setSection}>
+                <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {sectionsAll.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <Input
+              className="mt-2"
+              placeholder="…ou créer une nouvelle section"
+              value={newSection}
+              onChange={(e) => setNewSection(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="t-tags">Tags (séparés par des virgules)</Label>
+            <Input id="t-tags" value={tagsText} onChange={(e) => setTagsText(e.target.value)} placeholder="ex. urgent, client, q4" />
+          </div>
+
+          <div>
+            <Label>Récurrence</Label>
+            <Select value={recurrence} onValueChange={(v) => setRecurrence(v as typeof recurrence)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Aucune</SelectItem>
+                <SelectItem value="daily">Quotidienne</SelectItem>
+                <SelectItem value="weekly">Hebdomadaire</SelectItem>
+                <SelectItem value="monthly">Mensuelle</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Email source lié</Label>
+            {emailId ? (
+              <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 text-xs">
+                <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="flex-1 truncate">{emailLabel || `Email ${emailId.slice(0, 8)}…`}</span>
+                <button onClick={() => { setEmailId(null); setEmailLabel(""); }} className="text-muted-foreground hover:text-foreground">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input className="pl-8" placeholder="Rechercher un email…" value={emailSearch} onChange={(e) => setEmailSearch(e.target.value)} />
+                </div>
+                {emailResults.length > 0 && (
+                  <ul className="mt-1 max-h-40 overflow-y-auto rounded-md border bg-popover text-xs">
+                    {emailResults.map((e) => (
+                      <li key={e.id}>
+                        <button
+                          className="flex w-full flex-col items-start gap-0.5 px-2 py-1.5 text-left hover:bg-accent"
+                          onClick={() => { setEmailId(e.id); setEmailSearch(""); setEmailResults([]); }}
+                        >
+                          <span className="font-medium">{e.subject || "(sans objet)"}</span>
+                          <span className="text-muted-foreground">{e.from_name || e.from_address}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </div>
+
+          {!navigator.onLine && (
+            <Badge variant="secondary" className="w-full justify-center">⚡ Hors-ligne — sera mis en file</Badge>
+          )}
+
+          <div className="sticky bottom-0 -mx-6 flex gap-2 border-t bg-background px-6 py-3">
+            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Annuler</Button>
+            <Button className="flex-1" onClick={submit} disabled={saving}>
+              {saving ? "Enregistrement…" : editing ? "Mettre à jour" : "Créer"}
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
