@@ -36,7 +36,6 @@ type DateFilter = "all" | "today" | "week" | "month";
 type SizeFilter = "all" | "heavy";
 
 function DocumentsPage() {
-  const { user } = useAuth();
   const [docs, setDocs] = useState<DocumentRow[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
