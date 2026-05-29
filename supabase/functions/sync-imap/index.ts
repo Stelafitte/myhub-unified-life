@@ -37,11 +37,13 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
   const pass = creds.password;
   if (!host || !user || !pass) return { ok: false, count: 0, error: "missing credentials" };
 
+  console.log(`[sync-imap] connecting account=${account.name} host=${host}:${port} user=${user}`);
   const client = new ImapFlow({
     host, port, secure: port === 993,
     auth: { user, pass },
     logger: false,
-    socketTimeout: 30000,
+    socketTimeout: 15000,
+    greetingTimeout: 10000,
   });
 
   let count = 0;
@@ -148,7 +150,12 @@ Deno.serve(async (req: Request) => {
 
     const results: any[] = [];
     for (const acc of accounts ?? []) {
-      const r = await syncOne(acc, admin);
+      // Hard cap par compte: 25s pour éviter de bloquer toute la fonction
+      const timeoutP = new Promise<{ ok: false; count: 0; error: string }>((resolve) =>
+        setTimeout(() => resolve({ ok: false, count: 0, error: "account sync timeout (25s)" }), 25000)
+      );
+      const r = await Promise.race([syncOne(acc, admin), timeoutP]);
+      console.log(`[sync-imap] account=${acc.name} result=`, r);
       results.push({ account_id: acc.id, name: acc.name, ...r });
     }
 

@@ -36,8 +36,14 @@ export function useSyncStatus() {
       await refreshPending();
       let imapCount = 0;
       try {
-        const { data, error } = await supabase.functions.invoke("sync-imap", { body: {} });
+        // Timeout 20s pour libérer l'UI si l'edge function rame
+        const invoke = supabase.functions.invoke("sync-imap", { body: {} });
+        const timeout = new Promise((resolve) =>
+          setTimeout(() => resolve({ data: null, error: new Error("timeout") }), 20000)
+        );
+        const { data, error } = (await Promise.race([invoke, timeout])) as any;
         if (!error && data?.synced) imapCount = data.synced;
+        if (error) console.warn("[sync] sync-imap error", error);
       } catch (e) {
         console.warn("[sync] sync-imap failed", e);
       }
