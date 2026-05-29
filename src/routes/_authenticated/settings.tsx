@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AccountsSection } from "@/components/settings/accounts-section";
 import { SyncSection } from "@/components/settings/sync-section";
 import { PreferencesSection } from "@/components/settings/preferences-section";
+import { SecuritySection } from "@/components/settings/security-section";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
@@ -18,7 +19,7 @@ function SettingsPage() {
         </div>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Paramètres</h1>
-          <p className="text-sm text-muted-foreground">Comptes, synchronisation, préférences</p>
+          <p className="text-sm text-muted-foreground">Comptes, synchronisation, préférences, sécurité</p>
         </div>
       </div>
 
@@ -27,6 +28,7 @@ function SettingsPage() {
           <TabsTrigger value="accounts">Comptes</TabsTrigger>
           <TabsTrigger value="sync">Synchronisation</TabsTrigger>
           <TabsTrigger value="preferences">Préférences</TabsTrigger>
+          <TabsTrigger value="security">🔒 Sécurité & Conformité</TabsTrigger>
         </TabsList>
         <TabsContent value="accounts">
           <AccountsSection />
@@ -36,6 +38,9 @@ function SettingsPage() {
         </TabsContent>
         <TabsContent value="preferences">
           <PreferencesSection />
+        </TabsContent>
+        <TabsContent value="security">
+          <SecuritySection />
         </TabsContent>
       </Tabs>
     </div>
