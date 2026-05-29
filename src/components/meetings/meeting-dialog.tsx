@@ -8,9 +8,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { X, Download, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { X, Download, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { downloadIcs } from "@/lib/ics";
+
+type Provider = "jitsi" | "google_meet" | "zoom" | "teams" | "other";
+const PROVIDER_LABEL: Record<Provider, string> = {
+  jitsi: "Jitsi (lien auto)",
+  google_meet: "Google Meet (coller le lien)",
+  zoom: "Zoom (coller le lien)",
+  teams: "Microsoft Teams (coller le lien)",
+  other: "Autre / lien personnalisé",
+};
+function generateJitsiLink(): string {
+  const slug = Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8);
+  return `https://meet.jit.si/MyHub-${slug}`;
+}
 
 type Participant = { email: string; name?: string; role: "required" | "optional" };
 
