@@ -95,7 +95,7 @@ export function AccountsSection() {
     toast.loading("Synchronisation…", { id: tid });
     try {
       const { data: sess } = await supabase.auth.getSession();
-      const fn = acc.type === "gmail" ? "sync-gmail" : "sync-imap";
+      const fn = acc.type === "gmail" ? "sync-gmail" : acc.type === "outlook" ? "sync-outlook" : "sync-imap";
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`, {
         method: "POST",
         headers: {
