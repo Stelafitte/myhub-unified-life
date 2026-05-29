@@ -37,7 +37,8 @@ export type MeetingFormValue = {
   location: string;
   is_online: boolean;
   online_link: string;
-  online_provider: string;
+  online_provider: Provider | "";
+  zoom_password: string;
   organizer_email: string;
   organizer_name: string;
   participants: Participant[];
@@ -52,6 +53,7 @@ const empty: MeetingFormValue = {
   is_online: false,
   online_link: "",
   online_provider: "",
+  zoom_password: "",
   organizer_email: "",
   organizer_name: "",
   participants: [],
