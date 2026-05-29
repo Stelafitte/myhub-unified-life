@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -12,6 +13,7 @@ import appCss from "../styles.css?url";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "@/components/ui/sonner";
+import { registerServiceWorker } from "@/lib/register-sw";
 
 function NotFoundComponent() {
   return (
@@ -73,10 +75,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "theme-color", content: "#0a0a0a" },
       { title: "MyHub Pro" },
       { name: "description", content: "Hub de productivité personnel : emails, tâches, agenda, contacts et retroplanning unifiés." },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -100,6 +106,8 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => { registerServiceWorker(); }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
