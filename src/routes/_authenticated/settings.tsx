@@ -5,6 +5,7 @@ import { AccountsSection } from "@/components/settings/accounts-section";
 import { SyncSection } from "@/components/settings/sync-section";
 import { PreferencesSection } from "@/components/settings/preferences-section";
 import { SecuritySection } from "@/components/settings/security-section";
+import { DocumentsSection } from "@/components/settings/documents-section";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
