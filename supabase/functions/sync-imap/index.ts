@@ -402,6 +402,9 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
           const { headers } = splitRawMime(msg.raw);
           const parsed: ParsedPart = { textPlain: "", textHtml: "", attachments: 0 };
           walkMime(msg.raw, parsed);
+          if (count < 3) {
+            console.log(`[debug] uid=${msg.uid} raw=${msg.raw.length} ct=${headers["content-type"]} txt=${parsed.textPlain.length} html=${parsed.textHtml.length} att=${parsed.attachments}`);
+          }
 
           const from = parseAddress(headers["from"] || "");
           const to = parseAddress(headers["to"] || "");
