@@ -309,6 +309,157 @@ export type Database = {
           },
         ]
       }
+      meeting_participants: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          email: string
+          id: string
+          meeting_id: string
+          name: string | null
+          responded_at: string | null
+          role: string
+          rsvp_status: string
+          user_id: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          meeting_id: string
+          name?: string | null
+          responded_at?: string | null
+          role?: string
+          rsvp_status?: string
+          user_id: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          meeting_id?: string
+          name?: string | null
+          responded_at?: string | null
+          role?: string
+          rsvp_status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_participants_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_tasks: {
+        Row: {
+          created_at: string
+          id: string
+          meeting_id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meeting_id: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meeting_id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_tasks_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          calendar_event_id: string | null
+          created_at: string
+          decisions: string | null
+          description: string | null
+          end_at: string
+          id: string
+          is_online: boolean
+          location: string | null
+          notes: string | null
+          online_link: string | null
+          online_provider: string | null
+          organizer_email: string | null
+          organizer_name: string | null
+          source_email_id: string | null
+          start_at: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          zoom_meeting_id: string | null
+          zoom_password: string | null
+        }
+        Insert: {
+          calendar_event_id?: string | null
+          created_at?: string
+          decisions?: string | null
+          description?: string | null
+          end_at: string
+          id?: string
+          is_online?: boolean
+          location?: string | null
+          notes?: string | null
+          online_link?: string | null
+          online_provider?: string | null
+          organizer_email?: string | null
+          organizer_name?: string | null
+          source_email_id?: string | null
+          start_at: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          zoom_meeting_id?: string | null
+          zoom_password?: string | null
+        }
+        Update: {
+          calendar_event_id?: string | null
+          created_at?: string
+          decisions?: string | null
+          description?: string | null
+          end_at?: string
+          id?: string
+          is_online?: boolean
+          location?: string | null
+          notes?: string | null
+          online_link?: string | null
+          online_provider?: string | null
+          organizer_email?: string | null
+          organizer_name?: string | null
+          source_email_id?: string | null
+          start_at?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          zoom_meeting_id?: string | null
+          zoom_password?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
