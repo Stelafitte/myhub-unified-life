@@ -178,6 +178,10 @@ export type Database = {
       emails: {
         Row: {
           account_id: string
+          ai_category: string | null
+          ai_priority: string | null
+          ai_processed_at: string | null
+          ai_summary: string | null
           body_html: string | null
           body_text: string | null
           created_at: string
@@ -199,6 +203,10 @@ export type Database = {
         }
         Insert: {
           account_id: string
+          ai_category?: string | null
+          ai_priority?: string | null
+          ai_processed_at?: string | null
+          ai_summary?: string | null
           body_html?: string | null
           body_text?: string | null
           created_at?: string
@@ -220,6 +228,10 @@ export type Database = {
         }
         Update: {
           account_id?: string
+          ai_category?: string | null
+          ai_priority?: string | null
+          ai_processed_at?: string | null
+          ai_summary?: string | null
           body_html?: string | null
           body_text?: string | null
           created_at?: string
