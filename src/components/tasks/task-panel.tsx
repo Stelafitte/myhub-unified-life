@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Search, Mail, X } from "lucide-react";
+import { Search, Mail, X, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { enqueue } from "@/lib/sync-queue";
+import { analyzeTaskText } from "@/lib/api/task-analysis.functions";
 import {
   Sheet,
   SheetContent,
