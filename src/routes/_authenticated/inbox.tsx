@@ -362,12 +362,13 @@ function InboxPage() {
             onArchive={() => archive(selected)}
             onDelete={() => remove(selected)}
             onCreateTask={() => setTaskOpen(true)}
+            onPostpone={() => postponeAsTask(selected)}
           />
         )}
       </aside>
 
       {selected && (
-        <CreateTaskDialog
+        <CreateTaskFromEmailDialog
           open={taskOpen}
           onOpenChange={setTaskOpen}
           email={selected}
