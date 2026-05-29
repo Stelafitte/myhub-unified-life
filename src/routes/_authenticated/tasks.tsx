@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { CheckSquare, LayoutGrid, GanttChart, Wifi, WifiOff, RefreshCw } from "lucide-react";
+import { CheckSquare, LayoutGrid, GanttChart, Wifi, WifiOff, RefreshCw, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
