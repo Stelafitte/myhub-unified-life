@@ -107,7 +107,9 @@ function LoginPage() {
       toast.error(result.error.message ?? "Échec de connexion");
       return;
     }
-    if (!result.redirected) navigate({ to: "/inbox" });
+    // Ne pas naviguer ici : on attend que onAuthStateChange mette à jour
+    // le AuthProvider, puis le useEffect ci-dessus redirige vers /inbox.
+    // Sinon _authenticated voit user=null et renvoie sur /login.
   };
 
   const mismatch = confirm.length > 0 && confirm !== password;
