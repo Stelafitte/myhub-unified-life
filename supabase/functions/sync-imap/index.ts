@@ -4,6 +4,7 @@
 
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { detectSensitive } from "./sensitive-detection.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -409,6 +410,13 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
           const messageId = headers["message-id"] || `${account.id}-${msg.uid}`;
           const receivedAt = headers["date"] ? new Date(headers["date"]).toISOString() : new Date().toISOString();
 
+          const bodyText = parsed.textPlain ? parsed.textPlain.slice(0, 100000) : null;
+          const sens = detectSensitive({
+            subject,
+            from_address: from.address,
+            body_text: bodyText,
+          }, "normal");
+
           const { error: upErr } = await admin.from("emails").upsert({
             account_id: account.id,
             user_id: account.user_id,
@@ -417,7 +425,7 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
             from_name: from.name,
             to_address: to.address,
             subject,
-            body_text: parsed.textPlain ? parsed.textPlain.slice(0, 100000) : null,
+            body_text: bodyText,
             body_html: parsed.textHtml ? parsed.textHtml.slice(0, 200000) : null,
             has_attachment: parsed.attachments > 0,
             received_at: receivedAt,
@@ -425,6 +433,9 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
             is_starred: msg.flags.includes("\\Flagged"),
             origin_tag: detectOrigin(to.address),
             thread_id: headers["in-reply-to"] || null,
+            is_sensitive: sens.isSensitive,
+            sensitive_reason: sens.isSensitive ? sens.reasons.join(" · ") : null,
+            sensitive_score: sens.isSensitive ? sens.score : null,
           }, { onConflict: "account_id,message_id", ignoreDuplicates: false });
 
           if (upErr) console.error(`[sync-imap] upsert error`, upErr);

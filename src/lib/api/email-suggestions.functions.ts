@@ -21,11 +21,14 @@ export const getEmailSuggestions = createServerFn({ method: "POST" })
 
     const { data: e, error } = await supabase
       .from("emails")
-      .select("id,subject,from_address,from_name,body_text,received_at,ai_category")
+      .select("id,subject,from_address,from_name,body_text,received_at,ai_category,is_sensitive")
       .eq("id", data.emailId)
       .eq("user_id", userId)
       .maybeSingle();
     if (error || !e) throw new Error(error?.message ?? "Email introuvable");
+    if (e.is_sensitive) {
+      throw new Error("Email marqué sensible (HDS) — analyse IA désactivée pour protection des données de santé.");
+    }
 
     const today = new Date().toISOString();
     const sys = `Tu analyses un email pour proposer des actions. Réponds UNIQUEMENT en JSON valide:

@@ -230,11 +230,14 @@ export type Database = {
           id: string
           is_archived: boolean
           is_read: boolean
+          is_sensitive: boolean
           is_starred: boolean
           labels: string[] | null
           message_id: string | null
           origin_tag: Database["public"]["Enums"]["email_origin"] | null
           received_at: string | null
+          sensitive_reason: string | null
+          sensitive_score: number | null
           subject: string | null
           thread_id: string | null
           to_address: string | null
@@ -255,11 +258,14 @@ export type Database = {
           id?: string
           is_archived?: boolean
           is_read?: boolean
+          is_sensitive?: boolean
           is_starred?: boolean
           labels?: string[] | null
           message_id?: string | null
           origin_tag?: Database["public"]["Enums"]["email_origin"] | null
           received_at?: string | null
+          sensitive_reason?: string | null
+          sensitive_score?: number | null
           subject?: string | null
           thread_id?: string | null
           to_address?: string | null
@@ -280,11 +286,14 @@ export type Database = {
           id?: string
           is_archived?: boolean
           is_read?: boolean
+          is_sensitive?: boolean
           is_starred?: boolean
           labels?: string[] | null
           message_id?: string | null
           origin_tag?: Database["public"]["Enums"]["email_origin"] | null
           received_at?: string | null
+          sensitive_reason?: string | null
+          sensitive_score?: number | null
           subject?: string | null
           thread_id?: string | null
           to_address?: string | null
@@ -305,6 +314,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           display_name: string | null
+          hds_notice_accepted_at: string | null
           id: string
           theme: string
           updated_at: string
@@ -313,6 +323,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          hds_notice_accepted_at?: string | null
           id: string
           theme?: string
           updated_at?: string
@@ -321,6 +332,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
+          hds_notice_accepted_at?: string | null
           id?: string
           theme?: string
           updated_at?: string

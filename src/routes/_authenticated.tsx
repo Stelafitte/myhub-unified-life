@@ -4,6 +4,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { useAuth } from "@/lib/auth-context";
+import { HdsNoticeDialog } from "@/components/security/hds-notice-dialog";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
@@ -34,6 +35,7 @@ function AuthenticatedLayout() {
           <main className="flex-1 overflow-auto p-6">
             <Outlet />
           </main>
+          <HdsNoticeDialog />
         </div>
       </div>
     </SidebarProvider>
