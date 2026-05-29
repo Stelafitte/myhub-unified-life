@@ -99,7 +99,9 @@ function LoginPage() {
 
   const oauth = async (provider: "google" | "apple") => {
     setBusy(true);
-    const result = await lovable.auth.signInWithOAuth(provider, { redirect_uri: window.location.origin });
+    const result = await lovable.auth.signInWithOAuth(provider, {
+      redirect_uri: `${window.location.origin}/login`,
+    });
     if (result.error) {
       setBusy(false);
       toast.error(result.error.message ?? "Échec de connexion");
