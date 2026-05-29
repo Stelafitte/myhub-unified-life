@@ -27,13 +27,15 @@ type Row = {
 async function classifyOne(
   key: string,
   e: Row,
+  hints: string,
 ): Promise<{ priority: Priority; category: Category; summary: string } | null> {
   const sys = `Tu classes des emails. Réponds UNIQUEMENT en JSON valide:
 {"priority":"urgent|important|normal|low","category":"action|rendez-vous|document|facturation|rh|info|newsletter","summary":"résumé en 1-2 phrases (max 200 caractères), français"}
 - urgent: action immédiate requise
 - important: action cette semaine
 - normal: informatif utile
-- low: newsletters, notifications automatiques, pub`;
+- low: newsletters, notifications automatiques, pub${hints ? `\n\nPRÉFÉRENCES APPRISES de l'utilisateur (à respecter en priorité):\n${hints}` : ""}`;
+
   const user = `Sujet: ${e.subject ?? ""}
 De: ${e.from_name ?? ""} <${e.from_address ?? ""}>
 Reçu: ${e.received_at ?? ""}
@@ -78,6 +80,27 @@ export const classifyPendingEmails = createServerFn({ method: "POST" })
     const key = process.env.LOVABLE_API_KEY;
     if (!key) return { processed: 0, error: "LOVABLE_API_KEY manquant" };
 
+    const { data: feedbacks } = await supabase
+      .from("ai_feedback")
+      .select("from_address,subject,corrected_priority,corrected_category")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    const hintLines: string[] = [];
+    for (const f of feedbacks ?? []) {
+      const parts: string[] = [];
+      if (f.from_address) parts.push(`expéditeur ${f.from_address}`);
+      if (f.subject) parts.push(`sujet contient "${f.subject.slice(0, 60)}"`);
+      const target: string[] = [];
+      if (f.corrected_priority) target.push(`priorité=${f.corrected_priority}`);
+      if (f.corrected_category) target.push(`catégorie=${f.corrected_category}`);
+      if (parts.length && target.length) {
+        hintLines.push(`- Si ${parts.join(" et ")} → ${target.join(", ")}`);
+      }
+    }
+    const hints = hintLines.slice(0, 20).join("\n");
+
     const { data: rows, error } = await supabase
       .from("emails")
       .select("id,subject,from_address,from_name,body_text,received_at")
@@ -90,7 +113,8 @@ export const classifyPendingEmails = createServerFn({ method: "POST" })
 
     let processed = 0;
     for (const r of rows as Row[]) {
-      const result = await classifyOne(key, r);
+      const result = await classifyOne(key, r, hints);
+
       const now = new Date().toISOString();
       const update = result
         ? {

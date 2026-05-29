@@ -24,6 +24,8 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
 import { AiSuggestionsPanel } from "@/components/inbox/ai-suggestions-panel";
+import { AiClassificationFeedback } from "@/components/inbox/ai-classification-feedback";
+
 import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -569,6 +571,13 @@ function Reader({
         </div>
       </header>
 
+      <AiClassificationFeedback
+        emailId={email.id}
+        priority={email.ai_priority}
+        category={email.ai_category}
+        onUpdated={() => { /* cache will refresh on next sync */ }}
+      />
+
       <AiSuggestionsPanel
         emailId={email.id}
         fromAddress={email.from_address}
@@ -577,6 +586,7 @@ function Reader({
         onCreateTask={() => onCreateTask()}
         onArchive={onArchive}
       />
+
 
 
       {email.has_attachment && (
