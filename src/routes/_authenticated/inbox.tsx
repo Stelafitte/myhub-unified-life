@@ -589,3 +589,26 @@ function Reader({
 }
 
 
+
+function priorityDotClass(p: string | null | undefined): string {
+  switch (p) {
+    case "urgent": return "bg-red-500";
+    case "important": return "bg-orange-500";
+    case "normal": return "bg-yellow-400";
+    case "low": return "bg-green-500";
+    default: return "bg-muted-foreground/30";
+  }
+}
+
+function categoryLabel(c: string | null | undefined): string {
+  switch (c) {
+    case "action": return "📋 Action";
+    case "rendez-vous": return "📅 RDV";
+    case "document": return "📄 Doc";
+    case "facturation": return "💰 Facture";
+    case "rh": return "👥 RH";
+    case "info": return "📣 Info";
+    case "newsletter": return "🗑️ Newsletter";
+    default: return c ?? "";
+  }
+}
