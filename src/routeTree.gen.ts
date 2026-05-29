@@ -17,6 +17,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSecureBoxRouteImport } from './routes/_authenticated/secure-box'
 import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticated/roadmap'
 import { Route as AuthenticatedRetroplanningRouteImport } from './routes/_authenticated/retroplanning'
+import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticated/meetings'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
@@ -62,6 +63,11 @@ const AuthenticatedRetroplanningRoute =
     path: '/retroplanning',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedMeetingsRoute = AuthenticatedMeetingsRouteImport.update({
+  id: '/meetings',
+  path: '/meetings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/contacts': typeof AuthenticatedContactsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/inbox': typeof AuthenticatedInboxRoute
+  '/meetings': typeof AuthenticatedMeetingsRoute
   '/retroplanning': typeof AuthenticatedRetroplanningRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
   '/secure-box': typeof AuthenticatedSecureBoxRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/contacts': typeof AuthenticatedContactsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/inbox': typeof AuthenticatedInboxRoute
+  '/meetings': typeof AuthenticatedMeetingsRoute
   '/retroplanning': typeof AuthenticatedRetroplanningRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
   '/secure-box': typeof AuthenticatedSecureBoxRoute
@@ -118,6 +126,7 @@ export interface FileRoutesById {
   '/_authenticated/contacts': typeof AuthenticatedContactsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
+  '/_authenticated/meetings': typeof AuthenticatedMeetingsRoute
   '/_authenticated/retroplanning': typeof AuthenticatedRetroplanningRoute
   '/_authenticated/roadmap': typeof AuthenticatedRoadmapRoute
   '/_authenticated/secure-box': typeof AuthenticatedSecureBoxRoute
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/dashboard'
     | '/inbox'
+    | '/meetings'
     | '/retroplanning'
     | '/roadmap'
     | '/secure-box'
@@ -146,6 +156,7 @@ export interface FileRouteTypes {
     | '/contacts'
     | '/dashboard'
     | '/inbox'
+    | '/meetings'
     | '/retroplanning'
     | '/roadmap'
     | '/secure-box'
@@ -160,6 +171,7 @@ export interface FileRouteTypes {
     | '/_authenticated/contacts'
     | '/_authenticated/dashboard'
     | '/_authenticated/inbox'
+    | '/_authenticated/meetings'
     | '/_authenticated/retroplanning'
     | '/_authenticated/roadmap'
     | '/_authenticated/secure-box'
@@ -231,6 +243,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRetroplanningRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/meetings': {
+      id: '/_authenticated/meetings'
+      path: '/meetings'
+      fullPath: '/meetings'
+      preLoaderRoute: typeof AuthenticatedMeetingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/inbox': {
       id: '/_authenticated/inbox'
       path: '/inbox'
@@ -267,6 +286,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedContactsRoute: typeof AuthenticatedContactsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
+  AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRoute
   AuthenticatedRetroplanningRoute: typeof AuthenticatedRetroplanningRoute
   AuthenticatedRoadmapRoute: typeof AuthenticatedRoadmapRoute
   AuthenticatedSecureBoxRoute: typeof AuthenticatedSecureBoxRoute
@@ -279,6 +299,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedContactsRoute: AuthenticatedContactsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
+  AuthenticatedMeetingsRoute: AuthenticatedMeetingsRoute,
   AuthenticatedRetroplanningRoute: AuthenticatedRetroplanningRoute,
   AuthenticatedRoadmapRoute: AuthenticatedRoadmapRoute,
   AuthenticatedSecureBoxRoute: AuthenticatedSecureBoxRoute,
@@ -298,13 +319,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

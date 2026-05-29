@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { LayoutDashboard, Inbox, CheckSquare, Calendar, Users, Map, Settings, Lock } from "lucide-react";
+import { LayoutDashboard, Inbox, CheckSquare, Calendar, Users, Map, Settings, Lock, CalendarClock } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -18,6 +18,7 @@ const items = [
   { title: "Coffre sécurisé", url: "/secure-box", icon: Lock },
   { title: "Tâches", url: "/tasks", icon: CheckSquare },
   { title: "Agenda", url: "/calendar", icon: Calendar },
+  { title: "Réunions", url: "/meetings", icon: CalendarClock },
   { title: "Contacts", url: "/contacts", icon: Users },
   { title: "Retroplanning", url: "/retroplanning", icon: Map },
   { title: "Paramètres", url: "/settings", icon: Settings },
