@@ -24,6 +24,10 @@ export type CachedEmail = {
   labels: string[] | null;
   has_attachment: boolean;
   thread_id: string | null;
+  ai_priority?: string | null;
+  ai_category?: string | null;
+  ai_summary?: string | null;
+  ai_processed_at?: string | null;
 };
 
 function openDb(): Promise<IDBDatabase> {
