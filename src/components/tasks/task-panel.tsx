@@ -54,6 +54,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [comments, setComments] = useState("");
   const [priority, setPriority] = useState<TaskPriority>("medium");
   const [status, setStatus] = useState<TaskStatus>("todo");
   const [section, setSection] = useState<string>("Autre");
