@@ -414,6 +414,7 @@ function Reader({
   onArchive,
   onDelete,
   onCreateTask,
+  onPostpone,
 }: {
   email: Email;
   account?: Account;
@@ -421,7 +422,9 @@ function Reader({
   onArchive: () => void;
   onDelete: () => void;
   onCreateTask: () => void;
+  onPostpone: () => void;
 }) {
+  const isPostponed = (email.labels ?? []).includes("task-todo");
   return (
     <div className="flex h-full flex-col">
       <header className="border-b p-4">
@@ -448,10 +451,24 @@ function Reader({
           <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}><Archive className="h-3 w-3" /> Archiver</Button>
           <Button size="sm" variant="outline" className="h-7 gap-1 text-destructive" onClick={onDelete}><Trash2 className="h-3 w-3" /> Suppr.</Button>
         </div>
-        <Button size="sm" className="mt-2 w-full gap-1" onClick={onCreateTask}>
-          <Plus className="h-3.5 w-3.5" /> Créer une tâche depuis ce mail
-        </Button>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <Button size="sm" className="gap-1" onClick={onCreateTask}>
+            <Plus className="h-3.5 w-3.5" /> Créer une tâche
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={onPostpone}
+            disabled={isPostponed}
+          >
+            <Clock className="h-3.5 w-3.5" />
+            {isPostponed ? "Déjà reportée" : "Reporter (à traiter)"}
+          </Button>
+        </div>
       </header>
+
+
 
       {email.has_attachment && (
         <div className="border-b bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
