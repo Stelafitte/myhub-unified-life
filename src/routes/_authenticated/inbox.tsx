@@ -568,6 +568,14 @@ function Reader({
         </div>
       </header>
 
+      <AiSuggestionsPanel
+        emailId={email.id}
+        fromAddress={email.from_address}
+        subject={email.subject}
+        userId={userId}
+        onCreateTask={() => onCreateTask()}
+        onArchive={onArchive}
+      />
 
 
       {email.has_attachment && (
