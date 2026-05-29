@@ -339,6 +339,36 @@ export type Database = {
         }
         Relationships: []
       }
+      security_settings: {
+        Row: {
+          blacklist: string[]
+          created_at: string
+          sensitive_action: string
+          sensitivity_level: string
+          updated_at: string
+          user_id: string
+          whitelist: string[]
+        }
+        Insert: {
+          blacklist?: string[]
+          created_at?: string
+          sensitive_action?: string
+          sensitivity_level?: string
+          updated_at?: string
+          user_id: string
+          whitelist?: string[]
+        }
+        Update: {
+          blacklist?: string[]
+          created_at?: string
+          sensitive_action?: string
+          sensitivity_level?: string
+          updated_at?: string
+          user_id?: string
+          whitelist?: string[]
+        }
+        Relationships: []
+      }
       sync_queue: {
         Row: {
           action: Database["public"]["Enums"]["sync_queue_action"]
