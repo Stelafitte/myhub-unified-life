@@ -1,8 +1,6 @@
 // Edge Function: sync-imap
 // Client IMAP minimal natif Deno (TLS brut). Compatible Supabase Edge Runtime.
-// - Appelée par pg_cron (toutes les 15 min) ou manuellement par l'app.
-// - JWT utilisateur → ne synchronise que ses comptes IMAP actifs.
-// - Sinon (anon/cron) → tous les comptes IMAP actifs.
+// Fetch full RFC822 message + parse multipart MIME (body text, HTML, attachments).
 
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -103,7 +101,6 @@ class Imap {
         rawText += line + "\r\n";
         const data = await this.readBytes(n);
         literals.push(data);
-        // After the literal, additional text continues on the same logical line — keep reading.
         continue;
       }
       if (line.startsWith(tag + " ")) {
@@ -125,9 +122,9 @@ function formatImapDate(d: Date): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Parsers
+// FETCH response parser
 // ─────────────────────────────────────────────────────────────────────────────
-type FetchMsg = { uid: number; flags: string[]; headers: Uint8Array; text: Uint8Array };
+type FetchMsg = { uid: number; flags: string[]; raw: Uint8Array };
 
 function parseFetchResponse(rawText: string, literals: Uint8Array[]): FetchMsg[] {
   const out: FetchMsg[] = [];
@@ -147,32 +144,43 @@ function parseFetchResponse(rawText: string, literals: Uint8Array[]): FetchMsg[]
     const uid = uidM ? parseInt(uidM[1]) : 0;
     const flags = flagsM ? flagsM[1].split(/\s+/).filter(Boolean) : [];
 
-    let headers = new Uint8Array(0);
-    let text = new Uint8Array(0);
-    const atomRe = /(BODY\[[^\]]*\](?:<\d+\.\d+>)?) \{(\d+)\}/g;
-    let am;
-    while ((am = atomRe.exec(chunk)) !== null) {
-      const atom = am[1];
+    // Count literals in this chunk: each {N} consumes one literal
+    let raw = new Uint8Array(0);
+    const literalCount = (chunk.match(/\{\d+\}/g) || []).length;
+    for (let k = 0; k < literalCount; k++) {
       const lit = literals[litIdx++];
       if (!lit) continue;
-      if (atom.startsWith("BODY[HEADER")) headers = lit;
-      else if (atom.startsWith("BODY[TEXT")) text = lit;
+      // Last literal is the body
+      if (k === literalCount - 1) raw = lit;
     }
-    out.push({ uid, flags, headers, text });
+    out.push({ uid, flags, raw });
   }
   return out;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MIME parsing
+// ─────────────────────────────────────────────────────────────────────────────
 function decodeMimeWord(s: string): string {
   return s.replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g, (_m, charset, enc, data) => {
     try {
       if (enc.toUpperCase() === "B") {
-        const bytes = Uint8Array.from(atob(data), (c) => c.charCodeAt(0));
+        const bytes = Uint8Array.from(atob(data.replace(/\s+/g, "")), (c) => c.charCodeAt(0));
         return new TextDecoder(charset).decode(bytes);
       } else {
-        return data
-          .replace(/_/g, " ")
-          .replace(/=([0-9A-Fa-f]{2})/g, (_x: string, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+        const bytes: number[] = [];
+        let i = 0;
+        const t = data.replace(/_/g, " ");
+        while (i < t.length) {
+          if (t[i] === "=" && i + 2 < t.length) {
+            bytes.push(parseInt(t.substring(i + 1, i + 3), 16));
+            i += 3;
+          } else {
+            bytes.push(t.charCodeAt(i));
+            i++;
+          }
+        }
+        return new TextDecoder(charset).decode(new Uint8Array(bytes));
       }
     } catch {
       return data;
@@ -180,25 +188,152 @@ function decodeMimeWord(s: string): string {
   });
 }
 
-function parseHeaders(raw: Uint8Array): Record<string, string> {
-  const text = new TextDecoder("utf-8", { fatal: false }).decode(raw);
-  const unfolded = text.replace(/\r\n[ \t]+/g, " ");
-  const out: Record<string, string> = {};
-  for (const line of unfolded.split(/\r\n/)) {
+function decodeQuotedPrintable(s: string): Uint8Array {
+  const bytes: number[] = [];
+  let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === "=" && i + 2 < s.length) {
+      const next2 = s.substring(i + 1, i + 3);
+      if (next2 === "\r\n" || next2[0] === "\n") {
+        i += next2 === "\r\n" ? 3 : 2;
+        continue;
+      }
+      const code = parseInt(next2, 16);
+      if (!isNaN(code)) { bytes.push(code); i += 3; continue; }
+    }
+    bytes.push(s.charCodeAt(i));
+    i++;
+  }
+  return new Uint8Array(bytes);
+}
+
+function decodeBase64(s: string): Uint8Array {
+  try {
+    const clean = s.replace(/\s+/g, "");
+    const bin = atob(clean);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+  } catch {
+    return new Uint8Array(0);
+  }
+}
+
+type MimeHeaders = Record<string, string>;
+
+function splitRawMime(raw: Uint8Array): { headers: MimeHeaders; body: Uint8Array } {
+  // Find CRLF CRLF or LF LF
+  for (let i = 0; i < raw.length - 3; i++) {
+    if (raw[i] === 0x0d && raw[i + 1] === 0x0a && raw[i + 2] === 0x0d && raw[i + 3] === 0x0a) {
+      const h = new TextDecoder("utf-8", { fatal: false }).decode(raw.subarray(0, i));
+      return { headers: parseHeaderBlock(h), body: raw.subarray(i + 4) };
+    }
+  }
+  for (let i = 0; i < raw.length - 1; i++) {
+    if (raw[i] === 0x0a && raw[i + 1] === 0x0a) {
+      const h = new TextDecoder("utf-8", { fatal: false }).decode(raw.subarray(0, i));
+      return { headers: parseHeaderBlock(h), body: raw.subarray(i + 2) };
+    }
+  }
+  return { headers: {}, body: raw };
+}
+
+function parseHeaderBlock(text: string): MimeHeaders {
+  const unfolded = text.replace(/\r?\n[ \t]+/g, " ");
+  const out: MimeHeaders = {};
+  for (const line of unfolded.split(/\r?\n/)) {
     const i = line.indexOf(":");
     if (i < 0) continue;
     const k = line.substring(0, i).trim().toLowerCase();
     const v = line.substring(i + 1).trim();
-    if (!out[k]) out[k] = decodeMimeWord(v);
+    if (!out[k]) out[k] = v;
   }
   return out;
 }
 
+function parseContentType(v: string): { type: string; params: Record<string, string> } {
+  const [main, ...rest] = v.split(";");
+  const params: Record<string, string> = {};
+  for (const p of rest) {
+    const eq = p.indexOf("=");
+    if (eq < 0) continue;
+    const k = p.substring(0, eq).trim().toLowerCase();
+    let val = p.substring(eq + 1).trim();
+    if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
+    params[k] = val;
+  }
+  return { type: (main || "").trim().toLowerCase(), params };
+}
+
+function indicesOf(haystack: Uint8Array, needle: Uint8Array): number[] {
+  const out: number[] = [];
+  outer: for (let i = 0; i <= haystack.length - needle.length; i++) {
+    for (let j = 0; j < needle.length; j++) if (haystack[i + j] !== needle[j]) continue outer;
+    out.push(i);
+  }
+  return out;
+}
+
+type ParsedPart = { textPlain: string; textHtml: string; attachments: number };
+
+function decodePartBody(body: Uint8Array, encoding: string, charset: string): string {
+  const enc = (encoding || "7bit").toLowerCase();
+  let bytes: Uint8Array;
+  if (enc === "base64") {
+    bytes = decodeBase64(new TextDecoder("ascii").decode(body));
+  } else if (enc === "quoted-printable") {
+    bytes = decodeQuotedPrintable(new TextDecoder("ascii", { fatal: false }).decode(body));
+  } else {
+    bytes = body;
+  }
+  try { return new TextDecoder(charset || "utf-8", { fatal: false }).decode(bytes); }
+  catch { return new TextDecoder("utf-8", { fatal: false }).decode(bytes); }
+}
+
+function walkMime(raw: Uint8Array, out: ParsedPart) {
+  const { headers, body } = splitRawMime(raw);
+  const ct = parseContentType(headers["content-type"] || "text/plain; charset=utf-8");
+  const disp = (headers["content-disposition"] || "").toLowerCase();
+  const enc = headers["content-transfer-encoding"] || "7bit";
+
+  if (ct.type.startsWith("multipart/")) {
+    const boundary = ct.params["boundary"];
+    if (!boundary) return;
+    const enc8 = new TextEncoder();
+    const delim = enc8.encode(`--${boundary}`);
+    const positions = indicesOf(body, delim);
+    for (let i = 0; i < positions.length - 1; i++) {
+      let start = positions[i] + delim.length;
+      // skip CRLF after boundary
+      if (body[start] === 0x0d && body[start + 1] === 0x0a) start += 2;
+      else if (body[start] === 0x0a) start += 1;
+      let end = positions[i + 1];
+      // trim trailing CRLF before next boundary
+      if (end >= 2 && body[end - 2] === 0x0d && body[end - 1] === 0x0a) end -= 2;
+      else if (end >= 1 && body[end - 1] === 0x0a) end -= 1;
+      if (end > start) walkMime(body.subarray(start, end), out);
+    }
+    return;
+  }
+
+  // Leaf part
+  const isAttachment = disp.includes("attachment") || !!ct.params["name"] || !!(headers["content-disposition"] || "").match(/filename=/i);
+  if (isAttachment) { out.attachments++; return; }
+
+  if (ct.type === "text/plain" && !out.textPlain) {
+    out.textPlain = decodePartBody(body, enc, ct.params["charset"] || "utf-8");
+  } else if (ct.type === "text/html" && !out.textHtml) {
+    out.textHtml = decodePartBody(body, enc, ct.params["charset"] || "utf-8");
+  }
+}
+
 function parseAddress(s: string): { address: string | null; name: string | null } {
   if (!s) return { address: null, name: null };
-  const m = s.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
+  const decoded = decodeMimeWord(s);
+  const m = decoded.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
   if (m) return { address: m[2].trim(), name: (m[1] || "").trim() || null };
-  return { address: s.trim(), name: null };
+  return { address: decoded.trim(), name: null };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -212,19 +347,17 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
   const pass = creds.password;
   if (!host || !user || !pass) return { ok: false, count: 0, error: "missing credentials" };
 
-  console.log(`[sync-imap] connecting account=${account.name} host=${host}:${port} user=${user}`);
+  console.log(`[sync-imap] connecting account=${account.name} host=${host}:${port}`);
 
   let imap: Imap | null = null;
   try {
     const conn = await Deno.connectTls({ hostname: host, port });
     imap = new Imap(conn);
 
-    const greeting = await imap.readGreeting();
-    console.log(`[sync-imap] greeting: ${greeting.substring(0, 100)}`);
+    await imap.readGreeting();
 
     const loginRes = await imap.cmd(`LOGIN "${escapeArg(user)}" "${escapeArg(pass)}"`);
     if (!loginRes.ok) throw new Error(`LOGIN failed: ${loginRes.statusLine}`);
-    console.log(`[sync-imap] logged in`);
 
     const selRes = await imap.cmd("SELECT INBOX");
     if (!selRes.ok) throw new Error(`SELECT failed: ${selRes.statusLine}`);
@@ -240,10 +373,8 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
 
     const uids: number[] = [];
     const sm = searchRes.rawText.match(/\* SEARCH([0-9 \r\n]*)/);
-    if (sm) {
-      uids.push(...sm[1].trim().split(/\s+/).filter(Boolean).map(Number).filter((n) => !isNaN(n)));
-    }
-    console.log(`[sync-imap] found ${uids.length} UIDs since ${sinceStr}`);
+    if (sm) uids.push(...sm[1].trim().split(/\s+/).filter(Boolean).map(Number).filter((n) => !isNaN(n)));
+    console.log(`[sync-imap] ${uids.length} UIDs since ${sinceStr}`);
 
     if (uids.length === 0) {
       await imap.cmd("LOGOUT");
@@ -255,10 +386,11 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
     const toFetch = !account.last_sync_at ? uids.slice(-200) : uids;
 
     let count = 0;
-    for (let i = 0; i < toFetch.length; i += 30) {
-      const batch = toFetch.slice(i, i + 30);
+    // Cap each message at 500KB to keep memory under control
+    for (let i = 0; i < toFetch.length; i += 15) {
+      const batch = toFetch.slice(i, i + 15);
       const fetchRes = await imap.cmd(
-        `UID FETCH ${batch.join(",")} (UID FLAGS BODY.PEEK[HEADER.FIELDS (FROM TO SUBJECT MESSAGE-ID DATE IN-REPLY-TO)] BODY.PEEK[TEXT]<0.50000>)`
+        `UID FETCH ${batch.join(",")} (UID FLAGS BODY.PEEK[]<0.524288>)`
       );
       if (!fetchRes.ok) {
         console.error(`[sync-imap] FETCH batch failed: ${fetchRes.statusLine}`);
@@ -267,15 +399,15 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
       const messages = parseFetchResponse(fetchRes.rawText, fetchRes.literals);
       for (const msg of messages) {
         try {
-          const h = parseHeaders(msg.headers);
-          const from = parseAddress(h["from"] || "");
-          const to = parseAddress(h["to"] || "");
-          const bodyText = msg.text.length
-            ? new TextDecoder("utf-8", { fatal: false }).decode(msg.text).slice(0, 50000)
-            : null;
+          const { headers } = splitRawMime(msg.raw);
+          const parsed: ParsedPart = { textPlain: "", textHtml: "", attachments: 0 };
+          walkMime(msg.raw, parsed);
 
-          const messageId = h["message-id"] || `${account.id}-${msg.uid}`;
-          const receivedAt = h["date"] ? new Date(h["date"]).toISOString() : new Date().toISOString();
+          const from = parseAddress(headers["from"] || "");
+          const to = parseAddress(headers["to"] || "");
+          const subject = decodeMimeWord(headers["subject"] || "") || null;
+          const messageId = headers["message-id"] || `${account.id}-${msg.uid}`;
+          const receivedAt = headers["date"] ? new Date(headers["date"]).toISOString() : new Date().toISOString();
 
           const { error: upErr } = await admin.from("emails").upsert({
             account_id: account.id,
@@ -284,13 +416,15 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
             from_address: from.address,
             from_name: from.name,
             to_address: to.address,
-            subject: h["subject"] || null,
-            body_text: bodyText,
+            subject,
+            body_text: parsed.textPlain ? parsed.textPlain.slice(0, 100000) : null,
+            body_html: parsed.textHtml ? parsed.textHtml.slice(0, 200000) : null,
+            has_attachment: parsed.attachments > 0,
             received_at: receivedAt,
             is_read: msg.flags.includes("\\Seen"),
             is_starred: msg.flags.includes("\\Flagged"),
             origin_tag: detectOrigin(to.address),
-            thread_id: h["in-reply-to"] || null,
+            thread_id: headers["in-reply-to"] || null,
           }, { onConflict: "account_id,message_id", ignoreDuplicates: false });
 
           if (upErr) console.error(`[sync-imap] upsert error`, upErr);
@@ -319,7 +453,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    let body: { account_id?: string } = {};
+    let body: { account_id?: string; force_full?: boolean } = {};
     try { body = await req.json(); } catch { /* empty body OK for cron */ }
 
     const authHeader = req.headers.get("Authorization");
@@ -339,11 +473,15 @@ Deno.serve(async (req: Request) => {
     const { data: accounts, error } = await q;
     if (error) throw error;
 
+    // force_full: re-sync depuis 30j (utile pour récupérer bodies/PJ sur mails déjà importés)
+    if (body.force_full && accounts) {
+      for (const acc of accounts) acc.last_sync_at = null;
+    }
+
     const results: any[] = [];
     for (const acc of accounts ?? []) {
-      // Hard cap par compte: 45s
       const timeoutP = new Promise<{ ok: false; count: 0; error: string }>((resolve) =>
-        setTimeout(() => resolve({ ok: false, count: 0, error: "account sync timeout (45s)" }), 45000)
+        setTimeout(() => resolve({ ok: false, count: 0, error: "account sync timeout (60s)" }), 60000)
       );
       const r = await Promise.race([syncOne(acc, admin), timeoutP]);
       console.log(`[sync-imap] account=${acc.name} result=`, r);
