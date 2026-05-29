@@ -56,6 +56,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_feedback: {
+        Row: {
+          corrected_category: string | null
+          corrected_priority: string | null
+          created_at: string
+          email_id: string
+          from_address: string | null
+          id: string
+          original_category: string | null
+          original_priority: string | null
+          subject: string | null
+          user_id: string
+        }
+        Insert: {
+          corrected_category?: string | null
+          corrected_priority?: string | null
+          created_at?: string
+          email_id: string
+          from_address?: string | null
+          id?: string
+          original_category?: string | null
+          original_priority?: string | null
+          subject?: string | null
+          user_id: string
+        }
+        Update: {
+          corrected_category?: string | null
+          corrected_priority?: string | null
+          created_at?: string
+          email_id?: string
+          from_address?: string | null
+          id?: string
+          original_category?: string | null
+          original_priority?: string | null
+          subject?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       calendar_events: {
         Row: {
           account_id: string | null
