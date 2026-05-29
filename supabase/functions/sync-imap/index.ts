@@ -37,11 +37,13 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
   const pass = creds.password;
   if (!host || !user || !pass) return { ok: false, count: 0, error: "missing credentials" };
 
+  console.log(`[sync-imap] connecting account=${account.name} host=${host}:${port} user=${user}`);
   const client = new ImapFlow({
     host, port, secure: port === 993,
     auth: { user, pass },
     logger: false,
-    socketTimeout: 30000,
+    socketTimeout: 15000,
+    greetingTimeout: 10000,
   });
 
   let count = 0;
