@@ -538,7 +538,7 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
             received_at: receivedAt,
             is_read: msg.flags.includes("\\Seen"),
             is_starred: msg.flags.includes("\\Flagged"),
-            origin_tag: detectOrigin(to.address),
+            origin_tag: detectOrigin(to.address, (account.credentials as any)?.email),
             thread_id: headers["in-reply-to"] || null,
             is_sensitive: sens.isSensitive,
             sensitive_reason: sens.isSensitive ? sens.reasons.join(" · ") : null,
