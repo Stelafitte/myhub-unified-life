@@ -167,6 +167,8 @@ function TasksPage() {
         </div>
       </div>
 
+      {user && <TaskRequestsPanel userId={user.id} onCreated={load} />}
+
       {loading ? (
         <div className="rounded-xl border bg-muted/30 p-12 text-center text-sm text-muted-foreground">Chargement…</div>
       ) : view === "kanban" ? (
