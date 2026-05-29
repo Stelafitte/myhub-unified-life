@@ -585,13 +585,17 @@ function CreateTaskDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between gap-2">
-            Créer une tâche depuis ce mail
-            <Button size="sm" variant="outline" onClick={runAi} disabled={analyzing} className="gap-1.5">
-              <Zap className="h-3.5 w-3.5" /> {analyzing ? "Analyse…" : "Pré-remplir avec l'IA"}
-            </Button>
-          </DialogTitle>
+          <DialogTitle>Créer une tâche depuis ce mail</DialogTitle>
         </DialogHeader>
+        <Button
+          type="button"
+          onClick={runAi}
+          disabled={analyzing}
+          className="w-full gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white hover:from-violet-700 hover:to-fuchsia-700"
+        >
+          <Zap className="h-4 w-4" />
+          {analyzing ? "Analyse en cours…" : "✨ Pré-remplir avec l'IA"}
+        </Button>
         <div className="space-y-3">
           <div>
             <Label htmlFor="t-title">Titre</Label>
