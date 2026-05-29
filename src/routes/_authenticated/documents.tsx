@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, LayoutGrid, List, Lock, Trash2, Eye, Download, Link as LinkIcon, Loader2, Filter } from "lucide-react";
+import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, LayoutGrid, List, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
-import { useAuth } from "@/lib/auth-context";
 import { categorize, iconFor, colorFor, formatBytes, sourceLabel, type FileCategory } from "@/lib/file-icons";
 import { UploadDocumentDialog } from "@/components/documents/upload-document-dialog";
 import { DocumentPreviewSheet } from "@/components/documents/document-preview-sheet";
