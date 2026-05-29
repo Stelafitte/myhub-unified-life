@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
 import { cacheEmails, loadCachedEmails, type CachedEmail } from "@/lib/inbox-cache";
+import { QuickAddOvh } from "@/components/inbox/quick-add-ovh";
 
 type Account = {
   id: string;
