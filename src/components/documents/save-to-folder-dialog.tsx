@@ -33,9 +33,11 @@ export function SaveToFolderDialog({ open, onOpenChange, documents, context, onS
     setPicked("");
     setCreating("");
     setLoading(true);
-    supabase.from("documents").select("*").limit(500)
-      .then(({ data }) => setAllDocs((data as DocumentRow[]) ?? []))
-      .finally(() => setLoading(false));
+    (async () => {
+      const { data } = await supabase.from("documents").select("*").limit(500);
+      setAllDocs((data as DocumentRow[]) ?? []);
+      setLoading(false);
+    })();
   }, [open]);
 
   const first = documents[0];
