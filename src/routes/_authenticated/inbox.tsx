@@ -16,7 +16,9 @@ import {
   Zap,
   Tag,
   Circle,
+  Clock,
 } from "lucide-react";
+import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Input } from "@/components/ui/input";
