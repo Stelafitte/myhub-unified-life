@@ -160,12 +160,22 @@ function MeetingList({
   participants,
   taskCounts,
   empty,
+  onEdit,
+  onExport,
+  myEmail,
+  onRsvp,
+  showRsvp,
 }: {
   loading: boolean;
   meetings: Meeting[];
   participants: Participant[];
   taskCounts: Record<string, number>;
   empty: string;
+  onEdit: (id: string) => void;
+  onExport: (m: Meeting) => void;
+  myEmail?: string;
+  onRsvp: (id: string, status: "accepted" | "declined" | "tentative") => void;
+  showRsvp?: boolean;
 }) {
   if (loading) {
     return (
@@ -184,14 +194,24 @@ function MeetingList({
   }
   return (
     <div className="space-y-3">
-      {meetings.map((m) => (
-        <MeetingCard
-          key={m.id}
-          meeting={m}
-          participants={participants.filter((p) => p.meeting_id === m.id)}
-          taskCount={taskCounts[m.id] ?? 0}
-        />
-      ))}
+      {meetings.map((m) => {
+        const ps = participants.filter((p) => p.meeting_id === m.id);
+        const mine = myEmail ? ps.find((p) => p.email.toLowerCase() === myEmail) : undefined;
+        return (
+          <MeetingCard
+            key={m.id}
+            meeting={m}
+            participants={ps}
+            taskCount={taskCounts[m.id] ?? 0}
+            onEdit={() => onEdit(m.id)}
+            onExport={() => onExport(m)}
+            myRsvp={mine?.rsvp_status}
+            isOrganizer={mine?.role === "organizer"}
+            showRsvp={showRsvp}
+            onRsvp={(s) => onRsvp(m.id, s)}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -200,10 +220,22 @@ function MeetingCard({
   meeting,
   participants,
   taskCount,
+  onEdit,
+  onExport,
+  myRsvp,
+  isOrganizer,
+  showRsvp,
+  onRsvp,
 }: {
   meeting: Meeting;
   participants: Participant[];
   taskCount: number;
+  onEdit: () => void;
+  onExport: () => void;
+  myRsvp?: string;
+  isOrganizer?: boolean;
+  showRsvp?: boolean;
+  onRsvp: (status: "accepted" | "declined" | "tentative") => void;
 }) {
   const start = new Date(meeting.start_at);
   const end = new Date(meeting.end_at);
@@ -227,6 +259,9 @@ function MeetingCard({
                 <Video className="h-3 w-3" />
                 {meeting.online_provider ?? "Visio"}
               </Badge>
+            )}
+            {myRsvp && myRsvp !== "pending" && !isOrganizer && (
+              <Badge variant="outline" className="text-xs">Vous: {myRsvp}</Badge>
             )}
           </div>
           <div className="text-sm text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
@@ -279,14 +314,33 @@ function MeetingCard({
               </span>
             )}
           </div>
+          {showRsvp && !isOrganizer && (
+            <div className="flex gap-2 mt-3">
+              <Button size="sm" variant="outline" className="text-green-600" onClick={() => onRsvp("accepted")}>
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Accepter
+              </Button>
+              <Button size="sm" variant="outline" className="text-amber-600" onClick={() => onRsvp("tentative")}>
+                <HelpCircle className="h-3.5 w-3.5 mr-1" /> Peut-être
+              </Button>
+              <Button size="sm" variant="outline" className="text-red-600" onClick={() => onRsvp("declined")}>
+                <XCircle className="h-3.5 w-3.5 mr-1" /> Refuser
+              </Button>
+            </div>
+          )}
         </div>
-        {meeting.is_online && meeting.online_link && (
-          <Button asChild size="sm" variant="outline">
-            <a href={meeting.online_link} target="_blank" rel="noreferrer">
-              Rejoindre
-            </a>
+        <div className="flex flex-col gap-1.5 shrink-0">
+          {meeting.is_online && meeting.online_link && (
+            <Button asChild size="sm" variant="outline">
+              <a href={meeting.online_link} target="_blank" rel="noreferrer">Rejoindre</a>
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" onClick={onEdit}>
+            <Pencil className="h-3.5 w-3.5 mr-1" /> Éditer
           </Button>
-        )}
+          <Button size="sm" variant="ghost" onClick={onExport}>
+            <Download className="h-3.5 w-3.5 mr-1" /> .ics
+          </Button>
+        </div>
       </div>
     </Card>
   );
