@@ -12,6 +12,7 @@ import { GanttView } from "@/components/tasks/gantt-view";
 import { TaskPanel } from "@/components/tasks/task-panel";
 import { enqueue, flushQueue, installOnlineFlusher, listPending } from "@/lib/sync-queue";
 import { type Task, type TaskStatus, getSection, DEFAULT_SECTIONS } from "@/lib/tasks-model";
+import { TaskRequestsPanel } from "@/components/tasks/task-requests";
 
 export const Route = createFileRoute("/_authenticated/tasks")({
   component: TasksPage,
