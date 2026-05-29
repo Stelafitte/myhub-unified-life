@@ -345,6 +345,9 @@ export type Database = {
       tasks: {
         Row: {
           assigned_to: string | null
+          attachments: Json
+          calendar_event_id: string | null
+          comments: string | null
           created_at: string
           description: string | null
           due_date: string | null
@@ -365,6 +368,9 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          attachments?: Json
+          calendar_event_id?: string | null
+          comments?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
@@ -385,6 +391,9 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          attachments?: Json
+          calendar_event_id?: string | null
+          comments?: string | null
           created_at?: string
           description?: string | null
           due_date?: string | null
