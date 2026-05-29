@@ -420,8 +420,8 @@ function ContactsPage() {
             contact={selected}
             accounts={accounts}
             onSave={async (updates) => {
-              const { error } = await supabase.from("contacts").update(updates).eq("id", selected.id);
-              if (error) return toast.error(error.message);
+              const { error } = await supabase.from("contacts").update(updates as never).eq("id", selected.id);
+              if (error) { toast.error(error.message); return; }
               setContacts((p) => p.map((c) => (c.id === selected.id ? { ...c, ...updates } : c)));
               toast.success("Modifications enregistrées");
             }}
