@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSecureBoxRouteImport } from './routes/_authenticated/secure-box'
 import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticated/roadmap'
 import { Route as AuthenticatedRetroplanningRouteImport } from './routes/_authenticated/retroplanning'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
@@ -43,6 +44,11 @@ const AuthenticatedTasksRoute = AuthenticatedTasksRouteImport.update({
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSecureBoxRoute = AuthenticatedSecureBoxRouteImport.update({
+  id: '/secure-box',
+  path: '/secure-box',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedRoadmapRoute = AuthenticatedRoadmapRouteImport.update({
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AuthenticatedInboxRoute
   '/retroplanning': typeof AuthenticatedRetroplanningRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
+  '/secure-box': typeof AuthenticatedSecureBoxRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tasks': typeof AuthenticatedTasksRoute
 }
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AuthenticatedInboxRoute
   '/retroplanning': typeof AuthenticatedRetroplanningRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
+  '/secure-box': typeof AuthenticatedSecureBoxRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/tasks': typeof AuthenticatedTasksRoute
 }
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/retroplanning': typeof AuthenticatedRetroplanningRoute
   '/_authenticated/roadmap': typeof AuthenticatedRoadmapRoute
+  '/_authenticated/secure-box': typeof AuthenticatedSecureBoxRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
 }
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/retroplanning'
     | '/roadmap'
+    | '/secure-box'
     | '/settings'
     | '/tasks'
   fileRoutesByTo: FileRoutesByTo
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/retroplanning'
     | '/roadmap'
+    | '/secure-box'
     | '/settings'
     | '/tasks'
   id:
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inbox'
     | '/_authenticated/retroplanning'
     | '/_authenticated/roadmap'
+    | '/_authenticated/secure-box'
     | '/_authenticated/settings'
     | '/_authenticated/tasks'
   fileRoutesById: FileRoutesById
@@ -196,6 +208,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/secure-box': {
+      id: '/_authenticated/secure-box'
+      path: '/secure-box'
+      fullPath: '/secure-box'
+      preLoaderRoute: typeof AuthenticatedSecureBoxRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/roadmap': {
@@ -250,6 +269,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedRetroplanningRoute: typeof AuthenticatedRetroplanningRoute
   AuthenticatedRoadmapRoute: typeof AuthenticatedRoadmapRoute
+  AuthenticatedSecureBoxRoute: typeof AuthenticatedSecureBoxRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedTasksRoute: typeof AuthenticatedTasksRoute
 }
@@ -261,6 +281,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedRetroplanningRoute: AuthenticatedRetroplanningRoute,
   AuthenticatedRoadmapRoute: AuthenticatedRoadmapRoute,
+  AuthenticatedSecureBoxRoute: AuthenticatedSecureBoxRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedTasksRoute: AuthenticatedTasksRoute,
 }

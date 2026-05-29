@@ -46,6 +46,8 @@ import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
 import { cacheEmails, loadCachedEmails, type CachedEmail } from "@/lib/inbox-cache";
 import { QuickAddOvh } from "@/components/inbox/quick-add-ovh";
+import { useSecureVault } from "@/lib/secure-vault-context";
+import { VaultPinDialog } from "@/components/security/vault-pin-dialog";
 
 type Account = {
   id: string;
@@ -582,7 +584,7 @@ function Reader({
       </header>
 
       {email.is_sensitive ? (
-        <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-3">
+        <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-3 space-y-2">
           <div className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
@@ -593,6 +595,7 @@ function Reader({
               </div>
             </div>
           </div>
+          <VaultActions email={email} onMoved={onArchive} />
         </div>
       ) : (
         <>
@@ -659,4 +662,53 @@ function categoryLabel(c: string | null | undefined): string {
     case "newsletter": return "🗑️ Newsletter";
     default: return c ?? "";
   }
+}
+
+function VaultActions({ email, onMoved }: { email: Email; onMoved: () => void }) {
+  const { unlocked, initialized, key } = useSecureVault();
+  const [pinOpen, setPinOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function moveToVault() {
+    if (!key) return;
+    setBusy(true);
+    try {
+      const { putEmail } = await import("@/lib/secure-vault");
+      await putEmail(key, {
+        id: email.id,
+        from_address: email.from_address,
+        from_name: email.from_name,
+        to_address: email.to_address,
+        subject: email.subject,
+        body_text: email.body_text,
+        body_html: email.body_html,
+        received_at: email.received_at,
+        sensitive_reason: email.sensitive_reason ?? null,
+        sensitive_score: email.sensitive_score ?? null,
+      });
+      // Supprimer du cloud après mise au coffre (le message reste sur l'IMAP source).
+      await supabase.from("emails").delete().eq("id", email.id);
+      toast.success("Email déplacé dans le coffre local chiffré");
+      onMoved();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {unlocked ? (
+        <Button size="sm" variant="outline" className="h-7 gap-1" onClick={moveToVault} disabled={busy}>
+          <Lock className="h-3 w-3" /> Mettre au coffre
+        </Button>
+      ) : (
+        <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => setPinOpen(true)}>
+          <Lock className="h-3 w-3" /> {initialized ? "Déverrouiller le coffre" : "Créer le coffre"}
+        </Button>
+      )}
+      <VaultPinDialog open={pinOpen} onOpenChange={setPinOpen} />
+    </div>
+  );
 }
