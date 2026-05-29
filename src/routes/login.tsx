@@ -56,7 +56,7 @@ function PasswordInput({
 }
 
 function LoginPage() {
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -107,9 +107,9 @@ function LoginPage() {
       toast.error(result.error.message ?? "Échec de connexion");
       return;
     }
-    // Ne pas naviguer ici : on attend que onAuthStateChange mette à jour
-    // le AuthProvider, puis le useEffect ci-dessus redirige vers /inbox.
-    // Sinon _authenticated voit user=null et renvoie sur /login.
+    const session = await refreshSession();
+    setBusy(false);
+    if (session?.user) navigate({ to: "/inbox", replace: true });
   };
 
   const mismatch = confirm.length > 0 && confirm !== password;
