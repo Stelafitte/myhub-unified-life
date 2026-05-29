@@ -18,8 +18,11 @@ import {
   Circle,
   Clock,
   ChevronDown,
+  Sparkles,
   Check,
 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
 import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
