@@ -239,9 +239,7 @@ export function UploadDocumentDialog({
       <VaultPinDialog
         open={pinOpen}
         onOpenChange={(v) => { setPinOpen(v); if (!v) setPendingSensitive(false); }}
-        mode={vault.initialized ? "unlock" : "create"}
-        onSuccess={() => {
-          setPinOpen(false);
+        onUnlocked={() => {
           if (pendingSensitive) performUpload();
         }}
       />
