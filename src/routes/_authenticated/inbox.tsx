@@ -683,8 +683,8 @@ function VaultActions({ email, onMoved }: { email: Email; onMoved: () => void })
         body_text: email.body_text,
         body_html: email.body_html,
         received_at: email.received_at,
-        sensitive_reason: email.sensitive_reason,
-        sensitive_score: email.sensitive_score,
+        sensitive_reason: email.sensitive_reason ?? null,
+        sensitive_score: email.sensitive_score ?? null,
       });
       // Supprimer du cloud après mise au coffre (le message reste sur l'IMAP source).
       await supabase.from("emails").delete().eq("id", email.id);
