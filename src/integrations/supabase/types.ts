@@ -14,7 +14,405 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      accounts: {
+        Row: {
+          color: string | null
+          created_at: string
+          credentials: Json | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          name: string
+          sync_direction: Database["public"]["Enums"]["sync_direction"]
+          type: Database["public"]["Enums"]["account_type"]
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          credentials?: Json | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          name: string
+          sync_direction?: Database["public"]["Enums"]["sync_direction"]
+          type: Database["public"]["Enums"]["account_type"]
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          credentials?: Json | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          name?: string
+          sync_direction?: Database["public"]["Enums"]["sync_direction"]
+          type?: Database["public"]["Enums"]["account_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      calendar_events: {
+        Row: {
+          account_id: string | null
+          color: string | null
+          created_at: string
+          description: string | null
+          end_at: string
+          external_id: string | null
+          id: string
+          is_all_day: boolean
+          location: string | null
+          recurrence_rule: string | null
+          source: Database["public"]["Enums"]["calendar_source"] | null
+          start_at: string
+          sync_direction: Database["public"]["Enums"]["sync_direction"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          end_at: string
+          external_id?: string | null
+          id?: string
+          is_all_day?: boolean
+          location?: string | null
+          recurrence_rule?: string | null
+          source?: Database["public"]["Enums"]["calendar_source"] | null
+          start_at: string
+          sync_direction?: Database["public"]["Enums"]["sync_direction"]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          end_at?: string
+          external_id?: string | null
+          id?: string
+          is_all_day?: boolean
+          location?: string | null
+          recurrence_rule?: string | null
+          source?: Database["public"]["Enums"]["calendar_source"] | null
+          start_at?: string
+          sync_direction?: Database["public"]["Enums"]["sync_direction"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string[] | null
+          external_ids: Json | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          notes: string | null
+          organization: string | null
+          phone: string[] | null
+          role: string | null
+          sources: string[] | null
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string[] | null
+          external_ids?: Json | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          organization?: string | null
+          phone?: string[] | null
+          role?: string | null
+          sources?: string[] | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string[] | null
+          external_ids?: Json | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          notes?: string | null
+          organization?: string | null
+          phone?: string[] | null
+          role?: string | null
+          sources?: string[] | null
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      emails: {
+        Row: {
+          account_id: string
+          body_html: string | null
+          body_text: string | null
+          created_at: string
+          from_address: string | null
+          from_name: string | null
+          has_attachment: boolean
+          id: string
+          is_archived: boolean
+          is_read: boolean
+          is_starred: boolean
+          labels: string[] | null
+          message_id: string | null
+          origin_tag: Database["public"]["Enums"]["email_origin"] | null
+          received_at: string | null
+          subject: string | null
+          thread_id: string | null
+          to_address: string | null
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          body_html?: string | null
+          body_text?: string | null
+          created_at?: string
+          from_address?: string | null
+          from_name?: string | null
+          has_attachment?: boolean
+          id?: string
+          is_archived?: boolean
+          is_read?: boolean
+          is_starred?: boolean
+          labels?: string[] | null
+          message_id?: string | null
+          origin_tag?: Database["public"]["Enums"]["email_origin"] | null
+          received_at?: string | null
+          subject?: string | null
+          thread_id?: string | null
+          to_address?: string | null
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          body_html?: string | null
+          body_text?: string | null
+          created_at?: string
+          from_address?: string | null
+          from_name?: string | null
+          has_attachment?: boolean
+          id?: string
+          is_archived?: boolean
+          is_read?: boolean
+          is_starred?: boolean
+          labels?: string[] | null
+          message_id?: string | null
+          origin_tag?: Database["public"]["Enums"]["email_origin"] | null
+          received_at?: string | null
+          subject?: string | null
+          thread_id?: string | null
+          to_address?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emails_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          theme: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          theme?: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          theme?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sync_queue: {
+        Row: {
+          action: Database["public"]["Enums"]["sync_queue_action"]
+          created_at: string
+          entity_id: string | null
+          entity_type: Database["public"]["Enums"]["sync_entity_type"]
+          id: string
+          payload: Json | null
+          status: Database["public"]["Enums"]["sync_queue_status"]
+          user_id: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["sync_queue_action"]
+          created_at?: string
+          entity_id?: string | null
+          entity_type: Database["public"]["Enums"]["sync_entity_type"]
+          id?: string
+          payload?: Json | null
+          status?: Database["public"]["Enums"]["sync_queue_status"]
+          user_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["sync_queue_action"]
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: Database["public"]["Enums"]["sync_entity_type"]
+          id?: string
+          payload?: Json | null
+          status?: Database["public"]["Enums"]["sync_queue_status"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sync_settings: {
+        Row: {
+          created_at: string
+          direction: Database["public"]["Enums"]["sync_direction"]
+          entity_type: Database["public"]["Enums"]["sync_entity_type"]
+          id: string
+          last_sync_at: string | null
+          source: string
+          sync_frequency_minutes: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          direction?: Database["public"]["Enums"]["sync_direction"]
+          entity_type: Database["public"]["Enums"]["sync_entity_type"]
+          id?: string
+          last_sync_at?: string | null
+          source: string
+          sync_frequency_minutes?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          direction?: Database["public"]["Enums"]["sync_direction"]
+          entity_type?: Database["public"]["Enums"]["sync_entity_type"]
+          id?: string
+          last_sync_at?: string | null
+          source?: string
+          sync_frequency_minutes?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          gantt_color: string | null
+          gantt_end: string | null
+          gantt_start: string | null
+          id: string
+          kanban_column: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          reminder_at: string | null
+          source_app: Database["public"]["Enums"]["task_source"]
+          source_email_id: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          tags: string[] | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          gantt_color?: string | null
+          gantt_end?: string | null
+          gantt_start?: string | null
+          id?: string
+          kanban_column?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          reminder_at?: string | null
+          source_app?: Database["public"]["Enums"]["task_source"]
+          source_email_id?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          gantt_color?: string | null
+          gantt_end?: string | null
+          gantt_start?: string | null
+          id?: string
+          kanban_column?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          reminder_at?: string | null
+          source_app?: Database["public"]["Enums"]["task_source"]
+          source_email_id?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_source_email_id_fkey"
+            columns: ["source_email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +421,16 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      account_type: "gmail" | "outlook" | "imap" | "icloud"
+      calendar_source: "google" | "icloud" | "outlook"
+      email_origin: "chu" | "univ" | "gmail" | "outlook" | "imap"
+      sync_direction: "push" | "pull" | "bidirectional" | "disabled"
+      sync_entity_type: "email" | "task" | "calendar" | "contact"
+      sync_queue_action: "create" | "update" | "delete"
+      sync_queue_status: "pending" | "synced" | "failed"
+      task_priority: "low" | "medium" | "high" | "urgent"
+      task_source: "myhubpro" | "microsoft_todo" | "apple_reminders"
+      task_status: "todo" | "in_progress" | "done" | "archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +557,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      account_type: ["gmail", "outlook", "imap", "icloud"],
+      calendar_source: ["google", "icloud", "outlook"],
+      email_origin: ["chu", "univ", "gmail", "outlook", "imap"],
+      sync_direction: ["push", "pull", "bidirectional", "disabled"],
+      sync_entity_type: ["email", "task", "calendar", "contact"],
+      sync_queue_action: ["create", "update", "delete"],
+      sync_queue_status: ["pending", "synced", "failed"],
+      task_priority: ["low", "medium", "high", "urgent"],
+      task_source: ["myhubpro", "microsoft_todo", "apple_reminders"],
+      task_status: ["todo", "in_progress", "done", "archived"],
+    },
   },
 } as const
