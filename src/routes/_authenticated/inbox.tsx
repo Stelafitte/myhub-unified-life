@@ -352,8 +352,13 @@ function InboxPage() {
                       <span className={cn("truncate text-sm", !e.is_read && "font-semibold")}>
                         {e.from_name || e.from_address || "Inconnu"}
                       </span>
-                      <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
-                        {relativeTime(e.received_at)}
+                      <span className="ml-auto shrink-0 text-right text-[11px] text-muted-foreground leading-tight">
+                        <div>{relativeTime(e.received_at)}</div>
+                        {e.received_at && (
+                          <div className="text-[10px] opacity-75">
+                            {new Date(e.received_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" })} · {new Date(e.received_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                          </div>
+                        )}
                       </span>
                     </div>
                     <div className={cn("truncate text-sm", !e.is_read ? "font-semibold" : "text-foreground/80")}>
