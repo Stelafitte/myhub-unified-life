@@ -107,7 +107,8 @@ export function MeetingDialog({
             location: m.location ?? "",
             is_online: !!m.is_online,
             online_link: m.online_link ?? "",
-            online_provider: m.online_provider ?? "",
+            online_provider: ((m.online_provider as Provider) ?? "") as Provider | "",
+            zoom_password: m.zoom_password ?? "",
             organizer_email: m.organizer_email ?? "",
             organizer_name: m.organizer_name ?? "",
             participants:
