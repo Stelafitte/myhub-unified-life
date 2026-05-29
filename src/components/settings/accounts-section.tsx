@@ -95,7 +95,7 @@ export function AccountsSection() {
     toast.loading("Synchronisation…", { id: tid });
     try {
       const { data: sess } = await supabase.auth.getSession();
-      const fn = acc.type === "gmail" ? "sync-gmail" : "sync-imap";
+      const fn = acc.type === "gmail" ? "sync-gmail" : acc.type === "outlook" ? "sync-outlook" : "sync-imap";
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`, {
         method: "POST",
         headers: {
@@ -412,29 +412,24 @@ function AccountWizard({
   const handleOAuth = async (provider: "gmail" | "outlook") => {
     setBusy(true);
     try {
-      if (provider === "gmail") {
-        // Gmail est branché via le connector Lovable (OAuth fait au niveau workspace).
-        const { data: sess } = await supabase.auth.getSession();
-        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-gmail`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
-          },
-          body: JSON.stringify({ test: true }),
-        });
-        const data = await res.json().catch(() => ({ ok: false }));
-        if (!data.ok) throw new Error(data.error || `Connector Gmail KO (${res.status})`);
-        const email = data.profile?.emailAddress || "Gmail";
-        setName(`Gmail (${email})`);
-        setImap((s) => ({ ...s, email, username: email }));
-        setTested("ok");
-        setStep(2);
-      } else {
-        toast.info("Connexion Outlook OAuth — bientôt disponible");
-        setName("Outlook");
-        setStep(2);
-      }
+      const { data: sess } = await supabase.auth.getSession();
+      const fn = provider === "gmail" ? "sync-gmail" : "sync-outlook";
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ test: true }),
+      });
+      const data = await res.json().catch(() => ({ ok: false }));
+      if (!data.ok) throw new Error(data.error || `Connector ${provider} KO (${res.status})`);
+      const email = data.profile?.emailAddress || (provider === "gmail" ? "Gmail" : "Outlook");
+      const label = provider === "gmail" ? "Gmail" : "Outlook";
+      setName(`${label} (${email})`);
+      setImap((s) => ({ ...s, email, username: email }));
+      setTested("ok");
+      setStep(2);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Échec OAuth");
     } finally {
