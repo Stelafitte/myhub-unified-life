@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
+import { AiSuggestionsPanel } from "@/components/inbox/ai-suggestions-panel";
 import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -455,6 +456,7 @@ function InboxPage() {
           <Reader
             email={selected}
             account={accountById.get(selected.account_id)}
+            userId={user?.id ?? ""}
             onStar={() => toggleStar(selected)}
             onArchive={() => archive(selected)}
             onDelete={() => remove(selected)}
@@ -507,6 +509,7 @@ function IconBtn({ children, label, onClick }: { children: React.ReactNode; labe
 function Reader({
   email,
   account,
+  userId,
   onStar,
   onArchive,
   onDelete,
@@ -515,6 +518,7 @@ function Reader({
 }: {
   email: Email;
   account?: Account;
+  userId: string;
   onStar: () => void;
   onArchive: () => void;
   onDelete: () => void;
@@ -565,6 +569,14 @@ function Reader({
         </div>
       </header>
 
+      <AiSuggestionsPanel
+        emailId={email.id}
+        fromAddress={email.from_address}
+        subject={email.subject}
+        userId={userId}
+        onCreateTask={() => onCreateTask()}
+        onArchive={onArchive}
+      />
 
 
       {email.has_attachment && (
