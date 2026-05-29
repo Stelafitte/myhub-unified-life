@@ -97,7 +97,19 @@ function LoginPage() {
     else toast.success("Compte créé. Vérifiez vos emails pour confirmer.");
   };
 
+  const oauth = async (provider: "google" | "apple") => {
+    setBusy(true);
+    const result = await lovable.auth.signInWithOAuth(provider, { redirect_uri: window.location.origin });
+    if (result.error) {
+      setBusy(false);
+      toast.error(result.error.message ?? "Échec de connexion");
+      return;
+    }
+    if (!result.redirected) navigate({ to: "/inbox" });
+  };
+
   const mismatch = confirm.length > 0 && confirm !== password;
+
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted px-4">
