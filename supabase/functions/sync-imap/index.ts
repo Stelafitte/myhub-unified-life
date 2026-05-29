@@ -433,8 +433,8 @@ function parseAddress(s: string): { address: string | null; name: string | null 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sync logic
 // ─────────────────────────────────────────────────────────────────────────────
-async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: number; error?: string }> {
-  const creds = account.credentials ?? {};
+async function syncOne(account: any, admin: any, testOnly?: { server: string; port: number; username: string; password: string }): Promise<{ ok: boolean; count: number; error?: string }> {
+  const creds = testOnly ? testOnly : (account.credentials ?? {});
   const host = creds.server || creds.host;
   const port = Number(creds.port ?? 993);
   const user = creds.username || creds.user;
