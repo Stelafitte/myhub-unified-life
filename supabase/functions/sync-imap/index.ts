@@ -18,12 +18,16 @@ const ANON = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_
 
 type EmailOrigin = "chu" | "univ" | "gmail" | "outlook" | "imap";
 
-function detectOrigin(toAddress: string | null): EmailOrigin {
+function detectOrigin(toAddress: string | null, accountEmail?: string | null): EmailOrigin {
   const to = (toAddress ?? "").toLowerCase();
+  const acc = (accountEmail ?? "").toLowerCase();
   if (to.includes("@myhub-pro.fr") && to.startsWith("chu@")) return "chu";
   if (to.includes("univ") || to.includes("@etu.") || to.includes("@u-")) return "univ";
   if (to.includes("@gmail.")) return "gmail";
   if (to.includes("@outlook.") || to.includes("@hotmail.") || to.includes("@live.")) return "outlook";
+  if (acc.includes("@echobordeaux.com")) return "imap"; // Echo Bordeaux
+  if (acc.includes("@myhub-pro.fr")) return "chu";
+  if (acc.includes("@u-bordeaux.fr")) return "univ";
   return "imap";
 }
 
