@@ -71,6 +71,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
   const [emailSearch, setEmailSearch] = useState("");
   const [emailResults, setEmailResults] = useState<EmailLite[]>([]);
   const [saving, setSaving] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
     if (!open) return;
