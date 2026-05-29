@@ -19,6 +19,7 @@ const items = [
   { title: "Tâches", url: "/tasks", icon: CheckSquare },
   { title: "Agenda", url: "/calendar", icon: Calendar },
   { title: "Réunions", url: "/meetings", icon: CalendarClock },
+  { title: "Documents", url: "/documents", icon: FolderOpen },
   { title: "Contacts", url: "/contacts", icon: Users },
   { title: "Retroplanning", url: "/retroplanning", icon: Map },
   { title: "Paramètres", url: "/settings", icon: Settings },
