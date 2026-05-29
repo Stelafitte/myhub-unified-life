@@ -89,7 +89,8 @@ function AdminPage() {
   };
 
   const updateQuota = async (id: string, field: "quota_emails" | "quota_storage_mb", v: number) => {
-    await supabase.from("profiles").update({ [field]: v }).eq("id", id);
+    const patch = field === "quota_emails" ? { quota_emails: v } : { quota_storage_mb: v };
+    await supabase.from("profiles").update(patch).eq("id", id);
   };
 
   const toggleAdmin = async (userId: string, makeAdmin: boolean) => {
