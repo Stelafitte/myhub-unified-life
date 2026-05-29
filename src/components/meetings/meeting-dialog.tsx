@@ -275,20 +275,69 @@ export function MeetingDialog({
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
                 <Label htmlFor="m-online" className="cursor-pointer">Visioconférence</Label>
-                <p className="text-xs text-muted-foreground">Lien à coller manuellement (Zoom, Teams, Meet…)</p>
+                <p className="text-xs text-muted-foreground">Choisissez le fournisseur puis collez le lien (ou auto-générez avec Jitsi)</p>
               </div>
-              <Switch id="m-online" checked={form.is_online} onCheckedChange={(v) => setForm({ ...form, is_online: v })} />
+              <Switch
+                id="m-online"
+                checked={form.is_online}
+                onCheckedChange={(v) =>
+                  setForm({
+                    ...form,
+                    is_online: v,
+                    online_provider: v ? form.online_provider || "jitsi" : "",
+                    online_link: v && (form.online_provider || "jitsi") === "jitsi" && !form.online_link ? generateJitsiLink() : form.online_link,
+                  })
+                }
+              />
             </div>
             {form.is_online && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <Label htmlFor="m-link">Lien de la visio</Label>
-                  <Input id="m-link" placeholder="https://…" value={form.online_link} onChange={(e) => setForm({ ...form, online_link: e.target.value })} />
+              <div className="space-y-3 rounded-md border p-3">
+                <div>
+                  <Label htmlFor="m-prov">Fournisseur</Label>
+                  <Select
+                    value={form.online_provider || "jitsi"}
+                    onValueChange={(v) => {
+                      const prov = v as Provider;
+                      setForm({
+                        ...form,
+                        online_provider: prov,
+                        online_link: prov === "jitsi" ? generateJitsiLink() : "",
+                        zoom_password: prov === "zoom" ? form.zoom_password : "",
+                      });
+                    }}
+                  >
+                    <SelectTrigger id="m-prov"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(PROVIDER_LABEL) as Provider[]).map((p) => (
+                        <SelectItem key={p} value={p}>{PROVIDER_LABEL[p]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
-                  <Label htmlFor="m-prov">Plateforme</Label>
-                  <Input id="m-prov" placeholder="Zoom, Teams…" value={form.online_provider} onChange={(e) => setForm({ ...form, online_provider: e.target.value })} />
+                  <Label htmlFor="m-link">
+                    Lien de la visio {form.online_provider === "jitsi" && <span className="text-xs text-muted-foreground">(généré)</span>}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="m-link"
+                      placeholder="https://…"
+                      value={form.online_link}
+                      onChange={(e) => setForm({ ...form, online_link: e.target.value })}
+                    />
+                    {form.online_provider === "jitsi" && (
+                      <Button type="button" variant="outline" size="icon" onClick={() => setForm({ ...form, online_link: generateJitsiLink() })} title="Régénérer">
+                        <Sparkles className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
+                {form.online_provider === "zoom" && (
+                  <div>
+                    <Label htmlFor="m-zpwd">Mot de passe Zoom (optionnel)</Label>
+                    <Input id="m-zpwd" value={form.zoom_password} onChange={(e) => setForm({ ...form, zoom_password: e.target.value })} />
+                  </div>
+                )}
               </div>
             )}
             <div>
