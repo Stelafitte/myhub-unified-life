@@ -113,6 +113,28 @@ function InboxPage() {
         setEmails(ems as Email[]);
         setUsingCache(false);
         cacheEmails(ems as Email[]);
+
+        // Trigger IA classification in background (batch by batch)
+        const hasPending = (ems as Email[]).some((e) => !e.ai_processed_at);
+        if (hasPending) {
+          (async () => {
+            for (let i = 0; i < 6 && !cancelled; i++) {
+              const res = await classifyFn().catch(() => ({ processed: 0 }));
+              if (!res || res.processed === 0) break;
+              // Refetch updated rows
+              const { data: refreshed } = await supabase
+                .from("emails")
+                .select("*")
+                .eq("is_archived", false)
+                .order("received_at", { ascending: false })
+                .limit(1000);
+              if (!cancelled && refreshed) {
+                setEmails(refreshed as Email[]);
+                cacheEmails(refreshed as Email[]);
+              }
+            }
+          })();
+        }
       }
     })();
 
