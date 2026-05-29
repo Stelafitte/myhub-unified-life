@@ -1,0 +1,1 @@
+ALTER TABLE public.accounts ENABLE ROW LEVEL SECURITY;

@@ -38,12 +38,32 @@ type Account = {
 const ICONS = ["🏥", "🎓", "💼", "📧", "🏠", "🎨", "⚡", "🌟"];
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#64748b"];
 
-const TYPE_LABEL: Record<AccountType, string> = {
+const TYPE_LABEL: Record<string, string> = {
   gmail: "Gmail",
   outlook: "Outlook",
   imap: "IMAP / SMTP",
   icloud: "iCloud",
 };
+
+type Preset = {
+  key: string;
+  label: string;
+  emoji: string;
+  type: AccountType;
+  server: string;
+  port: string;
+  ssl: boolean;
+  domain?: string;
+};
+
+const PRESETS: Preset[] = [
+  { key: "gmail", label: "Gmail", emoji: "📧", type: "gmail", server: "imap.gmail.com", port: "993", ssl: true },
+  { key: "outlook", label: "Outlook", emoji: "📨", type: "outlook", server: "outlook.office365.com", port: "993", ssl: true },
+  { key: "ovh", label: "OVH / CHU", emoji: "🏥", type: "imap", server: "imap.mail.ovh.net", port: "993", ssl: true, domain: "myhub-pro.fr" },
+  { key: "univ", label: "Université Bordeaux", emoji: "🎓", type: "imap", server: "webmel.u-bordeaux.fr", port: "7993", ssl: true, domain: "u-bordeaux.fr" },
+  { key: "echo", label: "Echo Bordeaux", emoji: "💼", type: "imap", server: "imap.echobordeaux.com", port: "993", ssl: true, domain: "echobordeaux.com" },
+  { key: "imap", label: "IMAP personnalisé", emoji: "⚙️", type: "imap", server: "", port: "993", ssl: true },
+];
 
 export function AccountsSection() {
   const { user } = useAuth();
@@ -83,7 +103,7 @@ export function AccountsSection() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Comptes email</h2>
-          <p className="text-sm text-muted-foreground">Connectez vos boîtes Gmail, Outlook, iCloud ou IMAP</p>
+          <p className="text-sm text-muted-foreground">Connectez vos 5 boîtes : CHU, Université, Echo, Gmail, Outlook</p>
         </div>
         <Button onClick={() => setWizardOpen(true)}>
           <Plus className="mr-1.5 h-4 w-4" /> Ajouter
@@ -164,7 +184,7 @@ function AccountCard({
           <div className="flex items-center gap-2">
             <p className="truncate font-medium">{account.name}</p>
             <Badge variant="outline" className="text-xs">
-              {TYPE_LABEL[account.type]}
+              {TYPE_LABEL[account.type] ?? account.type}
             </Badge>
             <StatusBadge status={status} />
           </div>
@@ -332,8 +352,9 @@ function AccountWizard({
 }) {
   const { user } = useAuth();
   const [step, setStep] = useState<WizardStep>(1);
+  const [preset, setPreset] = useState<Preset | null>(null);
   const [type, setType] = useState<AccountType | null>(null);
-  const [imap, setImap] = useState({ server: "", port: "993", ssl: true, username: "", password: "" });
+  const [imap, setImap] = useState({ server: "", port: "993", ssl: true, username: "", password: "", email: "" });
   const [name, setName] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [icon, setIcon] = useState(ICONS[0]);
@@ -344,8 +365,9 @@ function AccountWizard({
   useEffect(() => {
     if (!open) {
       setStep(1);
+      setPreset(null);
       setType(null);
-      setImap({ server: "", port: "993", ssl: true, username: "", password: "" });
+      setImap({ server: "", port: "993", ssl: true, username: "", password: "", email: "" });
       setName("");
       setColor(COLORS[0]);
       setIcon(ICONS[0]);
@@ -353,13 +375,22 @@ function AccountWizard({
     }
   }, [open]);
 
-  const pickType = (t: AccountType, preset?: Partial<typeof imap>) => {
-    setType(t);
-    if (preset) setImap((p) => ({ ...p, ...preset }));
-    if (t === "gmail" || t === "outlook") {
-      handleOAuth(t);
+  const pickPreset = (p: Preset) => {
+    setPreset(p);
+    setType(p.type);
+    setImap({
+      server: p.server,
+      port: p.port,
+      ssl: p.ssl,
+      username: "",
+      password: "",
+      email: p.domain ? `@${p.domain}` : "",
+    });
+    if (p.type === "gmail" || p.type === "outlook") {
+      handleOAuth(p.type);
       return;
     }
+    setName(p.label);
     setStep(2);
   };
 
@@ -390,9 +421,33 @@ function AccountWizard({
   const runTest = async () => {
     setTesting(true);
     setTested(null);
-    await new Promise((r) => setTimeout(r, 1200));
-    const ok = type !== "imap" || (imap.server.length > 0 && imap.username.length > 0);
-    setTested(ok ? "ok" : "fail");
+    if (type === "imap" && imap.server && imap.username && imap.password) {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-imap`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ""}`,
+          },
+          body: JSON.stringify({
+            account_id: "__test__",
+            test_credentials: {
+              server: imap.server,
+              port: Number(imap.port),
+              username: imap.username,
+              password: imap.password,
+            },
+          }),
+        });
+        const data = await res.json().catch(() => ({ ok: false }));
+        setTested(data.ok ? "ok" : "fail");
+      } catch {
+        setTested("fail");
+      }
+    } else {
+      await new Promise((r) => setTimeout(r, 600));
+      setTested(type !== "imap" ? "ok" : "fail");
+    }
     setTesting(false);
   };
 
@@ -401,7 +456,7 @@ function AccountWizard({
     setBusy(true);
     const credentials =
       type === "imap" || type === "icloud"
-        ? { server: imap.server, port: Number(imap.port), ssl: imap.ssl, username: imap.username, password: imap.password }
+        ? { server: imap.server, port: Number(imap.port), ssl: imap.ssl, username: imap.username, password: imap.password, email: imap.email || imap.username }
         : { oauth: true };
     const { error } = await supabase.from("accounts").insert({
       user_id: user.id,
@@ -424,7 +479,7 @@ function AccountWizard({
         <DialogHeader>
           <DialogTitle>Ajouter un compte email</DialogTitle>
           <DialogDescription>
-            Étape {step}/3 — {step === 1 ? "Type" : step === 2 ? "Personnalisation" : "Test & confirmation"}
+            Étape {step}/3 — {step === 1 ? "Choix du fournisseur" : step === 2 ? "Configuration" : "Test & confirmation"}
           </DialogDescription>
         </DialogHeader>
 
@@ -439,17 +494,16 @@ function AccountWizard({
 
         {step === 1 && (
           <div className="grid grid-cols-2 gap-2">
-            <TypeButton label="Gmail" hint="OAuth Google" emoji="📧" onClick={() => pickType("gmail")} disabled={busy} />
-            <TypeButton label="Outlook" hint="OAuth Microsoft" emoji="📨" onClick={() => pickType("outlook")} disabled={busy} />
-            <TypeButton label="IMAP / SMTP" hint="Générique" emoji="✉️" onClick={() => pickType("imap")} />
-            <TypeButton
-              label="Boîte OVH"
-              hint="imap.mail.ovh.net"
-              emoji="🇫🇷"
-              onClick={() =>
-                pickType("imap", { server: "imap.mail.ovh.net", port: "993", ssl: true })
-              }
-            />
+            {PRESETS.map((p) => (
+              <PresetButton
+                key={p.key}
+                label={p.label}
+                hint={`${p.server || "OAuth"} ${p.port ? ":" + p.port : ""}`}
+                emoji={p.emoji}
+                onClick={() => pickPreset(p)}
+                disabled={busy}
+              />
+            ))}
           </div>
         )}
 
@@ -472,12 +526,17 @@ function AccountWizard({
                   <Switch id="ssl" checked={imap.ssl} onCheckedChange={(v) => setImap({ ...imap, ssl: v })} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Identifiant</Label>
+                  <Label>Identifiant (login IMAP)</Label>
                   <Input value={imap.username} onChange={(e) => setImap({ ...imap, username: e.target.value })} placeholder="vous@example.com" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Mot de passe</Label>
                   <Input type="password" value={imap.password} onChange={(e) => setImap({ ...imap, password: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Adresse email associée</Label>
+                  <Input value={imap.email} onChange={(e) => setImap({ ...imap, email: e.target.value })} placeholder="vous@example.com" />
+                  <p className="text-xs text-muted-foreground">Utilisée pour l'affichage et la détection de l'origine</p>
                 </div>
               </div>
             )}
@@ -550,7 +609,7 @@ function AccountWizard({
   );
 }
 
-function TypeButton({
+function PresetButton({
   label,
   hint,
   emoji,

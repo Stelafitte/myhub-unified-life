@@ -18,12 +18,16 @@ const ANON = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") || Deno.env.get("SUPABASE_
 
 type EmailOrigin = "chu" | "univ" | "gmail" | "outlook" | "imap";
 
-function detectOrigin(toAddress: string | null): EmailOrigin {
+function detectOrigin(toAddress: string | null, accountEmail?: string | null): EmailOrigin {
   const to = (toAddress ?? "").toLowerCase();
+  const acc = (accountEmail ?? "").toLowerCase();
   if (to.includes("@myhub-pro.fr") && to.startsWith("chu@")) return "chu";
   if (to.includes("univ") || to.includes("@etu.") || to.includes("@u-")) return "univ";
   if (to.includes("@gmail.")) return "gmail";
   if (to.includes("@outlook.") || to.includes("@hotmail.") || to.includes("@live.")) return "outlook";
+  if (acc.includes("@echobordeaux.com")) return "imap"; // Echo Bordeaux
+  if (acc.includes("@myhub-pro.fr")) return "chu";
+  if (acc.includes("@u-bordeaux.fr")) return "univ";
   return "imap";
 }
 
@@ -433,8 +437,8 @@ function parseAddress(s: string): { address: string | null; name: string | null 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sync logic
 // ─────────────────────────────────────────────────────────────────────────────
-async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: number; error?: string }> {
-  const creds = account.credentials ?? {};
+async function syncOne(account: any, admin: any, testOnly?: { server: string; port: number; username: string; password: string }): Promise<{ ok: boolean; count: number; error?: string }> {
+  const creds = testOnly ? testOnly : (account.credentials ?? {});
   const host = creds.server || creds.host;
   const port = Number(creds.port ?? 993);
   const user = creds.username || creds.user;
@@ -534,7 +538,7 @@ async function syncOne(account: any, admin: any): Promise<{ ok: boolean; count: 
             received_at: receivedAt,
             is_read: msg.flags.includes("\\Seen"),
             is_starred: msg.flags.includes("\\Flagged"),
-            origin_tag: detectOrigin(to.address),
+            origin_tag: detectOrigin(to.address, (account.credentials as any)?.email),
             thread_id: headers["in-reply-to"] || null,
             is_sensitive: sens.isSensitive,
             sensitive_reason: sens.isSensitive ? sens.reasons.join(" · ") : null,
@@ -577,8 +581,18 @@ Deno.serve(async (req: Request) => {
 
   try {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    let body: { account_id?: string; force_full?: boolean } = {};
+    let body: { account_id?: string; force_full?: boolean; test_credentials?: { server: string; port: number; username: string; password: string } } = {};
     try { body = await req.json(); } catch { /* empty body OK for cron */ }
+
+    // Test de connexion rapide (sans compte enregistré)
+    if (body.test_credentials) {
+      const tc = body.test_credentials;
+      const r = await syncOne({ credentials: tc } as any, admin, tc);
+      return new Response(
+        JSON.stringify(r),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const authHeader = req.headers.get("Authorization");
     let userId: string | null = null;
