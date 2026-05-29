@@ -11,19 +11,25 @@ const ASSETS = `${VERSION}-assets`;
 const API = `${VERSION}-api`;
 
 self.addEventListener("install", (e) => {
-  e.waitUntil((async () => {
-    const cache = await caches.open(APP_SHELL);
-    try { await cache.add(new Request("/", { cache: "reload" })); } catch {}
-    self.skipWaiting();
-  })());
+  e.waitUntil(
+    (async () => {
+      const cache = await caches.open(APP_SHELL);
+      try {
+        await cache.add(new Request("/", { cache: "reload" }));
+      } catch {}
+      self.skipWaiting();
+    })(),
+  );
 });
 
 self.addEventListener("activate", (e) => {
-  e.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)));
-    await self.clients.claim();
-  })());
+  e.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)));
+      await self.clients.claim();
+    })(),
+  );
 });
 
 async function networkFirst(req, cacheName, timeoutMs = 3000) {
@@ -49,10 +55,12 @@ async function networkFirst(req, cacheName, timeoutMs = 3000) {
 async function staleWhileRevalidate(req, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(req);
-  const fetchPromise = fetch(req).then((res) => {
-    if (res && res.ok) cache.put(req, res.clone());
-    return res;
-  }).catch(() => cached);
+  const fetchPromise = fetch(req)
+    .then((res) => {
+      if (res && res.ok) cache.put(req, res.clone());
+      return res;
+    })
+    .catch(() => cached);
   return cached || fetchPromise;
 }
 
@@ -63,7 +71,12 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
 
   // Bypass dev/HMR
-  if (url.pathname.startsWith("/@") || url.pathname.includes("__vite") || url.pathname.includes("hot-update")) return;
+  if (
+    url.pathname.startsWith("/@") ||
+    url.pathname.includes("__vite") ||
+    url.pathname.includes("hot-update")
+  )
+    return;
 
   // OAuth callbacks must always hit the network so auth tokens are never served from cache.
   if (url.pathname.startsWith("/~oauth")) return;
