@@ -6,6 +6,7 @@ import { SyncSection } from "@/components/settings/sync-section";
 import { PreferencesSection } from "@/components/settings/preferences-section";
 import { SecuritySection } from "@/components/settings/security-section";
 import { DocumentsSection } from "@/components/settings/documents-section";
+import { AccountSection } from "@/components/settings/account-section";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
@@ -24,14 +25,18 @@ function SettingsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="accounts">
-        <TabsList className="mb-6">
+      <Tabs defaultValue="account">
+        <TabsList className="mb-6 flex-wrap">
+          <TabsTrigger value="account">👤 Mon compte</TabsTrigger>
           <TabsTrigger value="accounts">Comptes</TabsTrigger>
           <TabsTrigger value="sync">Synchronisation</TabsTrigger>
           <TabsTrigger value="preferences">Préférences</TabsTrigger>
           <TabsTrigger value="documents">📁 Documents</TabsTrigger>
           <TabsTrigger value="security">🔒 Sécurité & Conformité</TabsTrigger>
         </TabsList>
+        <TabsContent value="account">
+          <AccountSection />
+        </TabsContent>
         <TabsContent value="accounts">
           <AccountsSection />
         </TabsContent>
