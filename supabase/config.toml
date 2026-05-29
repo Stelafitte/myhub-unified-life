@@ -1,1 +1,4 @@
 project_id = "ttonkqwfaaqdgpfiwomp"
+
+[functions.sync-imap]
+verify_jwt = false
