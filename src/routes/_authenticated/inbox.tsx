@@ -27,6 +27,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
 import { AiSuggestionsPanel } from "@/components/inbox/ai-suggestions-panel";
 import { AiClassificationFeedback } from "@/components/inbox/ai-classification-feedback";
+import { EmailAttachmentsPanel } from "@/components/inbox/email-attachments-panel";
 
 import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -619,9 +620,11 @@ function Reader({
 
 
       {email.has_attachment && (
-        <div className="border-b bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-          <Paperclip className="mr-1 inline h-3 w-3" /> Cet email contient des pièces jointes (téléchargement disponible après synchronisation complète).
-        </div>
+        <EmailAttachmentsPanel
+          emailId={email.id}
+          fromAddress={email.from_address}
+          subject={email.subject}
+        />
       )}
 
       <div className="flex-1 overflow-y-auto p-4 text-sm">
