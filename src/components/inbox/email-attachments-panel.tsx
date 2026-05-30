@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Paperclip, Folder, Download, Loader2, FolderPlus } from "lucide-react";
+import { Paperclip, Folder, Download, Loader2, FolderPlus, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { type DocumentRow, getSignedUrl } from "@/lib/documents";
 import { iconFor, colorFor, categorize, formatBytes } from "@/lib/file-icons";
 import { SaveToFolderDialog } from "@/components/documents/save-to-folder-dialog";
+import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
 
 type Props = {
   emailId: string;
