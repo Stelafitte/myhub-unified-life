@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Lock, Loader2, ShieldCheck } from "lucide-react";
+import { Lock, Loader2, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,

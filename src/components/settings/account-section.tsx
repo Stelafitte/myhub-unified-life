@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Download, ShieldAlert, KeyRound, LogOut } from "lucide-react";
+import { Download, ShieldAlert, KeyRound, LogOut, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 export function AccountSection() {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Mail, RefreshCw, Trash2, Pencil, CheckCircle2, AlertCircle, Clock, Loader2 } from "lucide-react";
+import { Plus, Mail, RefreshCw, Trash2, Pencil, CheckCircle2, AlertCircle, Clock, Loader2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/lib/auth-context";
