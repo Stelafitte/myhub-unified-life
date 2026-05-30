@@ -12,7 +12,9 @@ import {
   Trash2,
   CheckSquare,
   Link2,
+  Share2,
 } from "lucide-react";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useServerFn } from "@tanstack/react-start";
 import { startGoogleCalendarOAuth, syncGoogleCalendarEvents } from "@/lib/api/google-calendar.functions";
 import { supabase } from "@/integrations/supabase/client";
