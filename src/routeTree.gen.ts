@@ -26,6 +26,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticated/contacts'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as ApiGoogleCalendarCallbackRouteImport } from './routes/api/google-calendar/callback'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -112,6 +113,12 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiGoogleCalendarCallbackRoute =
+  ApiGoogleCalendarCallbackRouteImport.update({
+    id: '/api/google-calendar/callback',
+    path: '/api/google-calendar/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/stats': typeof AuthenticatedStatsRoute
   '/tasks': typeof AuthenticatedTasksRoute
+  '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -148,6 +156,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/stats': typeof AuthenticatedStatsRoute
   '/tasks': typeof AuthenticatedTasksRoute
+  '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -168,6 +177,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/stats': typeof AuthenticatedStatsRoute
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
+  '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stats'
     | '/tasks'
+    | '/api/google-calendar/callback'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stats'
     | '/tasks'
+    | '/api/google-calendar/callback'
   id:
     | '__root__'
     | '/'
@@ -225,12 +237,14 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/stats'
     | '/_authenticated/tasks'
+    | '/api/google-calendar/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiGoogleCalendarCallbackRoute: typeof ApiGoogleCalendarCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -354,6 +368,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/google-calendar/callback': {
+      id: '/api/google-calendar/callback'
+      path: '/api/google-calendar/callback'
+      fullPath: '/api/google-calendar/callback'
+      preLoaderRoute: typeof ApiGoogleCalendarCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -399,17 +420,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiGoogleCalendarCallbackRoute: ApiGoogleCalendarCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
