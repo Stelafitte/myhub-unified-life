@@ -227,23 +227,52 @@ function InboxPage() {
     };
   }, [user, reloadKey]);
 
-  // Fetch OneDrive folders (best effort) to enrich smart groups
+  // Load themes from DB + bootstrap (discover + seed from OneDrive) on first run
+  const refreshThemes = async () => {
+    const r = await listThemesFn().catch(() => ({ themes: [] as Theme[] }));
+    setThemes(r.themes);
+    return r.themes;
+  };
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      try {
-        const res = await odFoldersFn();
-        if (cancelled || !res?.folders) return;
-        const slim = res.folders.map((f) => ({ name: f.name, path: f.path, depth: f.depth }));
-        try { localStorage.setItem("inbox:odFolders", JSON.stringify(slim)); } catch { /* ignore */ }
-        setOdGroups(smartGroupsFromFolders(slim));
-      } catch {
-        /* OneDrive not connected or transient error — ignore silently */
+      const current = await refreshThemes();
+      if (cancelled) return;
+
+      // Bootstrap: if no themes yet, seed from OneDrive folders + discover via AI
+      if (current.length === 0) {
+        try {
+          const od = await odFoldersFn();
+          if (!cancelled && od?.folders?.length) {
+            const slim = od.folders.map((f) => ({ name: f.name, path: f.path, depth: f.depth }));
+            await seedFoldersFn({ data: { folders: slim } });
+          }
+        } catch { /* onedrive optional */ }
+        if (!cancelled) {
+          await discoverThemesFn().catch(() => null);
+          await refreshThemes();
+        }
+      }
+
+      // Background: classify pending emails into themes
+      for (let i = 0; i < 8 && !cancelled; i++) {
+        const r = await classifyThemesFn().catch(() => ({ processed: 0 }));
+        if (!r || r.processed === 0) break;
+        if (!cancelled) await refreshThemes();
+        // Refresh emails list to pick up new ai_theme_id
+        const { data: refreshed } = await supabase
+          .from("emails")
+          .select("*")
+          .eq("is_archived", false)
+          .order("received_at", { ascending: false })
+          .limit(1000);
+        if (!cancelled && refreshed) setEmails(refreshed as Email[]);
       }
     })();
     return () => { cancelled = true; };
-  }, [user, odFoldersFn]);
+  }, [user, reloadKey]);
 
   const accountById = useMemo(() => {
     const m = new Map<string, Account>();
@@ -251,9 +280,11 @@ function InboxPage() {
     return m;
   }, [accounts]);
 
-  // OneDrive folder themes first (they drive the classification),
-  // built-in fallback groups (Prestataires IT, Infos commerciales) last.
-  const allSmartGroups = useMemo(() => [...odGroups, ...SMART_GROUPS], [odGroups]);
+  const themeById = useMemo(() => {
+    const m = new Map<string, Theme>();
+    themes.forEach((t) => m.set(t.id, t));
+    return m;
+  }, [themes]);
 
   const counts = useMemo(() => {
     const unread = emails.filter((e) => !e.is_read).length;
@@ -261,21 +292,27 @@ function InboxPage() {
     const starred = emails.filter((e) => e.is_starred).length;
     const byAccount = new Map<string, number>();
     emails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
-    const bySmart = countByGroup(emails, odGroups);
-    return { all: emails.length, unread, attachments, starred, byAccount, bySmart };
-  }, [emails, odGroups]);
+    const byTheme = new Map<string, number>();
+    let noTheme = 0;
+    emails.forEach((e) => {
+      if (e.ai_theme_id) byTheme.set(e.ai_theme_id, (byTheme.get(e.ai_theme_id) ?? 0) + 1);
+      else noTheme++;
+    });
+    return { all: emails.length, unread, attachments, starred, byAccount, byTheme, noTheme };
+  }, [emails]);
 
   const filtered = useMemo(() => {
     let list = emails;
     if (filter === "unread") list = list.filter((e) => !e.is_read);
     else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
     else if (filter === "starred") list = list.filter((e) => e.is_starred);
+    else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
     else if (filter.startsWith("account:")) {
       const id = filter.slice(8);
       list = list.filter((e) => e.account_id === id);
-    } else if (filter.startsWith("smart:")) {
-      const key = filter.slice(6);
-      list = list.filter((e) => classifyEmail(e, odGroups) === key);
+    } else if (filter.startsWith("theme:")) {
+      const id = filter.slice(6);
+      list = list.filter((e) => e.ai_theme_id === id);
     }
     if (query.trim()) {
       const q = query.toLowerCase();
