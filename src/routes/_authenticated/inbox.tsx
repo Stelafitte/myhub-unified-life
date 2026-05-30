@@ -435,37 +435,62 @@ function InboxPage() {
           <FilterRow label="Pièces jointes" icon={<Paperclip className="h-4 w-4" />} count={counts.attachments} active={filter === "attachments"} onClick={() => setFilter("attachments")} />
           <FilterRow label="Suivis" icon={<Star className="h-4 w-4" />} count={counts.starred} active={filter === "starred"} onClick={() => setFilter("starred")} />
 
-          <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-primary">
-            <Sparkles className="mr-1 inline h-3 w-3" />
-            Analyse intelligente
+          <div className="mt-4 flex items-center justify-between px-3 pb-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+              <Sparkles className="mr-1 inline h-3 w-3" />
+              Thèmes
+            </span>
+            <button
+              onClick={() => setThemesOpen(true)}
+              className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="Gérer les thèmes"
+            >
+              <Settings2 className="h-3 w-3" />
+            </button>
           </div>
-          {allSmartGroups.every((g) => (counts.bySmart.get(g.key) ?? 0) === 0) && (
+          {themes.filter((t) => !t.archived_at && (counts.byTheme.get(t.id) ?? 0) > 0).length === 0 && (
             <div className="px-3 py-2 text-xs text-muted-foreground">
-              Aucun thème détecté pour l'instant.
+              Analyse en cours… ou cliquez sur l'engrenage pour démarrer.
             </div>
           )}
-          {allSmartGroups.map((g) => {
-            const n = counts.bySmart.get(g.key) ?? 0;
-            if (n === 0) return null;
-            const active = filter === `smart:${g.key}`;
-            return (
-              <button
-                key={g.key}
-                onClick={() => setFilter(`smart:${g.key}`)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
-                  active ? "bg-accent" : "hover:bg-accent/50",
-                )}
-                title={g.label}
-              >
-                <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs">
-                  {g.icon}
-                </span>
-                <span className="flex-1 truncate text-sm">{g.label}</span>
-                <span className="text-[11px] text-muted-foreground">{n}</span>
-              </button>
-            );
-          })}
+          {themes
+            .filter((t) => !t.archived_at)
+            .map((t) => ({ t, n: counts.byTheme.get(t.id) ?? 0 }))
+            .filter(({ n }) => n > 0)
+            .sort((a, b) => b.n - a.n)
+            .map(({ t, n }) => {
+              const active = filter === `theme:${t.id}`;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setFilter(`theme:${t.id}`)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                    active ? "bg-accent" : "hover:bg-accent/50",
+                  )}
+                  title={t.description ?? t.name}
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs">
+                    {t.icon ?? "🏷️"}
+                  </span>
+                  <span className="flex-1 truncate text-sm">{t.name}</span>
+                  <span className="text-[11px] text-muted-foreground">{n}</span>
+                </button>
+              );
+            })}
+          {counts.noTheme > 0 && (
+            <button
+              onClick={() => setFilter("theme:__none__")}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                filter === "theme:__none__" ? "bg-accent" : "hover:bg-accent/50",
+              )}
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-xs">❓</span>
+              <span className="flex-1 truncate text-sm italic text-muted-foreground">Non classés</span>
+              <span className="text-[11px] text-muted-foreground">{counts.noTheme}</span>
+            </button>
+          )}
 
           <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Comptes
