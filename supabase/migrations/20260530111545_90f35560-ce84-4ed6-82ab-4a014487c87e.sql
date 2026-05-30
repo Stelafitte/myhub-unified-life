@@ -1,0 +1,1 @@
+UPDATE public.accounts SET last_sync_at = NULL WHERE type IN ('gmail','outlook');

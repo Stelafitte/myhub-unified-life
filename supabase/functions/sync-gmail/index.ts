@@ -64,11 +64,14 @@ function extractParts(payload: any): { text: string; html: string; hasAttach: bo
 
 async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count: number; error?: string }> {
   try {
-    // On ne charge que les nouveaux mails reçus APRÈS la connexion du compte (ou dernier sync).
-    const sinceIso = account.last_sync_at ?? account.created_at ?? new Date().toISOString();
+    // Premier sync : on remonte 30 jours en arrière (comme IMAP). Ensuite, incrémental.
+    const sinceIso = account.last_sync_at
+      ? account.last_sync_at
+      : new Date(Date.now() - 30 * 86400000).toISOString();
     const afterTs = Math.floor(new Date(sinceIso).getTime() / 1000);
     const q = encodeURIComponent(`in:inbox after:${afterTs}`);
-    const listRes = await fetch(`${GATEWAY}/users/me/messages?maxResults=100&q=${q}`, { headers: gh() });
+    const maxResults = account.last_sync_at ? 100 : 200;
+    const listRes = await fetch(`${GATEWAY}/users/me/messages?maxResults=${maxResults}&q=${q}`, { headers: gh() });
     if (!listRes.ok) {
       const t = await listRes.text();
       return { ok: false, count: 0, error: `list ${listRes.status}: ${t.slice(0, 200)}` };
