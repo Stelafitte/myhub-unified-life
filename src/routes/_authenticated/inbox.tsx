@@ -84,15 +84,13 @@ function InboxPage() {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
-  const [odGroups, setOdGroups] = useState<SmartGroup[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = window.localStorage.getItem("inbox:odFolders");
-      if (!raw) return [];
-      const parsed = JSON.parse(raw) as { name: string; path: string; depth?: number }[];
-      return smartGroupsFromFolders(parsed);
-    } catch { return []; }
-  });
+  const listThemesFn = useServerFn(listThemes);
+  const classifyThemesFn = useServerFn(classifyPendingThemes);
+  const discoverThemesFn = useServerFn(discoverThemes);
+  const seedFoldersFn = useServerFn(seedThemesFromFolders);
+  const setEmailThemeFn = useServerFn(setEmailTheme);
+  const [themes, setThemes] = useState<Theme[]>([]);
+  const [themesOpen, setThemesOpen] = useState(false);
 
   const toggleCheck = (id: string, ev?: React.MouseEvent) => {
     ev?.stopPropagation();
