@@ -20,7 +20,9 @@ function AuthenticatedLayout() {
             <AppHeader />
             <SessionExpiredBanner />
             <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
-              <Outlet />
+              <div className="mx-auto w-full max-w-[1400px]">
+                <Outlet />
+              </div>
             </main>
             <HdsNoticeDialog />
           </div>
