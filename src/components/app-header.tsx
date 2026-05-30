@@ -35,7 +35,7 @@ export function AppHeader() {
       : pending > 0 ? `En ligne — ${pending} à envoyer` : "En ligne — synchronisé";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b bg-background/80 px-2 sm:gap-3 sm:px-4 backdrop-blur">
       <SidebarTrigger />
       <div className="flex-1" />
       <button
@@ -49,9 +49,10 @@ export function AppHeader() {
           : <Wifi className="h-3.5 w-3.5" />}
         <span className="hidden sm:inline">{label}</span>
       </button>
-      <Button variant="ghost" size="icon" onClick={handleSync} disabled={syncing || state === "offline"} aria-label="Synchroniser">
+      <Button variant="ghost" size="icon" onClick={handleSync} disabled={syncing || state === "offline"} aria-label="Synchroniser" className="hidden sm:inline-flex">
         <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
       </Button>
+
       <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
         {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </Button>
