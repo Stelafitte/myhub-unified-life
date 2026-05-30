@@ -65,7 +65,7 @@ function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (user) navigate({ to: "/inbox", replace: true });
+    if (user) navigate({ to: "/dashboard", replace: true });
   }, [user, navigate]);
 
   const signIn = async (e: React.FormEvent) => {
@@ -74,7 +74,7 @@ function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) toast.error(error.message);
-    else navigate({ to: "/inbox" });
+    else navigate({ to: "/dashboard" });
   };
 
   const signUp = async (e: React.FormEvent) => {
@@ -128,7 +128,7 @@ function LoginPage() {
 
       completedFromMessage = true;
       void completeOAuthSession({ access_token: accessToken, refresh_token: refreshToken })
-        .then(() => navigate({ to: "/inbox", replace: true }))
+        .then(() => navigate({ to: "/dashboard", replace: true }))
         .catch((error) =>
           toast.error(error instanceof Error ? error.message : "Échec de connexion"),
         )
@@ -155,7 +155,7 @@ function LoginPage() {
     const { data, error } = await supabase.auth.getUser();
     setBusy(false);
     if (error) toast.error(error.message);
-    else if (data.user) navigate({ to: "/inbox", replace: true });
+    else if (data.user) navigate({ to: "/dashboard", replace: true });
   };
 
   const mismatch = confirm.length > 0 && confirm !== password;
