@@ -40,7 +40,7 @@ import { TaskPanel } from "@/components/tasks/task-panel";
 import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_authenticated/plan-operation")({
-  component: RetroplanningPage,
+  component: PlanOperationPage,
 });
 
 type CalendarEvent = Database["public"]["Tables"]["calendar_events"]["Row"];
