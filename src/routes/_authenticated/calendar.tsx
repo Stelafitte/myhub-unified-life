@@ -794,12 +794,14 @@ function EventDetail({
   onClose,
   onDelete,
   onCreateTask,
+  onShare,
 }: {
   event: UnifiedEvent;
   account?: Account;
   onClose: () => void;
   onDelete: () => void;
   onCreateTask: () => void;
+  onShare?: () => void;
 }) {
   const canEdit =
     event.kind === "event" &&
