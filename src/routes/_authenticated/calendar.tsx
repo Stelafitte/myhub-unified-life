@@ -13,6 +13,7 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
