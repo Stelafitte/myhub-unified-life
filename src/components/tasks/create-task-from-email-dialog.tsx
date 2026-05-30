@@ -272,11 +272,22 @@ export function CreateTaskFromEmailDialog({
 
           <div className="space-y-1 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
             <div>🔗 Lien vers l'email source conservé (id : {email.id.slice(0, 8)}…)</div>
-            {email.has_attachment && (
-              <div className="flex items-center gap-1">
-                <Paperclip className="h-3 w-3" /> Pièce(s) jointe(s) du mail rattachée(s) à la tâche
+            {attachmentDocs.length > 0 ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1 font-medium text-foreground">
+                  <Paperclip className="h-3 w-3" /> {attachmentDocs.length} pièce{attachmentDocs.length > 1 ? "s" : ""} jointe{attachmentDocs.length > 1 ? "s" : ""} rattachée{attachmentDocs.length > 1 ? "s" : ""} à la tâche
+                </div>
+                <ul className="ml-4 list-disc">
+                  {attachmentDocs.map((d) => (
+                    <li key={d.id}>{d.original_filename} <span className="text-[10px]">({formatBytes(d.file_size)})</span></li>
+                  ))}
+                </ul>
               </div>
-            )}
+            ) : email.has_attachment ? (
+              <div className="flex items-center gap-1">
+                <Paperclip className="h-3 w-3" /> Pièces jointes détectées mais pas encore synchronisées — relance une synchro complète pour les rattacher.
+              </div>
+            ) : null}
             {dueDate && <div>📊 La tâche apparaîtra dans le rétroplanning (Gantt)</div>}
           </div>
         </div>
