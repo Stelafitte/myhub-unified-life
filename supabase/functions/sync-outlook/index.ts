@@ -78,6 +78,7 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
           subject: m.subject || null,
           body_text: text || null,
           body_html: html || null,
+          meeting_link: extractMeetingLink(text, html),
           has_attachment: !!m.hasAttachments,
           received_at: receivedAt,
           is_read: !!m.isRead,
