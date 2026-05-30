@@ -11,6 +11,7 @@ import { KanbanView } from "@/components/tasks/kanban-view";
 import { GanttView } from "@/components/tasks/gantt-view";
 import { TaskPanel } from "@/components/tasks/task-panel";
 import { enqueue, flushQueue, installOnlineFlusher, listPending } from "@/lib/sync-queue";
+import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { type Task, type TaskStatus, getSection, DEFAULT_SECTIONS } from "@/lib/tasks-model";
 import { TaskRequestsPanel } from "@/components/tasks/task-requests";
 
@@ -38,10 +39,20 @@ function TasksPage() {
   };
 
   const load = async () => {
+    // Hydrate from local cache first (offline-first)
+    const cached = await cacheGetAll<Task>("tasks");
+    if (cached.length) setTasks(cached);
     setLoading(true);
-    const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
-    if (error) toast.error(error.message);
-    else setTasks((data ?? []) as Task[]);
+    if (navigator.onLine) {
+      const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
+      if (error) {
+        if (!cached.length) toast.error(error.message);
+      } else {
+        const list = (data ?? []) as Task[];
+        setTasks(list);
+        cacheReplaceAll("tasks", list).catch(() => {});
+      }
+    }
     setLoading(false);
     await refreshPending();
   };

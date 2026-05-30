@@ -16,6 +16,7 @@ import {
   Check,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -130,15 +131,35 @@ function ContactsPage() {
     if (!user) return;
     let cancelled = false;
     (async () => {
+      // 1. Hydrate from cache first
+      const [cachedContacts, cachedAccounts] = await Promise.all([
+        cacheGetAll<Contact>("contacts"),
+        cacheGetAll<Account>("accounts"),
+      ]);
+      if (!cancelled) {
+        if (cachedContacts.length) setContacts(cachedContacts);
+        if (cachedAccounts.length) setAccounts(cachedAccounts);
+      }
       setLoading(true);
+      // 2. Refresh from network if online
+      if (!navigator.onLine) {
+        if (!cancelled) setLoading(false);
+        return;
+      }
       const [{ data: cs }, { data: accs }, { data: ems }] = await Promise.all([
         supabase.from("contacts").select("*").order("last_name", { ascending: true, nullsFirst: false }),
         supabase.from("accounts").select("id,name,type,color,last_sync_at").order("created_at"),
         supabase.from("emails").select("from_address,received_at").order("received_at", { ascending: false }).limit(2000),
       ]);
       if (cancelled) return;
-      if (cs) setContacts(cs as Contact[]);
-      if (accs) setAccounts(accs as Account[]);
+      if (cs) {
+        setContacts(cs as Contact[]);
+        cacheReplaceAll("contacts", cs as Contact[]).catch(() => {});
+      }
+      if (accs) {
+        setAccounts(accs as Account[]);
+        cacheReplaceAll("accounts", accs as Account[]).catch(() => {});
+      }
       if (ems) {
         const m = new Map<string, string>();
         for (const e of ems as { from_address: string | null; received_at: string | null }[]) {

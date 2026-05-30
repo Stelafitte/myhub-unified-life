@@ -13,6 +13,7 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -127,17 +128,33 @@ function AgendaPage() {
   const [creating, setCreating] = useState(false);
 
   const load = async () => {
+    // Cache-first hydration
+    const [cAccs, cEvs, cTks] = await Promise.all([
+      cacheGetAll<Account>("accounts"),
+      cacheGetAll<DbEvent>("calendar_events"),
+      cacheGetAll<TaskRow>("tasks"),
+    ]);
+    if (cAccs.length) setAccounts(cAccs);
+    if (cEvs.length) setEvents(cEvs);
+    if (cTks.length) setTasks(cTks as TaskRow[]);
+    if (!navigator.onLine) return;
     const [{ data: accs }, { data: evs }, { data: tks }] = await Promise.all([
       supabase.from("accounts").select("id,name,type,color,sync_direction").order("created_at"),
       supabase.from("calendar_events").select("*").order("start_at"),
       supabase.from("tasks").select("id,title,due_date,description").not("due_date", "is", null),
     ]);
-    setAccounts((accs ?? []) as Account[]);
-    setEvents((evs ?? []) as DbEvent[]);
-    setTasks((tks ?? []) as TaskRow[]);
+    if (accs) { setAccounts(accs as Account[]); cacheReplaceAll("accounts", accs as Account[]).catch(() => {}); }
+    if (evs) { setEvents(evs as DbEvent[]); cacheReplaceAll("calendar_events", evs as DbEvent[]).catch(() => {}); }
+    if (tks) { setTasks(tks as TaskRow[]); /* don't overwrite full tasks cache from partial select */ }
   };
 
   useEffect(() => { if (user) load(); }, [user]);
+  useEffect(() => {
+    const onOnline = () => { if (user) load(); };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const accById = useMemo(() => {
     const m = new Map<string, Account>();

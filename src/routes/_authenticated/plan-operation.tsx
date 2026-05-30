@@ -15,6 +15,7 @@ import {
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
+import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -100,18 +101,38 @@ function PlanOperationPage() {
   const dayPx = ZOOM_PX[zoom];
 
   const load = async () => {
+    // Cache first
+    const [cTasks, cEvents] = await Promise.all([
+      cacheGetAll<Task>("tasks"),
+      cacheGetAll<CalendarEvent>("calendar_events"),
+    ]);
+    if (cTasks.length) setTasks(cTasks);
+    if (cEvents.length) setEvents(cEvents);
     setLoading(true);
+    if (!navigator.onLine) { setLoading(false); return; }
     const [t, e] = await Promise.all([
       supabase.from("tasks").select("*").neq("status", "archived"),
       supabase.from("calendar_events").select("*"),
     ]);
-    if (t.error) toast.error(t.error.message);
-    if (e.error) toast.error(e.error.message);
-    setTasks((t.data ?? []) as Task[]);
-    setEvents((e.data ?? []) as CalendarEvent[]);
+    if (t.error && !cTasks.length) toast.error(t.error.message);
+    if (e.error && !cEvents.length) toast.error(e.error.message);
+    if (t.data) {
+      setTasks(t.data as Task[]);
+      cacheReplaceAll("tasks", t.data as Task[]).catch(() => {});
+    }
+    if (e.data) {
+      setEvents(e.data as CalendarEvent[]);
+      cacheReplaceAll("calendar_events", e.data as CalendarEvent[]).catch(() => {});
+    }
     setLoading(false);
   };
   useEffect(() => { if (user) load(); }, [user]);
+  useEffect(() => {
+    const onOnline = () => { if (user) load(); };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Build bars
   const allBars = useMemo<Bar[]>(() => {
