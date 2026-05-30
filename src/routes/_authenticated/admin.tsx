@@ -69,11 +69,13 @@ function AdminPage() {
   }, [isAdmin, loading, navigate]);
 
   const refresh = async () => {
-    const [p, r, i, a] = await Promise.all([
+    const [p, r, i, a, accs, ts] = await Promise.all([
       supabase.from("profiles").select("id,email,display_name,created_at,is_suspended,quota_emails,quota_storage_mb").order("created_at"),
       supabase.from("user_roles").select("user_id,role"),
       supabase.from("invitations").select("*").order("created_at", { ascending: false }),
       supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("accounts").select("id,name,type,is_active").eq("is_active", true),
+      supabase.from("deleted_emails").select("account_id"),
     ]);
     setProfiles((p.data as ProfileRow[]) ?? []);
     const map: Record<string, string[]> = {};
@@ -83,6 +85,30 @@ function AdminPage() {
     setRoles(map);
     setInvitations((i.data as InvitationRow[]) ?? []);
     setAudit((a.data as AuditRow[]) ?? []);
+
+    const counts: Record<string, number> = {};
+    ((ts.data as Array<{ account_id: string }>) ?? []).forEach((row) => {
+      counts[row.account_id] = (counts[row.account_id] ?? 0) + 1;
+    });
+    const srcRows: SourceAccountRow[] = ((accs.data as Array<{ id: string; name: string; type: string }>) ?? [])
+      .map((acc) => ({ id: acc.id, name: acc.name, type: acc.type, tombstones: counts[acc.id] ?? 0 }));
+    setSources(srcRows);
+  };
+
+  const purgeSource = async (accountId: string, name: string) => {
+    if (!confirm(`Vider définitivement sur le serveur les mails supprimés du compte "${name}" ?\n\nCette action est IRRÉVERSIBLE côté provider.`)) return;
+    setPurgingId(accountId);
+    try {
+      const { data, error } = await supabase.functions.invoke("purge-imap-source", { body: { account_id: accountId } });
+      if (error) throw error;
+      const total = (data?.results ?? []).reduce((s: number, r: { purged?: number }) => s + (r.purged ?? 0), 0);
+      toast.success(`${total} email(s) purgé(s) sur la source`);
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de la purge");
+    } finally {
+      setPurgingId(null);
+    }
   };
 
   useEffect(() => {
