@@ -128,21 +128,21 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
     } else {
       // Defaults: today for start, today for due (when no AI is used)
       const today = todayStr();
-      setTitle("");
-      setDescription("");
+      setTitle(draft?.title ?? "");
+      setDescription(draft?.description ?? "");
       setComments("");
       setPriority("medium");
       setStatus(defaultStatus ?? "todo");
       setSection("Autre");
-      setStart(today);
-      setDue(today);
+      setStart(draft?.start ?? today);
+      setDue(draft?.due ?? today);
       setReminder("");
       setTagsText("");
       setRecurrence("none");
       setSource("myhubpro");
       setEmailId(null);
       setEmailLabel("");
-      setAddToCalendar(false);
+      setAddToCalendar(!!draft?.calendarEventId);
     }
     setNewSection("");
     setEmailSearch("");
