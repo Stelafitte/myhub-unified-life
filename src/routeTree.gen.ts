@@ -17,7 +17,7 @@ import { Route as AuthenticatedStatsRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSecureBoxRouteImport } from './routes/_authenticated/secure-box'
 import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticated/roadmap'
-import { Route as AuthenticatedRetroplanningRouteImport } from './routes/_authenticated/retroplanning'
+import { Route as AuthenticatedPlanOperationRouteImport } from './routes/_authenticated/plan-operation'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticated/meetings'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
@@ -66,10 +66,10 @@ const AuthenticatedRoadmapRoute = AuthenticatedRoadmapRouteImport.update({
   path: '/roadmap',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedRetroplanningRoute =
-  AuthenticatedRetroplanningRouteImport.update({
-    id: '/retroplanning',
-    path: '/retroplanning',
+const AuthenticatedPlanOperationRoute =
+  AuthenticatedPlanOperationRouteImport.update({
+    id: '/plan-operation',
+    path: '/plan-operation',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
@@ -124,7 +124,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AuthenticatedInboxRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
-  '/retroplanning': typeof AuthenticatedRetroplanningRoute
+  '/plan-operation': typeof AuthenticatedPlanOperationRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
   '/secure-box': typeof AuthenticatedSecureBoxRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -142,7 +142,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AuthenticatedInboxRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
-  '/retroplanning': typeof AuthenticatedRetroplanningRoute
+  '/plan-operation': typeof AuthenticatedPlanOperationRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
   '/secure-box': typeof AuthenticatedSecureBoxRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -162,7 +162,7 @@ export interface FileRoutesById {
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/meetings': typeof AuthenticatedMeetingsRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
-  '/_authenticated/retroplanning': typeof AuthenticatedRetroplanningRoute
+  '/_authenticated/plan-operation': typeof AuthenticatedPlanOperationRoute
   '/_authenticated/roadmap': typeof AuthenticatedRoadmapRoute
   '/_authenticated/secure-box': typeof AuthenticatedSecureBoxRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -182,7 +182,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/meetings'
     | '/onboarding'
-    | '/retroplanning'
+    | '/plan-operation'
     | '/roadmap'
     | '/secure-box'
     | '/settings'
@@ -200,7 +200,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/meetings'
     | '/onboarding'
-    | '/retroplanning'
+    | '/plan-operation'
     | '/roadmap'
     | '/secure-box'
     | '/settings'
@@ -219,7 +219,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inbox'
     | '/_authenticated/meetings'
     | '/_authenticated/onboarding'
-    | '/_authenticated/retroplanning'
+    | '/_authenticated/plan-operation'
     | '/_authenticated/roadmap'
     | '/_authenticated/secure-box'
     | '/_authenticated/settings'
@@ -291,11 +291,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRoadmapRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/retroplanning': {
-      id: '/_authenticated/retroplanning'
-      path: '/retroplanning'
-      fullPath: '/retroplanning'
-      preLoaderRoute: typeof AuthenticatedRetroplanningRouteImport
+    '/_authenticated/plan-operation': {
+      id: '/_authenticated/plan-operation'
+      path: '/plan-operation'
+      fullPath: '/plan-operation'
+      preLoaderRoute: typeof AuthenticatedPlanOperationRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/onboarding': {
@@ -366,7 +366,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
-  AuthenticatedRetroplanningRoute: typeof AuthenticatedRetroplanningRoute
+  AuthenticatedPlanOperationRoute: typeof AuthenticatedPlanOperationRoute
   AuthenticatedRoadmapRoute: typeof AuthenticatedRoadmapRoute
   AuthenticatedSecureBoxRoute: typeof AuthenticatedSecureBoxRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -383,7 +383,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedMeetingsRoute: AuthenticatedMeetingsRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
-  AuthenticatedRetroplanningRoute: AuthenticatedRetroplanningRoute,
+  AuthenticatedPlanOperationRoute: AuthenticatedPlanOperationRoute,
   AuthenticatedRoadmapRoute: AuthenticatedRoadmapRoute,
   AuthenticatedSecureBoxRoute: AuthenticatedSecureBoxRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,

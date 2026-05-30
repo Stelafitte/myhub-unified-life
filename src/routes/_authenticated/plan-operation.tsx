@@ -39,8 +39,8 @@ import {
 import { TaskPanel } from "@/components/tasks/task-panel";
 import type { Database } from "@/integrations/supabase/types";
 
-export const Route = createFileRoute("/_authenticated/retroplanning")({
-  component: RetroplanningPage,
+export const Route = createFileRoute("/_authenticated/plan-operation")({
+  component: PlanOperationPage,
 });
 
 type CalendarEvent = Database["public"]["Tables"]["calendar_events"]["Row"];
@@ -78,7 +78,7 @@ type Bar = {
   raw: Task | CalendarEvent;
 };
 
-function RetroplanningPage() {
+function PlanOperationPage() {
   const { user } = useAuth();
   const timelineRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -241,7 +241,7 @@ function RetroplanningPage() {
       const dataUrl = await toPng(exportRef.current, { backgroundColor: "#ffffff", pixelRatio: 2 });
       const a = document.createElement("a");
       a.href = dataUrl;
-      a.download = `retroplanning-${new Date().toISOString().slice(0,10)}.png`;
+      a.download = `plan-operation-${new Date().toISOString().slice(0,10)}.png`;
       a.click();
     } catch (e) { toast.error("Export PNG échoué"); }
   };
@@ -254,7 +254,7 @@ function RetroplanningPage() {
       await new Promise((r) => (img.onload = r));
       const pdf = new jsPDF({ orientation: img.width > img.height ? "landscape" : "portrait", unit: "px", format: [img.width, img.height] });
       pdf.addImage(dataUrl, "PNG", 0, 0, img.width, img.height);
-      pdf.save(`retroplanning-${new Date().toISOString().slice(0,10)}.pdf`);
+      pdf.save(`plan-operation-${new Date().toISOString().slice(0,10)}.pdf`);
     } catch { toast.error("Export PDF échoué"); }
   };
 
@@ -287,7 +287,7 @@ function RetroplanningPage() {
           <MapIcon className="h-6 w-6" />
         </div>
         <div className="flex-1 min-w-[200px]">
-          <h1 className="text-2xl font-semibold tracking-tight">Retroplanning</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Plan d'opération</h1>
           <p className="text-sm text-muted-foreground">{bars.length} éléments · {grouped.length} sections</p>
         </div>
 
