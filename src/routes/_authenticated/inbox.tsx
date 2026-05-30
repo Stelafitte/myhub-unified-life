@@ -61,7 +61,7 @@ type Account = {
 
 type Email = CachedEmail;
 
-type Filter = "all" | "unread" | "attachments" | "starred" | `account:${string}`;
+type Filter = "all" | "unread" | "attachments" | "starred" | `account:${string}` | `smart:${string}`;
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   component: InboxPage,
