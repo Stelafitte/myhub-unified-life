@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -21,10 +21,11 @@ const Ctx = createContext<AuthCtx>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const explicitSignOut = useRef(false);
 
   const refreshSession = async () => {
     const { data } = await supabase.auth.getSession();
-    setSession(data.session);
+    if (data.session) setSession(data.session);
     return data.session;
   };
 
@@ -61,14 +62,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await restoreOAuthCallbackSession();
       const { data } = await supabase.auth.getSession();
       if (!active) return;
-      setSession(data.session);
+      // Ne pas effacer la session si le refresh a échoué (expiration suspendue)
+      if (data.session) setSession(data.session);
       setLoading(false);
     };
 
     syncSession();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       if (!active) return;
+      // Suspendre la déconnexion automatique par expiration de session
+      if (event === "SIGNED_OUT" && !explicitSignOut.current) {
+        // On ignore la perte de session imposée par expiration / refresh token invalide
+        return;
+      }
+      explicitSignOut.current = false;
       setSession(s);
       setLoading(false);
     });
@@ -92,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         refreshSession,
         signOut: async () => {
+          explicitSignOut.current = true;
           await supabase.auth.signOut();
           setSession(null);
         },
