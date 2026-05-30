@@ -308,7 +308,7 @@ function InboxPage() {
   return (
     <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT — filters */}
-      <aside className="hidden w-[280px] shrink-0 flex-col border-r bg-card md:flex">
+      <aside style={{ width: leftW }} className="hidden shrink-0 flex-col border-r bg-card md:flex">
         <div className="border-b p-4">
           <div className="mb-3 flex items-center gap-2">
             <InboxIcon className="h-5 w-5 text-primary" />
