@@ -45,8 +45,16 @@ export const Route = createFileRoute("/api/google-calendar/callback")({
         const state = url.searchParams.get("state");
         const errorParam = url.searchParams.get("error");
 
-        if (errorParam) return page(`Google a renvoyé: ${errorParam}`, false, 400);
-        if (!code || !state) return page("Paramètres manquants.", false, 400);
+        if (errorParam) {
+          const is403Like = errorParam === "access_denied" || errorParam.includes("403");
+          return page(
+            `Google a refus&eacute; l'acc&egrave;s (${errorParam}).`,
+            false,
+            400,
+            is403Like ? GOOGLE_STEPS : undefined,
+          );
+        }
+        if (!code || !state) return page("Param&egrave;tres manquants.", false, 400);
 
         const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
         const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
