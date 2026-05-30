@@ -60,6 +60,7 @@ type Account = {
   type: string;
   color: string | null;
   icon: string | null;
+  credentials: Record<string, unknown> | null;
 };
 
 type Email = CachedEmail;
@@ -179,7 +180,7 @@ function InboxPage() {
 
     (async () => {
       const [{ data: accs }, { data: ems, error }] = await Promise.all([
-        supabase.from("accounts").select("id,name,type,color,icon").order("created_at"),
+        supabase.from("accounts").select("id,name,type,color,icon,credentials").order("created_at"),
         supabase
           .from("emails")
           .select("*")
@@ -498,7 +499,9 @@ function InboxPage() {
           {accounts.length === 0 && (
             <div className="px-3 py-2 text-xs text-muted-foreground">Aucun compte configuré.</div>
           )}
-          {accounts.map((a) => (
+          {accounts
+            .filter((a) => !(a.credentials?.calendar_only === true))
+            .map((a) => (
             <button
               key={a.id}
               onClick={() => setFilter(`account:${a.id}`)}
@@ -576,7 +579,9 @@ function InboxPage() {
                     <span className="ml-auto text-[10px] text-muted-foreground">{counts.attachments}</span>
                   </div>
                 </SelectItem>
-                {accounts.map((a) => (
+                {accounts
+                  .filter((a) => !(a.credentials?.calendar_only === true))
+                  .map((a) => (
                   <SelectItem key={a.id} value={`account:${a.id}`} className="text-xs">
                     <div className="flex items-center gap-2">
                       <span
