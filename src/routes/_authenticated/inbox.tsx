@@ -74,6 +74,72 @@ export const Route = createFileRoute("/_authenticated/inbox")({
   component: InboxPage,
 });
 
+const PARENT_SEPARATORS = [" / ", " > ", " – ", " — ", " : ", " - "];
+function splitThemeName(name: string): { parent: string; child: string } | null {
+  for (const sep of PARENT_SEPARATORS) {
+    const i = name.indexOf(sep);
+    if (i > 0) {
+      return { parent: name.slice(0, i).trim(), child: name.slice(i + sep.length).trim() };
+    }
+  }
+  return null;
+}
+
+function groupThemes(
+  themes: Theme[],
+  byTheme: Map<string, number>,
+): {
+  grouped: { name: string; items: { theme: Theme; label: string }[]; total: number }[];
+  standalone: Theme[];
+} {
+  const active = themes.filter((t) => !t.archived_at && (byTheme.get(t.id) ?? 0) > 0);
+  const map = new Map<string, { theme: Theme; label: string }[]>();
+  const flat: Theme[] = [];
+  for (const t of active) {
+    const parsed = splitThemeName(t.name);
+    if (parsed) {
+      const arr = map.get(parsed.parent) ?? [];
+      arr.push({ theme: t, label: parsed.child });
+      map.set(parsed.parent, arr);
+    } else {
+      flat.push(t);
+    }
+  }
+  // Try to group remaining by significant first word (>=4 chars) if 2+ share it
+  const byFirst = new Map<string, Theme[]>();
+  for (const t of flat) {
+    const first = t.name.split(/\s+/)[0]?.trim() ?? "";
+    if (first.length >= 4) {
+      const arr = byFirst.get(first) ?? [];
+      arr.push(t);
+      byFirst.set(first, arr);
+    }
+  }
+  const standalone: Theme[] = [];
+  const usedIds = new Set<string>();
+  for (const [first, arr] of byFirst) {
+    if (arr.length >= 2) {
+      const existing = map.get(first) ?? [];
+      for (const t of arr) {
+        existing.push({ theme: t, label: t.name });
+        usedIds.add(t.id);
+      }
+      map.set(first, existing);
+    }
+  }
+  for (const t of flat) if (!usedIds.has(t.id)) standalone.push(t);
+
+  const grouped = [...map.entries()]
+    .map(([name, items]) => ({
+      name,
+      items: items.sort((a, b) => (byTheme.get(b.theme.id) ?? 0) - (byTheme.get(a.theme.id) ?? 0)),
+      total: items.reduce((s, i) => s + (byTheme.get(i.theme.id) ?? 0), 0),
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  return { grouped, standalone };
+}
+
 function InboxPage() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
