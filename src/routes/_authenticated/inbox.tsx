@@ -138,18 +138,34 @@ function InboxPage() {
     };
   }, []);
 
-  // Load data: cache first, then network
+  // Load cached data immediately on mount (independent of auth) for instant render
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const cached = await loadCachedEmails();
+      if (!cancelled && cached.length > 0) {
+        setEmails((prev) => (prev.length === 0 ? cached : prev));
+        setUsingCache(true);
+      }
+    })();
+    try {
+      const cachedAccs = localStorage.getItem("inbox:accounts");
+      if (cachedAccs) {
+        const parsed = JSON.parse(cachedAccs) as Account[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setAccounts((prev) => (prev.length === 0 ? parsed : prev));
+        }
+      }
+    } catch { /* ignore */ }
+    return () => { cancelled = true; };
+  }, []);
+
+  // Network fetch when user is ready
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
 
     (async () => {
-      const cached = await loadCachedEmails();
-      if (!cancelled && cached.length > 0) {
-        setEmails(cached);
-        setUsingCache(true);
-      }
-
       const [{ data: accs }, { data: ems, error }] = await Promise.all([
         supabase.from("accounts").select("id,name,type,color,icon").order("created_at"),
         supabase
@@ -161,22 +177,23 @@ function InboxPage() {
       ]);
 
       if (cancelled) return;
-      if (accs) setAccounts(accs as Account[]);
+      if (accs) {
+        setAccounts(accs as Account[]);
+        try { localStorage.setItem("inbox:accounts", JSON.stringify(accs)); } catch { /* ignore */ }
+      }
       if (error) {
-        if (cached.length === 0) toast.error("Hors-ligne : aucun cache disponible");
+        if (emails.length === 0) toast.error("Hors-ligne : aucun cache disponible");
       } else if (ems) {
         setEmails(ems as Email[]);
         setUsingCache(false);
         cacheEmails(ems as Email[]);
 
-        // Trigger IA classification in background (batch by batch)
         const hasPending = (ems as Email[]).some((e) => !e.ai_processed_at);
         if (hasPending) {
           (async () => {
             for (let i = 0; i < 6 && !cancelled; i++) {
               const res = await classifyFn().catch(() => ({ processed: 0 }));
               if (!res || res.processed === 0) break;
-              // Refetch updated rows
               const { data: refreshed } = await supabase
                 .from("emails")
                 .select("*")
