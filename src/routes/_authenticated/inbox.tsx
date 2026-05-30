@@ -95,6 +95,36 @@ function InboxPage() {
   const setEmailThemeFn = useServerFn(setEmailTheme);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
+  const [relaunching, setRelaunching] = useState(false);
+
+  const relaunchAi = async () => {
+    if (relaunching) return;
+    setRelaunching(true);
+    try {
+      let totalProcessed = 0;
+      for (let i = 0; i < 12; i++) {
+        const r = await classifyThemesFn().catch(() => ({ processed: 0 }));
+        if (!r || r.processed === 0) break;
+        totalProcessed += r.processed;
+      }
+      await refreshThemes();
+      const { data: refreshed } = await supabase
+        .from("emails")
+        .select("*")
+        .eq("is_archived", false)
+        .order("received_at", { ascending: false })
+        .limit(1000);
+      if (refreshed) {
+        setEmails(refreshed as Email[]);
+        cacheEmails(refreshed as Email[]);
+      }
+      toast.success(totalProcessed > 0 ? `${totalProcessed} email(s) reclassé(s)` : "Aucun email à reclasser");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Erreur lors du relancement");
+    } finally {
+      setRelaunching(false);
+    }
+  };
 
   const toggleCheck = (id: string, ev?: React.MouseEvent) => {
     ev?.stopPropagation();
