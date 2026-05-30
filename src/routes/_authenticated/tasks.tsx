@@ -134,46 +134,49 @@ function TasksPage() {
   };
 
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <CheckSquare className="h-6 w-6" />
+    <div className="flex h-full flex-col">
+      <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4 sm:gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary sm:h-11 sm:w-11">
+          <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
-        <div className="flex-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Tâches</h1>
-          <p className="text-sm text-muted-foreground">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Tâches</h1>
+          <p className="text-xs text-muted-foreground sm:text-sm">
             {tasks.length} tâche{tasks.length > 1 ? "s" : ""} · {sections.length || DEFAULT_SECTIONS.length} section{(sections.length || DEFAULT_SECTIONS.length) > 1 ? "s" : ""}
           </p>
         </div>
 
-        <Badge variant={online ? "secondary" : "destructive"} className="gap-1">
-          {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-          {online ? "En ligne" : "Hors-ligne"}
-        </Badge>
-        {pendingCount > 0 && (
-          <Button size="sm" variant="outline" onClick={forceSync} className="h-8 gap-1">
-            <RefreshCw className="h-3 w-3" />
-            {pendingCount} en attente
-          </Button>
-        )}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Badge variant={online ? "secondary" : "destructive"} className="gap-1 text-xs">
+            {online ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+            <span className="hidden sm:inline">{online ? "En ligne" : "Hors-ligne"}</span>
+          </Badge>
+          {pendingCount > 0 && (
+            <Button size="sm" variant="outline" onClick={forceSync} className="h-8 gap-1">
+              <RefreshCw className="h-3 w-3" />
+              <span className="hidden sm:inline">{pendingCount} en attente</span>
+            </Button>
+          )}
 
-        <div className="ml-auto flex items-center gap-2">
           <div className="inline-flex overflow-hidden rounded-md border">
             <button
               onClick={() => setView("kanban")}
-              className={cn("flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors", view === "kanban" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
+              className={cn("flex items-center gap-1 px-2 py-1.5 text-xs transition-colors sm:gap-1.5 sm:px-3 sm:text-sm", view === "kanban" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
             >
-              <LayoutGrid className="h-4 w-4" /> Kanban
+              <LayoutGrid className="h-4 w-4" />
+              <span className="hidden sm:inline">Kanban</span>
             </button>
             <button
               onClick={() => setView("gantt")}
-              className={cn("flex items-center gap-1.5 border-l px-3 py-1.5 text-sm transition-colors", view === "gantt" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
+              className={cn("flex items-center gap-1 border-l px-2 py-1.5 text-xs transition-colors sm:gap-1.5 sm:px-3 sm:text-sm", view === "gantt" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
             >
-              <GanttChart className="h-4 w-4" /> Gantt
+              <GanttChart className="h-4 w-4" />
+              <span className="hidden sm:inline">Gantt</span>
             </button>
           </div>
-          <Button onClick={() => openCreate("todo")} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Nouvelle tâche
+          <Button onClick={() => openCreate("todo")} className="h-8 gap-1 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Nouvelle tâche</span>
           </Button>
         </div>
       </div>
