@@ -54,14 +54,16 @@ type Preset = {
   port: string;
   ssl: boolean;
   domain?: string;
+  smtp_server?: string;
+  smtp_port?: number;
 };
 
 const PRESETS: Preset[] = [
   { key: "gmail", label: "Gmail", emoji: "📧", type: "gmail", server: "imap.gmail.com", port: "993", ssl: true },
   { key: "outlook", label: "Outlook", emoji: "📨", type: "outlook", server: "outlook.office365.com", port: "993", ssl: true },
-  { key: "ovh", label: "OVH / CHU", emoji: "🏥", type: "imap", server: "imap.mail.ovh.net", port: "993", ssl: true, domain: "myhub-pro.fr" },
+  { key: "ovh", label: "OVH / CHU", emoji: "🏥", type: "imap", server: "imap.mail.ovh.net", port: "993", ssl: true, domain: "myhub-pro.fr", smtp_server: "ssl0.ovh.net", smtp_port: 465 },
   { key: "univ", label: "Université Bordeaux", emoji: "🎓", type: "imap", server: "webmel.u-bordeaux.fr", port: "7993", ssl: true, domain: "u-bordeaux.fr" },
-  { key: "echo", label: "Echo Bordeaux", emoji: "💼", type: "imap", server: "pro3.mail.ovh.net", port: "993", ssl: true, domain: "echobordeaux.com" },
+  { key: "echo", label: "Echo Bordeaux", emoji: "💼", type: "imap", server: "pro3.mail.ovh.net", port: "993", ssl: true, domain: "echobordeaux.com", smtp_server: "pro3.mail.ovh.net", smtp_port: 587 },
   { key: "imap", label: "IMAP personnalisé", emoji: "⚙️", type: "imap", server: "", port: "993", ssl: true },
 ];
 
