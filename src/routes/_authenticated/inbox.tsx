@@ -1018,6 +1018,7 @@ function InboxPage() {
             onCreateTask={() => setTaskOpen(true)}
             onPostpone={() => postponeAsTask(selected)}
             onCompose={openComposer}
+            onMarkSpam={(asSpam) => markSpam(selected, asSpam)}
           />
         )}
       </aside>
