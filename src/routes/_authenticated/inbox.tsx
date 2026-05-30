@@ -778,15 +778,15 @@ function Reader({
         />
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 text-sm">
+      <div className="min-w-0 flex-1 overflow-auto p-4 text-sm">
         {email.body_html ? (
           <div
-            className="prose prose-sm max-w-none dark:prose-invert"
+            className="prose prose-sm max-w-none break-words dark:prose-invert [&_img]:max-w-full [&_table]:max-w-full"
             // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: email.body_html }}
           />
         ) : (
-          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{email.body_text ?? "(vide)"}</pre>
+          <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed">{email.body_text ?? "(vide)"}</pre>
         )}
       </div>
     </div>
