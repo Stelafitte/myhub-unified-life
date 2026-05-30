@@ -25,7 +25,10 @@ export const getEmailSuggestions = createServerFn({ method: "POST" })
       .eq("id", data.emailId)
       .eq("user_id", userId)
       .maybeSingle();
-    if (error || !e) throw new Error(error?.message ?? "Email introuvable");
+    if (error) throw new Error(error.message);
+    if (!e) {
+      return { replies: [], event: null, archiveSuggested: false, taskTitle: null };
+    }
     if (e.is_sensitive) {
       throw new Error("Email marqué sensible (HDS) — analyse IA désactivée pour protection des données de santé.");
     }
