@@ -377,11 +377,6 @@ async function persistAttachment(
   file: AttachmentFile,
 ): Promise<void> {
   try {
-    // Pièces jointes d'emails sensibles : on n'envoie rien dans Storage (RGPD / HDS).
-    if (emailSensitive) {
-      console.log(`[sync-imap] skip attachment (sensitive email) ${file.filename}`);
-      return;
-    }
     const checksum = await sha256Hex(file.data);
     const { data: existing } = await admin
       .from("documents")
@@ -413,8 +408,9 @@ async function persistAttachment(
       file_size: file.data.length,
       storage_path: path,
       checksum,
-      tags: ["email"],
-      is_sensitive: false,
+      tags: emailSensitive ? ["email", "sensible"] : ["email"],
+      is_sensitive: emailSensitive,
+      sensitive_reason: emailSensitive ? "Email source classé sensible (HDS)" : null,
       local_only: false,
     });
     if (insErr) {
