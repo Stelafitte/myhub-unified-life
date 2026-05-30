@@ -399,12 +399,12 @@ function InboxPage() {
             <Sparkles className="mr-1 inline h-3 w-3" />
             Analyse intelligente
           </div>
-          {SMART_GROUPS.every((g) => (counts.bySmart.get(g.key) ?? 0) === 0) && (
+          {allSmartGroups.every((g) => (counts.bySmart.get(g.key) ?? 0) === 0) && (
             <div className="px-3 py-2 text-xs text-muted-foreground">
               Aucun thème détecté pour l'instant.
             </div>
           )}
-          {SMART_GROUPS.map((g) => {
+          {allSmartGroups.map((g) => {
             const n = counts.bySmart.get(g.key) ?? 0;
             if (n === 0) return null;
             const active = filter === `smart:${g.key}`;
