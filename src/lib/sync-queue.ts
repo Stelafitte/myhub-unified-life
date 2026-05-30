@@ -4,7 +4,14 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export type QueuedAction = "create" | "update" | "delete";
-export type QueuedEntity = "task" | "email" | "calendar_event" | "contact";
+export type QueuedEntity =
+  | "task"
+  | "email"
+  | "calendar_event"
+  | "contact"
+  | "meeting"
+  | "op_plan_theme"
+  | "op_plan_subtheme";
 
 export type QueuedOp = {
   id: string;
@@ -105,6 +112,30 @@ export async function flushQueue(onProgress?: () => void): Promise<{ ok: number;
           await supabase.from("contacts").update(op.payload as never).eq("id", op.entity_id);
         } else if (op.action === "delete" && op.entity_id) {
           await supabase.from("contacts").delete().eq("id", op.entity_id);
+        }
+      } else if (op.entity_type === "meeting") {
+        if (op.action === "create" && op.payload) {
+          await supabase.from("meetings").insert(op.payload as never);
+        } else if (op.action === "update" && op.entity_id && op.payload) {
+          await supabase.from("meetings").update(op.payload as never).eq("id", op.entity_id);
+        } else if (op.action === "delete" && op.entity_id) {
+          await supabase.from("meetings").delete().eq("id", op.entity_id);
+        }
+      } else if (op.entity_type === "op_plan_theme") {
+        if (op.action === "create" && op.payload) {
+          await supabase.from("op_plan_themes").insert(op.payload as never);
+        } else if (op.action === "update" && op.entity_id && op.payload) {
+          await supabase.from("op_plan_themes").update(op.payload as never).eq("id", op.entity_id);
+        } else if (op.action === "delete" && op.entity_id) {
+          await supabase.from("op_plan_themes").delete().eq("id", op.entity_id);
+        }
+      } else if (op.entity_type === "op_plan_subtheme") {
+        if (op.action === "create" && op.payload) {
+          await supabase.from("op_plan_subthemes").insert(op.payload as never);
+        } else if (op.action === "update" && op.entity_id && op.payload) {
+          await supabase.from("op_plan_subthemes").update(op.payload as never).eq("id", op.entity_id);
+        } else if (op.action === "delete" && op.entity_id) {
+          await supabase.from("op_plan_subthemes").delete().eq("id", op.entity_id);
         }
       }
       await removeOp(op.id);
