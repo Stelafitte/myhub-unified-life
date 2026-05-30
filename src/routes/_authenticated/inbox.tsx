@@ -240,6 +240,13 @@ function InboxPage() {
     [emails, selectedId],
   );
 
+  // Auto-sélectionne le dernier mail de la liste filtrée si rien n'est sélectionné
+  useEffect(() => {
+    if (!selectedId && filtered.length > 0) {
+      setSelectedId(filtered[0].id);
+    }
+  }, [filtered, selectedId]);
+
   // Mutations (optimistic)
   const patch = async (id: string, updates: Partial<Email>) => {
     setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
