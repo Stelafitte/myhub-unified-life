@@ -1015,8 +1015,8 @@ function InboxPage() {
       {/* RIGHT — reader (full overlay on mobile when selected) */}
       <aside
         style={{
-          width: typeof window !== "undefined" && window.innerWidth >= 1024
-            ? Math.min(rightW, Math.max(360, window.innerWidth - leftW - 380))
+          width: winW >= 1024
+            ? Math.min(rightW, Math.max(360, winW - leftW - 380))
             : undefined,
         }}
         className={cn(
