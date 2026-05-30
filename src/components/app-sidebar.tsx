@@ -31,8 +31,8 @@ export function AppSidebar() {
   const { isAdmin } = useIsAdmin();
   const items = [
     ...baseItems,
-    ...(isAdmin ? [{ title: "Administration", url: "/admin", icon: Shield } as const] : []),
     { title: "Paramètres", url: "/settings", icon: Settings } as const,
+    ...(isAdmin ? [{ title: "Administration", url: "/admin", icon: Shield } as const] : []),
   ];
 
 
