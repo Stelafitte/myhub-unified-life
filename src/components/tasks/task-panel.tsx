@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { Search, Mail, X, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Search, Mail, X, Sparkles, CalendarPlus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
