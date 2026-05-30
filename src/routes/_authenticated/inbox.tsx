@@ -218,8 +218,14 @@ function InboxPage() {
     const v = Number(localStorage.getItem("inbox:leftW")); return v >= 200 && v <= 500 ? v : 280;
   });
   const [rightW, setRightW] = useState<number>(() => {
-    const v = Number(localStorage.getItem("inbox:rightW")); return v >= 320 && v <= 720 ? v : 420;
+    const v = Number(localStorage.getItem("inbox:rightW")); return v >= 320 ? v : 600;
   });
+  const [winW, setWinW] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
+  useEffect(() => {
+    const onResize = () => setWinW(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const startDrag = (which: "left" | "right") => (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
