@@ -487,15 +487,12 @@ function BarRow({
   const days = Math.max(1, Math.ceil((cur.e.getTime() - cur.s.getTime()) / 86400000) + 1);
   const width = Math.max(dayPx, days * dayPx);
 
-  const isOverdue = bar.type === "task" && bar.end < today && bar.status !== "done";
+  const isOverdue = bar.end < today && bar.status !== "done";
   const isDone = bar.status === "done";
 
-  const barColor = bar.type === "event"
-    ? (bar.color ? "" : "bg-blue-500")
-    : (bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground");
+  const barColor = bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground";
 
   const onPointerDown = (mode: "move" | "resize-l" | "resize-r") => (ev: React.PointerEvent) => {
-    if (bar.type !== "task") return;
     ev.preventDefault(); ev.stopPropagation();
     (ev.target as HTMLElement).setPointerCapture(ev.pointerId);
     setDrag({ mode, startX: ev.clientX, origStart: bar.start, origEnd: bar.end });
@@ -516,22 +513,9 @@ function BarRow({
     setDrag(null); setPreview(null);
   };
 
-  if (bar.isMilestone && bar.type === "event") {
-    return (
-      <div className="relative border-b" style={{ height: rowHeight }}>
-        <div
-          title={`${bar.title} — ${bar.start.toLocaleDateString()}`}
-          onClick={onClick}
-          className={cn("absolute top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 cursor-pointer border-2 border-background", barColor)}
-          style={{ left, backgroundColor: bar.color ?? undefined }}
-        />
-      </div>
-    );
-  }
-
   // Overdue zone (red transparent) from end to today
-  const overdueLeft = bar.type === "task" && isOverdue ? Math.floor((bar.end.getTime() - start.getTime()) / 86400000) * dayPx : 0;
-  const overdueWidth = bar.type === "task" && isOverdue ? Math.max(0, Math.floor((today.getTime() - bar.end.getTime()) / 86400000) * dayPx) : 0;
+  const overdueLeft = isOverdue ? Math.floor((bar.end.getTime() - start.getTime()) / 86400000) * dayPx : 0;
+  const overdueWidth = isOverdue ? Math.max(0, Math.floor((today.getTime() - bar.end.getTime()) / 86400000) * dayPx) : 0;
 
   return (
     <div className="relative border-b" style={{ height: rowHeight }}>
@@ -545,22 +529,18 @@ function BarRow({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         className={cn(
-          "group absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium text-white shadow-sm",
-          bar.type === "task" ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+          "group absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium text-white shadow-sm cursor-grab active:cursor-grabbing",
           barColor,
           isDone && "opacity-60",
           isOverdue && "ring-1 ring-red-600",
         )}
-        style={{ left, width, backgroundColor: bar.type === "event" && bar.color ? bar.color : undefined }}
+        style={{ left, width }}
       >
-        {bar.type === "task" && (
-          <span onPointerDown={onPointerDown("resize-l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
-        )}
+        <span onPointerDown={onPointerDown("resize-l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
         <span className="truncate">{bar.title}</span>
-        {bar.type === "task" && (
-          <span onPointerDown={onPointerDown("resize-r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
-        )}
+        <span onPointerDown={onPointerDown("resize-r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
       </div>
     </div>
   );
 }
+
