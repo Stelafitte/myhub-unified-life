@@ -167,6 +167,7 @@ export function CreateTaskFromEmailDialog({
         source_email_id: email.id,
         calendar_event_id: calendarEventId,
         attachments,
+        tags: attachments.length > 0 ? ["attachment"] : [],
         status: "todo",
       });
       if (error) throw error;
