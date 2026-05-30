@@ -241,7 +241,7 @@ function PlanOperationPage() {
       const dataUrl = await toPng(exportRef.current, { backgroundColor: "#ffffff", pixelRatio: 2 });
       const a = document.createElement("a");
       a.href = dataUrl;
-      a.download = `retroplanning-${new Date().toISOString().slice(0,10)}.png`;
+      a.download = `plan-operation-${new Date().toISOString().slice(0,10)}.png`;
       a.click();
     } catch (e) { toast.error("Export PNG échoué"); }
   };
@@ -254,7 +254,7 @@ function PlanOperationPage() {
       await new Promise((r) => (img.onload = r));
       const pdf = new jsPDF({ orientation: img.width > img.height ? "landscape" : "portrait", unit: "px", format: [img.width, img.height] });
       pdf.addImage(dataUrl, "PNG", 0, 0, img.width, img.height);
-      pdf.save(`retroplanning-${new Date().toISOString().slice(0,10)}.pdf`);
+      pdf.save(`plan-operation-${new Date().toISOString().slice(0,10)}.pdf`);
     } catch { toast.error("Export PDF échoué"); }
   };
 
