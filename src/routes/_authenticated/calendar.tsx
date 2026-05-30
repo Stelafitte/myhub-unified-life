@@ -183,7 +183,25 @@ function AgendaPage() {
     if (tks) { setTasks(tks as TaskRow[]); /* don't overwrite full tasks cache from partial select */ }
   };
 
-  useEffect(() => { if (user) load(); }, [user]);
+  const runSync = async (silent = false) => {
+    setSyncingGoogle(true);
+    try {
+      const res = await syncGcal({ data: {} });
+      if (!silent) {
+        if (res.connections === 0) toast.info("Aucun compte Google Calendar connecté.");
+        else toast.success(`${res.synced} événement(s) synchronisé(s).`);
+      }
+      await load();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[gcal sync]", e);
+      if (!silent) toast.error(`Sync Google Calendar : ${msg}`);
+    } finally {
+      setSyncingGoogle(false);
+    }
+  };
+
+  useEffect(() => { if (user) { load().then(() => runSync(true)); } }, [user]);
   useEffect(() => {
     const onOnline = () => { if (user) load(); };
     window.addEventListener("online", onOnline);
