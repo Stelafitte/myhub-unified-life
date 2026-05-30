@@ -18,11 +18,14 @@ import {
   Circle,
   Clock,
   ChevronDown,
+  ChevronRight,
   Sparkles,
   Check,
   Lock,
   ShieldAlert,
   Settings2,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
@@ -71,6 +74,72 @@ export const Route = createFileRoute("/_authenticated/inbox")({
   component: InboxPage,
 });
 
+const PARENT_SEPARATORS = [" / ", " > ", " – ", " — ", " : ", " - "];
+function splitThemeName(name: string): { parent: string; child: string } | null {
+  for (const sep of PARENT_SEPARATORS) {
+    const i = name.indexOf(sep);
+    if (i > 0) {
+      return { parent: name.slice(0, i).trim(), child: name.slice(i + sep.length).trim() };
+    }
+  }
+  return null;
+}
+
+function groupThemes(
+  themes: Theme[],
+  byTheme: Map<string, number>,
+): {
+  grouped: { name: string; items: { theme: Theme; label: string }[]; total: number }[];
+  standalone: Theme[];
+} {
+  const active = themes.filter((t) => !t.archived_at && (byTheme.get(t.id) ?? 0) > 0);
+  const map = new Map<string, { theme: Theme; label: string }[]>();
+  const flat: Theme[] = [];
+  for (const t of active) {
+    const parsed = splitThemeName(t.name);
+    if (parsed) {
+      const arr = map.get(parsed.parent) ?? [];
+      arr.push({ theme: t, label: parsed.child });
+      map.set(parsed.parent, arr);
+    } else {
+      flat.push(t);
+    }
+  }
+  // Try to group remaining by significant first word (>=4 chars) if 2+ share it
+  const byFirst = new Map<string, Theme[]>();
+  for (const t of flat) {
+    const first = t.name.split(/\s+/)[0]?.trim() ?? "";
+    if (first.length >= 4) {
+      const arr = byFirst.get(first) ?? [];
+      arr.push(t);
+      byFirst.set(first, arr);
+    }
+  }
+  const standalone: Theme[] = [];
+  const usedIds = new Set<string>();
+  for (const [first, arr] of byFirst) {
+    if (arr.length >= 2) {
+      const existing = map.get(first) ?? [];
+      for (const t of arr) {
+        existing.push({ theme: t, label: t.name });
+        usedIds.add(t.id);
+      }
+      map.set(first, existing);
+    }
+  }
+  for (const t of flat) if (!usedIds.has(t.id)) standalone.push(t);
+
+  const grouped = [...map.entries()]
+    .map(([name, items]) => ({
+      name,
+      items: items.sort((a, b) => (byTheme.get(b.theme.id) ?? 0) - (byTheme.get(a.theme.id) ?? 0)),
+      total: items.reduce((s, i) => s + (byTheme.get(i.theme.id) ?? 0), 0),
+    }))
+    .sort((a, b) => b.total - a.total);
+
+  return { grouped, standalone };
+}
+
 function InboxPage() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -92,6 +161,36 @@ function InboxPage() {
   const setEmailThemeFn = useServerFn(setEmailTheme);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
+  const [relaunching, setRelaunching] = useState(false);
+
+  const relaunchAi = async () => {
+    if (relaunching) return;
+    setRelaunching(true);
+    try {
+      let totalProcessed = 0;
+      for (let i = 0; i < 12; i++) {
+        const r = await classifyThemesFn().catch(() => ({ processed: 0 }));
+        if (!r || r.processed === 0) break;
+        totalProcessed += r.processed;
+      }
+      await refreshThemes();
+      const { data: refreshed } = await supabase
+        .from("emails")
+        .select("*")
+        .eq("is_archived", false)
+        .order("received_at", { ascending: false })
+        .limit(1000);
+      if (refreshed) {
+        setEmails(refreshed as Email[]);
+        cacheEmails(refreshed as Email[]);
+      }
+      toast.success(totalProcessed > 0 ? `${totalProcessed} email(s) reclassé(s)` : "Aucun email à reclasser");
+    } catch (err: any) {
+      toast.error(err?.message ?? "Erreur lors du relancement");
+    } finally {
+      setRelaunching(false);
+    }
+  };
 
   const toggleCheck = (id: string, ev?: React.MouseEvent) => {
     ev?.stopPropagation();
@@ -436,63 +535,7 @@ function InboxPage() {
           <FilterRow label="Pièces jointes" icon={<Paperclip className="h-4 w-4" />} count={counts.attachments} active={filter === "attachments"} onClick={() => setFilter("attachments")} />
           <FilterRow label="Suivis" icon={<Star className="h-4 w-4" />} count={counts.starred} active={filter === "starred"} onClick={() => setFilter("starred")} />
 
-          <div className="mt-4 flex items-center justify-between px-3 pb-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
-              <Sparkles className="mr-1 inline h-3 w-3" />
-              Thèmes
-            </span>
-            <button
-              onClick={() => setThemesOpen(true)}
-              className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-              title="Gérer les thèmes"
-            >
-              <Settings2 className="h-3 w-3" />
-            </button>
-          </div>
-          {themes.filter((t) => !t.archived_at && (counts.byTheme.get(t.id) ?? 0) > 0).length === 0 && (
-            <div className="px-3 py-2 text-xs text-muted-foreground">
-              Analyse en cours… ou cliquez sur l'engrenage pour démarrer.
-            </div>
-          )}
-          {themes
-            .filter((t) => !t.archived_at)
-            .map((t) => ({ t, n: counts.byTheme.get(t.id) ?? 0 }))
-            .filter(({ n }) => n > 0)
-            .sort((a, b) => b.n - a.n)
-            .map(({ t, n }) => {
-              const active = filter === `theme:${t.id}`;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setFilter(`theme:${t.id}`)}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
-                    active ? "bg-accent" : "hover:bg-accent/50",
-                  )}
-                  title={t.description ?? t.name}
-                >
-                  <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs">
-                    {t.icon ?? "🏷️"}
-                  </span>
-                  <span className="flex-1 truncate text-sm">{t.name}</span>
-                  <span className="text-[11px] text-muted-foreground">{n}</span>
-                </button>
-              );
-            })}
-          {counts.noTheme > 0 && (
-            <button
-              onClick={() => setFilter("theme:__none__")}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
-                filter === "theme:__none__" ? "bg-accent" : "hover:bg-accent/50",
-              )}
-            >
-              <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-xs">❓</span>
-              <span className="flex-1 truncate text-sm italic text-muted-foreground">Non classés</span>
-              <span className="text-[11px] text-muted-foreground">{counts.noTheme}</span>
-            </button>
-          )}
-
+          {/* Comptes first */}
           <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Comptes
           </div>
@@ -522,6 +565,117 @@ function InboxPage() {
           ))}
           {!accounts.some((a) => a.name === "CHU" || a.type === "imap") && (
             <QuickAddOvh onAdded={() => setReloadKey((k) => k + 1)} />
+          )}
+
+          {/* Thèmes IA below Comptes, with relaunch + management */}
+          <div className="mt-4 flex items-center justify-between px-3 pb-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+              <Sparkles className="mr-1 inline h-3 w-3" />
+              Thèmes IA
+            </span>
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={relaunchAi}
+                disabled={relaunching}
+                className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
+                title="Relancer l'analyse IA"
+              >
+                {relaunching ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+              </button>
+              <button
+                onClick={() => setThemesOpen(true)}
+                className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                title="Gérer les thèmes"
+              >
+                <Settings2 className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+          {(() => {
+            const { grouped, standalone } = groupThemes(themes, counts.byTheme);
+            if (grouped.length === 0 && standalone.length === 0) {
+              return (
+                <div className="px-3 py-2 text-xs text-muted-foreground">
+                  Analyse en cours… ou cliquez sur ↻ pour lancer.
+                </div>
+              );
+            }
+            return (
+              <>
+                {grouped.map((g) => (
+                  <details key={g.name} open className="group/theme">
+                    <summary className="flex w-full cursor-pointer list-none items-center gap-1.5 rounded-md px-2 py-1 text-left hover:bg-accent/40 [&::-webkit-details-marker]:hidden">
+                      <ChevronRight className="h-3 w-3 text-muted-foreground transition-transform group-open/theme:rotate-90" />
+                      <span className="flex-1 truncate text-xs font-medium">{g.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{g.total}</span>
+                    </summary>
+                    <div className="ml-3 border-l border-border/50 pl-1">
+                      {g.items.map(({ theme: t, label }) => {
+                        const n = counts.byTheme.get(t.id) ?? 0;
+                        const active = filter === `theme:${t.id}`;
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => setFilter(`theme:${t.id}`)}
+                            className={cn(
+                              "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors",
+                              active ? "bg-accent" : "hover:bg-accent/50",
+                            )}
+                            title={t.description ?? t.name}
+                          >
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-primary/10 text-[10px]">
+                              {t.icon ?? "🏷️"}
+                            </span>
+                            <span className="flex-1 truncate text-xs">{label}</span>
+                            <span className="text-[10px] text-muted-foreground">{n}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </details>
+                ))}
+                {standalone
+                  .map((t) => ({ t, n: counts.byTheme.get(t.id) ?? 0 }))
+                  .sort((a, b) => b.n - a.n)
+                  .map(({ t, n }) => {
+                    const active = filter === `theme:${t.id}`;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setFilter(`theme:${t.id}`)}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                          active ? "bg-accent" : "hover:bg-accent/50",
+                        )}
+                        title={t.description ?? t.name}
+                      >
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs">
+                          {t.icon ?? "🏷️"}
+                        </span>
+                        <span className="flex-1 truncate text-sm">{t.name}</span>
+                        <span className="text-[11px] text-muted-foreground">{n}</span>
+                      </button>
+                    );
+                  })}
+              </>
+            );
+          })()}
+          {counts.noTheme > 0 && (
+            <button
+              onClick={() => setFilter("theme:__none__")}
+              className={cn(
+                "mt-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                filter === "theme:__none__" ? "bg-accent" : "hover:bg-accent/50",
+              )}
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-xs">❓</span>
+              <span className="flex-1 truncate text-sm italic text-muted-foreground">Non classés</span>
+              <span className="text-[11px] text-muted-foreground">{counts.noTheme}</span>
+            </button>
           )}
         </nav>
 
