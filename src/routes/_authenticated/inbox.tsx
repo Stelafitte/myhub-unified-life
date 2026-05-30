@@ -163,6 +163,13 @@ function InboxPage() {
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
   const [relaunching, setRelaunching] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+
+  const openComposer = (init: ComposerInitial) => {
+    setComposerInitial(init);
+    setComposerOpen(true);
+  };
 
   const relaunchAi = async () => {
     if (relaunching) return;
