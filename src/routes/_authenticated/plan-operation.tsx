@@ -325,7 +325,7 @@ function PlanOperationPage() {
               <div>
                 <Label className="text-xs">Source</Label>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  {["myhubpro","microsoft_todo","apple_reminders","calendar"].map((s) => (
+                  {["myhubpro","microsoft_todo","apple_reminders"].map((s) => (
                     <label key={s} className="flex items-center gap-1 text-xs">
                       <Checkbox checked={fSource.has(s)} onCheckedChange={() => setFSource(toggleSet(fSource, s))} />
                       {s}
