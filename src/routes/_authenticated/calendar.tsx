@@ -11,7 +11,10 @@ import {
   X,
   Trash2,
   CheckSquare,
+  Link2,
 } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { startGoogleCalendarOAuth } from "@/lib/api/google-calendar.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
@@ -126,6 +129,20 @@ function AgendaPage() {
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
   const [creating, setCreating] = useState(false);
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
+  const startGcalOAuth = useServerFn(startGoogleCalendarOAuth);
+
+  const connectGoogleCalendar = async () => {
+    setConnectingGoogle(true);
+    try {
+      const { authorizationUrl } = await startGcalOAuth({ data: { label: "Google Calendar" } });
+      window.location.assign(authorizationUrl);
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Connexion Google Calendar impossible");
+      setConnectingGoogle(false);
+    }
+  };
 
   const load = async () => {
     // Cache-first hydration
@@ -309,6 +326,19 @@ function AgendaPage() {
           <Legend color={SOURCE_META.icloud.color} badge="⚫" label="iCloud" />
           <Legend color={SOURCE_META.outlook.color} badge="🔷" label="Outlook / Exchange" />
           <Legend color={SOURCE_META.task.color} badge="🟠" label="Tâches MyHub Pro" />
+
+          <div className="mt-4">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full gap-1.5"
+              onClick={connectGoogleCalendar}
+              disabled={connectingGoogle}
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              {connectingGoogle ? "Redirection…" : "Connecter Google Calendar"}
+            </Button>
+          </div>
 
           <div className="mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Comptes connectés
