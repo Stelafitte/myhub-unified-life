@@ -130,16 +130,32 @@ function AgendaPage() {
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
   const [creating, setCreating] = useState(false);
   const [connectingGoogle, setConnectingGoogle] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
   const startGcalOAuth = useServerFn(startGoogleCalendarOAuth);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("gcal_error");
+    if (err) {
+      setOauthError(decodeURIComponent(err));
+      // Clean URL without reloading
+      const url = new URL(window.location.href);
+      url.searchParams.delete("gcal_error");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
 
   const connectGoogleCalendar = async () => {
     setConnectingGoogle(true);
+    setOauthError(null);
     try {
       const { authorizationUrl } = await startGcalOAuth({ data: { label: "Google Calendar" } });
       window.location.assign(authorizationUrl);
     } catch (err) {
       console.error(err);
-      toast.error(err instanceof Error ? err.message : "Connexion Google Calendar impossible");
+      const msg = err instanceof Error ? err.message : "Connexion Google Calendar impossible";
+      toast.error(msg);
+      setOauthError(msg);
       setConnectingGoogle(false);
     }
   };
@@ -339,6 +355,22 @@ function AgendaPage() {
               {connectingGoogle ? "Redirection…" : "Connecter Google Calendar"}
             </Button>
           </div>
+
+          {oauthError && (
+            <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+              <p className="mb-1 font-semibold">&#9888; Connexion Google Calendar &eacute;chou&eacute;e</p>
+              <p className="opacity-90">{oauthError}</p>
+              <p className="mt-2 text-[11px] opacity-75">
+                V&eacute;rifiez que votre email est ajout&eacute; en tant qu'utilisateur de test dans Google Cloud Console, que l'API Calendar est activ&eacute;e, et que les URI de redirection sont correctes.
+              </p>
+              <button
+                onClick={() => setOauthError(null)}
+                className="mt-2 text-[11px] text-red-300 underline hover:text-red-200"
+              >
+                Masquer
+              </button>
+            </div>
+          )}
 
           <div className="mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Comptes connectés

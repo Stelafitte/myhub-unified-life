@@ -9,19 +9,32 @@ function getOAuthOrigin(origin: string): string {
   return origin;
 }
 
-function html(message: string, ok: boolean) {
+function html(message: string, ok: boolean, detail?: string) {
+  const steps = ok
+    ? ""
+    : `<div style="margin-top:16px;text-align:left;background:#0f0f0f;padding:16px;border-radius:8px"><h2 style="font-size:13px;margin:0 0 8px;color:#f87171">Causes probables &eacute;tapes &agrave; suivre</h2><ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.6;color:#d4d4d4">${detail ?? ""}</ul></div>`;
+
   return `<!doctype html><html><head><meta charset="utf-8"><title>Google Calendar</title>
-<meta http-equiv="refresh" content="2;url=/calendar">
-<style>body{font-family:system-ui;background:#0a0a0a;color:#fafafa;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}div{max-width:480px;padding:24px;border-radius:12px;background:#171717;text-align:center}h1{font-size:18px;margin:0 0 8px}p{opacity:.7;font-size:14px;margin:0}</style>
-</head><body><div><h1>${ok ? "✅ Google Calendar connecté" : "❌ Échec de connexion"}</h1><p>${message}</p><p style="margin-top:12px">Redirection vers l'agenda…</p></div></body></html>`;
+<meta http-equiv="refresh" content="8;url=/calendar?gcal_error=${ok ? "" : encodeURIComponent(message)}">
+<style>body{font-family:system-ui;background:#0a0a0a;color:#fafafa;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;padding:16px}div{max-width:560px;padding:28px;border-radius:14px;background:#171717;text-align:center}h1{font-size:18px;margin:0 0 10px}p{opacity:.75;font-size:14px;margin:0;line-height:1.5}a{color:#60a5fa;text-decoration:none}a:hover{text-decoration:underline}</style>
+</head><body><div><h1>${ok ? "&#9989; Google Calendar connect&eacute;" : "&#10060; &Eacute;chec de connexion"}</h1><p>${message}</p>${steps}<p style="margin-top:16px;opacity:.5;font-size:12px">Redirection vers l'agenda dans quelques secondes…</p></div></body></html>`;
 }
 
-function page(message: string, ok: boolean, status = 200) {
-  return new Response(html(message, ok), {
+function page(message: string, ok: boolean, status = 200, detail?: string) {
+  return new Response(html(message, ok, detail), {
     status,
     headers: { "content-type": "text/html; charset=utf-8" },
   });
 }
+
+const GOOGLE_STEPS = `
+<li>V&eacute;rifiez que votre email est ajout&eacute; en tant qu'<strong>utilisateur de test</strong> dans la console Google Cloud (APIs &amp; Services &rarr; OAuth consent screen &rarr; Test users).</li>
+<li>V&eacute;rifiez que l'<strong>API Google Calendar</strong> est bien activ&eacute;e (APIs &amp; Services &rarr; Library).</li>
+<li>V&eacute;rifiez que les <strong>URI de redirection</strong> dans les credentials incluent exactement :
+<code style="display:block;margin:6px 0;padding:6px 8px;background:#1a1a1a;border-radius:4px;font-size:11px">https://myhub-unified-life.lovable.app/api/google-calendar/callback</code>
+</li>
+<li>Si l'application est en mode <strong>Testing</strong>, vous devez &ecirc;tre list&eacute; comme test user. Passez en mode <strong>Production</strong> pour autoriser tout le monde.</li>
+`;
 
 export const Route = createFileRoute("/api/google-calendar/callback")({
   server: {
@@ -32,8 +45,16 @@ export const Route = createFileRoute("/api/google-calendar/callback")({
         const state = url.searchParams.get("state");
         const errorParam = url.searchParams.get("error");
 
-        if (errorParam) return page(`Google a renvoyé: ${errorParam}`, false, 400);
-        if (!code || !state) return page("Paramètres manquants.", false, 400);
+        if (errorParam) {
+          const is403Like = errorParam === "access_denied" || errorParam.includes("403");
+          return page(
+            `Google a refus&eacute; l'acc&egrave;s (${errorParam}).`,
+            false,
+            400,
+            is403Like ? GOOGLE_STEPS : undefined,
+          );
+        }
+        if (!code || !state) return page("Param&egrave;tres manquants.", false, 400);
 
         const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
         const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
@@ -74,10 +95,12 @@ export const Route = createFileRoute("/api/google-calendar/callback")({
         const tokenBody = await tokenRes.json().catch(() => ({}));
         if (!tokenRes.ok) {
           console.error("Google token exchange failed", tokenRes.status, tokenBody);
+          const is403 = tokenRes.status === 403;
           return page(
             `Échec d'échange de code (${tokenRes.status}): ${tokenBody.error_description ?? tokenBody.error ?? "unknown"}`,
             false,
             502,
+            is403 ? GOOGLE_STEPS : undefined,
           );
         }
 
