@@ -570,6 +570,8 @@ function InboxPage() {
           <FilterRow label="Non lus" icon={<Circle className="h-4 w-4 fill-current" />} count={counts.unread} active={filter === "unread"} onClick={() => setFilter("unread")} />
           <FilterRow label="Pièces jointes" icon={<Paperclip className="h-4 w-4" />} count={counts.attachments} active={filter === "attachments"} onClick={() => setFilter("attachments")} />
           <FilterRow label="Suivis" icon={<Star className="h-4 w-4" />} count={counts.starred} active={filter === "starred"} onClick={() => setFilter("starred")} />
+          <FilterRow label="Promotions" icon={<Megaphone className="h-4 w-4" />} count={counts.promo} active={filter === "promo"} onClick={() => setFilter("promo")} />
+          <FilterRow label="Indésirables" icon={<ShieldOff className="h-4 w-4" />} count={counts.spam} active={filter === "spam"} onClick={() => setFilter("spam")} />
 
           {/* Comptes first */}
           <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
