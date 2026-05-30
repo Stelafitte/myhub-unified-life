@@ -135,6 +135,15 @@ export const classifyPendingEmails = createServerFn({ method: "POST" })
     }
     const hints = hintLines.slice(0, 20).join("\n");
 
+    const { data: sec } = await supabase
+      .from("security_settings")
+      .select("whitelist,blacklist")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const whitelist = (sec?.whitelist ?? []) as string[];
+    const blacklist = (sec?.blacklist ?? []) as string[];
+    const trustedSenders = whitelist.slice(0, 30).map((s) => `- ${s}`).join("\n");
+
     const { data: rows, error } = await supabase
       .from("emails")
       .select("id,subject,from_address,from_name,body_text,received_at")
@@ -148,17 +157,31 @@ export const classifyPendingEmails = createServerFn({ method: "POST" })
 
     let processed = 0;
     for (const r of rows as Row[]) {
-      const result = await classifyOne(key, r, hints);
+      const result = await classifyOne(key, r, hints, trustedSenders);
+
+      const from = (r.from_address ?? "").toLowerCase();
+      const isWhitelisted = whitelist.some((w) => from.includes(w.toLowerCase()));
+      const isBlacklisted = blacklist.some((b) => from.includes(b.toLowerCase()));
 
       const now = new Date().toISOString();
-      const update = result
-        ? {
-            ai_priority: result.priority,
-            ai_category: result.category,
-            ai_summary: result.summary,
-            ai_processed_at: now,
-          }
-        : { ai_processed_at: now };
+      let update: Record<string, unknown>;
+      if (result) {
+        let spam_label = result.spam_label;
+        let spam_score = result.spam_score;
+        if (isWhitelisted) { spam_label = "legit"; spam_score = 0; }
+        else if (isBlacklisted) { spam_label = "spam"; spam_score = 100; }
+        update = {
+          ai_priority: result.priority,
+          ai_category: result.category,
+          ai_summary: result.summary,
+          ai_processed_at: now,
+          spam_label,
+          spam_score,
+          spam_reason: result.spam_reason,
+        };
+      } else {
+        update = { ai_processed_at: now };
+      }
       const { error: upErr } = await supabase
         .from("emails")
         .update(update)
