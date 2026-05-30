@@ -150,7 +150,7 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
             name: conn.label,
             type: "gmail",
             color: "#3b82f6",
-            sync_direction: conn.sync_direction,
+            sync_direction: (conn.sync_direction as "bidirectional" | "disabled" | "pull" | "push") ?? "pull",
           })
           .select("id")
           .single();
