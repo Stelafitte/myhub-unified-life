@@ -247,6 +247,30 @@ export type Database = {
         }
         Relationships: []
       }
+      deleted_emails: {
+        Row: {
+          account_id: string
+          deleted_at: string
+          id: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          deleted_at?: string
+          id?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          deleted_at?: string
+          id?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       document_retention_settings: {
         Row: {
           created_at: string
