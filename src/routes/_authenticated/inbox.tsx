@@ -372,6 +372,12 @@ function InboxPage() {
           </div>
         )}
       </aside>
+      {/* left resizer */}
+      <div
+        onMouseDown={startDrag("left")}
+        className="hidden w-1 shrink-0 cursor-col-resize bg-border/30 hover:bg-primary/40 md:block"
+        title="Glisser pour redimensionner"
+      />
 
       {/* CENTER — list */}
       <section className="flex min-w-0 flex-1 flex-col border-r">
