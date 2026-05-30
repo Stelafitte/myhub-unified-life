@@ -231,7 +231,7 @@ function InboxPage() {
   };
 
   return (
-    <div className="-mx-4 -my-4 flex h-[calc(100vh-4rem)] overflow-hidden md:-mx-6">
+    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT — filters */}
       <aside className="hidden w-[280px] shrink-0 flex-col border-r bg-card md:flex">
         <div className="border-b p-4">
@@ -461,8 +461,21 @@ function InboxPage() {
         </ul>
       </section>
 
-      {/* RIGHT — reader */}
-      <aside className="hidden w-[420px] shrink-0 flex-col bg-card lg:flex">
+      {/* RIGHT — reader (full overlay on mobile when selected) */}
+      <aside
+        className={cn(
+          "shrink-0 flex-col bg-card lg:flex lg:w-[420px] lg:relative lg:inset-auto lg:z-auto",
+          selected ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
+        )}
+      >
+        {selected && (
+          <button
+            onClick={() => setSelectedId(null)}
+            className="flex items-center gap-1 border-b px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent lg:hidden"
+          >
+            <ChevronDown className="h-3.5 w-3.5 rotate-90" /> Retour à la liste
+          </button>
+        )}
         {!selected ? (
           <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
             Sélectionnez un email pour le lire
@@ -480,6 +493,7 @@ function InboxPage() {
           />
         )}
       </aside>
+
 
       {selected && (
         <CreateTaskFromEmailDialog

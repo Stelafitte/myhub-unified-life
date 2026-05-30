@@ -254,7 +254,7 @@ function ContactsPage() {
   };
 
   return (
-    <div className="-mx-4 -my-4 flex h-[calc(100vh-4rem)] overflow-hidden md:-mx-6">
+    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT — list */}
       <section className="flex min-w-0 flex-1 flex-col border-r">
         {/* Header */}
@@ -408,8 +408,21 @@ function ContactsPage() {
         </ul>
       </section>
 
-      {/* RIGHT — detail */}
-      <aside className="hidden w-[440px] shrink-0 flex-col bg-card lg:flex">
+      {/* RIGHT — detail (full overlay on mobile when selected) */}
+      <aside
+        className={cn(
+          "shrink-0 flex-col bg-card lg:flex lg:w-[440px] lg:relative lg:inset-auto lg:z-auto",
+          selected ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
+        )}
+      >
+        {selected && (
+          <button
+            onClick={() => setSelectedId(null)}
+            className="flex items-center gap-1 border-b px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent lg:hidden"
+          >
+            ← Retour à la liste
+          </button>
+        )}
         {!selected ? (
           <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
             Sélectionnez un contact pour voir sa fiche
@@ -429,6 +442,7 @@ function ContactsPage() {
           />
         )}
       </aside>
+
 
       {mergeOpen && (
         <MergeDialog

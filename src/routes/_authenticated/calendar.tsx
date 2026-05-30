@@ -256,7 +256,7 @@ function AgendaPage() {
   };
 
   return (
-    <div className="-mx-4 -my-4 flex h-[calc(100vh-4rem)] overflow-hidden md:-mx-6">
+    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT SIDEBAR — mini calendar + filters */}
       <aside className="hidden w-[280px] shrink-0 flex-col border-r bg-card md:flex">
         <div className="border-b p-4">
@@ -467,7 +467,7 @@ function WeekOrDayView({
   const today = new Date();
 
   return (
-    <div className="flex">
+    <div className="flex overflow-x-auto">
       <div className="w-14 shrink-0 border-r">
         <div className="h-10 border-b" />
         {Array.from({ length: 24 }, (_, h) => (
@@ -476,7 +476,8 @@ function WeekOrDayView({
           </div>
         ))}
       </div>
-      <div className={cn("grid flex-1", days === 1 ? "grid-cols-1" : "grid-cols-7")}>
+      <div className={cn("grid flex-1", days === 1 ? "grid-cols-1 min-w-[280px]" : "grid-cols-7 min-w-[560px]")}>
+
         {dayCols.map((d) => {
           const dayEvents = events.filter((e) => sameDay(e.start, d));
           const isToday = sameDay(d, today);
@@ -587,7 +588,7 @@ function EventDetail({
   const participants = extractEmails((event.raw as DbEvent).description ?? "");
 
   return (
-    <aside className="hidden w-[380px] shrink-0 flex-col border-l bg-card lg:flex">
+    <aside className="fixed inset-0 z-40 flex shrink-0 flex-col border-l bg-card lg:relative lg:inset-auto lg:z-auto lg:w-[380px]">
       <header className="flex items-start gap-2 border-b p-4">
         <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: event.color }} />
         <div className="min-w-0 flex-1">
