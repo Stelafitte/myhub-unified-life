@@ -728,7 +728,7 @@ function Reader({
 }) {
   const isPostponed = (email.labels ?? []).includes("task-todo");
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-auto">
       <header className="border-b p-4">
         <div className="mb-2 flex items-center gap-2">
           {account && (
@@ -812,7 +812,7 @@ function Reader({
         />
       )}
 
-      <div className="min-h-0 min-w-0 flex-1 overflow-auto p-4 text-sm">
+      <div className="min-w-0 p-4 text-sm">
         {email.body_html ? (
           <div
             className="prose prose-sm max-w-none break-words dark:prose-invert [&_img]:max-w-full [&_table]:max-w-full"
