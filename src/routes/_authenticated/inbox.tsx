@@ -807,6 +807,12 @@ function InboxPage() {
           userId={user?.id ?? ""}
         />
       )}
+
+      <ThemesManagerDialog
+        open={themesOpen}
+        onOpenChange={setThemesOpen}
+        onChanged={() => { refreshThemes(); setReloadKey((k) => k + 1); }}
+      />
     </div>
   );
 }
