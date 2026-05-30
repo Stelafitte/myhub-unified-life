@@ -395,6 +395,36 @@ function InboxPage() {
           </div>
           <span className="text-xs text-muted-foreground">{filtered.length} email{filtered.length > 1 ? "s" : ""}</span>
         </div>
+        {checked.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 border-b bg-primary/5 px-4 py-1.5 text-xs">
+            <input
+              type="checkbox"
+              checked={filtered.length > 0 && filtered.every((e) => checked.has(e.id))}
+              onChange={(ev) => {
+                if (ev.target.checked) setChecked(new Set(filtered.map((e) => e.id)));
+                else clearChecked();
+              }}
+              className="h-3.5 w-3.5"
+              title="Tout sélectionner"
+            />
+            <span className="font-medium">{checked.size} sélectionné{checked.size > 1 ? "s" : ""}</span>
+            <div className="ml-auto flex flex-wrap gap-1">
+              <Button size="sm" variant="ghost" className="h-6 gap-1 px-2" onClick={() => bulkMarkRead(true)}>
+                <MailOpen className="h-3.5 w-3.5" /> Lu
+              </Button>
+              <Button size="sm" variant="ghost" className="h-6 gap-1 px-2" onClick={() => bulkMarkRead(false)}>
+                <Mail className="h-3.5 w-3.5" /> Non lu
+              </Button>
+              <Button size="sm" variant="ghost" className="h-6 gap-1 px-2" onClick={bulkArchive}>
+                <Archive className="h-3.5 w-3.5" /> Archiver
+              </Button>
+              <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-destructive hover:text-destructive" onClick={bulkDelete}>
+                <Trash2 className="h-3.5 w-3.5" /> Supprimer
+              </Button>
+              <Button size="sm" variant="ghost" className="h-6 px-2" onClick={clearChecked}>Annuler</Button>
+            </div>
+          </div>
+        )}
         <ul className="flex-1 divide-y overflow-y-auto">
           {filtered.length === 0 && (
             <li className="p-10 text-center text-sm text-muted-foreground">
