@@ -408,7 +408,7 @@ function PlanOperationPage() {
                     </button>
                     {!isCollapsed && items.map((b) => (
                       <div key={b.id} className="flex items-center gap-2 border-b px-3 text-xs" style={{ height: ROW_H }}>
-                        {b.type === "event" ? <span title="Événement">📅</span> : <span className={cn("h-2 w-2 rounded-full", b.priority ? PRIORITY_META[b.priority].dot : "bg-muted-foreground")} />}
+                        <span className={cn("h-2 w-2 rounded-full", b.priority ? PRIORITY_META[b.priority].dot : "bg-muted-foreground")} />
                         <span className="truncate">{b.title}</span>
                       </div>
                     ))}
