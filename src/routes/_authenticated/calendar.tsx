@@ -874,6 +874,11 @@ function EventDetail({
         <Button className="w-full gap-1.5" onClick={onCreateTask}>
           <CheckSquare className="h-4 w-4" /> Créer une tâche liée
         </Button>
+        {onShare && (
+          <Button variant="outline" className="w-full gap-1.5" onClick={onShare}>
+            <Share2 className="h-4 w-4" /> Partager par email
+          </Button>
+        )}
         {canEdit && (
           <Button variant="outline" className="w-full gap-1.5 text-destructive" onClick={onDelete}>
             <Trash2 className="h-4 w-4" /> Supprimer
