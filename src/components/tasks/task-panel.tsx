@@ -90,7 +90,15 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      initKeyRef.current = "";
+      return;
+    }
+    // Only reset when the panel is opened or the target task changes — not on every parent re-render
+    const key = task ? `edit:${task.id}` : `new:${defaultStatus ?? "todo"}`;
+    if (initKeyRef.current === key) return;
+    initKeyRef.current = key;
+
     if (task) {
       setTitle(task.title);
       setDescription(task.description ?? "");
@@ -107,21 +115,25 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
       setSource(task.source_app);
       setEmailId(task.source_email_id);
       setEmailLabel("");
+      setAddToCalendar(!!(task as Task & { calendar_event_id?: string | null }).calendar_event_id);
     } else {
+      // Defaults: today for start, today for due (when no AI is used)
+      const today = todayStr();
       setTitle("");
       setDescription("");
       setComments("");
       setPriority("medium");
       setStatus(defaultStatus ?? "todo");
       setSection("Autre");
-      setStart("");
-      setDue("");
+      setStart(today);
+      setDue(today);
       setReminder("");
       setTagsText("");
       setRecurrence("none");
       setSource("myhubpro");
       setEmailId(null);
       setEmailLabel("");
+      setAddToCalendar(false);
     }
     setNewSection("");
     setEmailSearch("");
