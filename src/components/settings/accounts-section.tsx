@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Mail, RefreshCw, Trash2, Pencil, CheckCircle2, AlertCircle, Clock, Loader2 } from "lucide-react";
+import { Plus, Mail, RefreshCw, Trash2, Pencil, CheckCircle2, AlertCircle, Clock, Loader2, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/lib/auth-context";
@@ -372,6 +372,7 @@ function AccountWizard({
   const [preset, setPreset] = useState<Preset | null>(null);
   const [type, setType] = useState<AccountType | null>(null);
   const [imap, setImap] = useState({ server: "", port: "993", ssl: true, username: "", password: "", email: "" });
+  const [showPw, setShowPw] = useState(false);
   const [name, setName] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [icon, setIcon] = useState(ICONS[0]);
@@ -560,7 +561,12 @@ function AccountWizard({
                 </div>
                 <div className="space-y-1.5">
                   <Label>Mot de passe</Label>
-                  <Input type="password" value={imap.password} onChange={(e) => setImap({ ...imap, password: e.target.value })} />
+                  <div className="relative">
+                    <Input type={showPw ? "text" : "password"} value={imap.password} onChange={(e) => setImap({ ...imap, password: e.target.value })} />
+                    <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground">
+                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Adresse email associée</Label>
