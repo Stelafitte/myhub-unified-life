@@ -126,6 +126,25 @@ export function AiSuggestionsPanel({
               <div className="mb-2 text-muted-foreground">
                 {data.event.title} <br />
                 {new Date(data.event.start).toLocaleString("fr-FR")}
+                {data.event.onlineLink && (
+                  <>
+                    <br />
+                    🎥{" "}
+                    <a
+                      href={data.event.onlineLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline break-all"
+                    >
+                      {data.event.onlineLink}
+                    </a>
+                  </>
+                )}
+                {data.event.location && !data.event.onlineLink && (
+                  <>
+                    <br />📍 {data.event.location}
+                  </>
+                )}
               </div>
               <Button size="sm" className="h-7 gap-1 text-xs" onClick={addEvent}>
                 <CalendarPlus className="h-3 w-3" /> Ajouter à l'agenda
