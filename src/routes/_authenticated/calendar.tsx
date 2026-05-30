@@ -587,7 +587,7 @@ function EventDetail({
   const participants = extractEmails((event.raw as DbEvent).description ?? "");
 
   return (
-    <aside className="hidden w-[380px] shrink-0 flex-col border-l bg-card lg:flex">
+    <aside className="fixed inset-0 z-40 flex shrink-0 flex-col border-l bg-card lg:relative lg:inset-auto lg:z-auto lg:w-[380px]">
       <header className="flex items-start gap-2 border-b p-4">
         <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: event.color }} />
         <div className="min-w-0 flex-1">
