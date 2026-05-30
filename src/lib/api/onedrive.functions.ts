@@ -43,8 +43,8 @@ export const listOneDriveFolders = createServerFn({ method: "GET" })
     async function listChildren(itemId: string | "root"): Promise<GraphItem[]> {
       const url =
         itemId === "root"
-          ? `${GATEWAY_URL}/v1.0/me/drive/root/children?$top=200`
-          : `${GATEWAY_URL}/v1.0/me/drive/items/${itemId}/children?$top=200`;
+          ? `${GATEWAY_URL}/me/drive/root/children?$top=200`
+          : `${GATEWAY_URL}/me/drive/items/${itemId}/children?$top=200`;
       const r = await fetch(url, { headers });
       if (!r.ok) {
         // Don't crash the page — just log and return empty so the inbox keeps working.
