@@ -228,7 +228,8 @@ function InboxPage() {
     const starred = emails.filter((e) => e.is_starred).length;
     const byAccount = new Map<string, number>();
     emails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
-    return { all: emails.length, unread, attachments, starred, byAccount };
+    const bySmart = countByGroup(emails);
+    return { all: emails.length, unread, attachments, starred, byAccount, bySmart };
   }, [emails]);
 
   const filtered = useMemo(() => {
@@ -239,6 +240,9 @@ function InboxPage() {
     else if (filter.startsWith("account:")) {
       const id = filter.slice(8);
       list = list.filter((e) => e.account_id === id);
+    } else if (filter.startsWith("smart:")) {
+      const key = filter.slice(6);
+      list = list.filter((e) => classifyEmail(e) === key);
     }
     if (query.trim()) {
       const q = query.toLowerCase();
