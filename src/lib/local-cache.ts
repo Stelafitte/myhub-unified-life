@@ -7,7 +7,7 @@
 //   await cacheDelete("contacts", id);
 
 const DB_NAME = "myhubpro-local-cache";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const MAX_PER_STORE = 1000;
 
 export type CacheStore =
@@ -17,7 +17,8 @@ export type CacheStore =
   | "tasks"
   | "op_plan_themes"
   | "op_plan_subthemes"
-  | "accounts";
+  | "accounts"
+  | "emails";
 
 const STORES: CacheStore[] = [
   "contacts",
@@ -27,6 +28,7 @@ const STORES: CacheStore[] = [
   "op_plan_themes",
   "op_plan_subthemes",
   "accounts",
+  "emails",
 ];
 
 function openDb(): Promise<IDBDatabase> {
