@@ -1122,6 +1122,19 @@ function Reader({
   onCompose: (init: ComposerInitial) => void;
   onMarkSpam: (asSpam: boolean) => void;
 }) {
+  const [sensitiveOverride, setSensitiveOverride] = useState<boolean | null>(null);
+  const isSensitive = sensitiveOverride ?? email.is_sensitive;
+  useEffect(() => { setSensitiveOverride(null); }, [email.id]);
+  const unmarkSensitive = async () => {
+    if (!window.confirm("Confirmer que ce message ne contient pas de données sensibles ? L'analyse IA sera réactivée.")) return;
+    const { error } = await supabase
+      .from("emails")
+      .update({ is_sensitive: false, sensitive_reason: null, sensitive_score: null })
+      .eq("id", email.id);
+    if (error) { toast.error(error.message); return; }
+    setSensitiveOverride(false);
+    toast.success("Caractère sensible levé");
+  };
   const isSpamEmail = email.spam_label === "spam" || email.spam_label === "phishing";
   const isPostponed = (email.labels ?? []).includes("task-todo");
   const quoted = () => {
@@ -1217,17 +1230,26 @@ function Reader({
         )}
       </header>
 
-      {email.is_sensitive ? (
+      {isSensitive ? (
         <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-3 space-y-2">
           <div className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-            <div>
+            <div className="flex-1">
               <div className="font-semibold">Email marqué sensible (HDS)</div>
               <div className="mt-0.5 opacity-90">
                 Données de santé potentielles détectées : {email.sensitive_reason ?? "motif inconnu"}.
                 Aucune analyse IA n'est effectuée sur ce message.
               </div>
             </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 shrink-0 gap-1 border-red-500/40 text-xs"
+              onClick={unmarkSensitive}
+              title="Lever le caractère sensible après vérification"
+            >
+              Lever
+            </Button>
           </div>
           <VaultActions email={email} onMoved={onArchive} />
         </div>
@@ -1260,7 +1282,7 @@ function Reader({
         )}
       </div>
 
-      {!email.is_sensitive && (
+      {!isSensitive && (
         <AiSuggestionsPanel
           emailId={email.id}
           fromAddress={email.from_address}
