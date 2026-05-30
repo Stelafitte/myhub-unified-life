@@ -236,7 +236,8 @@ function InboxPage() {
         const w = Math.min(500, Math.max(200, startW + dx));
         setLeftW(w);
       } else {
-        const w = Math.min(720, Math.max(320, startW - dx));
+        const maxW = Math.max(360, window.innerWidth - leftW - 380);
+        const w = Math.min(maxW, Math.max(320, startW - dx));
         setRightW(w);
       }
     };
