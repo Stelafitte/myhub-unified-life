@@ -153,8 +153,8 @@ function TasksPage() {
     }
   };
 
-  const openCreate = (status: TaskStatus) => { setEditing(null); setDefaultStatus(status); setPanelOpen(true); };
-  const openEdit = (t: Task) => { setEditing(t); setPanelOpen(true); };
+  const openCreate = (status: TaskStatus) => { setEditing(null); setDraft(null); setDefaultStatus(status); setPanelOpen(true); };
+  const openEdit = (t: Task) => { setEditing(t); setDraft(null); setPanelOpen(true); };
 
   const forceSync = async () => {
     const res = await flushQueue();
