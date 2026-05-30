@@ -1,0 +1,1 @@
+UPDATE public.accounts SET credentials = COALESCE(credentials, '{}'::jsonb) || '{"calendar_only": true}'::jsonb WHERE name = 'Google Calendar';
