@@ -477,7 +477,15 @@ function AccountWizard({
     setBusy(true);
     const credentials =
       type === "imap" || type === "icloud"
-        ? { server: imap.server, port: Number(imap.port), ssl: imap.ssl, username: imap.username, password: imap.password, email: imap.email || imap.username }
+        ? {
+            server: imap.server,
+            port: Number(imap.port),
+            ssl: imap.ssl,
+            username: imap.username,
+            password: imap.password,
+            email: imap.email || imap.username,
+            ...(preset?.smtp_server ? { smtp_server: preset.smtp_server, smtp_port: preset.smtp_port } : {}),
+          }
         : { oauth: true };
     const { error } = await supabase.from("accounts").insert({
       user_id: user.id,
