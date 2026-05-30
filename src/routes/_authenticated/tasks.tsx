@@ -234,6 +234,7 @@ function TasksPage() {
         defaultStatus={defaultStatus}
         sections={sections}
         onSaved={handleSaved}
+        draft={draft}
       />
     </div>
   );
