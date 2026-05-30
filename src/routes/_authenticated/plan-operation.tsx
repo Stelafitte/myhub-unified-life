@@ -38,13 +38,9 @@ import {
   getSection,
 } from "@/lib/tasks-model";
 import { TaskPanel } from "@/components/tasks/task-panel";
-import type { Database } from "@/integrations/supabase/types";
-
 export const Route = createFileRoute("/_authenticated/plan-operation")({
   component: PlanOperationPage,
 });
-
-type CalendarEvent = Database["public"]["Tables"]["calendar_events"]["Row"];
 
 type Zoom = "week" | "month" | "quarter" | "year";
 
@@ -65,18 +61,16 @@ function sectionOf(label: string): string {
 
 type Bar = {
   id: string;
-  type: "task" | "event";
+  type: "task";
   title: string;
   start: Date;
   end: Date;
   section: string;
   priority?: TaskPriority;
   status?: TaskStatus;
-  source?: TaskSource | "calendar";
+  source?: TaskSource;
   tags?: string[];
-  isMilestone?: boolean;
-  color?: string | null;
-  raw: Task | CalendarEvent;
+  raw: Task;
 };
 
 function PlanOperationPage() {
