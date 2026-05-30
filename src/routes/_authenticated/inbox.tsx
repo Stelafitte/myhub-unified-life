@@ -22,6 +22,7 @@ import {
   Check,
   Lock,
   ShieldAlert,
+  Settings2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
@@ -49,8 +50,9 @@ import { cacheEmails, loadCachedEmails, type CachedEmail } from "@/lib/inbox-cac
 import { QuickAddOvh } from "@/components/inbox/quick-add-ovh";
 import { useSecureVault } from "@/lib/secure-vault-context";
 import { VaultPinDialog } from "@/components/security/vault-pin-dialog";
-import { SMART_GROUPS, classifyEmail, countByGroup, smartGroupsFromFolders, type SmartGroup } from "@/lib/smart-grouping";
+import { listThemes, classifyPendingThemes, discoverThemes, seedThemesFromFolders, setEmailTheme, type Theme } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
+import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
 
 type Account = {
   id: string;
@@ -62,7 +64,7 @@ type Account = {
 
 type Email = CachedEmail;
 
-type Filter = "all" | "unread" | "attachments" | "starred" | `account:${string}` | `smart:${string}`;
+type Filter = "all" | "unread" | "attachments" | "starred" | `account:${string}` | `theme:${string}` | "theme:__none__";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   component: InboxPage,
@@ -82,15 +84,13 @@ function InboxPage() {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
-  const [odGroups, setOdGroups] = useState<SmartGroup[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = window.localStorage.getItem("inbox:odFolders");
-      if (!raw) return [];
-      const parsed = JSON.parse(raw) as { name: string; path: string; depth?: number }[];
-      return smartGroupsFromFolders(parsed);
-    } catch { return []; }
-  });
+  const listThemesFn = useServerFn(listThemes);
+  const classifyThemesFn = useServerFn(classifyPendingThemes);
+  const discoverThemesFn = useServerFn(discoverThemes);
+  const seedFoldersFn = useServerFn(seedThemesFromFolders);
+  const setEmailThemeFn = useServerFn(setEmailTheme);
+  const [themes, setThemes] = useState<Theme[]>([]);
+  const [themesOpen, setThemesOpen] = useState(false);
 
   const toggleCheck = (id: string, ev?: React.MouseEvent) => {
     ev?.stopPropagation();
@@ -227,23 +227,52 @@ function InboxPage() {
     };
   }, [user, reloadKey]);
 
-  // Fetch OneDrive folders (best effort) to enrich smart groups
+  // Load themes from DB + bootstrap (discover + seed from OneDrive) on first run
+  const refreshThemes = async () => {
+    const r = await listThemesFn().catch(() => ({ themes: [] as Theme[] }));
+    setThemes(r.themes);
+    return r.themes;
+  };
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     (async () => {
-      try {
-        const res = await odFoldersFn();
-        if (cancelled || !res?.folders) return;
-        const slim = res.folders.map((f) => ({ name: f.name, path: f.path, depth: f.depth }));
-        try { localStorage.setItem("inbox:odFolders", JSON.stringify(slim)); } catch { /* ignore */ }
-        setOdGroups(smartGroupsFromFolders(slim));
-      } catch {
-        /* OneDrive not connected or transient error — ignore silently */
+      const current = await refreshThemes();
+      if (cancelled) return;
+
+      // Bootstrap: if no themes yet, seed from OneDrive folders + discover via AI
+      if (current.length === 0) {
+        try {
+          const od = await odFoldersFn();
+          if (!cancelled && od?.folders?.length) {
+            const slim = od.folders.map((f) => ({ name: f.name, path: f.path, depth: f.depth }));
+            await seedFoldersFn({ data: { folders: slim } });
+          }
+        } catch { /* onedrive optional */ }
+        if (!cancelled) {
+          await discoverThemesFn().catch(() => null);
+          await refreshThemes();
+        }
+      }
+
+      // Background: classify pending emails into themes
+      for (let i = 0; i < 8 && !cancelled; i++) {
+        const r = await classifyThemesFn().catch(() => ({ processed: 0 }));
+        if (!r || r.processed === 0) break;
+        if (!cancelled) await refreshThemes();
+        // Refresh emails list to pick up new ai_theme_id
+        const { data: refreshed } = await supabase
+          .from("emails")
+          .select("*")
+          .eq("is_archived", false)
+          .order("received_at", { ascending: false })
+          .limit(1000);
+        if (!cancelled && refreshed) setEmails(refreshed as Email[]);
       }
     })();
     return () => { cancelled = true; };
-  }, [user, odFoldersFn]);
+  }, [user, reloadKey]);
 
   const accountById = useMemo(() => {
     const m = new Map<string, Account>();
@@ -251,9 +280,11 @@ function InboxPage() {
     return m;
   }, [accounts]);
 
-  // OneDrive folder themes first (they drive the classification),
-  // built-in fallback groups (Prestataires IT, Infos commerciales) last.
-  const allSmartGroups = useMemo(() => [...odGroups, ...SMART_GROUPS], [odGroups]);
+  const themeById = useMemo(() => {
+    const m = new Map<string, Theme>();
+    themes.forEach((t) => m.set(t.id, t));
+    return m;
+  }, [themes]);
 
   const counts = useMemo(() => {
     const unread = emails.filter((e) => !e.is_read).length;
@@ -261,21 +292,27 @@ function InboxPage() {
     const starred = emails.filter((e) => e.is_starred).length;
     const byAccount = new Map<string, number>();
     emails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
-    const bySmart = countByGroup(emails, odGroups);
-    return { all: emails.length, unread, attachments, starred, byAccount, bySmart };
-  }, [emails, odGroups]);
+    const byTheme = new Map<string, number>();
+    let noTheme = 0;
+    emails.forEach((e) => {
+      if (e.ai_theme_id) byTheme.set(e.ai_theme_id, (byTheme.get(e.ai_theme_id) ?? 0) + 1);
+      else noTheme++;
+    });
+    return { all: emails.length, unread, attachments, starred, byAccount, byTheme, noTheme };
+  }, [emails]);
 
   const filtered = useMemo(() => {
     let list = emails;
     if (filter === "unread") list = list.filter((e) => !e.is_read);
     else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
     else if (filter === "starred") list = list.filter((e) => e.is_starred);
+    else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
     else if (filter.startsWith("account:")) {
       const id = filter.slice(8);
       list = list.filter((e) => e.account_id === id);
-    } else if (filter.startsWith("smart:")) {
-      const key = filter.slice(6);
-      list = list.filter((e) => classifyEmail(e, odGroups) === key);
+    } else if (filter.startsWith("theme:")) {
+      const id = filter.slice(6);
+      list = list.filter((e) => e.ai_theme_id === id);
     }
     if (query.trim()) {
       const q = query.toLowerCase();
@@ -398,37 +435,62 @@ function InboxPage() {
           <FilterRow label="Pièces jointes" icon={<Paperclip className="h-4 w-4" />} count={counts.attachments} active={filter === "attachments"} onClick={() => setFilter("attachments")} />
           <FilterRow label="Suivis" icon={<Star className="h-4 w-4" />} count={counts.starred} active={filter === "starred"} onClick={() => setFilter("starred")} />
 
-          <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-primary">
-            <Sparkles className="mr-1 inline h-3 w-3" />
-            Analyse intelligente
+          <div className="mt-4 flex items-center justify-between px-3 pb-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+              <Sparkles className="mr-1 inline h-3 w-3" />
+              Thèmes
+            </span>
+            <button
+              onClick={() => setThemesOpen(true)}
+              className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="Gérer les thèmes"
+            >
+              <Settings2 className="h-3 w-3" />
+            </button>
           </div>
-          {allSmartGroups.every((g) => (counts.bySmart.get(g.key) ?? 0) === 0) && (
+          {themes.filter((t) => !t.archived_at && (counts.byTheme.get(t.id) ?? 0) > 0).length === 0 && (
             <div className="px-3 py-2 text-xs text-muted-foreground">
-              Aucun thème détecté pour l'instant.
+              Analyse en cours… ou cliquez sur l'engrenage pour démarrer.
             </div>
           )}
-          {allSmartGroups.map((g) => {
-            const n = counts.bySmart.get(g.key) ?? 0;
-            if (n === 0) return null;
-            const active = filter === `smart:${g.key}`;
-            return (
-              <button
-                key={g.key}
-                onClick={() => setFilter(`smart:${g.key}`)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
-                  active ? "bg-accent" : "hover:bg-accent/50",
-                )}
-                title={g.label}
-              >
-                <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs">
-                  {g.icon}
-                </span>
-                <span className="flex-1 truncate text-sm">{g.label}</span>
-                <span className="text-[11px] text-muted-foreground">{n}</span>
-              </button>
-            );
-          })}
+          {themes
+            .filter((t) => !t.archived_at)
+            .map((t) => ({ t, n: counts.byTheme.get(t.id) ?? 0 }))
+            .filter(({ n }) => n > 0)
+            .sort((a, b) => b.n - a.n)
+            .map(({ t, n }) => {
+              const active = filter === `theme:${t.id}`;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setFilter(`theme:${t.id}`)}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                    active ? "bg-accent" : "hover:bg-accent/50",
+                  )}
+                  title={t.description ?? t.name}
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs">
+                    {t.icon ?? "🏷️"}
+                  </span>
+                  <span className="flex-1 truncate text-sm">{t.name}</span>
+                  <span className="text-[11px] text-muted-foreground">{n}</span>
+                </button>
+              );
+            })}
+          {counts.noTheme > 0 && (
+            <button
+              onClick={() => setFilter("theme:__none__")}
+              className={cn(
+                "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                filter === "theme:__none__" ? "bg-accent" : "hover:bg-accent/50",
+              )}
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-xs">❓</span>
+              <span className="flex-1 truncate text-sm italic text-muted-foreground">Non classés</span>
+              <span className="text-[11px] text-muted-foreground">{counts.noTheme}</span>
+            </button>
+          )}
 
           <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Comptes
@@ -745,6 +807,12 @@ function InboxPage() {
           userId={user?.id ?? ""}
         />
       )}
+
+      <ThemesManagerDialog
+        open={themesOpen}
+        onOpenChange={setThemesOpen}
+        onChanged={() => { refreshThemes(); setReloadKey((k) => k + 1); }}
+      />
     </div>
   );
 }

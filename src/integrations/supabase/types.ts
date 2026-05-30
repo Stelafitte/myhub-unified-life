@@ -370,6 +370,51 @@ export type Database = {
         }
         Relationships: []
       }
+      email_themes: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          description: string | null
+          email_count: number
+          icon: string | null
+          id: string
+          keywords: string[]
+          last_email_at: string | null
+          name: string
+          source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          description?: string | null
+          email_count?: number
+          icon?: string | null
+          id?: string
+          keywords?: string[]
+          last_email_at?: string | null
+          name: string
+          source?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          description?: string | null
+          email_count?: number
+          icon?: string | null
+          id?: string
+          keywords?: string[]
+          last_email_at?: string | null
+          name?: string
+          source?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       emails: {
         Row: {
           account_id: string
@@ -377,6 +422,7 @@ export type Database = {
           ai_priority: string | null
           ai_processed_at: string | null
           ai_summary: string | null
+          ai_theme_id: string | null
           body_html: string | null
           body_text: string | null
           created_at: string
@@ -395,6 +441,7 @@ export type Database = {
           sensitive_reason: string | null
           sensitive_score: number | null
           subject: string | null
+          theme_processed_at: string | null
           thread_id: string | null
           to_address: string | null
           user_id: string
@@ -405,6 +452,7 @@ export type Database = {
           ai_priority?: string | null
           ai_processed_at?: string | null
           ai_summary?: string | null
+          ai_theme_id?: string | null
           body_html?: string | null
           body_text?: string | null
           created_at?: string
@@ -423,6 +471,7 @@ export type Database = {
           sensitive_reason?: string | null
           sensitive_score?: number | null
           subject?: string | null
+          theme_processed_at?: string | null
           thread_id?: string | null
           to_address?: string | null
           user_id: string
@@ -433,6 +482,7 @@ export type Database = {
           ai_priority?: string | null
           ai_processed_at?: string | null
           ai_summary?: string | null
+          ai_theme_id?: string | null
           body_html?: string | null
           body_text?: string | null
           created_at?: string
@@ -451,6 +501,7 @@ export type Database = {
           sensitive_reason?: string | null
           sensitive_score?: number | null
           subject?: string | null
+          theme_processed_at?: string | null
           thread_id?: string | null
           to_address?: string | null
           user_id?: string
@@ -461,6 +512,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_ai_theme_id_fkey"
+            columns: ["ai_theme_id"]
+            isOneToOne: false
+            referencedRelation: "email_themes"
             referencedColumns: ["id"]
           },
         ]
@@ -800,6 +858,38 @@ export type Database = {
           whitelist?: string[]
         }
         Relationships: []
+      }
+      sender_theme_map: {
+        Row: {
+          created_at: string
+          from_address: string
+          id: string
+          theme_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          from_address: string
+          id?: string
+          theme_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          from_address?: string
+          id?: string
+          theme_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sender_theme_map_theme_id_fkey"
+            columns: ["theme_id"]
+            isOneToOne: false
+            referencedRelation: "email_themes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sync_queue: {
         Row: {
