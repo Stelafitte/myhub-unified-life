@@ -464,12 +464,24 @@ function InboxPage() {
     else toast.success("Email archivé");
   };
   const remove = async (e: Email) => {
-    setEmails((prev) => prev.filter((x) => x.id !== e.id));
-    if (selectedId === e.id) setSelectedId(null);
-    const { error } = await supabase.from("emails").delete().eq("id", e.id);
+    const sender = (e.from_address ?? "").toLowerCase();
+    const sameSenderIds = sender
+      ? emails.filter((x) => (x.from_address ?? "").toLowerCase() === sender && x.id !== e.id).map((x) => x.id)
+      : [];
+    let alsoDeleteSender = false;
+    if (sameSenderIds.length > 0) {
+      alsoDeleteSender = confirm(
+        `Supprimer aussi les ${sameSenderIds.length} autre(s) email(s) de ${e.from_name || e.from_address} ?`,
+      );
+    }
+    const idsToDelete = alsoDeleteSender ? [e.id, ...sameSenderIds] : [e.id];
+    setEmails((prev) => prev.filter((x) => !idsToDelete.includes(x.id)));
+    if (selectedId && idsToDelete.includes(selectedId)) setSelectedId(null);
+    const { error } = await supabase.from("emails").delete().in("id", idsToDelete);
     if (error) toast.error(error.message);
-    else toast.success("Email supprimé");
+    else toast.success(idsToDelete.length > 1 ? `${idsToDelete.length} emails supprimés` : "Email supprimé");
   };
+
 
   const postponeAsTask = async (e: Email) => {
     const labels = Array.from(new Set([...(e.labels ?? []), "task-todo"]));
