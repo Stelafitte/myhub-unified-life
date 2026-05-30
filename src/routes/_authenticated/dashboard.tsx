@@ -373,8 +373,13 @@ function TasksWidget({ userId }: { userId?: string }) {
 
   const load = useCallback(async () => {
     if (!userId) return;
+    // 1. cache
+    const cached = await cacheGetAll<Task>("tasks");
+    if (cached.length) setTasks(cached as Task[]);
+    // 2. network
+    if (!navigator.onLine) return;
     const { data } = await supabase.from("tasks").select("id, title, due_date, priority, status").order("due_date", { ascending: true, nullsFirst: false }).limit(200);
-    setTasks(data ?? []);
+    if (data) setTasks(data);
   }, [userId]);
   useEffect(() => { load(); }, [load]);
 
