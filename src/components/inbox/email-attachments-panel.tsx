@@ -117,6 +117,11 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
           onSaved={() => { setPick(null); void load(); }}
         />
       )}
+      <AttachmentViewerDialog
+        doc={preview}
+        open={!!preview}
+        onOpenChange={(v) => !v && setPreview(null)}
+      />
     </>
   );
 }
