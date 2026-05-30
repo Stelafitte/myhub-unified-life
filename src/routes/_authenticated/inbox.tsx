@@ -964,6 +964,7 @@ function InboxPage() {
             onDelete={() => remove(selected)}
             onCreateTask={() => setTaskOpen(true)}
             onPostpone={() => postponeAsTask(selected)}
+            onCompose={openComposer}
           />
         )}
       </aside>
@@ -982,6 +983,13 @@ function InboxPage() {
         open={themesOpen}
         onOpenChange={setThemesOpen}
         onChanged={() => { refreshThemes(); setReloadKey((k) => k + 1); }}
+      />
+
+      <EmailComposer
+        open={composerOpen}
+        onOpenChange={setComposerOpen}
+        accounts={accounts}
+        initial={composerInitial}
       />
     </div>
   );
