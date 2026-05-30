@@ -25,6 +25,8 @@ type Prefs = {
   notifTasks: boolean;
   notifCalendar: boolean;
   offlineCache: boolean;
+  calendarStartHour: number;
+  calendarEndHour: number;
 };
 
 const DEFAULT_PREFS: Prefs = {
@@ -35,6 +37,8 @@ const DEFAULT_PREFS: Prefs = {
   notifTasks: true,
   notifCalendar: true,
   offlineCache: true,
+  calendarStartHour: 6,
+  calendarEndHour: 24,
 };
 
 const TIMEZONES = [
