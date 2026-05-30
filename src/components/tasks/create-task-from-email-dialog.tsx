@@ -137,9 +137,22 @@ export function CreateTaskFromEmailDialog({
       }
 
       const dueIso = dueDate ? new Date(dueDate).toISOString() : null;
-      const attachments = email.has_attachment
-        ? [{ name: `Pièces jointes de "${email.subject ?? "email"}"`, mime: null, size: null, url: null }]
-        : [];
+      const attachments = await Promise.all(
+        attachmentDocs.map(async (d) => {
+          let url: string | null = null;
+          if (d.storage_path) {
+            try { url = await getSignedUrl(d.storage_path); } catch { /* ignore */ }
+          }
+          return {
+            name: d.original_filename,
+            mime: d.mime_type ?? null,
+            size: d.file_size ?? null,
+            url,
+            document_id: d.id,
+            storage_path: d.storage_path ?? null,
+          };
+        })
+      );
 
       const { error } = await supabase.from("tasks").insert({
         user_id: userId,
