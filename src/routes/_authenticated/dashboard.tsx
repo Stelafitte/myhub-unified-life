@@ -589,8 +589,9 @@ function SyncStatusWidget() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from("accounts").select("id, name, last_sync_at, is_active").eq("user_id", user.id);
-    setAccounts(data ?? []);
+    const { data } = await supabase.from("accounts").select("id, name, last_sync_at, is_active, credentials").eq("user_id", user.id);
+    setAccounts((data ?? []).filter((a: any) => !(a.credentials?.calendar_only === true)));
+
   }, [user]);
   useEffect(() => { load(); }, [load]);
 
