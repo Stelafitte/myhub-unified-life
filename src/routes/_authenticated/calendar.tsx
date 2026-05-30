@@ -242,26 +242,7 @@ function AgendaPage() {
         raw: e,
       });
     }
-    for (const t of tasks) {
-      if (!t.due_date) continue;
-      const d = new Date(t.due_date);
-      items.push({
-        id: `t:${t.id}`,
-        kind: "task",
-        title: `📌 ${t.title}`,
-        start: d,
-        end: new Date(d.getTime() + 30 * 60 * 1000),
-        location: null,
-        description: t.description,
-        color: SOURCE_META.task.color,
-        badge: SOURCE_META.task.badge,
-        sourceLabel: SOURCE_META.task.label,
-        accountId: null,
-        isAllDay: false,
-        hasVideo: false,
-        raw: t,
-      });
-    }
+    // Les tâches ne sont volontairement pas affichées dans l'agenda
     return items.sort((a, b) => a.start.getTime() - b.start.getTime());
   }, [events, tasks, accById]);
 
