@@ -28,7 +28,7 @@ export const getEmailSuggestions = createServerFn({ method: "POST" })
 
     const { data: e, error } = await supabase
       .from("emails")
-      .select("id,subject,from_address,from_name,body_text,received_at,ai_category,is_sensitive")
+      .select("id,subject,from_address,from_name,body_text,body_html,received_at,ai_category,is_sensitive,meeting_link")
       .eq("id", data.emailId)
       .eq("user_id", userId)
       .maybeSingle();
