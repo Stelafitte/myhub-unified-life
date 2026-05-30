@@ -18,11 +18,14 @@ import {
   Circle,
   Clock,
   ChevronDown,
+  ChevronRight,
   Sparkles,
   Check,
   Lock,
   ShieldAlert,
   Settings2,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
