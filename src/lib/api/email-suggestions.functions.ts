@@ -28,7 +28,7 @@ export const getEmailSuggestions = createServerFn({ method: "POST" })
 
     const { data: e, error } = await supabase
       .from("emails")
-      .select("id,subject,from_address,from_name,body_text,received_at,ai_category,is_sensitive")
+      .select("id,subject,from_address,from_name,body_text,body_html,received_at,ai_category,is_sensitive,meeting_link")
       .eq("id", data.emailId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -42,9 +42,14 @@ export const getEmailSuggestions = createServerFn({ method: "POST" })
 
     const today = new Date().toISOString();
     const bodyText = e.body_text ?? "";
-    // Detect online meeting links (Zoom, Teams, Meet, Webex)
-    const linkRegex = /https?:\/\/(?:[a-z0-9-]+\.)?(?:zoom\.us|teams\.microsoft\.com|teams\.live\.com|meet\.google\.com|webex\.com|gotomeeting\.com|whereby\.com)\/[^\s"'<>)]+/i;
-    const detectedLink = bodyText.match(linkRegex)?.[0] ?? null;
+    const bodyHtml = (e as any).body_html ?? "";
+    // Détection systématique de liens de réunion en ligne (champ stocké en priorité, fallback regex)
+    const linkRegex = /https?:\/\/(?:[a-z0-9-]+\.)?(?:zoom\.us|teams\.microsoft\.com|teams\.live\.com|meet\.google\.com|webex\.com|gotomeeting\.com|whereby\.com|meet\.jit\.si|bluejeans\.com|chime\.aws|8x8\.vc|around\.co)\/[^\s"'<>)]+/i;
+    const detectedLink =
+      (e as any).meeting_link ??
+      bodyText.match(linkRegex)?.[0] ??
+      bodyHtml.match(linkRegex)?.[0] ??
+      null;
 
     const sys = `Tu analyses un email pour proposer des actions. Réponds UNIQUEMENT en JSON valide:
 {

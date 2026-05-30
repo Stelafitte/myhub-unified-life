@@ -5,6 +5,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { detectSensitive } from "./sensitive-detection.ts";
+import { extractMeetingLink } from "../_shared/meeting-link.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -540,6 +541,7 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
             subject,
             body_text: bodyText,
             body_html: parsed.textHtml ? parsed.textHtml.slice(0, 200000) : null,
+            meeting_link: extractMeetingLink(bodyText, parsed.textHtml ?? null),
             has_attachment: parsed.attachments > 0,
             received_at: receivedAt,
             is_read: msg.flags.includes("\\Seen"),

@@ -4,6 +4,7 @@
 // or the last successful sync.
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { extractMeetingLink } from "../_shared/meeting-link.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -77,6 +78,7 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
           subject: m.subject || null,
           body_text: text || null,
           body_html: html || null,
+          meeting_link: extractMeetingLink(text, html),
           has_attachment: !!m.hasAttachments,
           received_at: receivedAt,
           is_read: !!m.isRead,
