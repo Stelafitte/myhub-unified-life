@@ -57,7 +57,7 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
               if (t && t.status !== col.id) onMove(t, col.id);
             }}
             className={cn(
-              "flex min-w-[260px] flex-col rounded-xl border bg-muted/30 transition-colors",
+              "flex w-[320px] shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors",
               isOver && "border-primary bg-primary/5",
             )}
           >
