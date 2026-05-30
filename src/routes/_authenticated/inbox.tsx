@@ -90,6 +90,42 @@ function InboxPage() {
   };
   const clearChecked = () => setChecked(new Set());
 
+  // Resizable column widths (persisted)
+  const [leftW, setLeftW] = useState<number>(() => {
+    const v = Number(localStorage.getItem("inbox:leftW")); return v >= 200 && v <= 500 ? v : 280;
+  });
+  const [rightW, setRightW] = useState<number>(() => {
+    const v = Number(localStorage.getItem("inbox:rightW")); return v >= 320 && v <= 720 ? v : 420;
+  });
+  const startDrag = (which: "left" | "right") => (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = which === "left" ? leftW : rightW;
+    const onMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX;
+      if (which === "left") {
+        const w = Math.min(500, Math.max(200, startW + dx));
+        setLeftW(w);
+      } else {
+        const w = Math.min(720, Math.max(320, startW - dx));
+        setRightW(w);
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      localStorage.setItem("inbox:leftW", String(which === "left" ? (document.documentElement.dataset._lw ?? leftW) : leftW));
+      localStorage.setItem("inbox:rightW", String(which === "right" ? (document.documentElement.dataset._rw ?? rightW) : rightW));
+    };
+    document.body.style.cursor = "col-resize";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+  useEffect(() => { localStorage.setItem("inbox:leftW", String(leftW)); }, [leftW]);
+  useEffect(() => { localStorage.setItem("inbox:rightW", String(rightW)); }, [rightW]);
+
+
   // Online/offline awareness
   useEffect(() => {
     const on = () => setOffline(false);
