@@ -236,6 +236,34 @@ function InboxPage() {
     else toast.success("Ajouté aux demandes de tâches à traiter");
   };
 
+  // Bulk actions on `checked`
+  const bulkIds = () => Array.from(checked);
+  const bulkArchive = async () => {
+    const ids = bulkIds(); if (!ids.length) return;
+    setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
+    if (selectedId && checked.has(selectedId)) setSelectedId(null);
+    clearChecked();
+    const { error } = await supabase.from("emails").update({ is_archived: true }).in("id", ids);
+    if (error) toast.error(error.message); else toast.success(`${ids.length} email(s) archivé(s)`);
+  };
+  const bulkDelete = async () => {
+    const ids = bulkIds(); if (!ids.length) return;
+    if (!confirm(`Supprimer ${ids.length} email(s) ?`)) return;
+    setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
+    if (selectedId && checked.has(selectedId)) setSelectedId(null);
+    clearChecked();
+    const { error } = await supabase.from("emails").delete().in("id", ids);
+    if (error) toast.error(error.message); else toast.success(`${ids.length} email(s) supprimé(s)`);
+  };
+  const bulkMarkRead = async (read: boolean) => {
+    const ids = bulkIds(); if (!ids.length) return;
+    setEmails((prev) => prev.map((x) => (checked.has(x.id) ? { ...x, is_read: read } : x)));
+    clearChecked();
+    const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
+    if (error) toast.error(error.message);
+  };
+
+
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     if (!e.is_read) patch(e.id, { is_read: true });
