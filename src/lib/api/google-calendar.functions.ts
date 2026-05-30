@@ -12,6 +12,14 @@ const SCOPES = [
   "profile",
 ].join(" ");
 
+const PREVIEW_OAUTH_ORIGIN = "https://id-preview--723c3dcd-e4f6-4fec-98f4-4db15daebc63.lovable.app";
+
+function getOAuthOrigin(origin: string): string {
+  const host = new URL(origin).hostname;
+  if (host.endsWith(".lovableproject.com")) return PREVIEW_OAUTH_ORIGIN;
+  return origin;
+}
+
 function getOrigin(): string {
   const req = getRequest();
   const url = new URL(req.url);
@@ -19,7 +27,7 @@ function getOrigin(): string {
   const forwardedProto = req.headers.get("x-forwarded-proto");
   const host = forwardedHost ?? url.host;
   const proto = forwardedProto ?? url.protocol.replace(":", "");
-  return `${proto}://${host}`;
+  return getOAuthOrigin(`${proto}://${host}`);
 }
 
 export const startGoogleCalendarOAuth = createServerFn({ method: "POST" })
