@@ -1122,6 +1122,19 @@ function Reader({
   onCompose: (init: ComposerInitial) => void;
   onMarkSpam: (asSpam: boolean) => void;
 }) {
+  const [sensitiveOverride, setSensitiveOverride] = useState<boolean | null>(null);
+  const isSensitive = sensitiveOverride ?? email.is_sensitive;
+  useEffect(() => { setSensitiveOverride(null); }, [email.id]);
+  const unmarkSensitive = async () => {
+    if (!window.confirm("Confirmer que ce message ne contient pas de données sensibles ? L'analyse IA sera réactivée.")) return;
+    const { error } = await supabase
+      .from("emails")
+      .update({ is_sensitive: false, sensitive_reason: null, sensitive_score: null })
+      .eq("id", email.id);
+    if (error) { toast.error(error.message); return; }
+    setSensitiveOverride(false);
+    toast.success("Caractère sensible levé");
+  };
   const isSpamEmail = email.spam_label === "spam" || email.spam_label === "phishing";
   const isPostponed = (email.labels ?? []).includes("task-todo");
   const quoted = () => {
