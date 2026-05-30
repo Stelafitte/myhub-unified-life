@@ -39,6 +39,14 @@ import {
   withoutSection,
 } from "@/lib/tasks-model";
 
+type Draft = {
+  title?: string;
+  description?: string;
+  due?: string; // YYYY-MM-DD
+  start?: string; // YYYY-MM-DD
+  calendarEventId?: string | null;
+};
+
 type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -46,11 +54,12 @@ type Props = {
   defaultStatus?: TaskStatus;
   sections: string[];
   onSaved: (task: Task) => void;
+  draft?: Draft | null;
 };
 
 type EmailLite = { id: string; subject: string | null; from_name: string | null; from_address: string | null };
 
-export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, onSaved }: Props) {
+export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, onSaved, draft }: Props) {
   const { user } = useAuth();
   const editing = !!task;
 
