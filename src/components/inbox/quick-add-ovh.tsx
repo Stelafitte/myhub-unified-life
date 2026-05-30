@@ -45,14 +45,19 @@ export function QuickAddOvh({ onAdded }: { onAdded: () => void }) {
   return (
     <form onSubmit={submit} className="mx-2 mt-2 space-y-1.5 rounded-md border bg-muted/30 p-2">
       <div className="text-[11px] font-medium">Ajouter {OVH_EMAIL}</div>
-      <Input
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        placeholder="Mot de passe OVH"
-        className="h-8 text-xs"
-        autoComplete="off"
-      />
+      <div className="relative">
+        <Input
+          type={showPw ? "text" : "password"}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Mot de passe OVH"
+          className="h-8 text-xs pr-9"
+          autoComplete="off"
+        />
+        <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute inset-y-0 right-0 flex items-center pr-2 text-muted-foreground hover:text-foreground">
+          {showPw ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+        </button>
+      </div>
       <Button type="submit" size="sm" disabled={!password || busy} className="h-7 w-full text-xs">
         {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Plus className="mr-1 h-3 w-3" /> Connecter</>}
       </Button>

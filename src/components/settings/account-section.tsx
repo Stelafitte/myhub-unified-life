@@ -188,7 +188,12 @@ export function AccountSection() {
           <div className="space-y-1.5">
             <Label>Nouveau mot de passe</Label>
             <div className="flex gap-2">
-              <Input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="••••••" />
+              <div className="relative flex-1">
+                <Input type={showPw ? "text" : "password"} value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="••••••" className="pr-9" />
+                <button type="button" onClick={() => setShowPw((s) => !s)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground">
+                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               <Button variant="outline" onClick={updatePassword} disabled={busy}>
                 <KeyRound className="mr-2 h-4 w-4" /> Mettre à jour
               </Button>

@@ -74,22 +74,28 @@ export function VaultPinDialog({ open, onOpenChange, onUnlocked }: Props) {
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="pin">PIN</Label>
-            <Input
-              id="pin"
-              type="password"
-              autoFocus
-              value={pin}
-              onChange={(e) => setPin(e.target.value)}
-              placeholder="••••••"
-              inputMode="numeric"
-            />
+            <div className="relative">
+              <Input
+                id="pin"
+                type={showPin ? "text" : "password"}
+                autoFocus
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                placeholder="••••••"
+                inputMode="numeric"
+                className="pr-9"
+              />
+              <button type="button" onClick={() => setShowPin((s) => !s)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground">
+                {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           {!initialized && (
             <div className="space-y-1.5">
               <Label htmlFor="pin2">Confirmer le PIN</Label>
               <Input
                 id="pin2"
-                type="password"
+                type={showPin ? "text" : "password"}
                 value={pin2}
                 onChange={(e) => setPin2(e.target.value)}
                 placeholder="••••••"
