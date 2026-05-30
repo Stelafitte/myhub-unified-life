@@ -1,30 +1,21 @@
-import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
-import { useAuth } from "@/lib/auth-context";
 import { HdsNoticeDialog } from "@/components/security/hds-notice-dialog";
 import { SecureVaultProvider } from "@/lib/secure-vault-context";
+
+// TEST MODE: login bypassed
+const BYPASS_AUTH = true;
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
 });
 
 function AuthenticatedLayout() {
-  const { user, loading } = useAuth();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!loading && !user) navigate({ to: "/login", replace: true });
-  }, [user, loading, navigate]);
-
-  if (loading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-sm text-muted-foreground">Chargement…</div>
-      </div>
-    );
+  if (!BYPASS_AUTH) {
+    // original auth logic would go here; currently bypassed for testing
+    return null;
   }
 
   return (
