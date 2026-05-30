@@ -613,11 +613,13 @@ function WeekOrDayView({
   from,
   events,
   onSelect,
+  onMove,
 }: {
   days: number;
   from: Date;
   events: UnifiedEvent[];
   onSelect: (e: UnifiedEvent) => void;
+  onMove?: (e: UnifiedEvent, deltaMin: number) => void;
 }) {
   const dayCols = Array.from({ length: days }, (_, i) => addDays(from, i));
   const today = new Date();
@@ -625,6 +627,35 @@ function WeekOrDayView({
   const hourCount = Math.max(1, endHour - startHour);
   const hours = Array.from({ length: hourCount }, (_, i) => startHour + i);
   const ROW_H = 48;
+  const [dragOffset, setDragOffset] = useState<{ id: string; dy: number } | null>(null);
+
+  const startDrag = (ev: UnifiedEvent) => (downEvt: React.MouseEvent) => {
+    if (!onMove || ev.kind !== "event") return;
+    downEvt.preventDefault();
+    downEvt.stopPropagation();
+    const startY = downEvt.clientY;
+    let moved = false;
+    const onMouseMove = (m: MouseEvent) => {
+      const dy = m.clientY - startY;
+      if (Math.abs(dy) > 3) moved = true;
+      setDragOffset({ id: ev.id, dy });
+    };
+    const onMouseUp = (u: MouseEvent) => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      const dy = u.clientY - startY;
+      setDragOffset(null);
+      if (moved) {
+        // snap to 15min steps (1 hour = ROW_H px)
+        const deltaMin = Math.round((dy / ROW_H) * 4) * 15;
+        if (deltaMin !== 0) onMove(ev, deltaMin);
+      } else {
+        onSelect(ev);
+      }
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
 
   return (
     <div className="flex overflow-x-auto">
@@ -660,20 +691,43 @@ function WeekOrDayView({
                   const clampedEnd = Math.min(endMin, winEnd);
                   const top = ((clampedStart - winStart) / 60) * ROW_H;
                   const h = Math.max(20, ((clampedEnd - clampedStart) / 60) * ROW_H);
+                  const dy = dragOffset?.id === e.id ? dragOffset.dy : 0;
+                  const draggable = !!onMove && e.kind === "event";
                   return (
-                    <button
-                      key={e.id}
-                      onClick={() => onSelect(e)}
-                      className="absolute left-1 right-1 overflow-hidden rounded-md p-1 text-left text-[10px] text-white shadow-sm transition-transform hover:scale-[1.01]"
-                      style={{ top, height: h, background: e.color }}
-                    >
-                      <div className="flex items-center gap-1 truncate font-semibold">
-                        <span>{e.badge}</span> {e.title}
-                      </div>
-                      <div className="opacity-90">{fmtTime(e.start)} – {fmtTime(e.end)}</div>
-                      {e.location && <div className="flex items-center gap-0.5 truncate opacity-90"><MapPin className="h-2.5 w-2.5" />{e.location}</div>}
-                      {e.hasVideo && <div className="flex items-center gap-0.5 opacity-90"><Video className="h-2.5 w-2.5" /> Visio</div>}
-                    </button>
+                    <HoverCard key={e.id} openDelay={250} closeDelay={80}>
+                      <HoverCardTrigger asChild>
+                        <div
+                          onMouseDown={draggable ? startDrag(e) : undefined}
+                          onClick={draggable ? undefined : () => onSelect(e)}
+                          className={cn(
+                            "absolute left-1 right-1 select-none overflow-hidden rounded-md p-1 text-left text-[10px] text-white shadow-sm transition-transform hover:scale-[1.01]",
+                            draggable && "cursor-grab active:cursor-grabbing",
+                            dy !== 0 && "opacity-80 ring-2 ring-primary",
+                          )}
+                          style={{ top: top + dy, height: h, background: e.color }}
+                        >
+                          <div className="flex items-center gap-1 truncate font-semibold">
+                            <span>{e.badge}</span> {e.title}
+                          </div>
+                          <div className="opacity-90">{fmtTime(e.start)} – {fmtTime(e.end)}</div>
+                          {e.location && <div className="flex items-center gap-0.5 truncate opacity-90"><MapPin className="h-2.5 w-2.5" />{e.location}</div>}
+                          {e.hasVideo && <div className="flex items-center gap-0.5 opacity-90"><Video className="h-2.5 w-2.5" /> Visio</div>}
+                        </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent side="right" className="w-72 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: e.color }} />
+                          <span className="font-semibold">{e.title}</span>
+                        </div>
+                        <div className="mt-1 text-muted-foreground">
+                          {fmtDate(e.start)} · {fmtTime(e.start)} – {fmtTime(e.end)}
+                        </div>
+                        {e.location && <div className="mt-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> {e.location}</div>}
+                        {e.hasVideo && <div className="mt-1 flex items-center gap-1 text-indigo-500"><Video className="h-3 w-3" /> Visioconférence</div>}
+                        {e.description && <p className="mt-2 line-clamp-4 whitespace-pre-wrap opacity-80">{e.description}</p>}
+                        {draggable && <div className="mt-2 text-[10px] text-muted-foreground">Glisser pour déplacer · Cliquer pour ouvrir</div>}
+                      </HoverCardContent>
+                    </HoverCard>
                   );
                 })}
               </div>
