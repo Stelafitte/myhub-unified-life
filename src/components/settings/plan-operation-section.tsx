@@ -396,7 +396,7 @@ export function PlanOperationSection() {
                     <div className="flex items-center gap-1 border-b bg-muted/30 px-2 py-1.5">
                       <button
                         onClick={() => toggleOpen(theme.id)}
-                        className="rounded p-1 hover:bg-accent"
+                        className="rounded p-1 hover:bg-accent shrink-0"
                         aria-label="Plier/déplier"
                       >
                         {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -406,30 +406,30 @@ export function PlanOperationSection() {
                           <Input
                             value={editingThemeName}
                             onChange={(e) => setEditingThemeName(e.target.value)}
-                            className="h-7 flex-1"
+                            className="h-7 flex-1 min-w-0"
                             autoFocus
                             onKeyDown={(e) => {
                               if (e.key === "Enter") renameTheme(theme.id);
                               if (e.key === "Escape") setEditingThemeId(null);
                             }}
                           />
-                          <Button size="icon" variant="ghost" onClick={() => renameTheme(theme.id)} className="h-7 w-7">
+                          <Button size="icon" variant="ghost" onClick={() => renameTheme(theme.id)} className="h-7 w-7 shrink-0">
                             <Check className="h-3.5 w-3.5" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => setEditingThemeId(null)} className="h-7 w-7">
+                          <Button size="icon" variant="ghost" onClick={() => setEditingThemeId(null)} className="h-7 w-7 shrink-0">
                             <X className="h-3.5 w-3.5" />
                           </Button>
                         </>
                       ) : (
                         <>
-                          <span className="flex-1 text-sm font-semibold uppercase tracking-wide">{theme.name}</span>
-                          <Badge variant="secondary" className="text-[10px]">
+                          <span className="flex-1 text-sm font-semibold uppercase tracking-wide truncate min-w-0">{theme.name}</span>
+                          <Badge variant="secondary" className="text-[10px] hidden sm:inline-flex">
                             {subs.length}
                           </Badge>
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7"
+                            className="h-7 w-7 hidden sm:inline-flex"
                             onClick={() => moveTheme(theme.id, -1)}
                             disabled={idx === 0}
                           >
@@ -438,7 +438,7 @@ export function PlanOperationSection() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7"
+                            className="h-7 w-7 hidden sm:inline-flex"
                             onClick={() => moveTheme(theme.id, 1)}
                             disabled={idx === grouped.length - 1}
                           >
@@ -492,33 +492,33 @@ export function PlanOperationSection() {
                                   </Button>
                                 </>
                               ) : (
-                                <>
-                                  <span className="flex-1 text-sm">{s.name}</span>
-                                  {s.items.length > 0 && (
-                                    <Badge variant="outline" className="text-[10px]">
-                                      {s.items.length} item{s.items.length > 1 ? "s" : ""}
-                                    </Badge>
-                                  )}
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7"
-                                    onClick={() => {
-                                      setEditingSub(s.id);
-                                      setEditingSubName(s.name);
-                                    }}
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 text-destructive"
-                                    onClick={() => deleteSubtheme(s.id)}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </>
+                              <>
+                                <span className="flex-1 text-sm truncate min-w-0">{s.name}</span>
+                                {s.items.length > 0 && (
+                                  <Badge variant="outline" className="text-[10px] hidden sm:inline-flex">
+                                    {s.items.length} item{s.items.length > 1 ? "s" : ""}
+                                  </Badge>
+                                )}
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7"
+                                  onClick={() => {
+                                    setEditingSub(s.id);
+                                    setEditingSubName(s.name);
+                                  }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-destructive"
+                                  onClick={() => deleteSubtheme(s.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
                               )}
                             </div>
                             {/* Items list */}
