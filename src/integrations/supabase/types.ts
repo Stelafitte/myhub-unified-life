@@ -441,6 +441,7 @@ export type Database = {
           is_sensitive: boolean
           is_starred: boolean
           labels: string[] | null
+          meeting_link: string | null
           message_id: string | null
           origin_tag: Database["public"]["Enums"]["email_origin"] | null
           received_at: string | null
@@ -474,6 +475,7 @@ export type Database = {
           is_sensitive?: boolean
           is_starred?: boolean
           labels?: string[] | null
+          meeting_link?: string | null
           message_id?: string | null
           origin_tag?: Database["public"]["Enums"]["email_origin"] | null
           received_at?: string | null
@@ -507,6 +509,7 @@ export type Database = {
           is_sensitive?: boolean
           is_starred?: boolean
           labels?: string[] | null
+          meeting_link?: string | null
           message_id?: string | null
           origin_tag?: Database["public"]["Enums"]["email_origin"] | null
           received_at?: string | null
