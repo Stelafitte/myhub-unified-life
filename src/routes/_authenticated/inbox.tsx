@@ -499,7 +499,9 @@ function InboxPage() {
           {accounts.length === 0 && (
             <div className="px-3 py-2 text-xs text-muted-foreground">Aucun compte configuré.</div>
           )}
-          {accounts.map((a) => (
+          {accounts
+            .filter((a) => !(a.credentials?.calendar_only === true))
+            .map((a) => (
             <button
               key={a.id}
               onClick={() => setFilter(`account:${a.id}`)}
