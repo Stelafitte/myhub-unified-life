@@ -579,7 +579,9 @@ function InboxPage() {
                     <span className="ml-auto text-[10px] text-muted-foreground">{counts.attachments}</span>
                   </div>
                 </SelectItem>
-                {accounts.map((a) => (
+                {accounts
+                  .filter((a) => !(a.credentials?.calendar_only === true))
+                  .map((a) => (
                   <SelectItem key={a.id} value={`account:${a.id}`} className="text-xs">
                     <div className="flex items-center gap-2">
                       <span
