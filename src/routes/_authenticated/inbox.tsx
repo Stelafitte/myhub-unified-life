@@ -1230,17 +1230,26 @@ function Reader({
         )}
       </header>
 
-      {email.is_sensitive ? (
+      {isSensitive ? (
         <div className="border-b border-red-500/30 bg-red-500/10 px-4 py-3 space-y-2">
           <div className="flex items-start gap-2 text-xs text-red-700 dark:text-red-300">
             <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
-            <div>
+            <div className="flex-1">
               <div className="font-semibold">Email marqué sensible (HDS)</div>
               <div className="mt-0.5 opacity-90">
                 Données de santé potentielles détectées : {email.sensitive_reason ?? "motif inconnu"}.
                 Aucune analyse IA n'est effectuée sur ce message.
               </div>
             </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 shrink-0 gap-1 border-red-500/40 text-xs"
+              onClick={unmarkSensitive}
+              title="Lever le caractère sensible après vérification"
+            >
+              Lever
+            </Button>
           </div>
           <VaultActions email={email} onMoved={onArchive} />
         </div>
