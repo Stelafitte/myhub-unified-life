@@ -5,18 +5,12 @@ import { AppHeader } from "@/components/app-header";
 import { HdsNoticeDialog } from "@/components/security/hds-notice-dialog";
 import { SecureVaultProvider } from "@/lib/secure-vault-context";
 
-// TEST MODE: login bypassed
-const BYPASS_AUTH = true;
-
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
 });
 
 function AuthenticatedLayout() {
-  if (!BYPASS_AUTH) {
-    // original auth logic would go here; currently bypassed for testing
-    return null;
-  }
+
 
   return (
     <SecureVaultProvider>
