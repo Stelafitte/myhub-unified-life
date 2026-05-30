@@ -220,7 +220,8 @@ function AgendaPage() {
     const items: UnifiedEvent[] = [];
     for (const e of events) {
       const acc = e.account_id ? accById.get(e.account_id) : null;
-      const meta = acc ? SOURCE_META[acc.type] : SOURCE_META.imap;
+      const isGoogle = e.source === "google" || (e as any).gcal_connection_id != null;
+      const meta = isGoogle ? SOURCE_META.gmail : (acc ? SOURCE_META[acc.type] : SOURCE_META.imap);
       const blob = `${e.description ?? ""} ${e.location ?? ""}`;
       items.push({
         id: `e:${e.id}`,
