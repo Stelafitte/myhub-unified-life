@@ -519,7 +519,9 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
           const to = parseAddress(headers["to"] || "");
           const subject = decodeMimeWord(headers["subject"] || "") || null;
           const messageId = headers["message-id"] || `${account.id}-${msg.uid}`;
+          if (deletedSet.has(messageId)) { continue; }
           const receivedAt = headers["date"] ? new Date(headers["date"]).toISOString() : new Date().toISOString();
+
 
           const bodyText = parsed.textPlain ? parsed.textPlain.slice(0, 100000) : null;
           const sens = detectSensitive({
