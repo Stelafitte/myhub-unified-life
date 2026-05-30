@@ -95,10 +95,12 @@ export const Route = createFileRoute("/api/google-calendar/callback")({
         const tokenBody = await tokenRes.json().catch(() => ({}));
         if (!tokenRes.ok) {
           console.error("Google token exchange failed", tokenRes.status, tokenBody);
+          const is403 = tokenRes.status === 403;
           return page(
             `Échec d'échange de code (${tokenRes.status}): ${tokenBody.error_description ?? tokenBody.error ?? "unknown"}`,
             false,
             502,
+            is403 ? GOOGLE_STEPS : undefined,
           );
         }
 
