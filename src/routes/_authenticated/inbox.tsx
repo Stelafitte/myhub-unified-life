@@ -939,17 +939,6 @@ function Reader({
         />
       )}
 
-      {!email.is_sensitive && (
-        <AiSuggestionsPanel
-          emailId={email.id}
-          fromAddress={email.from_address}
-          subject={email.subject}
-          userId={userId}
-          onCreateTask={() => onCreateTask()}
-          onArchive={onArchive}
-        />
-      )}
-
       <div className="min-w-0 p-4 text-sm">
         {email.body_html ? (
           <div
@@ -961,6 +950,17 @@ function Reader({
           <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed">{email.body_text ?? "(vide)"}</pre>
         )}
       </div>
+
+      {!email.is_sensitive && (
+        <AiSuggestionsPanel
+          emailId={email.id}
+          fromAddress={email.from_address}
+          subject={email.subject}
+          userId={userId}
+          onCreateTask={() => onCreateTask()}
+          onArchive={onArchive}
+        />
+      )}
     </div>
   );
 }
