@@ -2,29 +2,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-// TEST MODE: simulate a logged-in user so components work normally
-const MOCK_USER: User = {
-  id: "test-user-id",
-  email: "test@example.com",
-  user_metadata: { display_name: "Test User" },
-  app_metadata: {},
-  aud: "authenticated",
-  created_at: new Date().toISOString(),
-  role: "authenticated",
-  updated_at: new Date().toISOString(),
-  identities: [],
-  factors: [],
-} as unknown as User;
-
-const MOCK_SESSION: Session = {
-  access_token: "test-token",
-  refresh_token: "test-refresh",
-  expires_in: 3600,
-  expires_at: Date.now() / 1000 + 3600,
-  token_type: "bearer",
-  user: MOCK_USER,
-};
-
 type AuthCtx = {
   user: User | null;
   session: Session | null;
@@ -42,17 +19,16 @@ const Ctx = createContext<AuthCtx>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(MOCK_SESSION);
-  const [loading, setLoading] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const refreshSession = async () => {
-    // In test mode just return the mock session
-    return MOCK_SESSION;
+    const { data } = await supabase.auth.getSession();
+    setSession(data.session);
+    return data.session;
   };
 
   useEffect(() => {
-    // Keep real Supabase session in sync in background so OAuth still works
-    // when we re-enable auth, but don't let it override our mock
     let active = true;
 
     const cleanOAuthUrl = () => {
@@ -85,18 +61,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await restoreOAuthCallbackSession();
       const { data } = await supabase.auth.getSession();
       if (!active) return;
-      // During test mode we ignore the real session to keep user "logged in"
-      // setSession(data.session);
-      // setLoading(false);
+      setSession(data.session);
+      setLoading(false);
     };
 
     syncSession();
 
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       if (!active) return;
-      // During test mode we ignore real auth state changes
-      // setSession(s);
-      // setLoading(false);
+      setSession(s);
+      setLoading(false);
     });
 
     window.addEventListener("focus", syncSession);
