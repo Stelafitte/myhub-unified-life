@@ -445,6 +445,17 @@ function InboxPage() {
                 )}
               >
                 <div className="flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={checked.has(e.id)}
+                    onChange={() => {}}
+                    onClick={(ev) => toggleCheck(e.id, ev)}
+                    className={cn(
+                      "mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer",
+                      checked.has(e.id) ? "opacity-100" : "opacity-0 group-hover:opacity-60",
+                    )}
+                    title="Sélectionner"
+                  />
                   <span
                     className="mt-0.5 h-2 w-2 shrink-0 rounded-full"
                     style={{ background: acc?.color ?? "#64748b" }}
