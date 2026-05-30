@@ -81,6 +81,15 @@ function InboxPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const classifyFn = useServerFn(classifyPendingEmails);
+  const odFoldersFn = useServerFn(listOneDriveFolders);
+  const [odGroups, setOdGroups] = useState<SmartGroup[]>(() => {
+    try {
+      const raw = localStorage.getItem("inbox:odFolders");
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as { name: string; path: string }[];
+      return smartGroupsFromFolders(parsed);
+    } catch { return []; }
+  });
 
   const toggleCheck = (id: string, ev?: React.MouseEvent) => {
     ev?.stopPropagation();
