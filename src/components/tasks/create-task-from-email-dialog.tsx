@@ -59,6 +59,7 @@ export function CreateTaskFromEmailDialog({
   const [eventTitle, setEventTitle] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [attachmentDocs, setAttachmentDocs] = useState<DocumentRow[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -73,6 +74,13 @@ export function CreateTaskFromEmailDialog({
       setEventStart("");
       setEventEnd("");
       setEventTitle("");
+      // Load real attachments from documents table
+      supabase
+        .from("documents")
+        .select("*")
+        .eq("source_type", "email")
+        .eq("source_id", email.id)
+        .then(({ data }) => setAttachmentDocs((data as DocumentRow[]) ?? []));
     }
   }, [open, email]);
 
