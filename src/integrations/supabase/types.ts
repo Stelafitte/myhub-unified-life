@@ -136,6 +136,8 @@ export type Database = {
           description: string | null
           end_at: string
           external_id: string | null
+          gcal_connection_id: string | null
+          google_event_id: string | null
           id: string
           is_all_day: boolean
           location: string | null
@@ -154,6 +156,8 @@ export type Database = {
           description?: string | null
           end_at: string
           external_id?: string | null
+          gcal_connection_id?: string | null
+          google_event_id?: string | null
           id?: string
           is_all_day?: boolean
           location?: string | null
@@ -172,6 +176,8 @@ export type Database = {
           description?: string | null
           end_at?: string
           external_id?: string | null
+          gcal_connection_id?: string | null
+          google_event_id?: string | null
           id?: string
           is_all_day?: boolean
           location?: string | null
@@ -523,6 +529,57 @@ export type Database = {
           },
         ]
       }
+      google_calendar_connections: {
+        Row: {
+          access_token: string
+          calendar_id: string
+          created_at: string
+          expires_at: string
+          google_email: string | null
+          id: string
+          is_active: boolean
+          label: string
+          last_sync_at: string | null
+          refresh_token: string
+          sync_direction: string
+          sync_token: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          calendar_id?: string
+          created_at?: string
+          expires_at: string
+          google_email?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          last_sync_at?: string | null
+          refresh_token: string
+          sync_direction?: string
+          sync_token?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          calendar_id?: string
+          created_at?: string
+          expires_at?: string
+          google_email?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_sync_at?: string | null
+          refresh_token?: string
+          sync_direction?: string
+          sync_token?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       invitations: {
         Row: {
           accepted_at: string | null
@@ -704,6 +761,33 @@ export type Database = {
           user_id?: string
           zoom_meeting_id?: string | null
           zoom_password?: string | null
+        }
+        Relationships: []
+      }
+      oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          label: string | null
+          provider: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          label?: string | null
+          provider: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          label?: string | null
+          provider?: string
+          state?: string
+          user_id?: string
         }
         Relationships: []
       }
