@@ -396,33 +396,44 @@ function InboxPage() {
     return m;
   }, [themes]);
 
+  const isSpam = (e: Email) => e.spam_label === "spam" || e.spam_label === "phishing";
+  const isPromo = (e: Email) => e.spam_label === "promo";
+
   const counts = useMemo(() => {
-    const unread = emails.filter((e) => !e.is_read).length;
-    const attachments = emails.filter((e) => e.has_attachment).length;
-    const starred = emails.filter((e) => e.is_starred).length;
+    const inboxEmails = emails.filter((e) => !isSpam(e) && !isPromo(e));
+    const unread = inboxEmails.filter((e) => !e.is_read).length;
+    const attachments = inboxEmails.filter((e) => e.has_attachment).length;
+    const starred = inboxEmails.filter((e) => e.is_starred).length;
+    const spam = emails.filter(isSpam).length;
+    const promo = emails.filter(isPromo).length;
     const byAccount = new Map<string, number>();
-    emails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
+    inboxEmails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
     const byTheme = new Map<string, number>();
     let noTheme = 0;
-    emails.forEach((e) => {
+    inboxEmails.forEach((e) => {
       if (e.ai_theme_id) byTheme.set(e.ai_theme_id, (byTheme.get(e.ai_theme_id) ?? 0) + 1);
       else noTheme++;
     });
-    return { all: emails.length, unread, attachments, starred, byAccount, byTheme, noTheme };
+    return { all: inboxEmails.length, unread, attachments, starred, spam, promo, byAccount, byTheme, noTheme };
   }, [emails]);
 
   const filtered = useMemo(() => {
     let list = emails;
-    if (filter === "unread") list = list.filter((e) => !e.is_read);
-    else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
-    else if (filter === "starred") list = list.filter((e) => e.is_starred);
-    else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
-    else if (filter.startsWith("account:")) {
-      const id = filter.slice(8);
-      list = list.filter((e) => e.account_id === id);
-    } else if (filter.startsWith("theme:")) {
-      const id = filter.slice(6);
-      list = list.filter((e) => e.ai_theme_id === id);
+    if (filter === "spam") list = list.filter(isSpam);
+    else if (filter === "promo") list = list.filter(isPromo);
+    else {
+      list = list.filter((e) => !isSpam(e) && !isPromo(e));
+      if (filter === "unread") list = list.filter((e) => !e.is_read);
+      else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
+      else if (filter === "starred") list = list.filter((e) => e.is_starred);
+      else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
+      else if (filter.startsWith("account:")) {
+        const id = filter.slice(8);
+        list = list.filter((e) => e.account_id === id);
+      } else if (filter.startsWith("theme:")) {
+        const id = filter.slice(6);
+        list = list.filter((e) => e.ai_theme_id === id);
+      }
     }
     if (query.trim()) {
       const q = query.toLowerCase();
