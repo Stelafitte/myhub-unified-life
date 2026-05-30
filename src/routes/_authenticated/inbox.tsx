@@ -1095,20 +1095,18 @@ function Reader({
           <Button size="sm" variant="outline" className="h-7 gap-1" onClick={doForward}><Forward className="h-3 w-3" /> Transférer</Button>
           <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}><Archive className="h-3 w-3" /> Archiver</Button>
           <Button size="sm" variant="outline" className="h-7 gap-1 text-destructive" onClick={onDelete}><Trash2 className="h-3 w-3" /> Suppr.</Button>
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <Button size="sm" className="gap-1" onClick={onCreateTask}>
-            <Plus className="h-3.5 w-3.5" /> Créer une tâche
+          <Button size="sm" className="h-7 gap-1" onClick={onCreateTask}>
+            <Plus className="h-3 w-3" /> Créer tâche
           </Button>
           <Button
             size="sm"
             variant="outline"
-            className="gap-1"
+            className="h-7 gap-1"
             onClick={onPostpone}
             disabled={isPostponed}
           >
-            <Clock className="h-3.5 w-3.5" />
-            {isPostponed ? "Déjà reportée" : "Reporter (à traiter)"}
+            <Clock className="h-3 w-3" />
+            {isPostponed ? "Déjà reportée" : "Reporter"}
           </Button>
         </div>
       </header>
