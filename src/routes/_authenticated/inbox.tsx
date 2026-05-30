@@ -812,7 +812,7 @@ function InboxPage() {
                   </div>
                 </SelectItem>
                 {accounts
-                  .filter((a) => !(a.credentials?.calendar_only === true))
+                  .filter((a) => !(a.credentials?.calendar_only === true) && !/calendar/i.test(a.name))
                   .map((a) => (
                   <SelectItem key={a.id} value={`account:${a.id}`} className="text-xs">
                     <div className="flex items-center gap-2">
