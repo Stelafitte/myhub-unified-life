@@ -535,63 +535,7 @@ function InboxPage() {
           <FilterRow label="Pièces jointes" icon={<Paperclip className="h-4 w-4" />} count={counts.attachments} active={filter === "attachments"} onClick={() => setFilter("attachments")} />
           <FilterRow label="Suivis" icon={<Star className="h-4 w-4" />} count={counts.starred} active={filter === "starred"} onClick={() => setFilter("starred")} />
 
-          <div className="mt-4 flex items-center justify-between px-3 pb-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
-              <Sparkles className="mr-1 inline h-3 w-3" />
-              Thèmes
-            </span>
-            <button
-              onClick={() => setThemesOpen(true)}
-              className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-              title="Gérer les thèmes"
-            >
-              <Settings2 className="h-3 w-3" />
-            </button>
-          </div>
-          {themes.filter((t) => !t.archived_at && (counts.byTheme.get(t.id) ?? 0) > 0).length === 0 && (
-            <div className="px-3 py-2 text-xs text-muted-foreground">
-              Analyse en cours… ou cliquez sur l'engrenage pour démarrer.
-            </div>
-          )}
-          {themes
-            .filter((t) => !t.archived_at)
-            .map((t) => ({ t, n: counts.byTheme.get(t.id) ?? 0 }))
-            .filter(({ n }) => n > 0)
-            .sort((a, b) => b.n - a.n)
-            .map(({ t, n }) => {
-              const active = filter === `theme:${t.id}`;
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setFilter(`theme:${t.id}`)}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
-                    active ? "bg-accent" : "hover:bg-accent/50",
-                  )}
-                  title={t.description ?? t.name}
-                >
-                  <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs">
-                    {t.icon ?? "🏷️"}
-                  </span>
-                  <span className="flex-1 truncate text-sm">{t.name}</span>
-                  <span className="text-[11px] text-muted-foreground">{n}</span>
-                </button>
-              );
-            })}
-          {counts.noTheme > 0 && (
-            <button
-              onClick={() => setFilter("theme:__none__")}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
-                filter === "theme:__none__" ? "bg-accent" : "hover:bg-accent/50",
-              )}
-            >
-              <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-xs">❓</span>
-              <span className="flex-1 truncate text-sm italic text-muted-foreground">Non classés</span>
-              <span className="text-[11px] text-muted-foreground">{counts.noTheme}</span>
-            </button>
-          )}
-
+          {/* Comptes first */}
           <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Comptes
           </div>
@@ -621,6 +565,117 @@ function InboxPage() {
           ))}
           {!accounts.some((a) => a.name === "CHU" || a.type === "imap") && (
             <QuickAddOvh onAdded={() => setReloadKey((k) => k + 1)} />
+          )}
+
+          {/* Thèmes IA below Comptes, with relaunch + management */}
+          <div className="mt-4 flex items-center justify-between px-3 pb-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+              <Sparkles className="mr-1 inline h-3 w-3" />
+              Thèmes IA
+            </span>
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={relaunchAi}
+                disabled={relaunching}
+                className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
+                title="Relancer l'analyse IA"
+              >
+                {relaunching ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+              </button>
+              <button
+                onClick={() => setThemesOpen(true)}
+                className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                title="Gérer les thèmes"
+              >
+                <Settings2 className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+          {(() => {
+            const { grouped, standalone } = groupThemes(themes, counts.byTheme);
+            if (grouped.length === 0 && standalone.length === 0) {
+              return (
+                <div className="px-3 py-2 text-xs text-muted-foreground">
+                  Analyse en cours… ou cliquez sur ↻ pour lancer.
+                </div>
+              );
+            }
+            return (
+              <>
+                {grouped.map((g) => (
+                  <details key={g.name} open className="group/theme">
+                    <summary className="flex w-full cursor-pointer list-none items-center gap-1.5 rounded-md px-2 py-1 text-left hover:bg-accent/40 [&::-webkit-details-marker]:hidden">
+                      <ChevronRight className="h-3 w-3 text-muted-foreground transition-transform group-open/theme:rotate-90" />
+                      <span className="flex-1 truncate text-xs font-medium">{g.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{g.total}</span>
+                    </summary>
+                    <div className="ml-3 border-l border-border/50 pl-1">
+                      {g.items.map(({ theme: t, label }) => {
+                        const n = counts.byTheme.get(t.id) ?? 0;
+                        const active = filter === `theme:${t.id}`;
+                        return (
+                          <button
+                            key={t.id}
+                            onClick={() => setFilter(`theme:${t.id}`)}
+                            className={cn(
+                              "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors",
+                              active ? "bg-accent" : "hover:bg-accent/50",
+                            )}
+                            title={t.description ?? t.name}
+                          >
+                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-primary/10 text-[10px]">
+                              {t.icon ?? "🏷️"}
+                            </span>
+                            <span className="flex-1 truncate text-xs">{label}</span>
+                            <span className="text-[10px] text-muted-foreground">{n}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </details>
+                ))}
+                {standalone
+                  .map((t) => ({ t, n: counts.byTheme.get(t.id) ?? 0 }))
+                  .sort((a, b) => b.n - a.n)
+                  .map(({ t, n }) => {
+                    const active = filter === `theme:${t.id}`;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setFilter(`theme:${t.id}`)}
+                        className={cn(
+                          "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                          active ? "bg-accent" : "hover:bg-accent/50",
+                        )}
+                        title={t.description ?? t.name}
+                      >
+                        <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs">
+                          {t.icon ?? "🏷️"}
+                        </span>
+                        <span className="flex-1 truncate text-sm">{t.name}</span>
+                        <span className="text-[11px] text-muted-foreground">{n}</span>
+                      </button>
+                    );
+                  })}
+              </>
+            );
+          })()}
+          {counts.noTheme > 0 && (
+            <button
+              onClick={() => setFilter("theme:__none__")}
+              className={cn(
+                "mt-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                filter === "theme:__none__" ? "bg-accent" : "hover:bg-accent/50",
+              )}
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-xs">❓</span>
+              <span className="flex-1 truncate text-sm italic text-muted-foreground">Non classés</span>
+              <span className="text-[11px] text-muted-foreground">{counts.noTheme}</span>
+            </button>
           )}
         </nav>
 
