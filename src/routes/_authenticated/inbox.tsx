@@ -23,6 +23,8 @@ import {
   Check,
   Lock,
   ShieldAlert,
+  ShieldOff,
+  Megaphone,
   Settings2,
   RefreshCw,
   Loader2,
