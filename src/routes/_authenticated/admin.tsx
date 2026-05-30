@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
-import { Shield, Mail, Activity, UserPlus, Copy } from "lucide-react";
+import { Shield, Mail, Activity, UserPlus, Copy, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -44,6 +44,12 @@ type AuditRow = {
   created_at: string;
   metadata: Record<string, unknown> | null;
 };
+type SourceAccountRow = {
+  id: string;
+  name: string;
+  type: string;
+  tombstones: number;
+};
 
 function AdminPage() {
   const { isAdmin, loading } = useIsAdmin();
@@ -52,20 +58,24 @@ function AdminPage() {
   const [roles, setRoles] = useState<Record<string, string[]>>({});
   const [invitations, setInvitations] = useState<InvitationRow[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
+  const [sources, setSources] = useState<SourceAccountRow[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "user">("user");
   const [busy, setBusy] = useState(false);
+  const [purgingId, setPurgingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !isAdmin) navigate({ to: "/inbox", replace: true });
   }, [isAdmin, loading, navigate]);
 
   const refresh = async () => {
-    const [p, r, i, a] = await Promise.all([
+    const [p, r, i, a, accs, ts] = await Promise.all([
       supabase.from("profiles").select("id,email,display_name,created_at,is_suspended,quota_emails,quota_storage_mb").order("created_at"),
       supabase.from("user_roles").select("user_id,role"),
       supabase.from("invitations").select("*").order("created_at", { ascending: false }),
       supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("accounts").select("id,name,type,is_active").eq("is_active", true),
+      supabase.from("deleted_emails").select("account_id"),
     ]);
     setProfiles((p.data as ProfileRow[]) ?? []);
     const map: Record<string, string[]> = {};
@@ -75,6 +85,30 @@ function AdminPage() {
     setRoles(map);
     setInvitations((i.data as InvitationRow[]) ?? []);
     setAudit((a.data as AuditRow[]) ?? []);
+
+    const counts: Record<string, number> = {};
+    ((ts.data as Array<{ account_id: string }>) ?? []).forEach((row) => {
+      counts[row.account_id] = (counts[row.account_id] ?? 0) + 1;
+    });
+    const srcRows: SourceAccountRow[] = ((accs.data as Array<{ id: string; name: string; type: string }>) ?? [])
+      .map((acc) => ({ id: acc.id, name: acc.name, type: acc.type, tombstones: counts[acc.id] ?? 0 }));
+    setSources(srcRows);
+  };
+
+  const purgeSource = async (accountId: string, name: string) => {
+    if (!confirm(`Vider définitivement sur le serveur les mails supprimés du compte "${name}" ?\n\nCette action est IRRÉVERSIBLE côté provider.`)) return;
+    setPurgingId(accountId);
+    try {
+      const { data, error } = await supabase.functions.invoke("purge-imap-source", { body: { account_id: accountId } });
+      if (error) throw error;
+      const total = (data?.results ?? []).reduce((s: number, r: { purged?: number }) => s + (r.purged ?? 0), 0);
+      toast.success(`${total} email(s) purgé(s) sur la source`);
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de la purge");
+    } finally {
+      setPurgingId(null);
+    }
   };
 
   useEffect(() => {
@@ -155,6 +189,7 @@ function AdminPage() {
           <TabsTrigger value="users"><Shield className="mr-2 h-4 w-4" />Utilisateurs ({profiles.length})</TabsTrigger>
           <TabsTrigger value="invitations"><Mail className="mr-2 h-4 w-4" />Invitations</TabsTrigger>
           <TabsTrigger value="audit"><Activity className="mr-2 h-4 w-4" />Audit</TabsTrigger>
+          <TabsTrigger value="sources"><Trash2 className="mr-2 h-4 w-4" />Sources mail</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
@@ -311,6 +346,63 @@ function AdminPage() {
                       <TableCell className="text-xs">{row.ip ?? "—"}</TableCell>
                     </TableRow>
                   ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sources">
+          <Card>
+            <CardHeader>
+              <CardTitle>Purge des emails côté serveur</CardTitle>
+              <CardDescription>
+                Supprime définitivement, chez le fournisseur (OVH, Roundcube, IMAP), les emails que tu as déjà supprimés dans MyHubPro. Action irréversible côté provider.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Compte</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>À purger</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sources.length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground">Aucun compte actif</TableCell></TableRow>
+                  )}
+                  {sources.map((s) => {
+                    const supported = s.type === "imap";
+                    return (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium">{s.name}</TableCell>
+                        <TableCell><Badge variant="secondary">{s.type}</Badge></TableCell>
+                        <TableCell>
+                          {s.tombstones > 0
+                            ? <Badge>{s.tombstones}</Badge>
+                            : <span className="text-xs text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell>
+                          {supported ? (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={s.tombstones === 0 || purgingId === s.id}
+                              onClick={() => purgeSource(s.id, s.name)}
+                            >
+                              <Trash2 className="mr-2 h-3 w-3" />
+                              {purgingId === s.id ? "Purge…" : "Vider la source"}
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Bientôt ({s.type})</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
