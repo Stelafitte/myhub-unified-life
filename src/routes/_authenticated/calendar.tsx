@@ -501,9 +501,9 @@ function AgendaPage() {
           {view === "month" ? (
             <MonthView cursor={cursor} events={unified} onSelect={setSelected} onPick={setCursor} />
           ) : view === "week" ? (
-            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={setSelected} />
+            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} />
           ) : view === "day" ? (
-            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={setSelected} />
+            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} />
           ) : (
             <ListView events={inRange} onSelect={setSelected} />
           )}
@@ -518,6 +518,7 @@ function AgendaPage() {
           onClose={() => setSelected(null)}
           onDelete={() => deleteEvent(selected)}
           onCreateTask={() => createTaskFromEvent(selected)}
+          onShare={() => shareEvent(selected)}
         />
       )}
 
