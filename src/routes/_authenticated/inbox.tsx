@@ -1087,6 +1087,7 @@ function Reader({
   onCreateTask,
   onPostpone,
   onCompose,
+  onMarkSpam,
 }: {
   email: Email;
   account?: Account;
@@ -1097,7 +1098,9 @@ function Reader({
   onCreateTask: () => void;
   onPostpone: () => void;
   onCompose: (init: ComposerInitial) => void;
+  onMarkSpam: (asSpam: boolean) => void;
 }) {
+  const isSpamEmail = email.spam_label === "spam" || email.spam_label === "phishing";
   const isPostponed = (email.labels ?? []).includes("task-todo");
   const quoted = () => {
     const dateStr = email.received_at ? new Date(email.received_at).toLocaleString("fr-FR") : "";
