@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Paperclip, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getSignedUrl, type DocumentRow } from "@/lib/documents";
+import { formatBytes } from "@/lib/file-icons";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,6 +59,7 @@ export function CreateTaskFromEmailDialog({
   const [eventTitle, setEventTitle] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [attachmentDocs, setAttachmentDocs] = useState<DocumentRow[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -71,6 +74,13 @@ export function CreateTaskFromEmailDialog({
       setEventStart("");
       setEventEnd("");
       setEventTitle("");
+      // Load real attachments from documents table
+      supabase
+        .from("documents")
+        .select("*")
+        .eq("source_type", "email")
+        .eq("source_id", email.id)
+        .then(({ data }) => setAttachmentDocs((data as DocumentRow[]) ?? []));
     }
   }, [open, email]);
 
@@ -127,9 +137,22 @@ export function CreateTaskFromEmailDialog({
       }
 
       const dueIso = dueDate ? new Date(dueDate).toISOString() : null;
-      const attachments = email.has_attachment
-        ? [{ name: `Pièces jointes de "${email.subject ?? "email"}"`, mime: null, size: null, url: null }]
-        : [];
+      const attachments = await Promise.all(
+        attachmentDocs.map(async (d) => {
+          let url: string | null = null;
+          if (d.storage_path) {
+            try { url = await getSignedUrl(d.storage_path); } catch { /* ignore */ }
+          }
+          return {
+            name: d.original_filename,
+            mime: d.mime_type ?? null,
+            size: d.file_size ?? null,
+            url,
+            document_id: d.id,
+            storage_path: d.storage_path ?? null,
+          };
+        })
+      );
 
       const { error } = await supabase.from("tasks").insert({
         user_id: userId,
@@ -144,6 +167,7 @@ export function CreateTaskFromEmailDialog({
         source_email_id: email.id,
         calendar_event_id: calendarEventId,
         attachments,
+        tags: attachments.length > 0 ? ["attachment"] : [],
         status: "todo",
       });
       if (error) throw error;
@@ -248,11 +272,22 @@ export function CreateTaskFromEmailDialog({
 
           <div className="space-y-1 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
             <div>🔗 Lien vers l'email source conservé (id : {email.id.slice(0, 8)}…)</div>
-            {email.has_attachment && (
-              <div className="flex items-center gap-1">
-                <Paperclip className="h-3 w-3" /> Pièce(s) jointe(s) du mail rattachée(s) à la tâche
+            {attachmentDocs.length > 0 ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-1 font-medium text-foreground">
+                  <Paperclip className="h-3 w-3" /> {attachmentDocs.length} pièce{attachmentDocs.length > 1 ? "s" : ""} jointe{attachmentDocs.length > 1 ? "s" : ""} rattachée{attachmentDocs.length > 1 ? "s" : ""} à la tâche
+                </div>
+                <ul className="ml-4 list-disc">
+                  {attachmentDocs.map((d) => (
+                    <li key={d.id}>{d.original_filename} <span className="text-[10px]">({formatBytes(d.file_size)})</span></li>
+                  ))}
+                </ul>
               </div>
-            )}
+            ) : email.has_attachment ? (
+              <div className="flex items-center gap-1">
+                <Paperclip className="h-3 w-3" /> Pièces jointes détectées mais pas encore synchronisées — relance une synchro complète pour les rattacher.
+              </div>
+            ) : null}
             {dueDate && <div>📊 La tâche apparaîtra dans le rétroplanning (Gantt)</div>}
           </div>
         </div>
