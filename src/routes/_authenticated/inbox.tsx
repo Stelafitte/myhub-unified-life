@@ -49,6 +49,7 @@ import { cacheEmails, loadCachedEmails, type CachedEmail } from "@/lib/inbox-cac
 import { QuickAddOvh } from "@/components/inbox/quick-add-ovh";
 import { useSecureVault } from "@/lib/secure-vault-context";
 import { VaultPinDialog } from "@/components/security/vault-pin-dialog";
+import { SMART_GROUPS, classifyEmail, countByGroup } from "@/lib/smart-grouping";
 
 type Account = {
   id: string;
@@ -60,7 +61,7 @@ type Account = {
 
 type Email = CachedEmail;
 
-type Filter = "all" | "unread" | "attachments" | "starred" | `account:${string}`;
+type Filter = "all" | "unread" | "attachments" | "starred" | `account:${string}` | `smart:${string}`;
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   component: InboxPage,
@@ -227,7 +228,8 @@ function InboxPage() {
     const starred = emails.filter((e) => e.is_starred).length;
     const byAccount = new Map<string, number>();
     emails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
-    return { all: emails.length, unread, attachments, starred, byAccount };
+    const bySmart = countByGroup(emails);
+    return { all: emails.length, unread, attachments, starred, byAccount, bySmart };
   }, [emails]);
 
   const filtered = useMemo(() => {
@@ -238,6 +240,9 @@ function InboxPage() {
     else if (filter.startsWith("account:")) {
       const id = filter.slice(8);
       list = list.filter((e) => e.account_id === id);
+    } else if (filter.startsWith("smart:")) {
+      const key = filter.slice(6);
+      list = list.filter((e) => classifyEmail(e) === key);
     }
     if (query.trim()) {
       const q = query.toLowerCase();
@@ -359,6 +364,38 @@ function InboxPage() {
           <FilterRow label="Non lus" icon={<Circle className="h-4 w-4 fill-current" />} count={counts.unread} active={filter === "unread"} onClick={() => setFilter("unread")} />
           <FilterRow label="Pièces jointes" icon={<Paperclip className="h-4 w-4" />} count={counts.attachments} active={filter === "attachments"} onClick={() => setFilter("attachments")} />
           <FilterRow label="Suivis" icon={<Star className="h-4 w-4" />} count={counts.starred} active={filter === "starred"} onClick={() => setFilter("starred")} />
+
+          <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-primary">
+            <Sparkles className="mr-1 inline h-3 w-3" />
+            Analyse intelligente
+          </div>
+          {SMART_GROUPS.every((g) => (counts.bySmart.get(g.key) ?? 0) === 0) && (
+            <div className="px-3 py-2 text-xs text-muted-foreground">
+              Aucun thème détecté pour l'instant.
+            </div>
+          )}
+          {SMART_GROUPS.map((g) => {
+            const n = counts.bySmart.get(g.key) ?? 0;
+            if (n === 0) return null;
+            const active = filter === `smart:${g.key}`;
+            return (
+              <button
+                key={g.key}
+                onClick={() => setFilter(`smart:${g.key}`)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                  active ? "bg-accent" : "hover:bg-accent/50",
+                )}
+                title={g.label}
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs">
+                  {g.icon}
+                </span>
+                <span className="flex-1 truncate text-sm">{g.label}</span>
+                <span className="text-[11px] text-muted-foreground">{n}</span>
+              </button>
+            );
+          })}
 
           <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Comptes
