@@ -429,6 +429,31 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
             <Input id="t-rem" type="datetime-local" value={reminder} onChange={(e) => setReminder(e.target.value)} />
           </div>
 
+          <label className="flex items-start gap-3 rounded-md border bg-muted/30 p-3 cursor-pointer">
+            <Checkbox
+              checked={addToCalendar}
+              onCheckedChange={(v) => {
+                const checked = v === true;
+                setAddToCalendar(checked);
+                if (checked) {
+                  // Reporter les dates de la tâche dans l'agenda
+                  if (!start) setStart(todayStr());
+                  if (!due) setDue(start || todayStr());
+                }
+              }}
+              className="mt-0.5"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <CalendarPlus className="h-4 w-4 text-primary" />
+                Ajouter à l'agenda
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Crée un événement du <strong>{start || "—"}</strong> au <strong>{due || start || "—"}</strong> lié à cette tâche.
+              </p>
+            </div>
+          </label>
+
           <div>
             <Label>Section / projet</Label>
             <div className="flex gap-2">
