@@ -180,7 +180,7 @@ function InboxPage() {
 
     (async () => {
       const [{ data: accs }, { data: ems, error }] = await Promise.all([
-        supabase.from("accounts").select("id,name,type,color,icon").order("created_at"),
+        supabase.from("accounts").select("id,name,type,color,icon,credentials").order("created_at"),
         supabase
           .from("emails")
           .select("*")
