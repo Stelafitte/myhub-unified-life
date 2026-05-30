@@ -586,10 +586,18 @@ function InboxPage() {
         </ul>
       </section>
 
+      {/* right resizer */}
+      <div
+        onMouseDown={startDrag("right")}
+        className="hidden w-1 shrink-0 cursor-col-resize bg-border/30 hover:bg-primary/40 lg:block"
+        title="Glisser pour redimensionner"
+      />
+
       {/* RIGHT — reader (full overlay on mobile when selected) */}
       <aside
+        style={{ width: typeof window !== "undefined" && window.innerWidth >= 1024 ? rightW : undefined }}
         className={cn(
-          "shrink-0 flex-col bg-card lg:flex lg:w-[420px] lg:relative lg:inset-auto lg:z-auto",
+          "shrink-0 flex-col bg-card lg:flex lg:relative lg:inset-auto lg:z-auto",
           selected ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
         )}
       >
