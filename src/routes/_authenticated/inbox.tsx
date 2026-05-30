@@ -595,9 +595,13 @@ function InboxPage() {
 
       {/* RIGHT — reader (full overlay on mobile when selected) */}
       <aside
-        style={{ width: typeof window !== "undefined" && window.innerWidth >= 1024 ? rightW : undefined }}
+        style={{
+          width: typeof window !== "undefined" && window.innerWidth >= 1024
+            ? Math.min(rightW, Math.max(360, window.innerWidth - leftW - 380))
+            : undefined,
+        }}
         className={cn(
-          "shrink-0 flex-col bg-card lg:flex lg:relative lg:inset-auto lg:z-auto",
+          "min-w-0 shrink-0 flex-col bg-card lg:flex lg:relative lg:inset-auto lg:z-auto",
           selected ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
         )}
       >
