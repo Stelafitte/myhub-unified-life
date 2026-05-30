@@ -49,6 +49,7 @@ import { cacheEmails, loadCachedEmails, type CachedEmail } from "@/lib/inbox-cac
 import { QuickAddOvh } from "@/components/inbox/quick-add-ovh";
 import { useSecureVault } from "@/lib/secure-vault-context";
 import { VaultPinDialog } from "@/components/security/vault-pin-dialog";
+import { SMART_GROUPS, classifyEmail, countByGroup } from "@/lib/smart-grouping";
 
 type Account = {
   id: string;
