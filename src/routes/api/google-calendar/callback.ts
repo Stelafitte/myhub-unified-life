@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
+const PREVIEW_OAUTH_ORIGIN = "https://id-preview--723c3dcd-e4f6-4fec-98f4-4db15daebc63.lovable.app";
+
+function getOAuthOrigin(origin: string): string {
+  const host = new URL(origin).hostname;
+  if (host.endsWith(".lovableproject.com")) return PREVIEW_OAUTH_ORIGIN;
+  return origin;
+}
+
 function html(message: string, ok: boolean) {
   return `<!doctype html><html><head><meta charset="utf-8"><title>Google Calendar</title>
 <meta http-equiv="refresh" content="2;url=/calendar">
@@ -48,7 +56,7 @@ export const Route = createFileRoute("/api/google-calendar/callback")({
 
         const forwardedHost = request.headers.get("x-forwarded-host");
         const forwardedProto = request.headers.get("x-forwarded-proto");
-        const origin = `${forwardedProto ?? url.protocol.replace(":", "")}://${forwardedHost ?? url.host}`;
+        const origin = getOAuthOrigin(`${forwardedProto ?? url.protocol.replace(":", "")}://${forwardedHost ?? url.host}`);
         const redirectUri = `${origin}/api/google-calendar/callback`;
 
         const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
