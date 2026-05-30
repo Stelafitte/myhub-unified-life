@@ -130,16 +130,32 @@ function AgendaPage() {
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
   const [creating, setCreating] = useState(false);
   const [connectingGoogle, setConnectingGoogle] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
   const startGcalOAuth = useServerFn(startGoogleCalendarOAuth);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("gcal_error");
+    if (err) {
+      setOauthError(decodeURIComponent(err));
+      // Clean URL without reloading
+      const url = new URL(window.location.href);
+      url.searchParams.delete("gcal_error");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []);
 
   const connectGoogleCalendar = async () => {
     setConnectingGoogle(true);
+    setOauthError(null);
     try {
       const { authorizationUrl } = await startGcalOAuth({ data: { label: "Google Calendar" } });
       window.location.assign(authorizationUrl);
     } catch (err) {
       console.error(err);
-      toast.error(err instanceof Error ? err.message : "Connexion Google Calendar impossible");
+      const msg = err instanceof Error ? err.message : "Connexion Google Calendar impossible";
+      toast.error(msg);
+      setOauthError(msg);
       setConnectingGoogle(false);
     }
   };
