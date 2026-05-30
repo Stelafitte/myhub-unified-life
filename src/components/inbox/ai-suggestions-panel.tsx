@@ -74,7 +74,7 @@ export function AiSuggestionsPanel({
   };
 
   return (
-    <div className="border-b bg-primary/5 px-4 py-3">
+    <div className="max-h-[35vh] shrink-0 overflow-auto border-b bg-primary/5 px-4 py-3">
       <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-primary">
         <Sparkles className="h-3.5 w-3.5" />
         Actions suggérées par l'IA
