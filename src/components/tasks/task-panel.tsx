@@ -239,6 +239,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
       source_email_id: emailId,
       tags,
       kanban_column: status,
+      ...(!editing && draft?.calendarEventId ? { calendar_event_id: draft.calendarEventId } : {}),
     };
 
     try {
