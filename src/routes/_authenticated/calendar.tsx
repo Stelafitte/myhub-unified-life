@@ -586,14 +586,18 @@ function WeekOrDayView({
 }) {
   const dayCols = Array.from({ length: days }, (_, i) => addDays(from, i));
   const today = new Date();
+  const { startHour, endHour } = useCalendarHours();
+  const hourCount = Math.max(1, endHour - startHour);
+  const hours = Array.from({ length: hourCount }, (_, i) => startHour + i);
+  const ROW_H = 48;
 
   return (
     <div className="flex overflow-x-auto">
       <div className="w-14 shrink-0 border-r">
         <div className="h-10 border-b" />
-        {Array.from({ length: 24 }, (_, h) => (
+        {hours.map((h) => (
           <div key={h} className="h-12 border-b pr-1 text-right text-[10px] text-muted-foreground">
-            {String(h).padStart(2, "0")}:00
+            {String(h % 24).padStart(2, "0")}:00
           </div>
         ))}
       </div>
@@ -607,15 +611,20 @@ function WeekOrDayView({
               <div className={cn("flex h-10 items-center justify-center border-b text-xs font-medium", isToday && "bg-primary/10 text-primary")}>
                 {fmtDate(d)}
               </div>
-              <div className="relative" style={{ height: 24 * 48 }}>
-                {Array.from({ length: 24 }, (_, h) => (
-                  <div key={h} className="absolute left-0 right-0 border-b" style={{ top: h * 48, height: 48 }} />
+              <div className="relative" style={{ height: hourCount * ROW_H }}>
+                {hours.map((h, idx) => (
+                  <div key={h} className="absolute left-0 right-0 border-b" style={{ top: idx * ROW_H, height: ROW_H }} />
                 ))}
                 {dayEvents.map((e) => {
                   const startMin = e.start.getHours() * 60 + e.start.getMinutes();
                   const endMin = Math.max(startMin + 20, e.end.getHours() * 60 + e.end.getMinutes());
-                  const top = (startMin / 60) * 48;
-                  const h = Math.max(20, ((endMin - startMin) / 60) * 48);
+                  const winStart = startHour * 60;
+                  const winEnd = endHour * 60;
+                  if (endMin <= winStart || startMin >= winEnd) return null;
+                  const clampedStart = Math.max(startMin, winStart);
+                  const clampedEnd = Math.min(endMin, winEnd);
+                  const top = ((clampedStart - winStart) / 60) * ROW_H;
+                  const h = Math.max(20, ((clampedEnd - clampedStart) / 60) * ROW_H);
                   return (
                     <button
                       key={e.id}
@@ -637,6 +646,7 @@ function WeekOrDayView({
           );
         })}
       </div>
+
     </div>
   );
 }
