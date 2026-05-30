@@ -130,37 +130,12 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
     let totalSynced = 0;
 
     for (const conn of connections) {
-      // Ensure account row exists for this connection (so it appears in sidebar)
-      let accountId: string | null = null;
-      const { data: existingAcc } = await supabaseAdmin
-        .from("accounts")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("type", "gmail")
-        .eq("name", conn.label)
-        .maybeSingle();
+      // Calendar events are tied to gcal_connection_id directly — we do NOT
+      // create an `accounts` row for the calendar connection (that would
+      // pollute Comptes, Synchro, Contacts, Plan d'opération, etc.).
+      const accountId: string | null = null;
 
-      if (existingAcc) {
-        accountId = existingAcc.id;
-      } else {
-        const { data: newAcc, error: accErr } = await supabaseAdmin
-          .from("accounts")
-          .insert({
-            user_id: userId,
-            name: conn.label,
-            type: "gmail",
-            color: "#3b82f6",
-            credentials: { calendar_only: true },
-            sync_direction: (conn.sync_direction as "bidirectional" | "disabled" | "pull" | "push") ?? "pull",
-          })
-          .select("id")
-          .single();
-        if (accErr) {
-          console.error("Failed to create account row", accErr);
-        } else {
-          accountId = newAcc.id;
-        }
-      }
+
 
       // Refresh token if expired (or about to)
       let accessToken = conn.access_token;
