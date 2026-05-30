@@ -129,6 +129,20 @@ function AgendaPage() {
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
   const [creating, setCreating] = useState(false);
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
+  const startGcalOAuth = useServerFn(startGoogleCalendarOAuth);
+
+  const connectGoogleCalendar = async () => {
+    setConnectingGoogle(true);
+    try {
+      const { authorizationUrl } = await startGcalOAuth({ data: { label: "Google Calendar" } });
+      window.location.assign(authorizationUrl);
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Connexion Google Calendar impossible");
+      setConnectingGoogle(false);
+    }
+  };
 
   const load = async () => {
     // Cache-first hydration
