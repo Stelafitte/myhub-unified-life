@@ -351,6 +351,63 @@ function AdminPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="sources">
+          <Card>
+            <CardHeader>
+              <CardTitle>Purge des emails côté serveur</CardTitle>
+              <CardDescription>
+                Supprime définitivement, chez le fournisseur (OVH, Roundcube, IMAP), les emails que tu as déjà supprimés dans MyHubPro. Action irréversible côté provider.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Compte</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>À purger</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sources.length === 0 && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-sm text-muted-foreground">Aucun compte actif</TableCell></TableRow>
+                  )}
+                  {sources.map((s) => {
+                    const supported = s.type === "imap";
+                    return (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium">{s.name}</TableCell>
+                        <TableCell><Badge variant="secondary">{s.type}</Badge></TableCell>
+                        <TableCell>
+                          {s.tombstones > 0
+                            ? <Badge>{s.tombstones}</Badge>
+                            : <span className="text-xs text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell>
+                          {supported ? (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={s.tombstones === 0 || purgingId === s.id}
+                              onClick={() => purgeSource(s.id, s.name)}
+                            >
+                              <Trash2 className="mr-2 h-3 w-3" />
+                              {purgingId === s.id ? "Purge…" : "Vider la source"}
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Bientôt ({s.type})</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
