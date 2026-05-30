@@ -234,7 +234,7 @@ function InboxPage() {
       try {
         const res = await odFoldersFn();
         if (cancelled || !res?.folders) return;
-        const slim = res.folders.map((f) => ({ name: f.name, path: f.path }));
+        const slim = res.folders.map((f) => ({ name: f.name, path: f.path, depth: f.depth }));
         try { localStorage.setItem("inbox:odFolders", JSON.stringify(slim)); } catch { /* ignore */ }
         setOdGroups(smartGroupsFromFolders(slim));
       } catch {
@@ -250,7 +250,9 @@ function InboxPage() {
     return m;
   }, [accounts]);
 
-  const allSmartGroups = useMemo(() => [...SMART_GROUPS, ...odGroups], [odGroups]);
+  // OneDrive folder themes first (they drive the classification),
+  // built-in fallback groups (Prestataires IT, Infos commerciales) last.
+  const allSmartGroups = useMemo(() => [...odGroups, ...SMART_GROUPS], [odGroups]);
 
   const counts = useMemo(() => {
     const unread = emails.filter((e) => !e.is_read).length;
