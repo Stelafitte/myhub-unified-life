@@ -131,7 +131,9 @@ function AgendaPage() {
   const [creating, setCreating] = useState(false);
   const [connectingGoogle, setConnectingGoogle] = useState(false);
   const [oauthError, setOauthError] = useState<string | null>(null);
+  const [syncingGoogle, setSyncingGoogle] = useState(false);
   const startGcalOAuth = useServerFn(startGoogleCalendarOAuth);
+  const syncGcal = useServerFn(syncGoogleCalendarEvents);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
