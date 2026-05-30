@@ -79,7 +79,6 @@ function PlanOperationPage() {
   const exportRef = useRef<HTMLDivElement>(null);
 
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<Zoom>("month");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -95,28 +94,15 @@ function PlanOperationPage() {
   const dayPx = ZOOM_PX[zoom];
 
   const load = async () => {
-    // Cache first
-    const [cTasks, cEvents] = await Promise.all([
-      cacheGetAll<Task>("tasks"),
-      cacheGetAll<CalendarEvent>("calendar_events"),
-    ]);
+    const cTasks = await cacheGetAll<Task>("tasks");
     if (cTasks.length) setTasks(cTasks);
-    if (cEvents.length) setEvents(cEvents);
     setLoading(true);
     if (!navigator.onLine) { setLoading(false); return; }
-    const [t, e] = await Promise.all([
-      supabase.from("tasks").select("*").neq("status", "archived"),
-      supabase.from("calendar_events").select("*"),
-    ]);
+    const t = await supabase.from("tasks").select("*").neq("status", "archived");
     if (t.error && !cTasks.length) toast.error(t.error.message);
-    if (e.error && !cEvents.length) toast.error(e.error.message);
     if (t.data) {
       setTasks(t.data as Task[]);
       cacheReplaceAll("tasks", t.data as Task[]).catch(() => {});
-    }
-    if (e.data) {
-      setEvents(e.data as CalendarEvent[]);
-      cacheReplaceAll("calendar_events", e.data as CalendarEvent[]).catch(() => {});
     }
     setLoading(false);
   };
@@ -128,7 +114,7 @@ function PlanOperationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Build bars
+  // Build bars (tasks only — événements/RDV gérés dans l'Agenda)
   const allBars = useMemo<Bar[]>(() => {
     const out: Bar[] = [];
     tasks.forEach((t) => {
@@ -149,25 +135,8 @@ function PlanOperationPage() {
         raw: t,
       });
     });
-    events.forEach((ev) => {
-      const s = new Date(ev.start_at);
-      const e = new Date(ev.end_at);
-      const isMilestone = (ev.description ?? "").toLowerCase().includes("jalon") || Math.abs(e.getTime() - s.getTime()) < 86400000;
-      out.push({
-        id: ev.id,
-        type: "event",
-        title: ev.title,
-        start: s,
-        end: e,
-        section: sectionOf(ev.title + " " + (ev.description ?? "")),
-        source: "calendar",
-        isMilestone,
-        color: ev.color,
-        raw: ev,
-      });
-    });
     return out;
-  }, [tasks, events]);
+  }, [tasks]);
 
   // Apply filters
   const bars = useMemo(() => {
