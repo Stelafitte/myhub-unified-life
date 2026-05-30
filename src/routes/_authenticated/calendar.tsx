@@ -14,7 +14,7 @@ import {
   Link2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
-import { startGoogleCalendarOAuth } from "@/lib/api/google-calendar.functions";
+import { startGoogleCalendarOAuth, syncGoogleCalendarEvents } from "@/lib/api/google-calendar.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
