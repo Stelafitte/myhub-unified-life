@@ -1,0 +1,1 @@
+DELETE FROM public.accounts WHERE name = 'Google Calendar' AND (credentials IS NULL OR credentials = '{}'::jsonb);
