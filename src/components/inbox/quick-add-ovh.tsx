@@ -11,6 +11,7 @@ const OVH_EMAIL = "chu@myhub-pro.fr";
 export function QuickAddOvh({ onAdded }: { onAdded: () => void }) {
   const { user } = useAuth();
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: React.FormEvent) => {

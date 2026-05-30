@@ -19,6 +19,7 @@ export function AccountSection() {
   const [totpEnabled, setTotpEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [newPw, setNewPw] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [factors, setFactors] = useState<Array<{ id: string; friendly_name?: string | null }>>([]);
   const [enrollQr, setEnrollQr] = useState<{ qr: string; secret: string; factorId: string } | null>(null);
   const [verifyCode, setVerifyCode] = useState("");

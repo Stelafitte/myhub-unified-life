@@ -372,6 +372,7 @@ function AccountWizard({
   const [preset, setPreset] = useState<Preset | null>(null);
   const [type, setType] = useState<AccountType | null>(null);
   const [imap, setImap] = useState({ server: "", port: "993", ssl: true, username: "", password: "", email: "" });
+  const [showPw, setShowPw] = useState(false);
   const [name, setName] = useState("");
   const [color, setColor] = useState(COLORS[0]);
   const [icon, setIcon] = useState(ICONS[0]);

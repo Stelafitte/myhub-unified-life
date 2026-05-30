@@ -24,6 +24,7 @@ export function VaultPinDialog({ open, onOpenChange, onUnlocked }: Props) {
   const { initialized, create, unlock } = useSecureVault();
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
+  const [showPin, setShowPin] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
