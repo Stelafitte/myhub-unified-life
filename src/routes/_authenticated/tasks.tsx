@@ -16,6 +16,13 @@ import { type Task, type TaskStatus, getSection, DEFAULT_SECTIONS } from "@/lib/
 import { TaskRequestsPanel } from "@/components/tasks/task-requests";
 
 export const Route = createFileRoute("/_authenticated/tasks")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    newTitle: typeof s.newTitle === "string" ? s.newTitle : undefined,
+    newDescription: typeof s.newDescription === "string" ? s.newDescription : undefined,
+    newDue: typeof s.newDue === "string" ? s.newDue : undefined,
+    newStart: typeof s.newStart === "string" ? s.newStart : undefined,
+    newCalendarEventId: typeof s.newCalendarEventId === "string" ? s.newCalendarEventId : undefined,
+  }),
   component: TasksPage,
 });
 
