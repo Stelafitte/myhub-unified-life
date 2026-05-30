@@ -308,7 +308,7 @@ function weatherCodeIcon(code: number) {
 // ─────────────────────────────────────────────────────────────────────────────
 function EmailsWidget({ userId }: { userId?: string }) {
   type EmailRow = { id: string; from_name: string | null; from_address: string | null; subject: string | null; is_read: boolean; account_id: string; received_at: string | null };
-  type AccountRow = { id: string; name: string; color: string | null };
+  type AccountRow = { id: string; name: string; color: string | null; credentials?: { calendar_only?: boolean } | null };
   const [emails, setEmails] = useState<EmailRow[]>([]);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
 
@@ -321,15 +321,20 @@ function EmailsWidget({ userId }: { userId?: string }) {
         cacheGetAll<AccountRow>("accounts"),
       ]);
       if (cachedEmails.length) setEmails(cachedEmails.slice(0, 50));
-      if (cachedAccounts.length) setAccounts(cachedAccounts);
+      if (cachedAccounts.length) setAccounts(cachedAccounts.filter((a) => !(a.credentials?.calendar_only === true)));
       // 2. Network refresh
       if (!navigator.onLine) return;
       const [emailsRes, accountsRes] = await Promise.all([
         supabase.from("emails").select("id, from_name, from_address, subject, is_read, account_id, received_at").order("received_at", { ascending: false }).limit(50),
-        supabase.from("accounts").select("id, name, color").eq("user_id", userId),
+        supabase.from("accounts").select("id, name, color, credentials").eq("user_id", userId),
       ]);
       if (emailsRes.data) { setEmails(emailsRes.data); cacheReplaceAll("emails", emailsRes.data).catch(() => {}); }
-      if (accountsRes.data) { setAccounts(accountsRes.data); cacheReplaceAll("accounts", accountsRes.data).catch(() => {}); }
+      if (accountsRes.data) {
+        const filtered = (accountsRes.data as AccountRow[]).filter((a) => !(a.credentials?.calendar_only === true));
+        setAccounts(filtered);
+        cacheReplaceAll("accounts", accountsRes.data).catch(() => {});
+      }
+
     })();
   }, [userId]);
 
@@ -584,8 +589,9 @@ function SyncStatusWidget() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from("accounts").select("id, name, last_sync_at, is_active").eq("user_id", user.id);
-    setAccounts(data ?? []);
+    const { data } = await supabase.from("accounts").select("id, name, last_sync_at, is_active, credentials").eq("user_id", user.id);
+    setAccounts((data ?? []).filter((a: any) => !(a.credentials?.calendar_only === true)));
+
   }, [user]);
   useEffect(() => { load(); }, [load]);
 
