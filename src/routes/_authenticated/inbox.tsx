@@ -83,10 +83,11 @@ function InboxPage() {
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
   const [odGroups, setOdGroups] = useState<SmartGroup[]>(() => {
+    if (typeof window === "undefined") return [];
     try {
-      const raw = localStorage.getItem("inbox:odFolders");
+      const raw = window.localStorage.getItem("inbox:odFolders");
       if (!raw) return [];
-      const parsed = JSON.parse(raw) as { name: string; path: string }[];
+      const parsed = JSON.parse(raw) as { name: string; path: string; depth?: number }[];
       return smartGroupsFromFolders(parsed);
     } catch { return []; }
   });
