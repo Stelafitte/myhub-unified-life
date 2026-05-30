@@ -310,6 +310,37 @@ function AgendaPage() {
     }
   };
 
+  const moveEvent = async (ev: UnifiedEvent, deltaMin: number) => {
+    if (ev.kind !== "event" || deltaMin === 0) return;
+    const newStart = new Date(ev.start.getTime() + deltaMin * 60000);
+    const newEnd = new Date(ev.end.getTime() + deltaMin * 60000);
+    const { error } = await supabase
+      .from("calendar_events")
+      .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() })
+      .eq("id", (ev.raw as DbEvent).id);
+    if (error) toast.error(error.message);
+    else { toast.success("Événement déplacé"); load(); }
+  };
+
+  const shareEvent = (ev: UnifiedEvent) => {
+    const subject = encodeURIComponent(`Invitation : ${ev.title}`);
+    const lines = [
+      `Bonjour,`,
+      ``,
+      `Je vous propose le rendez-vous suivant :`,
+      `• ${ev.title}`,
+      `• Quand : ${fmtDate(ev.start)} de ${fmtTime(ev.start)} à ${fmtTime(ev.end)}`,
+      ev.location ? `• Lieu : ${ev.location}` : null,
+      ev.hasVideo && ev.description ? `• Visio : voir lien dans la description` : null,
+      ``,
+      ev.description ?? "",
+      ``,
+      `Cordialement,`,
+    ].filter(Boolean).join("\n");
+    window.location.href = `mailto:?subject=${subject}&body=${encodeURIComponent(lines)}`;
+  };
+
+
   const createTaskFromEvent = async (ev: UnifiedEvent) => {
     if (!user) return;
     const { error } = await supabase.from("tasks").insert({
