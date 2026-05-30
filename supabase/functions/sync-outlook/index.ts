@@ -37,11 +37,14 @@ function stripHtml(html: string): string {
 
 async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; count: number; error?: string }> {
   try {
-    const sinceIso = account.last_sync_at ?? account.created_at ?? new Date().toISOString();
-    // OData filter — only inbox messages received after our cutoff
+    // Premier sync : 30 jours d'historique, ensuite incrémental.
+    const sinceIso = account.last_sync_at
+      ? account.last_sync_at
+      : new Date(Date.now() - 30 * 86400000).toISOString();
     const filter = encodeURIComponent(`receivedDateTime ge ${new Date(sinceIso).toISOString()}`);
     const select = encodeURIComponent("id,internetMessageId,subject,from,toRecipients,receivedDateTime,bodyPreview,body,isRead,hasAttachments,conversationId,flag");
-    const url = `${GATEWAY}/me/mailFolders/inbox/messages?$top=100&$orderby=receivedDateTime%20desc&$filter=${filter}&$select=${select}`;
+    const top = account.last_sync_at ? 100 : 200;
+    const url = `${GATEWAY}/me/mailFolders/inbox/messages?$top=${top}&$orderby=receivedDateTime%20desc&$filter=${filter}&$select=${select}`;
 
     const listRes = await fetch(url, { headers: gh() });
     if (!listRes.ok) {
