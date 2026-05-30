@@ -22,6 +22,7 @@ import {
   Check,
   Lock,
   ShieldAlert,
+  Settings2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
