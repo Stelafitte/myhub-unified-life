@@ -4,14 +4,13 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { HdsNoticeDialog } from "@/components/security/hds-notice-dialog";
 import { SecureVaultProvider } from "@/lib/secure-vault-context";
+import { SessionExpiredBanner } from "@/components/session-expired-banner";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
 });
 
 function AuthenticatedLayout() {
-
-
   return (
     <SecureVaultProvider>
       <SidebarProvider>
@@ -19,6 +18,7 @@ function AuthenticatedLayout() {
           <AppSidebar />
           <div className="flex flex-1 flex-col">
             <AppHeader />
+            <SessionExpiredBanner />
             <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
               <Outlet />
             </main>
