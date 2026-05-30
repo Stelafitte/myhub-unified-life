@@ -363,7 +363,7 @@ function AgendaPage() {
           <Legend color={SOURCE_META.outlook.color} badge="🔷" label="Outlook / Exchange" />
           <Legend color={SOURCE_META.task.color} badge="🟠" label="Tâches MyHub Pro" />
 
-          <div className="mt-4">
+          <div className="mt-4 space-y-2">
             <Button
               size="sm"
               variant="outline"
@@ -373,6 +373,15 @@ function AgendaPage() {
             >
               <Link2 className="h-3.5 w-3.5" />
               {connectingGoogle ? "Redirection…" : "Connecter Google Calendar"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-full gap-1.5"
+              onClick={() => runSync(false)}
+              disabled={syncingGoogle}
+            >
+              {syncingGoogle ? "Synchronisation…" : "Synchroniser maintenant"}
             </Button>
           </div>
 
