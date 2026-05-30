@@ -50,8 +50,9 @@ import { cacheEmails, loadCachedEmails, type CachedEmail } from "@/lib/inbox-cac
 import { QuickAddOvh } from "@/components/inbox/quick-add-ovh";
 import { useSecureVault } from "@/lib/secure-vault-context";
 import { VaultPinDialog } from "@/components/security/vault-pin-dialog";
-import { SMART_GROUPS, classifyEmail, countByGroup, smartGroupsFromFolders, type SmartGroup } from "@/lib/smart-grouping";
+import { listThemes, classifyPendingThemes, discoverThemes, seedThemesFromFolders, setEmailTheme, type Theme } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
+import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
 
 type Account = {
   id: string;
