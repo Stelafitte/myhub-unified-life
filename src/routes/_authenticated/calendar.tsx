@@ -681,7 +681,47 @@ function WeekOrDayView({
                 {hours.map((h, idx) => (
                   <div key={h} className="absolute left-0 right-0 border-b" style={{ top: idx * ROW_H, height: ROW_H }} />
                 ))}
-                {dayEvents.map((e) => {
+                {(() => {
+                  // Compute side-by-side layout for overlapping events
+                  const sorted = [...dayEvents].sort(
+                    (a, b) => a.start.getTime() - b.start.getTime() || a.end.getTime() - b.end.getTime(),
+                  );
+                  type Lay = { col: number; cols: number };
+                  const layout = new Map<string, Lay>();
+                  let cluster: typeof sorted = [];
+                  let clusterEnd = 0;
+                  const flush = () => {
+                    if (cluster.length === 0) return;
+                    const cols: number[] = []; // end time per column
+                    const assign = new Map<string, number>();
+                    for (const ev of cluster) {
+                      const s = ev.start.getTime();
+                      let placed = -1;
+                      for (let i = 0; i < cols.length; i++) {
+                        if (cols[i] <= s) { placed = i; break; }
+                      }
+                      if (placed === -1) { placed = cols.length; cols.push(0); }
+                      cols[placed] = ev.end.getTime();
+                      assign.set(ev.id, placed);
+                    }
+                    const total = cols.length;
+                    for (const ev of cluster) layout.set(ev.id, { col: assign.get(ev.id)!, cols: total });
+                    cluster = [];
+                    clusterEnd = 0;
+                  };
+                  for (const ev of sorted) {
+                    if (cluster.length === 0 || ev.start.getTime() < clusterEnd) {
+                      cluster.push(ev);
+                      clusterEnd = Math.max(clusterEnd, ev.end.getTime());
+                    } else {
+                      flush();
+                      cluster.push(ev);
+                      clusterEnd = ev.end.getTime();
+                    }
+                  }
+                  flush();
+
+                  return dayEvents.map((e) => {
                   const startMin = e.start.getHours() * 60 + e.start.getMinutes();
                   const endMin = Math.max(startMin + 20, e.end.getHours() * 60 + e.end.getMinutes());
                   const winStart = startHour * 60;
@@ -693,6 +733,9 @@ function WeekOrDayView({
                   const h = Math.max(20, ((clampedEnd - clampedStart) / 60) * ROW_H);
                   const dy = dragOffset?.id === e.id ? dragOffset.dy : 0;
                   const draggable = !!onMove && e.kind === "event";
+                  const lay = layout.get(e.id) ?? { col: 0, cols: 1 };
+                  const widthPct = 100 / lay.cols;
+                  const leftPct = lay.col * widthPct;
                   return (
                     <HoverCard key={e.id} openDelay={250} closeDelay={80}>
                       <HoverCardTrigger asChild>
@@ -700,11 +743,17 @@ function WeekOrDayView({
                           onMouseDown={draggable ? startDrag(e) : undefined}
                           onClick={draggable ? undefined : () => onSelect(e)}
                           className={cn(
-                            "absolute left-1 right-1 select-none overflow-hidden rounded-md p-1 text-left text-[10px] text-white shadow-sm transition-transform hover:scale-[1.01]",
+                            "absolute select-none overflow-hidden rounded-md p-1 text-left text-[10px] text-white shadow-sm transition-transform hover:scale-[1.01]",
                             draggable && "cursor-grab active:cursor-grabbing",
                             dy !== 0 && "opacity-80 ring-2 ring-primary",
                           )}
-                          style={{ top: top + dy, height: h, background: e.color }}
+                          style={{
+                            top: top + dy,
+                            height: h,
+                            background: e.color,
+                            left: `calc(${leftPct}% + 2px)`,
+                            width: `calc(${widthPct}% - 4px)`,
+                          }}
                         >
                           <div className="flex items-center gap-1 truncate font-semibold">
                             <span>{e.badge}</span> {e.title}
@@ -729,7 +778,9 @@ function WeekOrDayView({
                       </HoverCardContent>
                     </HoverCard>
                   );
-                })}
+                  });
+                })()}
+
               </div>
             </div>
           );
