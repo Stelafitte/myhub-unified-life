@@ -1,104 +1,111 @@
-# 📁 Itération 14 — Module Documents
+# Plan — Offline-first complet
 
-Module centralisé pour gérer toutes les pièces jointes et fichiers liés aux emails, tâches, réunions, avec upload manuel, aperçu intégré, détection sensible et politique de rétention.
+Objectif : l'app fonctionne en lecture **et** en écriture hors ligne, avec synchronisation automatique au retour réseau. Installable comme PWA.
 
-## 1. Base de données
+L'infrastructure de base existe déjà partiellement (`sync-queue.ts`, `inbox-cache.ts`, `useNetworkStatus`, table `sync_queue`). Il faut la **généraliser à toutes les entités** et brancher la lecture sur le cache local en mode dégradé.
 
-Migration `documents` :
-- `id`, `user_id`, `filename`, `original_filename`
-- `file_size` (bigint), `mime_type`, `storage_path`
-- `source_type` (enum: `email|task|meeting|manual`)
-- `source_id` (uuid, nullable — référence logique selon `source_type`)
-- `account_id` (uuid, nullable — pour grouper les emails par compte)
-- `tags` (text[]), `description` (text)
-- `is_sensitive` (boolean) — si true → `storage_path` reste null, le fichier est en IndexedDB chiffré
-- `sensitive_score`, `sensitive_reason`
-- `local_only` (boolean) — true si stocké uniquement en IndexedDB
-- `checksum` (text) — pour détecter les doublons
-- `created_at`, `updated_at`
+## Périmètre
 
-RLS : `user_id = auth.uid()`. GRANT authenticated + service_role.
+Entités couvertes en offline complet :
+- **Mails** (lecture + read/star/archive/suppression)
+- **Contacts** (lecture + CRUD)
+- **Tâches** (déjà partiel — finaliser)
+- **Événements calendrier** (lecture + CRUD)
+- **Plan d'opération / thèmes** (lecture + édition)
+- **Réunions** (lecture seule cache + création en file)
 
-Bucket Storage `documents` (privé) + politiques RLS sur `storage.objects` :
-- SELECT/INSERT/UPDATE/DELETE limités à `auth.uid()::text = (storage.foldername(name))[1]`
-- Convention de chemin : `{user_id}/{source_type}/{document_id}-{filename}`
+Hors périmètre :
+- Synchronisation IMAP/Gmail offline (impossible sans serveur)
+- Édition de documents binaires offline
+- Résolution de conflits sémantique (stratégie simple : last-write-wins côté serveur + log des conflits)
 
-Table `document_retention_settings` (1 ligne par user) :
-- `email_retention_days`, `task_retention_days`, `meeting_retention_days`, `manual_retention_days`
-- `max_file_size_mb` (défaut 25)
+## Architecture
 
-## 2. Helpers & lib
+```text
+                       ┌──────────────────┐
+   UI (React)  ───────►│  data-layer.ts   │  hook par entité
+                       └────────┬─────────┘
+                                │
+              ┌─────────────────┼──────────────────┐
+              ▼                 ▼                  ▼
+         IndexedDB        sync-queue          Supabase
+        (cache lecture)  (mutations offline)  (source vérité)
+              ▲                 │                  ▲
+              └─── flush on online ────────────────┘
+```
 
-- `src/lib/documents.ts` — upload/download/delete, génération de checksum (SHA-256), helper de chemin storage
-- `src/lib/secure-documents.ts` — extension de `secure-vault` pour stocker des Blobs chiffrés (AES-GCM) dans IndexedDB
-- `src/lib/file-icons.ts` — mapping mime type → icône Lucide + couleur badge
-- Réutilisation de `detectSensitive` (filename + description) pour la détection
+**Règle d'or** : chaque hook de données (`useEmails`, `useContacts`…) lit d'abord le cache IndexedDB (résultat instantané), puis tente Supabase en arrière-plan et met à jour le cache. Les mutations passent par un wrapper qui choisit en ligne→Supabase direct / hors ligne→sync_queue.
 
-## 3. Route `/documents`
+## Étapes
 
-Layout 2 colonnes :
-- **Gauche (260px)** : arborescence repliable
-  - 📧 Emails → sous-noeuds par `account.name`
-  - ✅ Tâches
-  - 📋 Réunions
-  - 📂 Manuel
-  - Filtres : type (PDF/Word/Excel/Image/Autre), date (today/week/month), taille (>5MB), 🔒 sensibles
-  - Champ recherche (filename + description, ILIKE)
-- **Droite** : toggle Grille/Liste
-  - Cartes : icône+miniature (image/PDF), nom, taille, date, badge source coloré, tags
-  - Actions : 👁 Aperçu, ⬇ Télécharger, 🔗 Copier lien signé, 🗑 Supprimer
+### 1. Cache générique IndexedDB
+Généraliser `inbox-cache.ts` en un module `local-cache.ts` qui gère N stores (emails, contacts, calendar_events, tasks, op_plan_themes, op_plan_subthemes, meetings). API uniforme : `cacheAll(store, items)`, `loadCached(store)`, `loadCachedById(store, id)`, `removeCached(store, id)`.
 
-## 4. Aperçu intégré
+### 2. Sync-queue complète
+Étendre `sync-queue.ts` :
+- Support `op_plan_themes`, `op_plan_subthemes`, `meeting` (déjà partiel pour les autres)
+- Persistance optimiste : appliquer la mutation dans le cache IndexedDB immédiatement, puis tenter le serveur
+- Réplique côté Supabase dans la table `sync_queue` quand en ligne, pour audit cross-device
+- Stratégie de retry exponentiel sur échec serveur (3 tentatives)
 
-`<DocumentPreviewSheet>` (Sheet droite) :
-- **PDF** : `<iframe src={signedUrl}>` (lecteur navigateur natif — pas de dépendance PDF.js)
-- **Image** : `<img>` direct
-- **Word/Excel** : message + lien téléchargement (extraction texte hors scope v1)
-- **Autres** : métadonnées + bouton download
-- Pour les fichiers `is_sensitive` + `local_only` : nécessite vault unlocked, lecture depuis IndexedDB → blob URL temporaire
+### 3. Hooks de données offline-first
+Créer un hook générique `useOfflineData<T>(store, fetcher)` qui :
+1. Affiche immédiatement le cache local
+2. Lance fetcher Supabase si en ligne
+3. Met à jour cache + UI
+4. Re-déclenche au retour `online`
 
-## 5. Upload manuel
+Refactorer les pages suivantes pour l'utiliser :
+- `src/routes/_authenticated/inbox.tsx`
+- `src/routes/_authenticated/contacts.tsx`
+- `src/routes/_authenticated/calendar.tsx`
+- `src/routes/_authenticated/tasks.tsx` (déjà partiel)
+- `src/routes/_authenticated/meetings.tsx`
+- `src/components/settings/plan-operation-section.tsx`
+- `src/routes/_authenticated/dashboard.tsx` (compteurs)
 
-`<UploadDocumentDialog>` :
-- Drag & drop + input file (multi)
-- Champs : tags (chips), description, lien optionnel vers tâche ou réunion (Select)
-- Vérification taille max (paramètres)
-- Détection sensible automatique → si oui : chiffrement + IndexedDB (pas de Supabase Storage), prompt PIN si vault verrouillé
-- Sinon : upload Supabase Storage + insertion `documents`
+### 4. Wrapper de mutation universel
+`mutate(entity, action, payload)` qui :
+- Met à jour cache local immédiatement (optimistic UI)
+- Si online → Supabase direct
+- Si offline → `enqueue()` et marque l'item `_pending: true`
+- Toast non bloquant en cas d'échec
 
-## 6. Pièces jointes emails
+### 5. PWA installable + service worker
+- Activer un service worker qui pré-cache l'app shell (HTML/JS/CSS) → l'app s'ouvre offline
+- Manifeste déjà présent dans `public/manifest.webmanifest` — vérifier et compléter
+- Bouton "Installer l'app" dans la barre quand `beforeinstallprompt` est dispo
+- Le SW doit **exclure** `/api/*`, `/login`, OAuth callback du cache (NetworkFirst sur ces routes)
 
-- Ajout dans la sync IMAP (`supabase/functions/sync-imap`) : extraction des PJ → upload bucket + insert `documents` avec `source_type='email'`, `source_id=email.id`
-- Mise à jour de `emails.has_attachment` (déjà existant)
-- Dans la fiche email (`inbox.tsx`) : liste des PJ liées (query `documents where source_id = email.id`), miniature, bouton "Enregistrer dans Documents" (édite tags), bouton "Lier à une tâche/réunion" (Select + update `source_type`/`source_id` ou doublon)
+### 6. UI de statut sync
+- Indicateur global déjà partiellement présent (`useSyncStatus`) → l'afficher dans `app-header.tsx`
+- Badge nombre d'actions en attente + bouton "Synchroniser maintenant"
+- Toast "X actions synchronisées" au retour en ligne
+- Page Paramètres → section "Synchronisation" listant les opérations en attente et permettant de retry/supprimer une opération bloquée
 
-Note : la sync IMAP existante est inspectée et étendue pour pousser les PJ. Si le volume est trop gros, fallback : marquer `has_attachment` et lazy-fetch à la demande.
+### 7. Stratégie de conflits (simple)
+- Last-write-wins côté serveur (timestamp `updated_at`)
+- Si serveur a une version plus récente au flush → on garde la version serveur et on log l'action perdue dans un nouveau toast "Action écrasée par version serveur (cliquer pour voir)"
+- Pas de merge automatique
 
-## 7. Paramètres → Documents
-
-Nouvelle section dans `settings.tsx` :
-- Rétention par source (sliders / Select jours)
-- Taille max fichier
-- Jauge quota (somme `file_size` vs un cap visuel arbitraire 1GB)
-- Bouton "Supprimer les doublons" (groupBy `checksum` + garder le plus récent)
-- Bouton "Export ZIP RGPD" (génère côté client avec `jszip`, téléchargements parallèles via URLs signées)
-
-## 8. Sidebar
-
-Ajout `{ title: "Documents", url: "/documents", icon: FolderOpen }` après Réunions.
+### 8. Gestion du token expiré (corollaire de l'option C)
+- Quand une requête Supabase échoue avec `refresh_token_not_found` ou 401 → bannière "Session expirée — reconnectez-vous pour synchroniser" avec bouton de re-login
+- Les mutations restent dans la queue jusqu'à reconnexion (pas perdues)
 
 ## Détails techniques
 
-- Toutes les queries Supabase passent par le client browser (RLS).
-- Doublons : détection par checksum SHA-256 calculé à l'upload.
-- URLs signées : `supabase.storage.from('documents').createSignedUrl(path, 3600)` pour aperçu et téléchargement.
-- Sensibles : réutilisation du `SecureVaultProvider` existant, fonctions `encryptBlob` / `decryptBlob` à ajouter dans `secure-vault.ts`.
-- Pas de nouveau serverFn nécessaire — tout passe par le client Supabase + RLS.
+**IndexedDB** : un seul DB `myhubpro-cache` v2 avec stores par entité, index `received_at`/`updated_at`/`user_id`. Limite 500 items par store (LRU).
 
-## Hors scope v1 (à proposer en itération suivante)
-- Extraction texte Word/Excel pour aperçu
-- OCR sur PDF scannés
-- Recherche plein-texte sur le contenu (pas juste filename/description)
-- Versionnage de documents
+**Service worker** : `vite-plugin-pwa` avec `registerType: "autoUpdate"`, `navigateFallback: '/index.html'`, `runtimeCaching` NetworkFirst pour `/api/*` et `/auth/*`, CacheFirst pour assets statiques. **Désactiver en dev** pour éviter les soucis dans l'iframe preview Lovable. L'utilisateur sera prévenu : PWA fonctionnelle uniquement sur le site publié, pas dans l'éditeur.
 
-OK pour partir là-dessus ?
+**Auth offline** : la session Supabase est déjà persistée en `localStorage`. Tant que le JWT n'est pas expiré (~1h), l'app reconnaît l'utilisateur même offline. Au-delà → bannière de reconnexion mais cache toujours lisible.
+
+**Migration DB** : aucune. La table `sync_queue` existe déjà.
+
+## Estimation
+~600-900 lignes de code à écrire/modifier, réparties sur ~15 fichiers. Je le ferai en une seule passe.
+
+## Risques
+- L'écriture optimiste peut afficher des données "fantômes" si le serveur refuse (ex : violation RLS). Mitigation : rollback du cache + toast d'erreur.
+- Le service worker peut cacher du code obsolète après un déploiement. Mitigation : `autoUpdate` + reload prompt.
+- Les pièces jointes lourdes (mails avec PDF) ne seront pas cachées (poids IndexedDB). Seul le texte/HTML l'est.
