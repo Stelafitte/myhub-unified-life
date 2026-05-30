@@ -32,7 +32,7 @@ const SECTIONS: { title: string; items: Item[] }[] = [
       { title: "Calendrier", desc: "Vue mois/semaine/jour, multi-agendas, drag&drop", status: "todo", priority: "haute" },
       { title: "Contacts", desc: "Fusion multi-sources, dédup, groupes", status: "todo", priority: "moyenne" },
       { title: "Tâches", desc: "Listes, priorités, due dates, sync Todoist/MS To Do", status: "todo", priority: "moyenne" },
-      { title: "Retroplanning Gantt", desc: "Vue Gantt globale projets/tâches", status: "todo", priority: "basse" },
+      { title: "Plan d'opération Gantt", desc: "Vue Gantt globale projets/tâches", status: "todo", priority: "basse" },
     ],
   },
   {

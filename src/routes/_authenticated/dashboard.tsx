@@ -73,7 +73,7 @@ type QuickAction = { label: string; to: string };
 const DEFAULT_QUICK: QuickAction[] = [
   { label: "Nouvelle tâche", to: "/tasks" },
   { label: "Inbox CHU", to: "/inbox" },
-  { label: "Voir Gantt", to: "/retroplanning" },
+  { label: "Voir Gantt", to: "/plan-operation" },
   { label: "Contacts", to: "/contacts" },
 ];
 function loadQuick(): QuickAction[] {

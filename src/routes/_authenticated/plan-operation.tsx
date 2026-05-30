@@ -78,7 +78,7 @@ type Bar = {
   raw: Task | CalendarEvent;
 };
 
-function RetroplanningPage() {
+function PlanOperationPage() {
   const { user } = useAuth();
   const timelineRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -287,7 +287,7 @@ function RetroplanningPage() {
           <MapIcon className="h-6 w-6" />
         </div>
         <div className="flex-1 min-w-[200px]">
-          <h1 className="text-2xl font-semibold tracking-tight">Retroplanning</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Plan d'opération</h1>
           <p className="text-sm text-muted-foreground">{bars.length} éléments · {grouped.length} sections</p>
         </div>
 
