@@ -495,6 +495,32 @@ function InboxPage() {
     else toast.success(idsToDelete.length > 1 ? `${idsToDelete.length} emails supprimés` : "Email supprimé");
   };
 
+  const markSpam = async (e: Email, asSpam: boolean) => {
+    const update = asSpam
+      ? { spam_label: "spam", spam_score: 100, spam_reason: "Marqué manuellement" }
+      : { spam_label: "legit", spam_score: 0, spam_reason: "Non indésirable (utilisateur)" };
+    setEmails((prev) => prev.map((x) => (x.id === e.id ? { ...x, ...update } : x)));
+    // Also persist in security_settings whitelist/blacklist
+    const from = (e.from_address ?? "").toLowerCase();
+    if (from) {
+      const { data: sec } = await supabase
+        .from("security_settings")
+        .select("whitelist,blacklist")
+        .eq("user_id", e.user_id)
+        .maybeSingle();
+      const wl = new Set((sec?.whitelist ?? []) as string[]);
+      const bl = new Set((sec?.blacklist ?? []) as string[]);
+      if (asSpam) { bl.add(from); wl.delete(from); }
+      else { wl.add(from); bl.delete(from); }
+      await supabase
+        .from("security_settings")
+        .upsert({ user_id: e.user_id, whitelist: [...wl], blacklist: [...bl] }, { onConflict: "user_id" });
+    }
+    const { error } = await supabase.from("emails").update(update).eq("id", e.id);
+    if (error) toast.error(error.message);
+    else toast.success(asSpam ? "Marqué comme indésirable" : "Marqué comme légitime");
+  };
+
 
   const postponeAsTask = async (e: Email) => {
     const labels = Array.from(new Set([...(e.labels ?? []), "task-todo"]));
