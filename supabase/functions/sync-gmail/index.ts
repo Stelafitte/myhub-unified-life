@@ -2,6 +2,7 @@
 // Uses the Lovable connector gateway to fetch Gmail messages and store them in `emails`.
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { extractMeetingLink } from "../_shared/meeting-link.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
