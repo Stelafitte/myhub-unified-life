@@ -180,6 +180,48 @@ export function PreferencesSection() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Planning</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Row label="Heure de début">
+            <Select
+              value={String(prefs.calendarStartHour)}
+              onValueChange={(v) => {
+                const start = Number(v);
+                const end = prefs.calendarEndHour <= start ? Math.min(24, start + 1) : prefs.calendarEndHour;
+                update({ calendarStartHour: start, calendarEndHour: end });
+              }}
+            >
+              <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 24 }, (_, h) => (
+                  <SelectItem key={h} value={String(h)}>{String(h).padStart(2, "0")}:00</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Row>
+          <Row label="Heure de fin">
+            <Select
+              value={String(prefs.calendarEndHour)}
+              onValueChange={(v) => update({ calendarEndHour: Number(v) })}
+            >
+              <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 24 }, (_, i) => i + 1)
+                  .filter((h) => h > prefs.calendarStartHour)
+                  .map((h) => (
+                    <SelectItem key={h} value={String(h)}>
+                      {h === 24 ? "Minuit (24:00)" : `${String(h).padStart(2, "0")}:00`}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </Row>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Notifications</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
