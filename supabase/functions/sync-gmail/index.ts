@@ -107,6 +107,7 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
           subject,
           body_text: text || null,
           body_html: html || null,
+          meeting_link: extractMeetingLink(text, html),
           has_attachment: hasAttach,
           received_at: receivedAt,
           is_read: isRead,
