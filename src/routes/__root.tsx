@@ -14,6 +14,7 @@ import { ThemeProvider } from "@/lib/theme-provider";
 import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "@/components/ui/sonner";
 import { registerServiceWorker } from "@/lib/register-sw";
+import { installFetchSessionGuard } from "@/lib/session-guard";
 
 function NotFoundComponent() {
   return (
@@ -107,7 +108,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
-  useEffect(() => { registerServiceWorker(); }, []);
+  useEffect(() => {
+    installFetchSessionGuard();
+    registerServiceWorker();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
