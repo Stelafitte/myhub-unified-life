@@ -226,11 +226,31 @@ function InboxPage() {
     };
   }, [user, reloadKey]);
 
+  // Fetch OneDrive folders (best effort) to enrich smart groups
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await odFoldersFn();
+        if (cancelled || !res?.folders) return;
+        const slim = res.folders.map((f) => ({ name: f.name, path: f.path }));
+        try { localStorage.setItem("inbox:odFolders", JSON.stringify(slim)); } catch { /* ignore */ }
+        setOdGroups(smartGroupsFromFolders(slim));
+      } catch {
+        /* OneDrive not connected or transient error — ignore silently */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, odFoldersFn]);
+
   const accountById = useMemo(() => {
     const m = new Map<string, Account>();
     accounts.forEach((a) => m.set(a.id, a));
     return m;
   }, [accounts]);
+
+  const allSmartGroups = useMemo(() => [...SMART_GROUPS, ...odGroups], [odGroups]);
 
   const counts = useMemo(() => {
     const unread = emails.filter((e) => !e.is_read).length;
@@ -238,9 +258,9 @@ function InboxPage() {
     const starred = emails.filter((e) => e.is_starred).length;
     const byAccount = new Map<string, number>();
     emails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
-    const bySmart = countByGroup(emails);
+    const bySmart = countByGroup(emails, odGroups);
     return { all: emails.length, unread, attachments, starred, byAccount, bySmart };
-  }, [emails]);
+  }, [emails, odGroups]);
 
   const filtered = useMemo(() => {
     let list = emails;
@@ -252,7 +272,7 @@ function InboxPage() {
       list = list.filter((e) => e.account_id === id);
     } else if (filter.startsWith("smart:")) {
       const key = filter.slice(6);
-      list = list.filter((e) => classifyEmail(e) === key);
+      list = list.filter((e) => classifyEmail(e, odGroups) === key);
     }
     if (query.trim()) {
       const q = query.toLowerCase();
