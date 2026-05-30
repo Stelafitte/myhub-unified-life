@@ -116,6 +116,56 @@ function buildBaseGroups(): SmartGroup[] {
 
 export const SMART_GROUPS: SmartGroup[] = buildBaseGroups();
 
+/** Stop-words to skip when turning a OneDrive folder name into a theme. */
+const FOLDER_STOP = new Set([
+  "documents", "document", "perso", "personnel", "personal", "divers",
+  "archive", "archives", "backup", "tmp", "temp", "old", "images", "photos",
+  "vidéos", "videos", "musique", "music", "downloads", "téléchargements",
+  "desktop", "bureau", "shared", "partagé", "partages", "attachments",
+  "pièces jointes", "pieces jointes",
+]);
+
+/** Tokenize a folder name (path) into useful search terms. */
+function folderTokens(name: string): string[] {
+  return name
+    .toLowerCase()
+    .split(/[\\/\s_\-–—.,()[\]]+/)
+    .filter((t) => t.length >= 3 && !FOLDER_STOP.has(t));
+}
+
+/**
+ * Build extra smart groups from OneDrive folder names.
+ * A folder becomes a theme; emails matching any of its tokens go into it.
+ * Skips folders that overlap with built-in org groups (case-insensitive label).
+ */
+export function smartGroupsFromFolders(
+  folders: { name: string; path: string }[],
+): SmartGroup[] {
+  const reservedLabels = new Set(SMART_GROUPS.map((g) => g.label.toLowerCase()));
+  const seen = new Set<string>();
+  const out: SmartGroup[] = [];
+
+  for (const f of folders) {
+    const tokens = folderTokens(f.name);
+    if (tokens.length === 0) continue;
+    const key = `onedrive:${tokens.join("-")}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (reservedLabels.has(f.name.toLowerCase())) continue;
+
+    const patterns = tokens.map(
+      (t) => new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i"),
+    );
+    out.push({
+      key,
+      label: f.name,
+      icon: "📁",
+      match: (_e, { hay }) => patterns.some((p) => p.test(hay)),
+    });
+  }
+  return out;
+}
+
 function ctxFor(e: CachedEmail) {
   const from = (e.from_address ?? "").toLowerCase();
   const domain = from.includes("@") ? from.split("@")[1] : "";
@@ -133,27 +183,29 @@ function ctxFor(e: CachedEmail) {
 
 /**
  * Returns the first matching group key for an email, or null.
- * Order matters: org groups win over provider/commercial.
+ * `extraGroups` (e.g. from OneDrive) are evaluated AFTER built-ins
+ * so explicit org rules keep priority.
  */
-export function classifyEmail(e: CachedEmail): string | null {
+export function classifyEmail(
+  e: CachedEmail,
+  extraGroups: SmartGroup[] = [],
+): string | null {
   const ctx = ctxFor(e);
-  for (const g of SMART_GROUPS) {
-    if (g.match(e, ctx)) return g.key;
-  }
+  for (const g of SMART_GROUPS) if (g.match(e, ctx)) return g.key;
+  for (const g of extraGroups) if (g.match(e, ctx)) return g.key;
   return null;
 }
 
-/** Count emails per smart group. */
-export function countByGroup(emails: CachedEmail[]): Map<string, number> {
+/** Count emails per smart group (built-ins + optional extras). */
+export function countByGroup(
+  emails: CachedEmail[],
+  extraGroups: SmartGroup[] = [],
+): Map<string, number> {
   const m = new Map<string, number>();
   for (const e of emails) {
-    const k = classifyEmail(e);
+    const k = classifyEmail(e, extraGroups);
     if (k) m.set(k, (m.get(k) ?? 0) + 1);
   }
   return m;
 }
 
-/** Filter emails belonging to a given group key. */
-export function filterByGroup(emails: CachedEmail[], key: string): CachedEmail[] {
-  return emails.filter((e) => classifyEmail(e) === key);
-}
