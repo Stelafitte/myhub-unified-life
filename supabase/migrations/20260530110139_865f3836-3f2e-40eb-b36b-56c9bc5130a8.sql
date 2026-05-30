@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.track_deleted_email() FROM PUBLIC, anon, authenticated;

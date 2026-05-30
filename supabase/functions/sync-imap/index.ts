@@ -489,7 +489,15 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
 
     const toFetch = !account.last_sync_at ? uids.slice(-200) : uids;
 
+    // Tombstones: message_ids the user already deleted — never resurrect them.
+    const { data: tombstones } = await admin
+      .from("deleted_emails")
+      .select("message_id")
+      .eq("account_id", account.id);
+    const deletedSet = new Set<string>((tombstones ?? []).map((r: any) => r.message_id));
+
     let count = 0;
+
     // Cap each message at 10MB to capture attachments while keeping memory bounded.
     for (let i = 0; i < toFetch.length; i += 5) {
       const batch = toFetch.slice(i, i + 5);
@@ -511,7 +519,9 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
           const to = parseAddress(headers["to"] || "");
           const subject = decodeMimeWord(headers["subject"] || "") || null;
           const messageId = headers["message-id"] || `${account.id}-${msg.uid}`;
+          if (deletedSet.has(messageId)) { continue; }
           const receivedAt = headers["date"] ? new Date(headers["date"]).toISOString() : new Date().toISOString();
+
 
           const bodyText = parsed.textPlain ? parsed.textPlain.slice(0, 100000) : null;
           const sens = detectSensitive({
