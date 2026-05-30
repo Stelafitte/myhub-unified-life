@@ -436,11 +436,24 @@ function AgendaWidget({ userId }: { userId?: string }) {
 
   useEffect(() => {
     if (!userId) return;
-    const start = new Date(); start.setHours(0, 0, 0, 0);
-    const end = new Date(start); end.setDate(end.getDate() + 2);
-    supabase.from("calendar_events").select("id, title, start_at, end_at, location, description")
-      .gte("start_at", start.toISOString()).lt("start_at", end.toISOString()).order("start_at")
-      .then(({ data }) => setEvents(data ?? []));
+    (async () => {
+      // 1. cache (filter to today/tomorrow window)
+      const cached = await cacheGetAll<Evt>("calendar_events");
+      const start = new Date(); start.setHours(0, 0, 0, 0);
+      const end = new Date(start); end.setDate(end.getDate() + 2);
+      if (cached.length) {
+        setEvents(cached.filter((e) => {
+          const t = new Date(e.start_at).getTime();
+          return t >= start.getTime() && t < end.getTime();
+        }));
+      }
+      // 2. network
+      if (!navigator.onLine) return;
+      const { data } = await supabase.from("calendar_events")
+        .select("id, title, start_at, end_at, location, description")
+        .gte("start_at", start.toISOString()).lt("start_at", end.toISOString()).order("start_at");
+      if (data) setEvents(data);
+    })();
   }, [userId]);
 
   const now = new Date();
