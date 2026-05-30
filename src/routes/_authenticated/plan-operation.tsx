@@ -39,7 +39,7 @@ import {
 import { TaskPanel } from "@/components/tasks/task-panel";
 import type { Database } from "@/integrations/supabase/types";
 
-export const Route = createFileRoute("/_authenticated/retroplanning")({
+export const Route = createFileRoute("/_authenticated/plan-operation")({
   component: RetroplanningPage,
 });
 
