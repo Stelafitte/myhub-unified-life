@@ -1282,7 +1282,7 @@ function Reader({
         )}
       </div>
 
-      {!email.is_sensitive && (
+      {!isSensitive && (
         <AiSuggestionsPanel
           emailId={email.id}
           fromAddress={email.from_address}
