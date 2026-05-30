@@ -72,6 +72,9 @@ IMPORTANT: les heures mentionnées dans l'email sont en heure locale de l'utilis
 Pour "start" et "end", retourne un ISO8601 AVEC l'offset local exact (ex: 2026-06-02T19:00:00${offsetStr}).
 N'utilise JAMAIS le suffixe "Z" ni un offset différent de ${offsetStr}, sauf si l'email mentionne explicitement un autre fuseau.
 Détecte une date/heure de réunion explicite pour "event".
+Si l'email contient un lien Zoom/Teams/Meet/Webex, inclus-le dans "online_link".
+"archive_suggested" = true si newsletter, notif auto, publicité.
+Les réponses doivent être en français, signées avec "Cordialement".`;
 
     const user = `Sujet: ${e.subject ?? ""}
 De: ${e.from_name ?? ""} <${e.from_address ?? ""}>
