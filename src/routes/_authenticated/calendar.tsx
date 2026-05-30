@@ -125,6 +125,7 @@ const fmtMonth = (d: Date) =>
 
 function AgendaPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [view, setView] = useState<View>("week");
   const [cursor, setCursor] = useState<Date>(startOfDay(new Date()));
   const [accounts, setAccounts] = useState<Account[]>([]);
