@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/microsoft_onedrive/v1.0";
+const GATEWAY_URL = "https://connector-gateway.lovable.dev/microsoft_onedrive";
 
 export type OneDriveFolder = {
   id: string;
@@ -43,13 +43,12 @@ export const listOneDriveFolders = createServerFn({ method: "GET" })
     async function listChildren(itemId: string | "root"): Promise<GraphItem[]> {
       const url =
         itemId === "root"
-          ? `${GATEWAY_URL}/me/drive/root/children?$top=200`
-          : `${GATEWAY_URL}/me/drive/items/${itemId}/children?$top=200`;
+          ? `${GATEWAY_URL}/v1.0/me/drive/root/children?$top=200`
+          : `${GATEWAY_URL}/v1.0/me/drive/items/${itemId}/children?$top=200`;
       const r = await fetch(url, { headers });
       if (!r.ok) {
-        if (itemId === "root") {
-          throw new Error(`OneDrive root ${r.status}: ${await r.text()}`);
-        }
+        // Don't crash the page — just log and return empty so the inbox keeps working.
+        console.warn(`OneDrive ${itemId} ${r.status}: ${await r.text().catch(() => "")}`);
         return [];
       }
       const j = (await r.json()) as { value?: GraphItem[] };
