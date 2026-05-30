@@ -7,6 +7,8 @@ import { PreferencesSection } from "@/components/settings/preferences-section";
 import { SecuritySection } from "@/components/settings/security-section";
 import { DocumentsSection } from "@/components/settings/documents-section";
 import { AccountSection } from "@/components/settings/account-section";
+import { PlanOperationSection } from "@/components/settings/plan-operation-section";
+
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
@@ -31,9 +33,11 @@ function SettingsPage() {
           <TabsTrigger value="accounts">Comptes</TabsTrigger>
           <TabsTrigger value="sync">Synchronisation</TabsTrigger>
           <TabsTrigger value="preferences">Préférences</TabsTrigger>
+          <TabsTrigger value="plan">📋 Plan d'opération</TabsTrigger>
           <TabsTrigger value="documents">📁 Documents</TabsTrigger>
           <TabsTrigger value="security">🔒 Sécurité & Conformité</TabsTrigger>
         </TabsList>
+
         <TabsContent value="account">
           <AccountSection />
         </TabsContent>
@@ -46,6 +50,10 @@ function SettingsPage() {
         <TabsContent value="preferences">
           <PreferencesSection />
         </TabsContent>
+        <TabsContent value="plan">
+          <PlanOperationSection />
+        </TabsContent>
+
         <TabsContent value="documents">
           <DocumentsSection />
         </TabsContent>
