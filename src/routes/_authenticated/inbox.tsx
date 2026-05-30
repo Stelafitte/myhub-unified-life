@@ -90,6 +90,42 @@ function InboxPage() {
   };
   const clearChecked = () => setChecked(new Set());
 
+  // Resizable column widths (persisted)
+  const [leftW, setLeftW] = useState<number>(() => {
+    const v = Number(localStorage.getItem("inbox:leftW")); return v >= 200 && v <= 500 ? v : 280;
+  });
+  const [rightW, setRightW] = useState<number>(() => {
+    const v = Number(localStorage.getItem("inbox:rightW")); return v >= 320 && v <= 720 ? v : 420;
+  });
+  const startDrag = (which: "left" | "right") => (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = which === "left" ? leftW : rightW;
+    const onMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX;
+      if (which === "left") {
+        const w = Math.min(500, Math.max(200, startW + dx));
+        setLeftW(w);
+      } else {
+        const w = Math.min(720, Math.max(320, startW - dx));
+        setRightW(w);
+      }
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      localStorage.setItem("inbox:leftW", String(which === "left" ? (document.documentElement.dataset._lw ?? leftW) : leftW));
+      localStorage.setItem("inbox:rightW", String(which === "right" ? (document.documentElement.dataset._rw ?? rightW) : rightW));
+    };
+    document.body.style.cursor = "col-resize";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+  useEffect(() => { localStorage.setItem("inbox:leftW", String(leftW)); }, [leftW]);
+  useEffect(() => { localStorage.setItem("inbox:rightW", String(rightW)); }, [rightW]);
+
+
   // Online/offline awareness
   useEffect(() => {
     const on = () => setOffline(false);
@@ -272,7 +308,7 @@ function InboxPage() {
   return (
     <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT — filters */}
-      <aside className="hidden w-[280px] shrink-0 flex-col border-r bg-card md:flex">
+      <aside style={{ width: leftW }} className="hidden shrink-0 flex-col border-r bg-card md:flex">
         <div className="border-b p-4">
           <div className="mb-3 flex items-center gap-2">
             <InboxIcon className="h-5 w-5 text-primary" />
@@ -336,6 +372,12 @@ function InboxPage() {
           </div>
         )}
       </aside>
+      {/* left resizer */}
+      <div
+        onMouseDown={startDrag("left")}
+        className="hidden w-1 shrink-0 cursor-col-resize bg-border/30 hover:bg-primary/40 md:block"
+        title="Glisser pour redimensionner"
+      />
 
       {/* CENTER — list */}
       <section className="flex min-w-0 flex-1 flex-col border-r">
@@ -544,10 +586,18 @@ function InboxPage() {
         </ul>
       </section>
 
+      {/* right resizer */}
+      <div
+        onMouseDown={startDrag("right")}
+        className="hidden w-1 shrink-0 cursor-col-resize bg-border/30 hover:bg-primary/40 lg:block"
+        title="Glisser pour redimensionner"
+      />
+
       {/* RIGHT — reader (full overlay on mobile when selected) */}
       <aside
+        style={{ width: typeof window !== "undefined" && window.innerWidth >= 1024 ? rightW : undefined }}
         className={cn(
-          "shrink-0 flex-col bg-card lg:flex lg:w-[420px] lg:relative lg:inset-auto lg:z-auto",
+          "shrink-0 flex-col bg-card lg:flex lg:relative lg:inset-auto lg:z-auto",
           selected ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
         )}
       >

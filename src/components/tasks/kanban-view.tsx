@@ -40,7 +40,7 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
   }, [tasks]);
 
   return (
-    <div className="grid h-[calc(100vh-12rem)] grid-cols-1 gap-3 overflow-x-auto md:grid-cols-2 xl:grid-cols-4">
+    <div className="flex h-[calc(100vh-12rem)] gap-3 overflow-x-auto pb-2">
       {STATUS_COLUMNS.map((col) => {
         const items = grouped.get(col.id) ?? [];
         const isOver = overCol === col.id;
@@ -57,7 +57,7 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
               if (t && t.status !== col.id) onMove(t, col.id);
             }}
             className={cn(
-              "flex min-w-[260px] flex-col rounded-xl border bg-muted/30 transition-colors",
+              "flex w-[320px] shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors",
               isOver && "border-primary bg-primary/5",
             )}
           >
