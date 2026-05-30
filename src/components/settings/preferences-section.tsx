@@ -25,6 +25,8 @@ type Prefs = {
   notifTasks: boolean;
   notifCalendar: boolean;
   offlineCache: boolean;
+  calendarStartHour: number;
+  calendarEndHour: number;
 };
 
 const DEFAULT_PREFS: Prefs = {
@@ -35,6 +37,8 @@ const DEFAULT_PREFS: Prefs = {
   notifTasks: true,
   notifCalendar: true,
   offlineCache: true,
+  calendarStartHour: 6,
+  calendarEndHour: 24,
 };
 
 const TIMEZONES = [
@@ -68,6 +72,7 @@ export function PreferencesSection() {
     const next = { ...prefs, ...patch };
     setPrefs(next);
     localStorage.setItem("myhub-prefs", JSON.stringify(next));
+    window.dispatchEvent(new Event("myhub-prefs-changed"));
   };
 
   const exportAll = async () => {
@@ -167,6 +172,48 @@ export function PreferencesSection() {
                 <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
                 <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
                 <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+              </SelectContent>
+            </Select>
+          </Row>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Planning</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Row label="Heure de début">
+            <Select
+              value={String(prefs.calendarStartHour)}
+              onValueChange={(v) => {
+                const start = Number(v);
+                const end = prefs.calendarEndHour <= start ? Math.min(24, start + 1) : prefs.calendarEndHour;
+                update({ calendarStartHour: start, calendarEndHour: end });
+              }}
+            >
+              <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 24 }, (_, h) => (
+                  <SelectItem key={h} value={String(h)}>{String(h).padStart(2, "0")}:00</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Row>
+          <Row label="Heure de fin">
+            <Select
+              value={String(prefs.calendarEndHour)}
+              onValueChange={(v) => update({ calendarEndHour: Number(v) })}
+            >
+              <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 24 }, (_, i) => i + 1)
+                  .filter((h) => h > prefs.calendarStartHour)
+                  .map((h) => (
+                    <SelectItem key={h} value={String(h)}>
+                      {h === 24 ? "Minuit (24:00)" : `${String(h).padStart(2, "0")}:00`}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </Row>
