@@ -233,18 +233,51 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
     };
 
     try {
+      let savedTask: Task | null = null;
       if (navigator.onLine) {
         if (editing && task) {
           const { data, error } = await supabase.from("tasks").update(payload).eq("id", task.id).select().single();
           if (error) throw error;
-          onSaved(data as Task);
+          savedTask = data as Task;
           toast.success("Tâche mise à jour");
         } else {
           const { data, error } = await supabase.from("tasks").insert(payload).select().single();
           if (error) throw error;
-          onSaved(data as Task);
+          savedTask = data as Task;
           toast.success("Tâche créée");
         }
+
+        // Création / mise à jour de l'événement agenda lié
+        const existingEventId = (task as Task & { calendar_event_id?: string | null } | null)?.calendar_event_id ?? null;
+        if (addToCalendar && savedTask) {
+          const startDateStr = start || todayStr();
+          const endDateStr = due || startDateStr;
+          const startIso = new Date(`${startDateStr}T09:00:00`).toISOString();
+          const endIso = new Date(`${endDateStr}T10:00:00`).toISOString();
+          const eventPayload = {
+            user_id: user.id,
+            title: payload.title,
+            description: payload.description,
+            start_at: startIso,
+            end_at: endIso,
+            is_all_day: false,
+          };
+          if (existingEventId) {
+            await supabase.from("calendar_events").update(eventPayload).eq("id", existingEventId);
+          } else {
+            const { data: ev } = await supabase.from("calendar_events").insert(eventPayload).select("id").single();
+            if (ev?.id) {
+              await supabase.from("tasks").update({ calendar_event_id: ev.id }).eq("id", savedTask.id);
+              savedTask = { ...savedTask, calendar_event_id: ev.id } as Task;
+            }
+          }
+        } else if (!addToCalendar && existingEventId) {
+          await supabase.from("calendar_events").delete().eq("id", existingEventId);
+          await supabase.from("tasks").update({ calendar_event_id: null }).eq("id", savedTask.id);
+          savedTask = { ...savedTask, calendar_event_id: null } as Task;
+        }
+
+        onSaved(savedTask);
       } else {
         // Offline: queue and create optimistic record
         const optimistic: Task = {
