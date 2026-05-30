@@ -163,11 +163,15 @@ function DashboardPage() {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={visibleOrder} strategy={rectSortingStrategy}>
           <div className={cn(
-            "grid gap-4 items-start",
-            layout.columns === 2 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"
+            "gap-4 [column-fill:_balance]",
+            layout.columns === 2
+              ? "columns-1 md:columns-2"
+              : "columns-1 md:columns-2 xl:columns-3"
           )}>
             {visibleOrder.map((w) => (
-              <SortableWidget key={w} id={w}>{widgets[w]}</SortableWidget>
+              <div key={w} className="mb-4 break-inside-avoid">
+                <SortableWidget id={w}>{widgets[w]}</SortableWidget>
+              </div>
             ))}
           </div>
         </SortableContext>
