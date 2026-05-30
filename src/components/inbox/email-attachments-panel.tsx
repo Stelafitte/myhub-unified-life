@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Paperclip, Folder, Download, Loader2, FolderPlus } from "lucide-react";
+import { Paperclip, Folder, Download, Loader2, FolderPlus, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { type DocumentRow, getSignedUrl } from "@/lib/documents";
 import { iconFor, colorFor, categorize, formatBytes } from "@/lib/file-icons";
 import { SaveToFolderDialog } from "@/components/documents/save-to-folder-dialog";
+import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
 
 type Props = {
   emailId: string;
@@ -18,6 +19,7 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
   const [docs, setDocs] = useState<DocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [pick, setPick] = useState<DocumentRow | null>(null);
+  const [preview, setPreview] = useState<DocumentRow | null>(null);
 
   async function load() {
     setLoading(true);
@@ -92,7 +94,12 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
                   <FolderPlus className="h-3.5 w-3.5" />
                 </Button>
                 {d.storage_path && (
-                  <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => dl(d)} title="Télécharger">
+                  <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => setPreview(d)} title="Aperçu dans la liseuse">
+                    <Eye className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {d.storage_path && (
+                  <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => dl(d)} title="Ouvrir avec l'application native / Télécharger">
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -110,6 +117,11 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
           onSaved={() => { setPick(null); void load(); }}
         />
       )}
+      <AttachmentViewerDialog
+        doc={preview}
+        open={!!preview}
+        onOpenChange={(v) => !v && setPreview(null)}
+      />
     </>
   );
 }
