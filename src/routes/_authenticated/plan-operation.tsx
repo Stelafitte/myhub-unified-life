@@ -38,13 +38,9 @@ import {
   getSection,
 } from "@/lib/tasks-model";
 import { TaskPanel } from "@/components/tasks/task-panel";
-import type { Database } from "@/integrations/supabase/types";
-
 export const Route = createFileRoute("/_authenticated/plan-operation")({
   component: PlanOperationPage,
 });
-
-type CalendarEvent = Database["public"]["Tables"]["calendar_events"]["Row"];
 
 type Zoom = "week" | "month" | "quarter" | "year";
 
@@ -65,18 +61,16 @@ function sectionOf(label: string): string {
 
 type Bar = {
   id: string;
-  type: "task" | "event";
+  type: "task";
   title: string;
   start: Date;
   end: Date;
   section: string;
   priority?: TaskPriority;
   status?: TaskStatus;
-  source?: TaskSource | "calendar";
+  source?: TaskSource;
   tags?: string[];
-  isMilestone?: boolean;
-  color?: string | null;
-  raw: Task | CalendarEvent;
+  raw: Task;
 };
 
 function PlanOperationPage() {
@@ -85,7 +79,6 @@ function PlanOperationPage() {
   const exportRef = useRef<HTMLDivElement>(null);
 
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [zoom, setZoom] = useState<Zoom>("month");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -101,28 +94,15 @@ function PlanOperationPage() {
   const dayPx = ZOOM_PX[zoom];
 
   const load = async () => {
-    // Cache first
-    const [cTasks, cEvents] = await Promise.all([
-      cacheGetAll<Task>("tasks"),
-      cacheGetAll<CalendarEvent>("calendar_events"),
-    ]);
+    const cTasks = await cacheGetAll<Task>("tasks");
     if (cTasks.length) setTasks(cTasks);
-    if (cEvents.length) setEvents(cEvents);
     setLoading(true);
     if (!navigator.onLine) { setLoading(false); return; }
-    const [t, e] = await Promise.all([
-      supabase.from("tasks").select("*").neq("status", "archived"),
-      supabase.from("calendar_events").select("*"),
-    ]);
+    const t = await supabase.from("tasks").select("*").neq("status", "archived");
     if (t.error && !cTasks.length) toast.error(t.error.message);
-    if (e.error && !cEvents.length) toast.error(e.error.message);
     if (t.data) {
       setTasks(t.data as Task[]);
       cacheReplaceAll("tasks", t.data as Task[]).catch(() => {});
-    }
-    if (e.data) {
-      setEvents(e.data as CalendarEvent[]);
-      cacheReplaceAll("calendar_events", e.data as CalendarEvent[]).catch(() => {});
     }
     setLoading(false);
   };
@@ -134,7 +114,7 @@ function PlanOperationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // Build bars
+  // Build bars (tasks only — événements/RDV gérés dans l'Agenda)
   const allBars = useMemo<Bar[]>(() => {
     const out: Bar[] = [];
     tasks.forEach((t) => {
@@ -155,25 +135,8 @@ function PlanOperationPage() {
         raw: t,
       });
     });
-    events.forEach((ev) => {
-      const s = new Date(ev.start_at);
-      const e = new Date(ev.end_at);
-      const isMilestone = (ev.description ?? "").toLowerCase().includes("jalon") || Math.abs(e.getTime() - s.getTime()) < 86400000;
-      out.push({
-        id: ev.id,
-        type: "event",
-        title: ev.title,
-        start: s,
-        end: e,
-        section: sectionOf(ev.title + " " + (ev.description ?? "")),
-        source: "calendar",
-        isMilestone,
-        color: ev.color,
-        raw: ev,
-      });
-    });
     return out;
-  }, [tasks, events]);
+  }, [tasks]);
 
   // Apply filters
   const bars = useMemo(() => {
@@ -362,7 +325,7 @@ function PlanOperationPage() {
               <div>
                 <Label className="text-xs">Source</Label>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  {["myhubpro","microsoft_todo","apple_reminders","calendar"].map((s) => (
+                  {["myhubpro","microsoft_todo","apple_reminders"].map((s) => (
                     <label key={s} className="flex items-center gap-1 text-xs">
                       <Checkbox checked={fSource.has(s)} onCheckedChange={() => setFSource(toggleSet(fSource, s))} />
                       {s}
@@ -445,7 +408,7 @@ function PlanOperationPage() {
                     </button>
                     {!isCollapsed && items.map((b) => (
                       <div key={b.id} className="flex items-center gap-2 border-b px-3 text-xs" style={{ height: ROW_H }}>
-                        {b.type === "event" ? <span title="Événement">📅</span> : <span className={cn("h-2 w-2 rounded-full", b.priority ? PRIORITY_META[b.priority].dot : "bg-muted-foreground")} />}
+                        <span className={cn("h-2 w-2 rounded-full", b.priority ? PRIORITY_META[b.priority].dot : "bg-muted-foreground")} />
                         <span className="truncate">{b.title}</span>
                       </div>
                     ))}
@@ -524,15 +487,12 @@ function BarRow({
   const days = Math.max(1, Math.ceil((cur.e.getTime() - cur.s.getTime()) / 86400000) + 1);
   const width = Math.max(dayPx, days * dayPx);
 
-  const isOverdue = bar.type === "task" && bar.end < today && bar.status !== "done";
+  const isOverdue = bar.end < today && bar.status !== "done";
   const isDone = bar.status === "done";
 
-  const barColor = bar.type === "event"
-    ? (bar.color ? "" : "bg-blue-500")
-    : (bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground");
+  const barColor = bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground";
 
   const onPointerDown = (mode: "move" | "resize-l" | "resize-r") => (ev: React.PointerEvent) => {
-    if (bar.type !== "task") return;
     ev.preventDefault(); ev.stopPropagation();
     (ev.target as HTMLElement).setPointerCapture(ev.pointerId);
     setDrag({ mode, startX: ev.clientX, origStart: bar.start, origEnd: bar.end });
@@ -553,22 +513,9 @@ function BarRow({
     setDrag(null); setPreview(null);
   };
 
-  if (bar.isMilestone && bar.type === "event") {
-    return (
-      <div className="relative border-b" style={{ height: rowHeight }}>
-        <div
-          title={`${bar.title} — ${bar.start.toLocaleDateString()}`}
-          onClick={onClick}
-          className={cn("absolute top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 cursor-pointer border-2 border-background", barColor)}
-          style={{ left, backgroundColor: bar.color ?? undefined }}
-        />
-      </div>
-    );
-  }
-
   // Overdue zone (red transparent) from end to today
-  const overdueLeft = bar.type === "task" && isOverdue ? Math.floor((bar.end.getTime() - start.getTime()) / 86400000) * dayPx : 0;
-  const overdueWidth = bar.type === "task" && isOverdue ? Math.max(0, Math.floor((today.getTime() - bar.end.getTime()) / 86400000) * dayPx) : 0;
+  const overdueLeft = isOverdue ? Math.floor((bar.end.getTime() - start.getTime()) / 86400000) * dayPx : 0;
+  const overdueWidth = isOverdue ? Math.max(0, Math.floor((today.getTime() - bar.end.getTime()) / 86400000) * dayPx) : 0;
 
   return (
     <div className="relative border-b" style={{ height: rowHeight }}>
@@ -582,22 +529,18 @@ function BarRow({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         className={cn(
-          "group absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium text-white shadow-sm",
-          bar.type === "task" ? "cursor-grab active:cursor-grabbing" : "cursor-pointer",
+          "group absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium text-white shadow-sm cursor-grab active:cursor-grabbing",
           barColor,
           isDone && "opacity-60",
           isOverdue && "ring-1 ring-red-600",
         )}
-        style={{ left, width, backgroundColor: bar.type === "event" && bar.color ? bar.color : undefined }}
+        style={{ left, width }}
       >
-        {bar.type === "task" && (
-          <span onPointerDown={onPointerDown("resize-l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
-        )}
+        <span onPointerDown={onPointerDown("resize-l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
         <span className="truncate">{bar.title}</span>
-        {bar.type === "task" && (
-          <span onPointerDown={onPointerDown("resize-r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
-        )}
+        <span onPointerDown={onPointerDown("resize-r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
       </div>
     </div>
   );
 }
+
