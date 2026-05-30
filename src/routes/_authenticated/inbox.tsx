@@ -77,7 +77,18 @@ function InboxPage() {
   const [usingCache, setUsingCache] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
   const classifyFn = useServerFn(classifyPendingEmails);
+
+  const toggleCheck = (id: string, ev?: React.MouseEvent) => {
+    ev?.stopPropagation();
+    setChecked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  const clearChecked = () => setChecked(new Set());
 
   // Online/offline awareness
   useEffect(() => {
