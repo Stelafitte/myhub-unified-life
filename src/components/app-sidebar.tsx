@@ -31,6 +31,8 @@ const baseItems = [
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { isAdmin } = useIsAdmin();
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
   const items = [
     ...baseItems,
     { title: "Paramètres", url: "/settings", icon: Settings } as const,
@@ -40,12 +42,12 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-b px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">
+      <SidebarHeader className={cn("border-b py-3", collapsed ? "px-2" : "px-4")}>
+        <div className={cn("flex items-center", collapsed ? "justify-center" : "gap-2")}>
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">
             M
           </div>
-          <span className="font-semibold text-sm">MyHub Pro</span>
+          {!collapsed && <span className="font-semibold text-sm">MyHub Pro</span>}
         </div>
       </SidebarHeader>
       <SidebarContent>
