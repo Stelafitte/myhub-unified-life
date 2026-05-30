@@ -757,31 +757,30 @@ function Reader({
           <VaultActions email={email} onMoved={onArchive} />
         </div>
       ) : (
-        <>
-          <AiClassificationFeedback
-            emailId={email.id}
-            priority={email.ai_priority}
-            category={email.ai_category}
-            onUpdated={() => { /* cache will refresh on next sync */ }}
-          />
-          <AiSuggestionsPanel
-            emailId={email.id}
-            fromAddress={email.from_address}
-            subject={email.subject}
-            userId={userId}
-            onCreateTask={() => onCreateTask()}
-            onArchive={onArchive}
-          />
-        </>
+        <AiClassificationFeedback
+          emailId={email.id}
+          priority={email.ai_priority}
+          category={email.ai_category}
+          onUpdated={() => { /* cache will refresh on next sync */ }}
+        />
       )}
-
-
 
       {email.has_attachment && (
         <EmailAttachmentsPanel
           emailId={email.id}
           fromAddress={email.from_address}
           subject={email.subject}
+        />
+      )}
+
+      {!email.is_sensitive && (
+        <AiSuggestionsPanel
+          emailId={email.id}
+          fromAddress={email.from_address}
+          subject={email.subject}
+          userId={userId}
+          onCreateTask={() => onCreateTask()}
+          onArchive={onArchive}
         />
       )}
 
