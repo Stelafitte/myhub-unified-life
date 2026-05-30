@@ -164,7 +164,7 @@ export const classifyPendingEmails = createServerFn({ method: "POST" })
       const isBlacklisted = blacklist.some((b) => from.includes(b.toLowerCase()));
 
       const now = new Date().toISOString();
-      let update: Record<string, unknown>;
+      let update: Partial<{ ai_priority: string; ai_category: string; ai_summary: string; ai_processed_at: string; spam_label: string; spam_score: number; spam_reason: string }>;
       if (result) {
         let spam_label = result.spam_label;
         let spam_score = result.spam_score;
