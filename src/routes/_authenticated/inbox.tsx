@@ -476,7 +476,8 @@ function InboxPage() {
 
   // Fallback: si rien n'est sélectionné mais la liste est non vide
   useEffect(() => {
-    if (!selectedId && filtered.length > 0) {
+    if (filtered.length === 0) return;
+    if (!selectedId || !filtered.some((e) => e.id === selectedId)) {
       setSelectedId(filtered[0].id);
     }
   }, [filtered, selectedId]);
