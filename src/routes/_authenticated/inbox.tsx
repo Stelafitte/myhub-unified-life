@@ -56,6 +56,7 @@ import { VaultPinDialog } from "@/components/security/vault-pin-dialog";
 import { listThemes, classifyPendingThemes, discoverThemes, seedThemesFromFolders, setEmailTheme, type Theme } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
+import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
 
 type Account = {
   id: string;
@@ -162,6 +163,13 @@ function InboxPage() {
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
   const [relaunching, setRelaunching] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+
+  const openComposer = (init: ComposerInitial) => {
+    setComposerInitial(init);
+    setComposerOpen(true);
+  };
 
   const relaunchAi = async () => {
     if (relaunching) return;
@@ -518,6 +526,9 @@ function InboxPage() {
               </Badge>
             )}
           </div>
+          <Button size="sm" className="mb-3 w-full gap-1" onClick={() => openComposer({ mode: "new" })}>
+            <Plus className="h-4 w-4" /> Nouveau message
+          </Button>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -953,6 +964,7 @@ function InboxPage() {
             onDelete={() => remove(selected)}
             onCreateTask={() => setTaskOpen(true)}
             onPostpone={() => postponeAsTask(selected)}
+            onCompose={openComposer}
           />
         )}
       </aside>
@@ -971,6 +983,13 @@ function InboxPage() {
         open={themesOpen}
         onOpenChange={setThemesOpen}
         onChanged={() => { refreshThemes(); setReloadKey((k) => k + 1); }}
+      />
+
+      <EmailComposer
+        open={composerOpen}
+        onOpenChange={setComposerOpen}
+        accounts={accounts}
+        initial={composerInitial}
       />
     </div>
   );
@@ -1013,6 +1032,7 @@ function Reader({
   onDelete,
   onCreateTask,
   onPostpone,
+  onCompose,
 }: {
   email: Email;
   account?: Account;
@@ -1022,8 +1042,34 @@ function Reader({
   onDelete: () => void;
   onCreateTask: () => void;
   onPostpone: () => void;
+  onCompose: (init: ComposerInitial) => void;
 }) {
   const isPostponed = (email.labels ?? []).includes("task-todo");
+  const quoted = () => {
+    const dateStr = email.received_at ? new Date(email.received_at).toLocaleString("fr-FR") : "";
+    const sender = email.from_name ? `${email.from_name} <${email.from_address}>` : (email.from_address ?? "");
+    const body = (email.body_text ?? "").split("\n").map((l) => "> " + l).join("\n");
+    return `\n\n\nLe ${dateStr}, ${sender} a écrit :\n${body}`;
+  };
+  const replyRefs = email.message_id ? `<${email.message_id}>` : undefined;
+  const subjReply = email.subject?.startsWith("Re:") ? email.subject : `Re: ${email.subject ?? ""}`;
+  const subjFwd = email.subject?.startsWith("Fwd:") ? email.subject : `Fwd: ${email.subject ?? ""}`;
+  const doReply = (all: boolean) => onCompose({
+    mode: all ? "replyAll" : "reply",
+    defaultAccountId: email.account_id,
+    to: email.from_address ?? "",
+    cc: all ? (email.to_address ?? "") : undefined,
+    subject: subjReply,
+    body: quoted(),
+    inReplyTo: replyRefs,
+    references: replyRefs,
+  });
+  const doForward = () => onCompose({
+    mode: "forward",
+    defaultAccountId: email.account_id,
+    subject: subjFwd,
+    body: `\n\n---------- Message transféré ----------\nDe: ${email.from_name ?? ""} <${email.from_address ?? ""}>\nDate: ${email.received_at ?? ""}\nSujet: ${email.subject ?? ""}\nÀ: ${email.to_address ?? ""}\n\n${email.body_text ?? ""}`,
+  });
   return (
     <div className="flex h-full min-h-0 flex-col overflow-auto">
       <header className="border-b p-4">
@@ -1044,9 +1090,9 @@ function Reader({
           <div><span className="font-medium text-foreground">Date :</span> {email.received_at ? new Date(email.received_at).toLocaleString("fr-FR") : ""}</div>
         </div>
         <div className="mt-3 flex flex-wrap gap-1">
-          <Button size="sm" variant="outline" className="h-7 gap-1"><Reply className="h-3 w-3" /> Répondre</Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1"><ReplyAll className="h-3 w-3" /> Tous</Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1"><Forward className="h-3 w-3" /> Transférer</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(false)}><Reply className="h-3 w-3" /> Répondre</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(true)}><ReplyAll className="h-3 w-3" /> Tous</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={doForward}><Forward className="h-3 w-3" /> Transférer</Button>
           <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}><Archive className="h-3 w-3" /> Archiver</Button>
           <Button size="sm" variant="outline" className="h-7 gap-1 text-destructive" onClick={onDelete}><Trash2 className="h-3 w-3" /> Suppr.</Button>
         </div>
