@@ -40,7 +40,7 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
   }, [tasks]);
 
   return (
-    <div className="flex h-[calc(100vh-12rem)] gap-3 overflow-x-auto pb-2">
+    <div className="flex flex-1 gap-2 overflow-x-auto pb-2 sm:gap-3">
       {STATUS_COLUMNS.map((col) => {
         const items = grouped.get(col.id) ?? [];
         const isOver = overCol === col.id;
@@ -57,16 +57,16 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
               if (t && t.status !== col.id) onMove(t, col.id);
             }}
             className={cn(
-              "flex w-[320px] shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors",
+              "flex w-[260px] shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors sm:w-[280px] md:w-[300px] lg:w-[320px]",
               isOver && "border-primary bg-primary/5",
             )}
           >
-            <header className="flex items-center gap-2 border-b bg-background/60 px-3 py-2">
+            <header className="flex items-center gap-2 border-b bg-background/60 px-2 py-2 sm:px-3">
               <span>{col.icon}</span>
-              <h3 className="text-sm font-semibold">{col.label}</h3>
+              <h3 className="text-xs font-semibold sm:text-sm">{col.label}</h3>
               <span className="ml-auto text-xs text-muted-foreground">{items.length}</span>
             </header>
-            <div className="flex-1 space-y-2 overflow-y-auto p-2">
+            <div className="flex-1 space-y-2 overflow-y-auto p-1.5 sm:p-2">
               {items.map((t) => (
                 <Card
                   key={t.id}
@@ -87,7 +87,7 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
             </div>
             <button
               onClick={() => onCreate(col.id)}
-              className="m-2 flex items-center justify-center gap-1 rounded-md border border-dashed py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="m-1.5 sm:m-2 flex items-center justify-center gap-1 rounded-md border border-dashed py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <Plus className="h-3.5 w-3.5" /> Nouvelle tâche
             </button>
