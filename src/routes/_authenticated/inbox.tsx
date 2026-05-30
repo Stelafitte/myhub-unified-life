@@ -77,7 +77,18 @@ function InboxPage() {
   const [usingCache, setUsingCache] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
   const classifyFn = useServerFn(classifyPendingEmails);
+
+  const toggleCheck = (id: string, ev?: React.MouseEvent) => {
+    ev?.stopPropagation();
+    setChecked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  const clearChecked = () => setChecked(new Set());
 
   // Online/offline awareness
   useEffect(() => {
@@ -225,6 +236,34 @@ function InboxPage() {
     else toast.success("Ajouté aux demandes de tâches à traiter");
   };
 
+  // Bulk actions on `checked`
+  const bulkIds = () => Array.from(checked);
+  const bulkArchive = async () => {
+    const ids = bulkIds(); if (!ids.length) return;
+    setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
+    if (selectedId && checked.has(selectedId)) setSelectedId(null);
+    clearChecked();
+    const { error } = await supabase.from("emails").update({ is_archived: true }).in("id", ids);
+    if (error) toast.error(error.message); else toast.success(`${ids.length} email(s) archivé(s)`);
+  };
+  const bulkDelete = async () => {
+    const ids = bulkIds(); if (!ids.length) return;
+    if (!confirm(`Supprimer ${ids.length} email(s) ?`)) return;
+    setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
+    if (selectedId && checked.has(selectedId)) setSelectedId(null);
+    clearChecked();
+    const { error } = await supabase.from("emails").delete().in("id", ids);
+    if (error) toast.error(error.message); else toast.success(`${ids.length} email(s) supprimé(s)`);
+  };
+  const bulkMarkRead = async (read: boolean) => {
+    const ids = bulkIds(); if (!ids.length) return;
+    setEmails((prev) => prev.map((x) => (checked.has(x.id) ? { ...x, is_read: read } : x)));
+    clearChecked();
+    const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
+    if (error) toast.error(error.message);
+  };
+
+
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     if (!e.is_read) patch(e.id, { is_read: true });
@@ -356,6 +395,36 @@ function InboxPage() {
           </div>
           <span className="text-xs text-muted-foreground">{filtered.length} email{filtered.length > 1 ? "s" : ""}</span>
         </div>
+        {checked.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 border-b bg-primary/5 px-4 py-1.5 text-xs">
+            <input
+              type="checkbox"
+              checked={filtered.length > 0 && filtered.every((e) => checked.has(e.id))}
+              onChange={(ev) => {
+                if (ev.target.checked) setChecked(new Set(filtered.map((e) => e.id)));
+                else clearChecked();
+              }}
+              className="h-3.5 w-3.5"
+              title="Tout sélectionner"
+            />
+            <span className="font-medium">{checked.size} sélectionné{checked.size > 1 ? "s" : ""}</span>
+            <div className="ml-auto flex flex-wrap gap-1">
+              <Button size="sm" variant="ghost" className="h-6 gap-1 px-2" onClick={() => bulkMarkRead(true)}>
+                <MailOpen className="h-3.5 w-3.5" /> Lu
+              </Button>
+              <Button size="sm" variant="ghost" className="h-6 gap-1 px-2" onClick={() => bulkMarkRead(false)}>
+                <Mail className="h-3.5 w-3.5" /> Non lu
+              </Button>
+              <Button size="sm" variant="ghost" className="h-6 gap-1 px-2" onClick={bulkArchive}>
+                <Archive className="h-3.5 w-3.5" /> Archiver
+              </Button>
+              <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-destructive hover:text-destructive" onClick={bulkDelete}>
+                <Trash2 className="h-3.5 w-3.5" /> Supprimer
+              </Button>
+              <Button size="sm" variant="ghost" className="h-6 px-2" onClick={clearChecked}>Annuler</Button>
+            </div>
+          </div>
+        )}
         <ul className="flex-1 divide-y overflow-y-auto">
           {filtered.length === 0 && (
             <li className="p-10 text-center text-sm text-muted-foreground">
@@ -376,6 +445,17 @@ function InboxPage() {
                 )}
               >
                 <div className="flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={checked.has(e.id)}
+                    onChange={() => {}}
+                    onClick={(ev) => toggleCheck(e.id, ev)}
+                    className={cn(
+                      "mt-1 h-3.5 w-3.5 shrink-0 cursor-pointer",
+                      checked.has(e.id) ? "opacity-100" : "opacity-0 group-hover:opacity-60",
+                    )}
+                    title="Sélectionner"
+                  />
                   <span
                     className="mt-0.5 h-2 w-2 shrink-0 rounded-full"
                     style={{ background: acc?.color ?? "#64748b" }}
@@ -441,6 +521,9 @@ function InboxPage() {
                 <div className="absolute right-2 top-2 hidden gap-1 rounded-md border bg-background p-0.5 shadow-sm group-hover:flex">
                   <IconBtn label={e.is_read ? "Marquer non lu" : "Marquer lu"} onClick={(ev) => { ev.stopPropagation(); toggleRead(e); }}>
                     {e.is_read ? <Mail className="h-3.5 w-3.5" /> : <MailOpen className="h-3.5 w-3.5" />}
+                  </IconBtn>
+                  <IconBtn label="Supprimer" onClick={(ev) => { ev.stopPropagation(); remove(e); }}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </IconBtn>
                   <IconBtn label="Étoiler" onClick={(ev) => { ev.stopPropagation(); toggleStar(e); }}>
                     <Star className={cn("h-3.5 w-3.5", e.is_starred && "fill-amber-400 text-amber-400")} />
