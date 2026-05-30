@@ -56,6 +56,7 @@ import { VaultPinDialog } from "@/components/security/vault-pin-dialog";
 import { listThemes, classifyPendingThemes, discoverThemes, seedThemesFromFolders, setEmailTheme, type Theme } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
+import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
 
 type Account = {
   id: string;
