@@ -302,18 +302,29 @@ function weatherCodeIcon(code: number) {
 // WIDGET 2 — Emails summary
 // ─────────────────────────────────────────────────────────────────────────────
 function EmailsWidget({ userId }: { userId?: string }) {
-  const [emails, setEmails] = useState<Array<{ id: string; from_name: string | null; from_address: string | null; subject: string | null; is_read: boolean; account_id: string; received_at: string | null }>>([]);
-  const [accounts, setAccounts] = useState<Array<{ id: string; name: string; color: string | null }>>([]);
+  type EmailRow = { id: string; from_name: string | null; from_address: string | null; subject: string | null; is_read: boolean; account_id: string; received_at: string | null };
+  type AccountRow = { id: string; name: string; color: string | null };
+  const [emails, setEmails] = useState<EmailRow[]>([]);
+  const [accounts, setAccounts] = useState<AccountRow[]>([]);
 
   useEffect(() => {
     if (!userId) return;
     (async () => {
+      // 1. Cache first
+      const [cachedEmails, cachedAccounts] = await Promise.all([
+        cacheGetAll<EmailRow>("emails"),
+        cacheGetAll<AccountRow>("accounts"),
+      ]);
+      if (cachedEmails.length) setEmails(cachedEmails.slice(0, 50));
+      if (cachedAccounts.length) setAccounts(cachedAccounts);
+      // 2. Network refresh
+      if (!navigator.onLine) return;
       const [emailsRes, accountsRes] = await Promise.all([
         supabase.from("emails").select("id, from_name, from_address, subject, is_read, account_id, received_at").order("received_at", { ascending: false }).limit(50),
         supabase.from("accounts").select("id, name, color").eq("user_id", userId),
       ]);
-      setEmails(emailsRes.data ?? []);
-      setAccounts(accountsRes.data ?? []);
+      if (emailsRes.data) { setEmails(emailsRes.data); cacheReplaceAll("emails", emailsRes.data).catch(() => {}); }
+      if (accountsRes.data) { setAccounts(accountsRes.data); cacheReplaceAll("accounts", accountsRes.data).catch(() => {}); }
     })();
   }, [userId]);
 
