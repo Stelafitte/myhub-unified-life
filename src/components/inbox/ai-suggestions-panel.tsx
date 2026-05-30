@@ -56,16 +56,25 @@ export function AiSuggestionsPanel({
 
   const addEvent = async () => {
     if (!data?.event) return;
+    const ev = data.event;
+    const descParts = [
+      ev.description ?? null,
+      ev.onlineLink ? `Lien visio : ${ev.onlineLink}` : null,
+      `Source : email "${subject ?? ""}"`,
+    ].filter(Boolean);
     const { error: err } = await supabase.from("calendar_events").insert({
       user_id: userId,
-      title: data.event.title,
-      start_at: data.event.start,
-      end_at: data.event.end ?? data.event.start,
+      title: ev.title,
+      start_at: ev.start,
+      end_at: ev.end ?? ev.start,
+      location: ev.onlineLink ?? ev.location ?? null,
+      description: descParts.join("\n\n"),
       source: null,
     });
     if (err) toast.error(err.message);
     else toast.success("Événement ajouté à l'agenda");
   };
+
 
   const openMailto = (text: string) => {
     const to = fromAddress ?? "";
@@ -117,6 +126,25 @@ export function AiSuggestionsPanel({
               <div className="mb-2 text-muted-foreground">
                 {data.event.title} <br />
                 {new Date(data.event.start).toLocaleString("fr-FR")}
+                {data.event.onlineLink && (
+                  <>
+                    <br />
+                    🎥{" "}
+                    <a
+                      href={data.event.onlineLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline break-all"
+                    >
+                      {data.event.onlineLink}
+                    </a>
+                  </>
+                )}
+                {data.event.location && !data.event.onlineLink && (
+                  <>
+                    <br />📍 {data.event.location}
+                  </>
+                )}
               </div>
               <Button size="sm" className="h-7 gap-1 text-xs" onClick={addEvent}>
                 <CalendarPlus className="h-3 w-3" /> Ajouter à l'agenda

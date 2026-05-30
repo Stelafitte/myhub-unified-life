@@ -6,7 +6,14 @@ const Input = z.object({ emailId: z.string().uuid() });
 
 export type EmailSuggestions = {
   replies: { label: string; text: string }[];
-  event: { title: string; start: string; end: string | null } | null;
+  event: {
+    title: string;
+    start: string;
+    end: string | null;
+    location: string | null;
+    onlineLink: string | null;
+    description: string | null;
+  } | null;
   archiveSuggested: boolean;
   taskTitle: string | null;
 };
@@ -34,6 +41,11 @@ export const getEmailSuggestions = createServerFn({ method: "POST" })
     }
 
     const today = new Date().toISOString();
+    const bodyText = e.body_text ?? "";
+    // Detect online meeting links (Zoom, Teams, Meet, Webex)
+    const linkRegex = /https?:\/\/(?:[a-z0-9-]+\.)?(?:zoom\.us|teams\.microsoft\.com|teams\.live\.com|meet\.google\.com|webex\.com|gotomeeting\.com|whereby\.com)\/[^\s"'<>)]+/i;
+    const detectedLink = bodyText.match(linkRegex)?.[0] ?? null;
+
     const sys = `Tu analyses un email pour proposer des actions. Réponds UNIQUEMENT en JSON valide:
 {
   "replies": [
@@ -41,11 +53,12 @@ export const getEmailSuggestions = createServerFn({ method: "POST" })
     {"label":"Engagement","text":"réponse avec engagement sur une date/délai"},
     {"label":"Délai poli","text":"réponse demandant un délai ou déclinant poliment"}
   ],
-  "event": null OU {"title":"...","start":"ISO8601","end":"ISO8601 ou null"},
+  "event": null OU {"title":"...","start":"ISO8601","end":"ISO8601 ou null","location":"lieu physique ou null","online_link":"URL réunion en ligne (Zoom/Teams/Meet) ou null","description":"résumé court de l'ordre du jour ou null"},
   "archive_suggested": true|false,
   "task_title": "titre actionnable court ou null si aucune action"
 }
 Date de référence: ${today}. Détecte une date/heure de réunion explicite pour "event".
+Si l'email contient un lien Zoom/Teams/Meet/Webex, inclus-le dans "online_link".
 "archive_suggested" = true si newsletter, notif auto, publicité.
 Les réponses doivent être en français, signées avec "Cordialement".`;
 
@@ -53,7 +66,7 @@ Les réponses doivent être en français, signées avec "Cordialement".`;
 De: ${e.from_name ?? ""} <${e.from_address ?? ""}>
 Reçu: ${e.received_at ?? ""}
 
-${(e.body_text ?? "").slice(0, 3500)}`;
+${bodyText.slice(0, 3500)}`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -75,7 +88,14 @@ ${(e.body_text ?? "").slice(0, 3500)}`;
     const raw = json?.choices?.[0]?.message?.content ?? "{}";
     let parsed: {
       replies?: { label?: string; text?: string }[];
-      event?: { title?: string; start?: string; end?: string | null } | null;
+      event?: {
+        title?: string;
+        start?: string;
+        end?: string | null;
+        location?: string | null;
+        online_link?: string | null;
+        description?: string | null;
+      } | null;
       archive_suggested?: boolean;
       task_title?: string | null;
     } = {};
@@ -96,8 +116,12 @@ ${(e.body_text ?? "").slice(0, 3500)}`;
         title: String(parsed.event.title),
         start: String(parsed.event.start),
         end: parsed.event.end ? String(parsed.event.end) : null,
+        location: parsed.event.location ? String(parsed.event.location) : null,
+        onlineLink: parsed.event.online_link ? String(parsed.event.online_link) : detectedLink,
+        description: parsed.event.description ? String(parsed.event.description) : null,
       };
     }
+
 
     return {
       replies,
