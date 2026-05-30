@@ -49,7 +49,8 @@ import { cacheEmails, loadCachedEmails, type CachedEmail } from "@/lib/inbox-cac
 import { QuickAddOvh } from "@/components/inbox/quick-add-ovh";
 import { useSecureVault } from "@/lib/secure-vault-context";
 import { VaultPinDialog } from "@/components/security/vault-pin-dialog";
-import { SMART_GROUPS, classifyEmail, countByGroup } from "@/lib/smart-grouping";
+import { SMART_GROUPS, classifyEmail, countByGroup, smartGroupsFromFolders, type SmartGroup } from "@/lib/smart-grouping";
+import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 
 type Account = {
   id: string;
