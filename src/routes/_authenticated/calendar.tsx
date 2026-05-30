@@ -356,6 +356,22 @@ function AgendaPage() {
             </Button>
           </div>
 
+          {oauthError && (
+            <div className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-300">
+              <p className="mb-1 font-semibold">&#9888; Connexion Google Calendar &eacute;chou&eacute;e</p>
+              <p className="opacity-90">{oauthError}</p>
+              <p className="mt-2 text-[11px] opacity-75">
+                V&eacute;rifiez que votre email est ajout&eacute; en tant qu'utilisateur de test dans Google Cloud Console, que l'API Calendar est activ&eacute;e, et que les URI de redirection sont correctes.
+              </p>
+              <button
+                onClick={() => setOauthError(null)}
+                className="mt-2 text-[11px] text-red-300 underline hover:text-red-200"
+              >
+                Masquer
+              </button>
+            </div>
+          )}
+
           <div className="mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Comptes connectés
           </div>
