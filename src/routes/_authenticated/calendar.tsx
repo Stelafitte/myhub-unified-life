@@ -256,7 +256,7 @@ function AgendaPage() {
   };
 
   return (
-    <div className="-mx-4 -my-4 flex h-[calc(100vh-4rem)] overflow-hidden md:-mx-6">
+    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT SIDEBAR — mini calendar + filters */}
       <aside className="hidden w-[280px] shrink-0 flex-col border-r bg-card md:flex">
         <div className="border-b p-4">

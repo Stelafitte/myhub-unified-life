@@ -254,7 +254,7 @@ function ContactsPage() {
   };
 
   return (
-    <div className="-mx-4 -my-4 flex h-[calc(100vh-4rem)] overflow-hidden md:-mx-6">
+    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT — list */}
       <section className="flex min-w-0 flex-1 flex-col border-r">
         {/* Header */}
