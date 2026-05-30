@@ -218,8 +218,14 @@ function InboxPage() {
     const v = Number(localStorage.getItem("inbox:leftW")); return v >= 200 && v <= 500 ? v : 280;
   });
   const [rightW, setRightW] = useState<number>(() => {
-    const v = Number(localStorage.getItem("inbox:rightW")); return v >= 320 && v <= 720 ? v : 420;
+    const v = Number(localStorage.getItem("inbox:rightW")); return v >= 320 ? v : 600;
   });
+  const [winW, setWinW] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
+  useEffect(() => {
+    const onResize = () => setWinW(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const startDrag = (which: "left" | "right") => (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
@@ -230,7 +236,8 @@ function InboxPage() {
         const w = Math.min(500, Math.max(200, startW + dx));
         setLeftW(w);
       } else {
-        const w = Math.min(720, Math.max(320, startW - dx));
+        const maxW = Math.max(360, window.innerWidth - leftW - 380);
+        const w = Math.min(maxW, Math.max(320, startW - dx));
         setRightW(w);
       }
     };
@@ -1008,8 +1015,8 @@ function InboxPage() {
       {/* RIGHT — reader (full overlay on mobile when selected) */}
       <aside
         style={{
-          width: typeof window !== "undefined" && window.innerWidth >= 1024
-            ? Math.min(rightW, Math.max(360, window.innerWidth - leftW - 380))
+          width: winW >= 1024
+            ? Math.min(rightW, Math.max(360, winW - leftW - 380))
             : undefined,
         }}
         className={cn(
