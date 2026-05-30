@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { Search, Mail, X, Sparkles } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Search, Mail, X, Sparkles, CalendarPlus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -72,9 +73,32 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
   const [emailResults, setEmailResults] = useState<EmailLite[]>([]);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [addToCalendar, setAddToCalendar] = useState(false);
+  // Tracks the last initialized panel context to avoid clobbering user input on parent re-renders
+  const initKeyRef = useRef<string>("");
+
+  const todayStr = () => {
+    const d = new Date();
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+  };
+  const addDaysStr = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+  };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      initKeyRef.current = "";
+      return;
+    }
+    // Only reset when the panel is opened or the target task changes — not on every parent re-render
+    const key = task ? `edit:${task.id}` : `new:${defaultStatus ?? "todo"}`;
+    if (initKeyRef.current === key) return;
+    initKeyRef.current = key;
+
     if (task) {
       setTitle(task.title);
       setDescription(task.description ?? "");
@@ -91,21 +115,25 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
       setSource(task.source_app);
       setEmailId(task.source_email_id);
       setEmailLabel("");
+      setAddToCalendar(!!(task as Task & { calendar_event_id?: string | null }).calendar_event_id);
     } else {
+      // Defaults: today for start, today for due (when no AI is used)
+      const today = todayStr();
       setTitle("");
       setDescription("");
       setComments("");
       setPriority("medium");
       setStatus(defaultStatus ?? "todo");
       setSection("Autre");
-      setStart("");
-      setDue("");
+      setStart(today);
+      setDue(today);
       setReminder("");
       setTagsText("");
       setRecurrence("none");
       setSource("myhubpro");
       setEmailId(null);
       setEmailLabel("");
+      setAddToCalendar(false);
     }
     setNewSection("");
     setEmailSearch("");
@@ -147,8 +175,20 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
       if (res.description) setDescription(res.description);
       if (res.comments) setComments(res.comments);
       if (res.priority) setPriority(res.priority);
-      if (res.due_date) setDue(res.due_date);
-      if (res.gantt_start) setStart(res.gantt_start);
+
+      // Échéance : utiliser celle de l'IA, ou proposer un défaut intelligent selon la priorité
+      const inferredPriority = res.priority ?? priority;
+      const defaultOffsetDays =
+        inferredPriority === "urgent" ? 2 :
+        inferredPriority === "high" ? 5 :
+        inferredPriority === "low" ? 14 : 7;
+      const nextDue = res.due_date ?? addDaysStr(defaultOffsetDays);
+      setDue(nextDue);
+
+      // Début : celui de l'IA, sinon aujourd'hui
+      const nextStart = res.gantt_start ?? todayStr();
+      setStart(nextStart);
+
       if (res.tags && res.tags.length > 0) {
         const existing = tagsText.split(",").map((t) => t.trim()).filter(Boolean);
         const merged = Array.from(new Set([...existing, ...res.tags]));
@@ -193,18 +233,51 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
     };
 
     try {
+      let savedTask: Task | null = null;
       if (navigator.onLine) {
         if (editing && task) {
           const { data, error } = await supabase.from("tasks").update(payload).eq("id", task.id).select().single();
           if (error) throw error;
-          onSaved(data as Task);
+          savedTask = data as Task;
           toast.success("Tâche mise à jour");
         } else {
           const { data, error } = await supabase.from("tasks").insert(payload).select().single();
           if (error) throw error;
-          onSaved(data as Task);
+          savedTask = data as Task;
           toast.success("Tâche créée");
         }
+
+        // Création / mise à jour de l'événement agenda lié
+        const existingEventId = (task as Task & { calendar_event_id?: string | null } | null)?.calendar_event_id ?? null;
+        if (addToCalendar && savedTask) {
+          const startDateStr = start || todayStr();
+          const endDateStr = due || startDateStr;
+          const startIso = new Date(`${startDateStr}T09:00:00`).toISOString();
+          const endIso = new Date(`${endDateStr}T10:00:00`).toISOString();
+          const eventPayload = {
+            user_id: user.id,
+            title: payload.title,
+            description: payload.description,
+            start_at: startIso,
+            end_at: endIso,
+            is_all_day: false,
+          };
+          if (existingEventId) {
+            await supabase.from("calendar_events").update(eventPayload).eq("id", existingEventId);
+          } else {
+            const { data: ev } = await supabase.from("calendar_events").insert(eventPayload).select("id").single();
+            if (ev?.id) {
+              await supabase.from("tasks").update({ calendar_event_id: ev.id }).eq("id", savedTask.id);
+              savedTask = { ...savedTask, calendar_event_id: ev.id } as Task;
+            }
+          }
+        } else if (!addToCalendar && existingEventId) {
+          await supabase.from("calendar_events").delete().eq("id", existingEventId);
+          await supabase.from("tasks").update({ calendar_event_id: null }).eq("id", savedTask.id);
+          savedTask = { ...savedTask, calendar_event_id: null } as Task;
+        }
+
+        onSaved(savedTask);
       } else {
         // Offline: queue and create optimistic record
         const optimistic: Task = {
@@ -355,6 +428,31 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
             <Label htmlFor="t-rem">Rappel</Label>
             <Input id="t-rem" type="datetime-local" value={reminder} onChange={(e) => setReminder(e.target.value)} />
           </div>
+
+          <label className="flex items-start gap-3 rounded-md border bg-muted/30 p-3 cursor-pointer">
+            <Checkbox
+              checked={addToCalendar}
+              onCheckedChange={(v) => {
+                const checked = v === true;
+                setAddToCalendar(checked);
+                if (checked) {
+                  // Reporter les dates de la tâche dans l'agenda
+                  if (!start) setStart(todayStr());
+                  if (!due) setDue(start || todayStr());
+                }
+              }}
+              className="mt-0.5"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <CalendarPlus className="h-4 w-4 text-primary" />
+                Ajouter à l'agenda
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Crée un événement du <strong>{start || "—"}</strong> au <strong>{due || start || "—"}</strong> lié à cette tâche.
+              </p>
+            </div>
+          </label>
 
           <div>
             <Label>Section / projet</Label>
