@@ -947,8 +947,16 @@ function InboxPage() {
                           <Lock className="h-2.5 w-2.5" /> Sensible
                         </span>
                       )}
-                      {e.is_starred && <Star className="h-3 w-3 fill-amber-400 text-amber-400" />}
-                      {e.has_attachment && <Paperclip className="h-3 w-3" />}
+                       {e.is_starred && <Star className="h-3 w-3 fill-amber-400 text-amber-400" />}
+                       {e.has_attachment && <Paperclip className="h-3 w-3" />}
+                       {e.meeting_link && (
+                         <span
+                           className="flex items-center gap-0.5 rounded bg-blue-500/15 px-1 text-[10px] text-blue-600 dark:text-blue-400"
+                           title={`Lien de réunion détecté: ${e.meeting_link}`}
+                         >
+                           🎥 Visio
+                         </span>
+                       )}
                       {e.ai_category && !e.is_sensitive && (
                         <span className="flex items-center gap-0.5 rounded bg-primary/10 px-1 text-[10px] text-primary">
                           {categoryLabel(e.ai_category)}
