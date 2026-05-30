@@ -22,7 +22,10 @@ import {
   Sparkles,
   Check,
   Lock,
+  Shield,
   ShieldAlert,
+  ShieldOff,
+  Megaphone,
   Settings2,
   RefreshCw,
   Loader2,
@@ -69,7 +72,7 @@ type Account = {
 
 type Email = CachedEmail;
 
-type Filter = "all" | "unread" | "attachments" | "starred" | `account:${string}` | `theme:${string}` | "theme:__none__";
+type Filter = "all" | "unread" | "attachments" | "starred" | "spam" | "promo" | `account:${string}` | `theme:${string}` | "theme:__none__";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   component: InboxPage,
@@ -394,33 +397,44 @@ function InboxPage() {
     return m;
   }, [themes]);
 
+  const isSpam = (e: Email) => e.spam_label === "spam" || e.spam_label === "phishing";
+  const isPromo = (e: Email) => e.spam_label === "promo";
+
   const counts = useMemo(() => {
-    const unread = emails.filter((e) => !e.is_read).length;
-    const attachments = emails.filter((e) => e.has_attachment).length;
-    const starred = emails.filter((e) => e.is_starred).length;
+    const inboxEmails = emails.filter((e) => !isSpam(e) && !isPromo(e));
+    const unread = inboxEmails.filter((e) => !e.is_read).length;
+    const attachments = inboxEmails.filter((e) => e.has_attachment).length;
+    const starred = inboxEmails.filter((e) => e.is_starred).length;
+    const spam = emails.filter(isSpam).length;
+    const promo = emails.filter(isPromo).length;
     const byAccount = new Map<string, number>();
-    emails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
+    inboxEmails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
     const byTheme = new Map<string, number>();
     let noTheme = 0;
-    emails.forEach((e) => {
+    inboxEmails.forEach((e) => {
       if (e.ai_theme_id) byTheme.set(e.ai_theme_id, (byTheme.get(e.ai_theme_id) ?? 0) + 1);
       else noTheme++;
     });
-    return { all: emails.length, unread, attachments, starred, byAccount, byTheme, noTheme };
+    return { all: inboxEmails.length, unread, attachments, starred, spam, promo, byAccount, byTheme, noTheme };
   }, [emails]);
 
   const filtered = useMemo(() => {
     let list = emails;
-    if (filter === "unread") list = list.filter((e) => !e.is_read);
-    else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
-    else if (filter === "starred") list = list.filter((e) => e.is_starred);
-    else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
-    else if (filter.startsWith("account:")) {
-      const id = filter.slice(8);
-      list = list.filter((e) => e.account_id === id);
-    } else if (filter.startsWith("theme:")) {
-      const id = filter.slice(6);
-      list = list.filter((e) => e.ai_theme_id === id);
+    if (filter === "spam") list = list.filter(isSpam);
+    else if (filter === "promo") list = list.filter(isPromo);
+    else {
+      list = list.filter((e) => !isSpam(e) && !isPromo(e));
+      if (filter === "unread") list = list.filter((e) => !e.is_read);
+      else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
+      else if (filter === "starred") list = list.filter((e) => e.is_starred);
+      else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
+      else if (filter.startsWith("account:")) {
+        const id = filter.slice(8);
+        list = list.filter((e) => e.account_id === id);
+      } else if (filter.startsWith("theme:")) {
+        const id = filter.slice(6);
+        list = list.filter((e) => e.ai_theme_id === id);
+      }
     }
     if (query.trim()) {
       const q = query.toLowerCase();
@@ -480,6 +494,32 @@ function InboxPage() {
     const { error } = await supabase.from("emails").delete().in("id", idsToDelete);
     if (error) toast.error(error.message);
     else toast.success(idsToDelete.length > 1 ? `${idsToDelete.length} emails supprimés` : "Email supprimé");
+  };
+
+  const markSpam = async (e: Email, asSpam: boolean) => {
+    const update = asSpam
+      ? { spam_label: "spam", spam_score: 100, spam_reason: "Marqué manuellement" }
+      : { spam_label: "legit", spam_score: 0, spam_reason: "Non indésirable (utilisateur)" };
+    setEmails((prev) => prev.map((x) => (x.id === e.id ? { ...x, ...update } : x)));
+    // Also persist in security_settings whitelist/blacklist
+    const from = (e.from_address ?? "").toLowerCase();
+    if (from) {
+      const { data: sec } = await supabase
+        .from("security_settings")
+        .select("whitelist,blacklist")
+        .eq("user_id", e.user_id)
+        .maybeSingle();
+      const wl = new Set((sec?.whitelist ?? []) as string[]);
+      const bl = new Set((sec?.blacklist ?? []) as string[]);
+      if (asSpam) { bl.add(from); wl.delete(from); }
+      else { wl.add(from); bl.delete(from); }
+      await supabase
+        .from("security_settings")
+        .upsert({ user_id: e.user_id, whitelist: [...wl], blacklist: [...bl] }, { onConflict: "user_id" });
+    }
+    const { error } = await supabase.from("emails").update(update).eq("id", e.id);
+    if (error) toast.error(error.message);
+    else toast.success(asSpam ? "Marqué comme indésirable" : "Marqué comme légitime");
   };
 
 
@@ -557,6 +597,8 @@ function InboxPage() {
           <FilterRow label="Non lus" icon={<Circle className="h-4 w-4 fill-current" />} count={counts.unread} active={filter === "unread"} onClick={() => setFilter("unread")} />
           <FilterRow label="Pièces jointes" icon={<Paperclip className="h-4 w-4" />} count={counts.attachments} active={filter === "attachments"} onClick={() => setFilter("attachments")} />
           <FilterRow label="Suivis" icon={<Star className="h-4 w-4" />} count={counts.starred} active={filter === "starred"} onClick={() => setFilter("starred")} />
+          <FilterRow label="Promotions" icon={<Megaphone className="h-4 w-4" />} count={counts.promo} active={filter === "promo"} onClick={() => setFilter("promo")} />
+          <FilterRow label="Indésirables" icon={<ShieldOff className="h-4 w-4" />} count={counts.spam} active={filter === "spam"} onClick={() => setFilter("spam")} />
 
           {/* Comptes first */}
           <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -977,6 +1019,7 @@ function InboxPage() {
             onCreateTask={() => setTaskOpen(true)}
             onPostpone={() => postponeAsTask(selected)}
             onCompose={openComposer}
+            onMarkSpam={(asSpam) => markSpam(selected, asSpam)}
           />
         )}
       </aside>
@@ -1045,6 +1088,7 @@ function Reader({
   onCreateTask,
   onPostpone,
   onCompose,
+  onMarkSpam,
 }: {
   email: Email;
   account?: Account;
@@ -1055,7 +1099,9 @@ function Reader({
   onCreateTask: () => void;
   onPostpone: () => void;
   onCompose: (init: ComposerInitial) => void;
+  onMarkSpam: (asSpam: boolean) => void;
 }) {
+  const isSpamEmail = email.spam_label === "spam" || email.spam_label === "phishing";
   const isPostponed = (email.labels ?? []).includes("task-todo");
   const quoted = () => {
     const dateStr = email.received_at ? new Date(email.received_at).toLocaleString("fr-FR") : "";
@@ -1120,7 +1166,34 @@ function Reader({
             <Clock className="h-3 w-3" />
             {isPostponed ? "Déjà reportée" : "Reporter"}
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1"
+            onClick={() => onMarkSpam(!isSpamEmail)}
+            title={isSpamEmail ? "Marquer comme légitime (whitelist)" : "Marquer comme indésirable (blacklist)"}
+          >
+            {isSpamEmail ? <Shield className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
+            {isSpamEmail ? "Pas indésirable" : "Indésirable"}
+          </Button>
         </div>
+        {(email.spam_label === "spam" || email.spam_label === "phishing" || email.spam_label === "promo") && (
+          <div className={cn(
+            "mt-2 flex items-start gap-1.5 rounded-md border px-2 py-1.5 text-[11px]",
+            email.spam_label === "phishing" && "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300",
+            email.spam_label === "spam" && "border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-300",
+            email.spam_label === "promo" && "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300",
+          )}>
+            {email.spam_label === "phishing" ? <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0" /> :
+             email.spam_label === "spam" ? <ShieldOff className="mt-0.5 h-3 w-3 shrink-0" /> :
+             <Megaphone className="mt-0.5 h-3 w-3 shrink-0" />}
+            <span>
+              <span className="font-semibold capitalize">{email.spam_label}</span>
+              {typeof email.spam_score === "number" && ` · score ${email.spam_score}`}
+              {email.spam_reason && ` — ${email.spam_reason}`}
+            </span>
+          </div>
+        )}
       </header>
 
       {email.is_sensitive ? (

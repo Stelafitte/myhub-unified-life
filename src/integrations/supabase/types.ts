@@ -446,6 +446,9 @@ export type Database = {
           received_at: string | null
           sensitive_reason: string | null
           sensitive_score: number | null
+          spam_label: string | null
+          spam_reason: string | null
+          spam_score: number | null
           subject: string | null
           theme_processed_at: string | null
           thread_id: string | null
@@ -476,6 +479,9 @@ export type Database = {
           received_at?: string | null
           sensitive_reason?: string | null
           sensitive_score?: number | null
+          spam_label?: string | null
+          spam_reason?: string | null
+          spam_score?: number | null
           subject?: string | null
           theme_processed_at?: string | null
           thread_id?: string | null
@@ -506,6 +512,9 @@ export type Database = {
           received_at?: string | null
           sensitive_reason?: string | null
           sensitive_score?: number | null
+          spam_label?: string | null
+          spam_reason?: string | null
+          spam_score?: number | null
           subject?: string | null
           theme_processed_at?: string | null
           thread_id?: string | null
