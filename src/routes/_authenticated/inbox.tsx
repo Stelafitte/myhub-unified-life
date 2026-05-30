@@ -60,6 +60,7 @@ type Account = {
   type: string;
   color: string | null;
   icon: string | null;
+  credentials: Record<string, unknown> | null;
 };
 
 type Email = CachedEmail;
