@@ -454,7 +454,20 @@ function InboxPage() {
     [emails, selectedId],
   );
 
-  // Auto-sélectionne le dernier mail de la liste filtrée si rien n'est sélectionné
+  // Quand le filtre change, sélectionne automatiquement le mail le plus récent (haut de liste)
+  useEffect(() => {
+    if (filtered.length > 0) {
+      setSelectedId((prev) => {
+        if (prev && filtered.some((e) => e.id === prev)) return prev;
+        return filtered[0].id;
+      });
+    } else {
+      setSelectedId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  // Fallback: si rien n'est sélectionné mais la liste est non vide
   useEffect(() => {
     if (!selectedId && filtered.length > 0) {
       setSelectedId(filtered[0].id);
