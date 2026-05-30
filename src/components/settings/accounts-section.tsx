@@ -61,7 +61,7 @@ const PRESETS: Preset[] = [
   { key: "outlook", label: "Outlook", emoji: "📨", type: "outlook", server: "outlook.office365.com", port: "993", ssl: true },
   { key: "ovh", label: "OVH / CHU", emoji: "🏥", type: "imap", server: "imap.mail.ovh.net", port: "993", ssl: true, domain: "myhub-pro.fr" },
   { key: "univ", label: "Université Bordeaux", emoji: "🎓", type: "imap", server: "webmel.u-bordeaux.fr", port: "7993", ssl: true, domain: "u-bordeaux.fr" },
-  { key: "echo", label: "Echo Bordeaux", emoji: "💼", type: "imap", server: "imap.echobordeaux.com", port: "993", ssl: true, domain: "echobordeaux.com" },
+  { key: "echo", label: "Echo Bordeaux", emoji: "💼", type: "imap", server: "pro3.mail.ovh.net", port: "993", ssl: true, domain: "echobordeaux.com" },
   { key: "imap", label: "IMAP personnalisé", emoji: "⚙️", type: "imap", server: "", port: "993", ssl: true },
 ];
 
