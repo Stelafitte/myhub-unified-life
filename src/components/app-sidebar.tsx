@@ -10,8 +10,10 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsAdmin } from "@/lib/use-role";
+import { cn } from "@/lib/utils";
 
 const baseItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
