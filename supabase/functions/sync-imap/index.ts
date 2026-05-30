@@ -541,6 +541,7 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
             subject,
             body_text: bodyText,
             body_html: parsed.textHtml ? parsed.textHtml.slice(0, 200000) : null,
+            meeting_link: extractMeetingLink(bodyText, parsed.textHtml ?? null),
             has_attachment: parsed.attachments > 0,
             received_at: receivedAt,
             is_read: msg.flags.includes("\\Seen"),
