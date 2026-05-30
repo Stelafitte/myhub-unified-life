@@ -41,6 +41,11 @@ export const getEmailSuggestions = createServerFn({ method: "POST" })
     }
 
     const today = new Date().toISOString();
+    const tz = "Europe/Paris";
+    const tzOffsetMin = -new Date().getTimezoneOffset();
+    const sign = tzOffsetMin >= 0 ? "+" : "-";
+    const abs = Math.abs(tzOffsetMin);
+    const offsetStr = `${sign}${String(Math.floor(abs / 60)).padStart(2, "0")}:${String(abs % 60).padStart(2, "0")}`;
     const bodyText = e.body_text ?? "";
     const bodyHtml = (e as any).body_html ?? "";
     // Détection systématique de liens de réunion en ligne (champ stocké en priorité, fallback regex)
