@@ -17,7 +17,8 @@ export type CacheStore =
   | "tasks"
   | "op_plan_themes"
   | "op_plan_subthemes"
-  | "accounts";
+  | "accounts"
+  | "emails";
 
 const STORES: CacheStore[] = [
   "contacts",
@@ -27,6 +28,7 @@ const STORES: CacheStore[] = [
   "op_plan_themes",
   "op_plan_subthemes",
   "accounts",
+  "emails",
 ];
 
 function openDb(): Promise<IDBDatabase> {
