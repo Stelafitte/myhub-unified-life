@@ -6,7 +6,14 @@ const Input = z.object({ emailId: z.string().uuid() });
 
 export type EmailSuggestions = {
   replies: { label: string; text: string }[];
-  event: { title: string; start: string; end: string | null } | null;
+  event: {
+    title: string;
+    start: string;
+    end: string | null;
+    location: string | null;
+    onlineLink: string | null;
+    description: string | null;
+  } | null;
   archiveSuggested: boolean;
   taskTitle: string | null;
 };
