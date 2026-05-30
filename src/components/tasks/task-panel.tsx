@@ -73,6 +73,21 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
   const [emailResults, setEmailResults] = useState<EmailLite[]>([]);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [addToCalendar, setAddToCalendar] = useState(false);
+  // Tracks the last initialized panel context to avoid clobbering user input on parent re-renders
+  const initKeyRef = useRef<string>("");
+
+  const todayStr = () => {
+    const d = new Date();
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+  };
+  const addDaysStr = (days: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const tz = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tz).toISOString().slice(0, 10);
+  };
 
   useEffect(() => {
     if (!open) return;
