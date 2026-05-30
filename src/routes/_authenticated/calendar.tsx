@@ -467,7 +467,7 @@ function WeekOrDayView({
   const today = new Date();
 
   return (
-    <div className="flex">
+    <div className="flex overflow-x-auto">
       <div className="w-14 shrink-0 border-r">
         <div className="h-10 border-b" />
         {Array.from({ length: 24 }, (_, h) => (
@@ -476,7 +476,8 @@ function WeekOrDayView({
           </div>
         ))}
       </div>
-      <div className={cn("grid flex-1", days === 1 ? "grid-cols-1" : "grid-cols-7")}>
+      <div className={cn("grid flex-1", days === 1 ? "grid-cols-1 min-w-[280px]" : "grid-cols-7 min-w-[560px]")}>
+
         {dayCols.map((d) => {
           const dayEvents = events.filter((e) => sameDay(e.start, d));
           const isToday = sameDay(d, today);
