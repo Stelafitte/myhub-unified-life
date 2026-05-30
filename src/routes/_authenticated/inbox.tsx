@@ -522,6 +522,9 @@ function InboxPage() {
                   <IconBtn label={e.is_read ? "Marquer non lu" : "Marquer lu"} onClick={(ev) => { ev.stopPropagation(); toggleRead(e); }}>
                     {e.is_read ? <Mail className="h-3.5 w-3.5" /> : <MailOpen className="h-3.5 w-3.5" />}
                   </IconBtn>
+                  <IconBtn label="Supprimer" onClick={(ev) => { ev.stopPropagation(); remove(e); }}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </IconBtn>
                   <IconBtn label="Étoiler" onClick={(ev) => { ev.stopPropagation(); toggleStar(e); }}>
                     <Star className={cn("h-3.5 w-3.5", e.is_starred && "fill-amber-400 text-amber-400")} />
                   </IconBtn>
