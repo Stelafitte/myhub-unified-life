@@ -72,6 +72,7 @@ export function PreferencesSection() {
     const next = { ...prefs, ...patch };
     setPrefs(next);
     localStorage.setItem("myhub-prefs", JSON.stringify(next));
+    window.dispatchEvent(new Event("myhub-prefs-changed"));
   };
 
   const exportAll = async () => {
