@@ -175,8 +175,20 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
       if (res.description) setDescription(res.description);
       if (res.comments) setComments(res.comments);
       if (res.priority) setPriority(res.priority);
-      if (res.due_date) setDue(res.due_date);
-      if (res.gantt_start) setStart(res.gantt_start);
+
+      // Échéance : utiliser celle de l'IA, ou proposer un défaut intelligent selon la priorité
+      const inferredPriority = res.priority ?? priority;
+      const defaultOffsetDays =
+        inferredPriority === "urgent" ? 2 :
+        inferredPriority === "high" ? 5 :
+        inferredPriority === "low" ? 14 : 7;
+      const nextDue = res.due_date ?? addDaysStr(defaultOffsetDays);
+      setDue(nextDue);
+
+      // Début : celui de l'IA, sinon aujourd'hui
+      const nextStart = res.gantt_start ?? todayStr();
+      setStart(nextStart);
+
       if (res.tags && res.tags.length > 0) {
         const existing = tagsText.split(",").map((t) => t.trim()).filter(Boolean);
         const merged = Array.from(new Set([...existing, ...res.tags]));
