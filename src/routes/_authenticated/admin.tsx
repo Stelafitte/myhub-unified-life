@@ -189,6 +189,7 @@ function AdminPage() {
           <TabsTrigger value="users"><Shield className="mr-2 h-4 w-4" />Utilisateurs ({profiles.length})</TabsTrigger>
           <TabsTrigger value="invitations"><Mail className="mr-2 h-4 w-4" />Invitations</TabsTrigger>
           <TabsTrigger value="audit"><Activity className="mr-2 h-4 w-4" />Audit</TabsTrigger>
+          <TabsTrigger value="sources"><Trash2 className="mr-2 h-4 w-4" />Sources mail</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users">
