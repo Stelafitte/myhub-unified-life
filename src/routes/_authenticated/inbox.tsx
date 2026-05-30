@@ -526,6 +526,9 @@ function InboxPage() {
               </Badge>
             )}
           </div>
+          <Button size="sm" className="mb-3 w-full gap-1" onClick={() => openComposer({ mode: "new" })}>
+            <Plus className="h-4 w-4" /> Nouveau message
+          </Button>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
