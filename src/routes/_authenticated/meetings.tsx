@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { CalendarClock, Video, MapPin, Users as UsersIcon, CheckCircle2, XCircle, Clock, HelpCircle, Loader2, Mail, Download, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,12 +53,17 @@ function MeetingsPage() {
   const [editId, setEditId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    const cached = await cacheGetAll<Meeting>("meetings");
+    if (cached.length) { setMeetings(cached); setLoading(false); }
+    if (!navigator.onLine) { setLoading(false); return; }
     const [m, p, t] = await Promise.all([
       supabase.from("meetings").select("*").order("start_at", { ascending: false }),
       supabase.from("meeting_participants").select("*"),
       supabase.from("meeting_tasks").select("meeting_id"),
     ]);
-    setMeetings((m.data as Meeting[]) ?? []);
+    const meetingsList = (m.data as Meeting[]) ?? [];
+    setMeetings(meetingsList);
+    cacheReplaceAll("meetings", meetingsList).catch(() => {});
     setParticipants((p.data as Participant[]) ?? []);
     const counts: Record<string, number> = {};
     ((t.data ?? []) as { meeting_id: string }[]).forEach((row) => {
@@ -69,6 +75,9 @@ function MeetingsPage() {
 
   useEffect(() => {
     load();
+    const onOnline = () => load();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
   }, [load]);
 
   const now = useMemo(() => new Date(), []);
