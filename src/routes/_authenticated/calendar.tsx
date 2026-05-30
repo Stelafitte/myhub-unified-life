@@ -364,16 +364,28 @@ function AgendaPage() {
           <Legend color={SOURCE_META.task.color} badge="🟠" label="Tâches MyHub Pro" />
 
           <div className="mt-4 space-y-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full gap-1.5"
-              onClick={connectGoogleCalendar}
-              disabled={connectingGoogle}
-            >
-              <Link2 className="h-3.5 w-3.5" />
-              {connectingGoogle ? "Redirection…" : "Connecter Google Calendar"}
-            </Button>
+            {accounts.some((a) => a.type === "gmail") ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full gap-1.5"
+                disabled
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Google Calendar connecté
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full gap-1.5"
+                onClick={connectGoogleCalendar}
+                disabled={connectingGoogle}
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                {connectingGoogle ? "Redirection…" : "Connecter Google Calendar"}
+              </Button>
+            )}
             <Button
               size="sm"
               variant="ghost"
