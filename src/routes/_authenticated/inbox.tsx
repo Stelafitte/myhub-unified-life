@@ -1165,7 +1165,34 @@ function Reader({
             <Clock className="h-3 w-3" />
             {isPostponed ? "Déjà reportée" : "Reporter"}
           </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1"
+            onClick={() => onMarkSpam(!isSpamEmail)}
+            title={isSpamEmail ? "Marquer comme légitime (whitelist)" : "Marquer comme indésirable (blacklist)"}
+          >
+            {isSpamEmail ? <Shield className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
+            {isSpamEmail ? "Pas indésirable" : "Indésirable"}
+          </Button>
         </div>
+        {(email.spam_label === "spam" || email.spam_label === "phishing" || email.spam_label === "promo") && (
+          <div className={cn(
+            "mt-2 flex items-start gap-1.5 rounded-md border px-2 py-1.5 text-[11px]",
+            email.spam_label === "phishing" && "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300",
+            email.spam_label === "spam" && "border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-300",
+            email.spam_label === "promo" && "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300",
+          )}>
+            {email.spam_label === "phishing" ? <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0" /> :
+             email.spam_label === "spam" ? <ShieldOff className="mt-0.5 h-3 w-3 shrink-0" /> :
+             <Megaphone className="mt-0.5 h-3 w-3 shrink-0" />}
+            <span>
+              <span className="font-semibold capitalize">{email.spam_label}</span>
+              {typeof email.spam_score === "number" && ` · score ${email.spam_score}`}
+              {email.spam_reason && ` — ${email.spam_reason}`}
+            </span>
+          </div>
+        )}
       </header>
 
       {email.is_sensitive ? (
