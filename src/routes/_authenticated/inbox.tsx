@@ -22,6 +22,7 @@ import {
   Sparkles,
   Check,
   Lock,
+  Shield,
   ShieldAlert,
   ShieldOff,
   Megaphone,
