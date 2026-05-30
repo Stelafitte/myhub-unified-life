@@ -185,45 +185,43 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
         const body = (await res.json()) as { items?: GEvent[]; nextPageToken?: string };
         const items = body.items ?? [];
 
-        for (const ev of items) {
-          if (ev.status === "cancelled") continue;
-          const startStr = ev.start?.dateTime ?? (ev.start?.date ? `${ev.start.date}T00:00:00Z` : null);
-          const endStr = ev.end?.dateTime ?? (ev.end?.date ? `${ev.end.date}T00:00:00Z` : null);
-          if (!startStr || !endStr) continue;
-          const isAllDay = !!ev.start?.date && !ev.start?.dateTime;
+        const rows = items
+          .filter((ev) => ev.status !== "cancelled")
+          .map((ev) => {
+            const startStr = ev.start?.dateTime ?? (ev.start?.date ? `${ev.start.date}T00:00:00Z` : null);
+            const endStr = ev.end?.dateTime ?? (ev.end?.date ? `${ev.end.date}T00:00:00Z` : null);
+            if (!startStr || !endStr) return null;
+            const isAllDay = !!ev.start?.date && !ev.start?.dateTime;
+            return {
+              user_id: userId,
+              account_id: accountId,
+              gcal_connection_id: conn.id,
+              google_event_id: ev.id,
+              external_id: ev.id,
+              title: ev.summary ?? "(sans titre)",
+              description: ev.description ?? null,
+              location: ev.location ?? null,
+              start_at: startStr,
+              end_at: endStr,
+              is_all_day: isAllDay,
+              source: "google" as const,
+              sync_direction: "pull" as const,
+            };
+          })
+          .filter((r): r is NonNullable<typeof r> => r !== null);
 
-          const row = {
-            user_id: userId,
-            account_id: accountId,
-            gcal_connection_id: conn.id,
-            google_event_id: ev.id,
-            external_id: ev.id,
-            title: ev.summary ?? "(sans titre)",
-            description: ev.description ?? null,
-            location: ev.location ?? null,
-            start_at: startStr,
-            end_at: endStr,
-            is_all_day: isAllDay,
-            source: "google" as const,
-            sync_direction: "pull" as const,
-          };
-
-          // Upsert by (gcal_connection_id, google_event_id)
-          const { data: existing } = await supabaseAdmin
+        if (rows.length > 0) {
+          const { error: upsertErr } = await supabaseAdmin
             .from("calendar_events")
-            .select("id")
-            .eq("gcal_connection_id", conn.id)
-            .eq("google_event_id", ev.id)
-            .maybeSingle();
-
-          if (existing) {
-            await supabaseAdmin.from("calendar_events").update(row).eq("id", existing.id);
-          } else {
-            await supabaseAdmin.from("calendar_events").insert(row);
+            .upsert(rows, { onConflict: "gcal_connection_id,google_event_id" });
+          if (upsertErr) {
+            console.error("calendar_events upsert failed", upsertErr);
+            throw new Error(`Upsert failed: ${upsertErr.message}`);
           }
-          fetchedIds.push(ev.id);
-          totalSynced++;
+          for (const r of rows) fetchedIds.push(r.google_event_id);
+          totalSynced += rows.length;
         }
+
 
         pageToken = body.nextPageToken;
       } while (pageToken);
