@@ -44,6 +44,12 @@ type AuditRow = {
   created_at: string;
   metadata: Record<string, unknown> | null;
 };
+type SourceAccountRow = {
+  id: string;
+  name: string;
+  type: string;
+  tombstones: number;
+};
 
 function AdminPage() {
   const { isAdmin, loading } = useIsAdmin();
@@ -52,9 +58,11 @@ function AdminPage() {
   const [roles, setRoles] = useState<Record<string, string[]>>({});
   const [invitations, setInvitations] = useState<InvitationRow[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
+  const [sources, setSources] = useState<SourceAccountRow[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "user">("user");
   const [busy, setBusy] = useState(false);
+  const [purgingId, setPurgingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !isAdmin) navigate({ to: "/inbox", replace: true });
