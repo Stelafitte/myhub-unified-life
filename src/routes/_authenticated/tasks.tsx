@@ -16,6 +16,13 @@ import { type Task, type TaskStatus, getSection, DEFAULT_SECTIONS } from "@/lib/
 import { TaskRequestsPanel } from "@/components/tasks/task-requests";
 
 export const Route = createFileRoute("/_authenticated/tasks")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    newTitle: typeof s.newTitle === "string" ? s.newTitle : undefined,
+    newDescription: typeof s.newDescription === "string" ? s.newDescription : undefined,
+    newDue: typeof s.newDue === "string" ? s.newDue : undefined,
+    newStart: typeof s.newStart === "string" ? s.newStart : undefined,
+    newCalendarEventId: typeof s.newCalendarEventId === "string" ? s.newCalendarEventId : undefined,
+  }),
   component: TasksPage,
 });
 
@@ -24,6 +31,7 @@ type View = "kanban" | "gantt";
 function TasksPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const [view, setView] = useState<View>("kanban");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,6 +40,27 @@ function TasksPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>("todo");
+  const [draft, setDraft] = useState<{ title?: string; description?: string; due?: string; start?: string; calendarEventId?: string | null } | null>(null);
+
+  // Auto-open create panel when arriving with prefill search params
+  useEffect(() => {
+    if (search.newTitle || search.newDescription || search.newCalendarEventId) {
+      setDraft({
+        title: search.newTitle,
+        description: search.newDescription,
+        due: search.newDue,
+        start: search.newStart,
+        calendarEventId: search.newCalendarEventId ?? null,
+      });
+      setEditing(null);
+      setDefaultStatus("todo");
+      setPanelOpen(true);
+      // Clean URL so refresh doesn't reopen
+      navigate({ to: "/tasks", search: {}, replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   const refreshPending = async () => {
     const ops = await listPending();
@@ -124,8 +153,8 @@ function TasksPage() {
     }
   };
 
-  const openCreate = (status: TaskStatus) => { setEditing(null); setDefaultStatus(status); setPanelOpen(true); };
-  const openEdit = (t: Task) => { setEditing(t); setPanelOpen(true); };
+  const openCreate = (status: TaskStatus) => { setEditing(null); setDraft(null); setDefaultStatus(status); setPanelOpen(true); };
+  const openEdit = (t: Task) => { setEditing(t); setDraft(null); setPanelOpen(true); };
 
   const forceSync = async () => {
     const res = await flushQueue();
@@ -205,6 +234,7 @@ function TasksPage() {
         defaultStatus={defaultStatus}
         sections={sections}
         onSaved={handleSaved}
+        draft={draft}
       />
     </div>
   );

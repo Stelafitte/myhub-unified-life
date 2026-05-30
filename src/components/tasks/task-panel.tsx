@@ -39,6 +39,14 @@ import {
   withoutSection,
 } from "@/lib/tasks-model";
 
+type Draft = {
+  title?: string;
+  description?: string;
+  due?: string; // YYYY-MM-DD
+  start?: string; // YYYY-MM-DD
+  calendarEventId?: string | null;
+};
+
 type Props = {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -46,11 +54,12 @@ type Props = {
   defaultStatus?: TaskStatus;
   sections: string[];
   onSaved: (task: Task) => void;
+  draft?: Draft | null;
 };
 
 type EmailLite = { id: string; subject: string | null; from_name: string | null; from_address: string | null };
 
-export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, onSaved }: Props) {
+export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, onSaved, draft }: Props) {
   const { user } = useAuth();
   const editing = !!task;
 
@@ -119,21 +128,21 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
     } else {
       // Defaults: today for start, today for due (when no AI is used)
       const today = todayStr();
-      setTitle("");
-      setDescription("");
+      setTitle(draft?.title ?? "");
+      setDescription(draft?.description ?? "");
       setComments("");
       setPriority("medium");
       setStatus(defaultStatus ?? "todo");
       setSection("Autre");
-      setStart(today);
-      setDue(today);
+      setStart(draft?.start ?? today);
+      setDue(draft?.due ?? today);
       setReminder("");
       setTagsText("");
       setRecurrence("none");
       setSource("myhubpro");
       setEmailId(null);
       setEmailLabel("");
-      setAddToCalendar(false);
+      setAddToCalendar(!!draft?.calendarEventId);
     }
     setNewSection("");
     setEmailSearch("");
@@ -230,6 +239,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
       source_email_id: emailId,
       tags,
       kanban_column: status,
+      ...(!editing && draft?.calendarEventId ? { calendar_event_id: draft.calendarEventId } : {}),
     };
 
     try {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -125,6 +125,7 @@ const fmtMonth = (d: Date) =>
 
 function AgendaPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [view, setView] = useState<View>("week");
   const [cursor, setCursor] = useState<Date>(startOfDay(new Date()));
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -322,23 +323,18 @@ function AgendaPage() {
   };
 
 
-  const createTaskFromEvent = async (ev: UnifiedEvent) => {
-    if (!user) return;
-    const { error } = await supabase.from("tasks").insert({
-      user_id: user.id,
-      title: `Préparer : ${ev.title}`,
-      description: `Lié à l'événement du ${fmtDate(ev.start)} à ${fmtTime(ev.start)}${ev.location ? ` — ${ev.location}` : ""}`,
-      due_date: ev.start.toISOString(),
-      gantt_start: ev.start.toISOString(),
-      gantt_end: ev.end.toISOString(),
-      priority: "medium",
-      status: "todo",
-      source_app: "myhubpro",
-      calendar_event_id: ev.kind === "event" ? (ev.raw as DbEvent).id : null,
-      attachments: [],
+  const createTaskFromEvent = (ev: UnifiedEvent) => {
+    const dateStr = ev.start.toISOString().slice(0, 10);
+    navigate({
+      to: "/tasks",
+      search: {
+        newTitle: `Préparer : ${ev.title}`,
+        newDescription: `Lié à l'événement du ${fmtDate(ev.start)} à ${fmtTime(ev.start)}${ev.location ? ` — ${ev.location}` : ""}`,
+        newDue: dateStr,
+        newStart: dateStr,
+        newCalendarEventId: ev.kind === "event" ? (ev.raw as DbEvent).id : undefined,
+      },
     });
-    if (error) toast.error(error.message);
-    else { toast.success("Tâche créée et liée à l'événement"); load(); }
   };
 
   return (
