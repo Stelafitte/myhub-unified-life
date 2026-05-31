@@ -1236,7 +1236,7 @@ function NewEventDialog({
   useEffect(() => {
     if (open) {
       const d = new Date(defaultDate);
-      d.setHours(9, 0, 0, 0);
+      if (d.getHours() === 0 && d.getMinutes() === 0) d.setHours(9, 0, 0, 0);
       const e = new Date(d.getTime() + 60 * 60 * 1000);
       const toLocal = (x: Date) =>
         new Date(x.getTime() - x.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
