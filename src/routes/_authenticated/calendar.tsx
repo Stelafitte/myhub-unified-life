@@ -1450,10 +1450,11 @@ function NewEventDialog({
       setParticipants("");
       setRecurrence("none");
       setCategory("pro");
+      setColor(catColors.pro_oneoff);
       setNotes("");
       setAccountId(writable[0]?.id ?? "local");
     }
-  }, [open, defaultDate, writable]);
+  }, [open, defaultDate, writable, catColors]);
 
   const submit = async () => {
     if (!title.trim() || !startStr) {
