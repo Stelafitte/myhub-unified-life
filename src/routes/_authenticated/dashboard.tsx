@@ -807,6 +807,11 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
         },
       });
       setInsights(res);
+      setCtx({
+        unreadCount: unread.length,
+        overdueCount: overdue,
+        todayEvents: (eventsRes.data ?? []).length,
+      });
     } catch (e) {
       toast.error("Insights IA indisponibles");
     } finally {
