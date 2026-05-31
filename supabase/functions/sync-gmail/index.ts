@@ -177,7 +177,7 @@ Deno.serve(async (req: Request) => {
     if (!GMAIL_KEY) throw new Error("GOOGLE_MAIL_API_KEY missing — connector not linked");
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    let body: { account_id?: string; test?: boolean } = {};
+    let body: { account_id?: string; test?: boolean; force_full?: boolean } = {};
     try { body = await req.json(); } catch { /* empty */ }
 
     // Quick connection test
@@ -203,6 +203,11 @@ Deno.serve(async (req: Request) => {
 
     const { data: accounts, error } = await q;
     if (error) throw error;
+
+    // force_full: re-sync depuis 30j (récupère bodies/PJ sur mails déjà importés)
+    if (body.force_full && accounts) {
+      for (const acc of accounts) acc.last_sync_at = null;
+    }
 
     const results: any[] = [];
     for (const acc of accounts ?? []) {

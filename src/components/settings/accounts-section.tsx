@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Mail, RefreshCw, Trash2, Pencil, CheckCircle2, AlertCircle, Clock, Loader2, Eye, EyeOff } from "lucide-react";
+import { Plus, Mail, RefreshCw, Trash2, Pencil, CheckCircle2, AlertCircle, Clock, Loader2, Eye, EyeOff, Paperclip } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/lib/auth-context";
@@ -115,6 +115,29 @@ export function AccountsSection() {
     load();
   };
 
+  const resyncAttachments = async (acc: Account) => {
+    const tid = `resync-${acc.id}`;
+    toast.loading("Re-sync complète (30j) — récupération des PJ…", { id: tid });
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const fn = acc.type === "gmail" ? "sync-gmail" : acc.type === "outlook" ? "sync-outlook" : "sync-imap";
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ account_id: acc.id, force_full: true }),
+      });
+      const data = await res.json().catch(() => ({ ok: false }));
+      if (data.ok) toast.success(`${acc.name} — ${data.synced ?? 0} mails re-synchronisés (PJ incluses)`, { id: tid });
+      else toast.error(`${acc.name} — ${data.error ?? "échec"}`, { id: tid });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec re-sync", { id: tid });
+    }
+    load();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -151,6 +174,7 @@ export function AccountsSection() {
               key={acc.id}
               account={acc}
               onTest={() => testConnection(acc)}
+              onResyncAttachments={() => resyncAttachments(acc)}
               onRemove={() => remove(acc.id)}
               onChanged={load}
             />
@@ -173,11 +197,13 @@ export function AccountsSection() {
 function AccountCard({
   account,
   onTest,
+  onResyncAttachments,
   onRemove,
   onChanged,
 }: {
   account: Account;
   onTest: () => void;
+  onResyncAttachments: () => void;
   onRemove: () => void;
   onChanged: () => void;
 }) {
@@ -212,8 +238,11 @@ function AccountCard({
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={onTest} title="Tester">
+          <Button variant="ghost" size="icon" onClick={onTest} title="Tester / sync incrémental">
             <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onResyncAttachments} title="Re-sync complète des pièces jointes (30j)">
+            <Paperclip className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setEditing(true)} title="Modifier">
             <Pencil className="h-4 w-4" />
