@@ -1001,7 +1001,7 @@ function InboxPage() {
                     title={acc?.name}
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-baseline gap-2 min-w-0">
                       <span
                         className={cn("h-2 w-2 shrink-0 rounded-full", priorityDotClass(e.ai_priority))}
                         title={e.ai_priority ? `Priorité IA : ${e.ai_priority}` : "Priorité non analysée"}
@@ -1009,16 +1009,16 @@ function InboxPage() {
                       <span className={cn("truncate text-sm", !e.is_read && "font-semibold")}>
                         {e.from_name || e.from_address || "Inconnu"}
                       </span>
-                      <span className="ml-auto shrink-0 text-right text-[11px] text-muted-foreground leading-tight">
+                      <div className="ml-auto shrink-0 text-right text-[11px] text-muted-foreground leading-tight">
                         <div>{relativeTime(e.received_at)}</div>
                         {e.received_at && (
-                          <div className="text-[10px] opacity-75">
+                          <div className="hidden text-[10px] opacity-75 sm:block">
                             {new Date(e.received_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" })} · {new Date(e.received_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                           </div>
                         )}
-                      </span>
+                      </div>
                     </div>
-                    <div className={cn("truncate text-sm", !e.is_read ? "font-semibold" : "text-foreground/80")}>
+                    <div className={cn("break-words text-sm", !e.is_read ? "font-semibold" : "text-foreground/80")}>
                       {e.subject || "(sans objet)"}
                     </div>
                     {e.ai_summary ? (
@@ -1031,7 +1031,7 @@ function InboxPage() {
                         {(e.body_text ?? "").replace(/\s+/g, " ").slice(0, 120)}
                       </div>
                     )}
-                    <div className="mt-1 flex items-center gap-2 text-muted-foreground">
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
                       {e.is_sensitive && (
                         <span
                           className="flex items-center gap-0.5 rounded bg-red-500/15 px-1 text-[10px] font-medium text-red-600 dark:text-red-400"
