@@ -650,14 +650,14 @@ function QuickActionsWidget() {
         <Button variant="ghost" size="sm" onClick={() => setEditing((e) => !e)}>{editing ? "OK" : "Éditer"}</Button>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
           {actions.map((a, i) => editing ? (
             <div key={i} className="space-y-1">
               <Input value={a.label} onChange={(e) => save(actions.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} className="h-8 text-xs" />
               <Input value={a.to} onChange={(e) => save(actions.map((x, j) => j === i ? { ...x, to: e.target.value } : x))} className="h-8 text-xs" placeholder="/inbox" />
             </div>
           ) : (
-            <Button key={i} asChild variant="outline" size="sm" className="justify-start h-auto py-2">
+            <Button key={i} asChild variant="outline" size="sm" className="h-auto min-w-0 justify-start whitespace-normal py-2 text-left">
               <Link to={a.to}>{a.label}</Link>
             </Button>
           ))}
