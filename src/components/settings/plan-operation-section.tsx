@@ -19,6 +19,10 @@ import {
   ArrowUp,
   ArrowDown,
   Send,
+  CheckSquare,
+  Square,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -431,6 +435,41 @@ export function PlanOperationSection() {
     toast.success(`${count} ligne${count > 1 ? "s" : ""} ajoutée${count > 1 ? "s" : ""} au Plan d'opération`);
   };
 
+  // Récupère toutes les clés sélectionnables (thèmes, sous-thèmes, items)
+  const allSelectableKeys = useMemo(() => {
+    const keys: string[] = [];
+    for (const t of themes) {
+      keys.push(`theme:${t.id}`);
+      const subs = subthemes.filter((s) => s.theme_id === t.id);
+      for (const s of subs) {
+        keys.push(`sub:${s.id}`);
+        for (let i = 0; i < s.items.length; i++) keys.push(`item:${s.id}:${i}`);
+      }
+    }
+    return keys;
+  }, [themes, subthemes]);
+
+  const allSelected = allSelectableKeys.length > 0 && allSelectableKeys.every((k) => selected.has(k));
+
+  const toggleSelectAll = () => {
+    if (allSelected) setSelected(new Set());
+    else setSelected(new Set(allSelectableKeys));
+  };
+
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    for (const t of themes) next[t.id] = false;
+    setOpenIds(next);
+  };
+
+  const expandAll = () => {
+    const next: Record<string, boolean> = {};
+    for (const t of themes) next[t.id] = true;
+    setOpenIds(next);
+  };
+
+  const allOpen = themes.length > 0 && themes.every((t) => (openIds[t.id] ?? true));
+
   return (
     <div className="space-y-4">
       <Card>
@@ -457,6 +496,14 @@ export function PlanOperationSection() {
             </div>
             <Button variant="outline" onClick={seedFromTemplate} className="gap-1">
               <Sparkles className="h-4 w-4" /> Importer le modèle
+            </Button>
+            <Button variant="outline" onClick={toggleSelectAll} className="gap-1" disabled={allSelectableKeys.length === 0}>
+              {allSelected ? <Square className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
+              {allSelected ? "Tout désélectionner" : "Tout sélectionner"}
+            </Button>
+            <Button variant="outline" onClick={allOpen ? collapseAll : expandAll} className="gap-1" disabled={themes.length === 0}>
+              {allOpen ? <ChevronsDownUp className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
+              {allOpen ? "Replier tout" : "Déplier tout"}
             </Button>
             <Button onClick={addSelection} disabled={selected.size === 0} className="gap-1">
               <Send className="h-4 w-4" /> Ajouter la sélection{selected.size > 0 ? ` (${selected.size})` : ""}
