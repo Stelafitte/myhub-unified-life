@@ -256,12 +256,18 @@ function PlanOperationPage() {
     if (cTasks.length) setTasks(cTasks);
     setLoading(true);
     if (!navigator.onLine) { setLoading(false); return; }
-    const t = await supabase.from("tasks").select("*").neq("status", "archived");
+    const [t, th, sub] = await Promise.all([
+      supabase.from("tasks").select("*").neq("status", "archived"),
+      supabase.from("op_plan_themes").select("id,name,position").order("position"),
+      supabase.from("op_plan_subthemes").select("id,name,theme_id,position").order("position"),
+    ]);
     if (t.error && !cTasks.length) toast.error(t.error.message);
     if (t.data) {
       setTasks(t.data as Task[]);
       cacheReplaceAll("tasks", t.data as Task[]).catch(() => {});
     }
+    if (th.data) setOpThemes(th.data as typeof opThemes);
+    if (sub.data) setOpSubthemes(sub.data as typeof opSubthemes);
     setLoading(false);
   };
   useEffect(() => { if (user) load(); }, [user]);
