@@ -78,6 +78,8 @@ type DbEvent = {
   color: string | null;
   account_id: string | null;
   source: string | null;
+  recurrence_rule?: string | null;
+  category?: string | null;
 };
 
 type TaskRow = {
@@ -86,6 +88,8 @@ type TaskRow = {
   due_date: string | null;
   description: string | null;
 };
+
+type EventCategory = "pro_recurring" | "pro_oneoff" | "perso_recurring" | "perso_oneoff";
 
 type UnifiedEvent = {
   id: string;
@@ -96,11 +100,12 @@ type UnifiedEvent = {
   location: string | null;
   description: string | null;
   color: string;
-  badge: string; // emoji
+  badge: string;
   sourceLabel: string;
   accountId: string | null;
   isAllDay: boolean;
   hasVideo: boolean;
+  category: EventCategory;
   raw: DbEvent | TaskRow;
 };
 
@@ -116,6 +121,41 @@ const SOURCE_META: Record<
   imap: { badge: "✉️", color: "#64748b", label: "IMAP" },
   task: { badge: "🟠", color: "#f97316", label: "Tâche MyHub" },
 };
+
+const DEFAULT_CATEGORY_COLORS: Record<EventCategory, string> = {
+  pro_recurring: "#2563eb",
+  pro_oneoff: "#0ea5e9",
+  perso_recurring: "#16a34a",
+  perso_oneoff: "#f59e0b",
+};
+
+const CATEGORY_LABELS: Record<EventCategory, string> = {
+  pro_recurring: "Pro · récurrent",
+  pro_oneoff: "Pro · ponctuel",
+  perso_recurring: "Perso · récurrent",
+  perso_oneoff: "Perso · ponctuel",
+};
+
+const CATEGORY_COLOR_STORAGE_KEY = "myhub.calendar.categoryColors.v1";
+
+function loadCategoryColors(): Record<EventCategory, string> {
+  if (typeof window === "undefined") return { ...DEFAULT_CATEGORY_COLORS };
+  try {
+    const raw = window.localStorage.getItem(CATEGORY_COLOR_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_CATEGORY_COLORS };
+    const parsed = JSON.parse(raw) as Partial<Record<EventCategory, string>>;
+    return { ...DEFAULT_CATEGORY_COLORS, ...parsed };
+  } catch {
+    return { ...DEFAULT_CATEGORY_COLORS };
+  }
+}
+
+function categoryOf(e: DbEvent): EventCategory {
+  const rec = !!(e.recurrence_rule && e.recurrence_rule.trim().length > 0);
+  const base = e.category === "perso" ? "perso" : "pro";
+  if (base === "perso") return rec ? "perso_recurring" : "perso_oneoff";
+  return rec ? "pro_recurring" : "pro_oneoff";
+}
 
 // ------- Date helpers -------
 const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
@@ -163,6 +203,15 @@ function AgendaPage() {
   const [events, setEvents] = useState<DbEvent[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
+  const [catColors, setCatColors] = useState<Record<EventCategory, string>>(() => loadCategoryColors());
+  const [catEditorOpen, setCatEditorOpen] = useState(false);
+  const updateCatColor = (k: EventCategory, v: string) => {
+    setCatColors((prev) => {
+      const next = { ...prev, [k]: v };
+      try { window.localStorage.setItem(CATEGORY_COLOR_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
   const [creatingAt, setCreatingAt] = useState<Date | null>(null);
   const openCreate = (d?: Date) => {
     const base = d ? new Date(d) : (() => { const x = new Date(cursor); x.setHours(9, 0, 0, 0); return x; })();
@@ -261,6 +310,7 @@ function AgendaPage() {
       const isGoogle = e.source === "google" || (e as any).gcal_connection_id != null;
       const meta = isGoogle ? SOURCE_META.gmail : (acc ? SOURCE_META[acc.type] : SOURCE_META.imap);
       const blob = `${e.description ?? ""} ${e.location ?? ""}`;
+      const cat = categoryOf(e);
       items.push({
         id: `e:${e.id}`,
         kind: "event",
@@ -269,18 +319,19 @@ function AgendaPage() {
         end: new Date(e.end_at),
         location: e.location,
         description: e.description,
-        color: e.color || acc?.color || meta.color,
+        color: catColors[cat],
         badge: meta.badge,
         sourceLabel: acc?.name ?? meta.label,
         accountId: e.account_id,
         isAllDay: e.is_all_day,
         hasVideo: VIDEO_RX.test(blob),
+        category: cat,
         raw: e,
       });
     }
     // Les tâches ne sont volontairement pas affichées dans l'agenda
     return items.sort((a, b) => a.start.getTime() - b.start.getTime());
-  }, [events, tasks, accById]);
+  }, [events, tasks, accById, catColors]);
 
   // Range for current view
   const range = useMemo(() => {
@@ -410,7 +461,22 @@ function AgendaPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-3">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Types d'événements
+            </span>
+            <button
+              onClick={() => setCatEditorOpen(true)}
+              className="text-[10px] font-medium text-primary hover:underline"
+            >
+              Personnaliser
+            </button>
+          </div>
+          {(Object.keys(CATEGORY_LABELS) as EventCategory[]).map((k) => (
+            <Legend key={k} color={catColors[k]} badge="●" label={CATEGORY_LABELS[k]} />
+          ))}
+
+          <div className="mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Sources
           </div>
           <Legend color={SOURCE_META.gmail.color} badge="🔵" label="Google Calendar" />
@@ -575,6 +641,47 @@ function AgendaPage() {
         defaultDate={creatingAt ?? cursor}
         onCreated={() => { setCreatingAt(null); load(); }}
       />
+
+      <Dialog open={catEditorOpen} onOpenChange={setCatEditorOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Couleurs des types d'événements</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {(Object.keys(CATEGORY_LABELS) as EventCategory[]).map((k) => (
+              <div key={k} className="flex items-center justify-between gap-3 rounded-md border p-2">
+                <div className="flex items-center gap-2">
+                  <span className="h-4 w-4 rounded-full" style={{ background: catColors[k] }} />
+                  <span className="text-sm">{CATEGORY_LABELS[k]}</span>
+                </div>
+                <input
+                  type="color"
+                  value={catColors[k]}
+                  onChange={(e) => updateCatColor(k, e.target.value)}
+                  className="h-8 w-12 cursor-pointer rounded border bg-transparent"
+                />
+              </div>
+            ))}
+            <p className="text-[11px] text-muted-foreground">
+              Les couleurs sont enregistrées localement sur cet appareil. La catégorie
+              (pro/perso) se choisit à la création d'un événement ; le caractère récurrent
+              est déduit de la règle de récurrence.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setCatColors({ ...DEFAULT_CATEGORY_COLORS });
+                try { window.localStorage.removeItem(CATEGORY_COLOR_STORAGE_KEY); } catch {}
+              }}
+            >
+              Réinitialiser
+            </Button>
+            <Button onClick={() => setCatEditorOpen(false)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
@@ -1230,6 +1337,7 @@ function NewEventDialog({
   const [location, setLocation] = useState("");
   const [participants, setParticipants] = useState("");
   const [recurrence, setRecurrence] = useState<string>("none");
+  const [category, setCategory] = useState<"pro" | "perso">("pro");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -1247,6 +1355,7 @@ function NewEventDialog({
       setLocation("");
       setParticipants("");
       setRecurrence("none");
+      setCategory("pro");
       setNotes("");
       setAccountId(writable[0]?.id ?? "local");
     }
@@ -1286,6 +1395,7 @@ function NewEventDialog({
         end_at: new Date(endStr || startStr).toISOString(),
         is_all_day: allDay,
         recurrence_rule: rrule,
+        category,
         color: acc?.color || "#6366f1",
         source: acc ? (acc.type as never) : null,
         sync_direction: acc?.sync_direction ?? "bidirectional",
@@ -1364,17 +1474,29 @@ function NewEventDialog({
             <Input id="ev-part" value={participants} onChange={(e) => setParticipants(e.target.value)} placeholder="alice@x.com, bob@y.com" />
           </div>
 
-          <div>
-            <Label>Récurrence</Label>
-            <Select value={recurrence} onValueChange={setRecurrence}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Aucune</SelectItem>
-                <SelectItem value="daily">Tous les jours</SelectItem>
-                <SelectItem value="weekly">Toutes les semaines</SelectItem>
-                <SelectItem value="monthly">Tous les mois</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Catégorie</Label>
+              <Select value={category} onValueChange={(v) => setCategory(v as "pro" | "perso")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pro">💼 Pro</SelectItem>
+                  <SelectItem value="perso">🏡 Perso</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Récurrence</Label>
+              <Select value={recurrence} onValueChange={setRecurrence}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune (ponctuel)</SelectItem>
+                  <SelectItem value="daily">Tous les jours</SelectItem>
+                  <SelectItem value="weekly">Toutes les semaines</SelectItem>
+                  <SelectItem value="monthly">Tous les mois</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>
