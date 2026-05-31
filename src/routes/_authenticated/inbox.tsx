@@ -1098,6 +1098,13 @@ function InboxPage() {
       <section className="flex min-w-0 max-w-full flex-1 flex-col border-r overflow-hidden">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
+            <Link
+              to="/"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
+              title="Retour à l'accueil"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
             <Select
               value={
                 filter.startsWith("account:") ||
