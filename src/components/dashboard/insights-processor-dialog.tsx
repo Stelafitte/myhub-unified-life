@@ -120,17 +120,16 @@ export function InsightsProcessorDialog({ open, onOpenChange, userId, items, con
             a.due_in_hours != null
               ? new Date(Date.now() + a.due_in_hours * 3600 * 1000).toISOString()
               : null;
-          const priorityMap: Record<string, string> = {
-            low: "low",
-            medium: "medium",
-            high: "high",
-            urgent: "urgent",
-          };
+          const allowed = ["low", "medium", "high", "urgent"] as const;
+          type Prio = (typeof allowed)[number];
+          const priority: Prio = (allowed as readonly string[]).includes(a.priority)
+            ? (a.priority as Prio)
+            : "medium";
           const { error } = await supabase.from("tasks").insert({
             user_id: userId,
             title: a.title,
             status: "todo",
-            priority: priorityMap[a.priority] ?? "medium",
+            priority,
             due_date: due,
           });
           if (error) throw new Error(error.message);
