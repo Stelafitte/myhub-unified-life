@@ -56,11 +56,17 @@ import { cacheEmails, loadCachedEmails, type CachedEmail } from "@/lib/inbox-cac
 import { QuickAddOvh } from "@/components/inbox/quick-add-ovh";
 import { useSecureVault } from "@/lib/secure-vault-context";
 import { VaultPinDialog } from "@/components/security/vault-pin-dialog";
-import { listThemes, classifyPendingThemes, discoverThemes, seedThemesFromFolders, setEmailTheme, type Theme } from "@/lib/api/themes.functions";
+import {
+  listThemes,
+  classifyPendingThemes,
+  discoverThemes,
+  seedThemesFromFolders,
+  setEmailTheme,
+  type Theme,
+} from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
-
 
 type Account = {
   id: string;
@@ -73,7 +79,16 @@ type Account = {
 
 type Email = CachedEmail;
 
-type Filter = "all" | "unread" | "attachments" | "starred" | "spam" | "promo" | `account:${string}` | `theme:${string}` | "theme:__none__";
+type Filter =
+  | "all"
+  | "unread"
+  | "attachments"
+  | "starred"
+  | "spam"
+  | "promo"
+  | `account:${string}`
+  | `theme:${string}`
+  | "theme:__none__";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
   component: InboxPage,
@@ -197,7 +212,9 @@ function InboxPage() {
         setEmails(refreshed as Email[]);
         cacheEmails(refreshed as Email[]);
       }
-      toast.success(totalProcessed > 0 ? `${totalProcessed} email(s) reclassé(s)` : "Aucun email à reclasser");
+      toast.success(
+        totalProcessed > 0 ? `${totalProcessed} email(s) reclassé(s)` : "Aucun email à reclasser",
+      );
     } catch (err: any) {
       toast.error(err?.message ?? "Erreur lors du relancement");
     } finally {
@@ -217,12 +234,16 @@ function InboxPage() {
 
   // Resizable column widths (persisted)
   const [leftW, setLeftW] = useState<number>(() => {
-    const v = Number(localStorage.getItem("inbox:leftW")); return v >= 200 && v <= 500 ? v : 280;
+    const v = Number(localStorage.getItem("inbox:leftW"));
+    return v >= 200 && v <= 500 ? v : 280;
   });
   const [rightW, setRightW] = useState<number>(() => {
-    const v = Number(localStorage.getItem("inbox:rightW")); return v >= 320 ? v : 600;
+    const v = Number(localStorage.getItem("inbox:rightW"));
+    return v >= 320 ? v : 600;
   });
-  const [winW, setWinW] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 1280));
+  const [winW, setWinW] = useState<number>(() =>
+    typeof window !== "undefined" ? window.innerWidth : 1280,
+  );
   useEffect(() => {
     const onResize = () => setWinW(window.innerWidth);
     window.addEventListener("resize", onResize);
@@ -247,16 +268,25 @@ function InboxPage() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
       document.body.style.cursor = "";
-      localStorage.setItem("inbox:leftW", String(which === "left" ? (document.documentElement.dataset._lw ?? leftW) : leftW));
-      localStorage.setItem("inbox:rightW", String(which === "right" ? (document.documentElement.dataset._rw ?? rightW) : rightW));
+      localStorage.setItem(
+        "inbox:leftW",
+        String(which === "left" ? (document.documentElement.dataset._lw ?? leftW) : leftW),
+      );
+      localStorage.setItem(
+        "inbox:rightW",
+        String(which === "right" ? (document.documentElement.dataset._rw ?? rightW) : rightW),
+      );
     };
     document.body.style.cursor = "col-resize";
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
-  useEffect(() => { localStorage.setItem("inbox:leftW", String(leftW)); }, [leftW]);
-  useEffect(() => { localStorage.setItem("inbox:rightW", String(rightW)); }, [rightW]);
-
+  useEffect(() => {
+    localStorage.setItem("inbox:leftW", String(leftW));
+  }, [leftW]);
+  useEffect(() => {
+    localStorage.setItem("inbox:rightW", String(rightW));
+  }, [rightW]);
 
   // Online/offline awareness
   useEffect(() => {
@@ -288,8 +318,12 @@ function InboxPage() {
           setAccounts((prev) => (prev.length === 0 ? parsed : prev));
         }
       }
-    } catch { /* ignore */ }
-    return () => { cancelled = true; };
+    } catch {
+      /* ignore */
+    }
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Network fetch when user is ready
@@ -311,7 +345,11 @@ function InboxPage() {
       if (cancelled) return;
       if (accs) {
         setAccounts(accs as Account[]);
-        try { localStorage.setItem("inbox:accounts", JSON.stringify(accs)); } catch { /* ignore */ }
+        try {
+          localStorage.setItem("inbox:accounts", JSON.stringify(accs));
+        } catch {
+          /* ignore */
+        }
       }
       if (error) {
         if (emails.length === 0) toast.error("Hors-ligne : aucun cache disponible");
@@ -369,7 +407,9 @@ function InboxPage() {
             const slim = od.folders.map((f) => ({ name: f.name, path: f.path, depth: f.depth }));
             await seedFoldersFn({ data: { folders: slim } });
           }
-        } catch { /* onedrive optional */ }
+        } catch {
+          /* onedrive optional */
+        }
         if (!cancelled) {
           await discoverThemesFn().catch(() => null);
           await refreshThemes();
@@ -391,7 +431,9 @@ function InboxPage() {
         if (!cancelled && refreshed) setEmails(refreshed as Email[]);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user, reloadKey]);
 
   const accountById = useMemo(() => {
@@ -424,7 +466,17 @@ function InboxPage() {
       if (e.ai_theme_id) byTheme.set(e.ai_theme_id, (byTheme.get(e.ai_theme_id) ?? 0) + 1);
       else noTheme++;
     });
-    return { all: inboxEmails.length, unread, attachments, starred, spam, promo, byAccount, byTheme, noTheme };
+    return {
+      all: inboxEmails.length,
+      unread,
+      attachments,
+      starred,
+      spam,
+      promo,
+      byAccount,
+      byTheme,
+      noTheme,
+    };
   }, [emails]);
 
   const filtered = useMemo(() => {
@@ -557,7 +609,9 @@ function InboxPage() {
   const remove = async (e: Email) => {
     const sender = (e.from_address ?? "").toLowerCase();
     const sameSenderIds = sender
-      ? emails.filter((x) => (x.from_address ?? "").toLowerCase() === sender && x.id !== e.id).map((x) => x.id)
+      ? emails
+          .filter((x) => (x.from_address ?? "").toLowerCase() === sender && x.id !== e.id)
+          .map((x) => x.id)
       : [];
     let alsoDeleteSender = false;
     if (sameSenderIds.length > 0) {
@@ -570,7 +624,10 @@ function InboxPage() {
     if (selectedId && idsToDelete.includes(selectedId)) setSelectedId(null);
     const { error } = await supabase.from("emails").delete().in("id", idsToDelete);
     if (error) toast.error(error.message);
-    else toast.success(idsToDelete.length > 1 ? `${idsToDelete.length} emails supprimés` : "Email supprimé");
+    else
+      toast.success(
+        idsToDelete.length > 1 ? `${idsToDelete.length} emails supprimés` : "Email supprimé",
+      );
   };
 
   const markSpam = async (e: Email, asSpam: boolean) => {
@@ -588,17 +645,24 @@ function InboxPage() {
         .maybeSingle();
       const wl = new Set((sec?.whitelist ?? []) as string[]);
       const bl = new Set((sec?.blacklist ?? []) as string[]);
-      if (asSpam) { bl.add(from); wl.delete(from); }
-      else { wl.add(from); bl.delete(from); }
+      if (asSpam) {
+        bl.add(from);
+        wl.delete(from);
+      } else {
+        wl.add(from);
+        bl.delete(from);
+      }
       await supabase
         .from("security_settings")
-        .upsert({ user_id: e.user_id, whitelist: [...wl], blacklist: [...bl] }, { onConflict: "user_id" });
+        .upsert(
+          { user_id: e.user_id, whitelist: [...wl], blacklist: [...bl] },
+          { onConflict: "user_id" },
+        );
     }
     const { error } = await supabase.from("emails").update(update).eq("id", e.id);
     if (error) toast.error(error.message);
     else toast.success(asSpam ? "Marqué comme indésirable" : "Marqué comme légitime");
   };
-
 
   const postponeAsTask = async (e: Email) => {
     const labels = Array.from(new Set([...(e.labels ?? []), "task-todo"]));
@@ -611,30 +675,34 @@ function InboxPage() {
   // Bulk actions on `checked`
   const bulkIds = () => Array.from(checked);
   const bulkArchive = async () => {
-    const ids = bulkIds(); if (!ids.length) return;
+    const ids = bulkIds();
+    if (!ids.length) return;
     setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
     if (selectedId && checked.has(selectedId)) setSelectedId(null);
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_archived: true }).in("id", ids);
-    if (error) toast.error(error.message); else toast.success(`${ids.length} email(s) archivé(s)`);
+    if (error) toast.error(error.message);
+    else toast.success(`${ids.length} email(s) archivé(s)`);
   };
   const bulkDelete = async () => {
-    const ids = bulkIds(); if (!ids.length) return;
+    const ids = bulkIds();
+    if (!ids.length) return;
     if (!confirm(`Supprimer ${ids.length} email(s) ?`)) return;
     setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
     if (selectedId && checked.has(selectedId)) setSelectedId(null);
     clearChecked();
     const { error } = await supabase.from("emails").delete().in("id", ids);
-    if (error) toast.error(error.message); else toast.success(`${ids.length} email(s) supprimé(s)`);
+    if (error) toast.error(error.message);
+    else toast.success(`${ids.length} email(s) supprimé(s)`);
   };
   const bulkMarkRead = async (read: boolean) => {
-    const ids = bulkIds(); if (!ids.length) return;
+    const ids = bulkIds();
+    if (!ids.length) return;
     setEmails((prev) => prev.map((x) => (checked.has(x.id) ? { ...x, is_read: read } : x)));
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
     if (error) toast.error(error.message);
   };
-
 
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
@@ -655,7 +723,11 @@ function InboxPage() {
               </Badge>
             )}
           </div>
-          <Button size="sm" className="mb-3 w-full gap-1" onClick={() => openComposer({ mode: "new" })}>
+          <Button
+            size="sm"
+            className="mb-3 w-full gap-1"
+            onClick={() => openComposer({ mode: "new" })}
+          >
             <Plus className="h-4 w-4" /> Nouveau message
           </Button>
           <div className="relative">
@@ -670,12 +742,48 @@ function InboxPage() {
         </div>
 
         <nav className="flex-1 overflow-y-auto p-2 text-sm">
-          <FilterRow label="Tous les mails" icon={<Mail className="h-4 w-4" />} count={counts.all} active={filter === "all"} onClick={() => setFilter("all")} />
-          <FilterRow label="Non lus" icon={<Circle className="h-4 w-4 fill-current" />} count={counts.unread} active={filter === "unread"} onClick={() => setFilter("unread")} />
-          <FilterRow label="Pièces jointes" icon={<Paperclip className="h-4 w-4" />} count={counts.attachments} active={filter === "attachments"} onClick={() => setFilter("attachments")} />
-          <FilterRow label="Suivis" icon={<Star className="h-4 w-4" />} count={counts.starred} active={filter === "starred"} onClick={() => setFilter("starred")} />
-          <FilterRow label="Promotions" icon={<Megaphone className="h-4 w-4" />} count={counts.promo} active={filter === "promo"} onClick={() => setFilter("promo")} />
-          <FilterRow label="Indésirables" icon={<ShieldOff className="h-4 w-4" />} count={counts.spam} active={filter === "spam"} onClick={() => setFilter("spam")} />
+          <FilterRow
+            label="Tous les mails"
+            icon={<Mail className="h-4 w-4" />}
+            count={counts.all}
+            active={filter === "all"}
+            onClick={() => setFilter("all")}
+          />
+          <FilterRow
+            label="Non lus"
+            icon={<Circle className="h-4 w-4 fill-current" />}
+            count={counts.unread}
+            active={filter === "unread"}
+            onClick={() => setFilter("unread")}
+          />
+          <FilterRow
+            label="Pièces jointes"
+            icon={<Paperclip className="h-4 w-4" />}
+            count={counts.attachments}
+            active={filter === "attachments"}
+            onClick={() => setFilter("attachments")}
+          />
+          <FilterRow
+            label="Suivis"
+            icon={<Star className="h-4 w-4" />}
+            count={counts.starred}
+            active={filter === "starred"}
+            onClick={() => setFilter("starred")}
+          />
+          <FilterRow
+            label="Promotions"
+            icon={<Megaphone className="h-4 w-4" />}
+            count={counts.promo}
+            active={filter === "promo"}
+            onClick={() => setFilter("promo")}
+          />
+          <FilterRow
+            label="Indésirables"
+            icon={<ShieldOff className="h-4 w-4" />}
+            count={counts.spam}
+            active={filter === "spam"}
+            onClick={() => setFilter("spam")}
+          />
 
           {/* Comptes first */}
           <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -687,24 +795,26 @@ function InboxPage() {
           {accounts
             .filter((a) => !(a.credentials?.calendar_only === true) && !/calendar/i.test(a.name))
             .map((a) => (
-            <button
-              key={a.id}
-              onClick={() => setFilter(`account:${a.id}`)}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
-                filter === `account:${a.id}` ? "bg-accent" : "hover:bg-accent/50",
-              )}
-            >
-              <span
-                className="flex h-5 w-5 items-center justify-center rounded text-xs"
-                style={{ background: a.color ?? "#64748b", color: "#fff" }}
+              <button
+                key={a.id}
+                onClick={() => setFilter(`account:${a.id}`)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                  filter === `account:${a.id}` ? "bg-accent" : "hover:bg-accent/50",
+                )}
               >
-                {a.icon ?? "✉️"}
-              </span>
-              <span className="flex-1 truncate text-sm">{a.name}</span>
-              <span className="text-[11px] text-muted-foreground">{counts.byAccount.get(a.id) ?? 0}</span>
-            </button>
-          ))}
+                <span
+                  className="flex h-5 w-5 items-center justify-center rounded text-xs"
+                  style={{ background: a.color ?? "#64748b", color: "#fff" }}
+                >
+                  {a.icon ?? "✉️"}
+                </span>
+                <span className="flex-1 truncate text-sm">{a.name}</span>
+                <span className="text-[11px] text-muted-foreground">
+                  {counts.byAccount.get(a.id) ?? 0}
+                </span>
+              </button>
+            ))}
           {!accounts.some((a) => a.name === "CHU" || a.type === "imap") && (
             <QuickAddOvh onAdded={() => setReloadKey((k) => k + 1)} />
           )}
@@ -814,8 +924,12 @@ function InboxPage() {
                 filter === "theme:__none__" ? "bg-accent" : "hover:bg-accent/50",
               )}
             >
-              <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-xs">❓</span>
-              <span className="flex-1 truncate text-sm italic text-muted-foreground">Non classés</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-muted text-xs">
+                ❓
+              </span>
+              <span className="flex-1 truncate text-sm italic text-muted-foreground">
+                Non classés
+              </span>
               <span className="text-[11px] text-muted-foreground">{counts.noTheme}</span>
             </button>
           )}
@@ -858,37 +972,47 @@ function InboxPage() {
                   <div className="flex items-center gap-2">
                     <Circle className="h-3.5 w-3.5 fill-current text-muted-foreground" />
                     Non lus
-                    <span className="ml-auto text-[10px] text-muted-foreground">{counts.unread}</span>
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {counts.unread}
+                    </span>
                   </div>
                 </SelectItem>
                 <SelectItem value="starred" className="text-xs">
                   <div className="flex items-center gap-2">
                     <Star className="h-3.5 w-3.5 text-amber-400" />
                     Suivis
-                    <span className="ml-auto text-[10px] text-muted-foreground">{counts.starred}</span>
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {counts.starred}
+                    </span>
                   </div>
                 </SelectItem>
                 <SelectItem value="attachments" className="text-xs">
                   <div className="flex items-center gap-2">
                     <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
                     Pièces jointes
-                    <span className="ml-auto text-[10px] text-muted-foreground">{counts.attachments}</span>
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {counts.attachments}
+                    </span>
                   </div>
                 </SelectItem>
                 {accounts
-                  .filter((a) => !(a.credentials?.calendar_only === true) && !/calendar/i.test(a.name))
+                  .filter(
+                    (a) => !(a.credentials?.calendar_only === true) && !/calendar/i.test(a.name),
+                  )
                   .map((a) => (
-                  <SelectItem key={a.id} value={`account:${a.id}`} className="text-xs">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="inline-block h-2.5 w-2.5 rounded-full"
-                        style={{ background: a.color ?? "#64748b" }}
-                      />
-                      {a.name}
-                      <span className="ml-auto text-[10px] text-muted-foreground">{counts.byAccount.get(a.id) ?? 0}</span>
-                    </div>
-                  </SelectItem>
-                ))}
+                    <SelectItem key={a.id} value={`account:${a.id}`} className="text-xs">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="inline-block h-2.5 w-2.5 rounded-full"
+                          style={{ background: a.color ?? "#64748b" }}
+                        />
+                        {a.name}
+                        <span className="ml-auto text-[10px] text-muted-foreground">
+                          {counts.byAccount.get(a.id) ?? 0}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             <Button
@@ -902,17 +1026,24 @@ function InboxPage() {
               <span className="hidden sm:inline">Classement IA</span>
             </Button>
           </div>
-          <span className="shrink-0 text-xs text-muted-foreground">{filtered.length} email{filtered.length > 1 ? "s" : ""}</span>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {filtered.length} email{filtered.length > 1 ? "s" : ""}
+          </span>
         </div>
-        <div className={cn(
-          "flex flex-wrap items-center gap-2 border-b px-4 py-1.5 text-xs",
-          checked.size > 0 ? "bg-primary/5" : "bg-muted/30"
-        )}>
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-2 border-b px-4 py-1.5 text-xs",
+            checked.size > 0 ? "bg-primary/5" : "bg-muted/30",
+          )}
+        >
           <input
             type="checkbox"
             checked={filtered.length > 0 && filtered.every((e) => checked.has(e.id))}
             ref={(el) => {
-              if (el) el.indeterminate = checked.size > 0 && !(filtered.length > 0 && filtered.every((e) => checked.has(e.id)));
+              if (el)
+                el.indeterminate =
+                  checked.size > 0 &&
+                  !(filtered.length > 0 && filtered.every((e) => checked.has(e.id)));
             }}
             onChange={(ev) => {
               if (ev.target.checked) setChecked(new Set(filtered.map((e) => e.id)));
@@ -924,21 +1055,40 @@ function InboxPage() {
           />
           {checked.size > 0 ? (
             <>
-              <span className="font-medium">{checked.size} sélectionné{checked.size > 1 ? "s" : ""}</span>
+              <span className="font-medium">
+                {checked.size} sélectionné{checked.size > 1 ? "s" : ""}
+              </span>
               <div className="ml-auto flex flex-wrap gap-1">
-                <Button size="sm" variant="ghost" className="h-6 gap-1 px-2" onClick={() => bulkMarkRead(true)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 gap-1 px-2"
+                  onClick={() => bulkMarkRead(true)}
+                >
                   <MailOpen className="h-3.5 w-3.5" /> Lu
                 </Button>
-                <Button size="sm" variant="ghost" className="h-6 gap-1 px-2" onClick={() => bulkMarkRead(false)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 gap-1 px-2"
+                  onClick={() => bulkMarkRead(false)}
+                >
                   <Mail className="h-3.5 w-3.5" /> Non lu
                 </Button>
                 <Button size="sm" variant="ghost" className="h-6 gap-1 px-2" onClick={bulkArchive}>
                   <Archive className="h-3.5 w-3.5" /> Archiver
                 </Button>
-                <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-destructive hover:text-destructive" onClick={bulkDelete}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 gap-1 px-2 text-destructive hover:text-destructive"
+                  onClick={bulkDelete}
+                >
                   <Trash2 className="h-3.5 w-3.5" /> Supprimer
                 </Button>
-                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={clearChecked}>Annuler</Button>
+                <Button size="sm" variant="ghost" className="h-6 px-2" onClick={clearChecked}>
+                  Annuler
+                </Button>
               </div>
             </>
           ) : (
@@ -948,13 +1098,15 @@ function InboxPage() {
         <ul className="flex-1 divide-y overflow-y-auto">
           {filtered.length === 0 && (
             <li className="p-6 text-center text-sm text-muted-foreground sm:p-10">
-              {emails.length === 0 ? "Aucun email — configurez un compte dans Paramètres." : "Aucun résultat."}
+              {emails.length === 0
+                ? "Aucun email — configurez un compte dans Paramètres."
+                : "Aucun résultat."}
             </li>
           )}
           {displayItems.map((item) => {
             if (item.kind === "header") {
               return (
-              <li
+                <li
                   key={`h:${item.key}`}
                   onClick={() => toggleTheme(item.key)}
                   className="sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20"
@@ -1003,22 +1155,46 @@ function InboxPage() {
                   <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex min-w-0 items-baseline gap-2">
                       <span
-                        className={cn("h-2 w-2 shrink-0 rounded-full", priorityDotClass(e.ai_priority))}
-                        title={e.ai_priority ? `Priorité IA : ${e.ai_priority}` : "Priorité non analysée"}
+                        className={cn(
+                          "h-2 w-2 shrink-0 rounded-full",
+                          priorityDotClass(e.ai_priority),
+                        )}
+                        title={
+                          e.ai_priority ? `Priorité IA : ${e.ai_priority}` : "Priorité non analysée"
+                        }
                       />
-                      <span className={cn("min-w-0 flex-1 truncate text-sm", !e.is_read && "font-semibold")}>
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 truncate text-sm",
+                          !e.is_read && "font-semibold",
+                        )}
+                      >
                         {e.from_name || e.from_address || "Inconnu"}
                       </span>
                       <div className="ml-auto shrink-0 text-right text-[11px] text-muted-foreground leading-tight">
                         <div>{relativeTime(e.received_at)}</div>
                         {e.received_at && (
                           <div className="hidden text-[10px] opacity-75 sm:block">
-                            {new Date(e.received_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" })} · {new Date(e.received_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                            {new Date(e.received_at).toLocaleDateString("fr-FR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "2-digit",
+                            })}{" "}
+                            ·{" "}
+                            {new Date(e.received_at).toLocaleTimeString("fr-FR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className={cn("break-words text-sm", !e.is_read ? "font-semibold" : "text-foreground/80")}>
+                    <div
+                      className={cn(
+                        "break-words text-sm",
+                        !e.is_read ? "font-semibold" : "text-foreground/80",
+                      )}
+                    >
                       {e.subject || "(sans objet)"}
                     </div>
                     {e.ai_summary ? (
@@ -1040,16 +1216,16 @@ function InboxPage() {
                           <Lock className="h-2.5 w-2.5" /> Sensible
                         </span>
                       )}
-                       {e.is_starred && <Star className="h-3 w-3 fill-amber-400 text-amber-400" />}
-                       {e.has_attachment && <Paperclip className="h-3 w-3" />}
-                       {e.meeting_link && (
-                         <span
-                           className="flex items-center gap-0.5 rounded bg-blue-500/15 px-1 text-[10px] text-blue-600 dark:text-blue-400"
-                           title={`Lien de réunion détecté: ${e.meeting_link}`}
-                         >
-                           🎥 Visio
-                         </span>
-                       )}
+                      {e.is_starred && <Star className="h-3 w-3 fill-amber-400 text-amber-400" />}
+                      {e.has_attachment && <Paperclip className="h-3 w-3" />}
+                      {e.meeting_link && (
+                        <span
+                          className="flex items-center gap-0.5 rounded bg-blue-500/15 px-1 text-[10px] text-blue-600 dark:text-blue-400"
+                          title={`Lien de réunion détecté: ${e.meeting_link}`}
+                        >
+                          🎥 Visio
+                        </span>
+                      )}
                       {e.ai_category && !e.is_sensitive && (
                         <span className="flex items-center gap-0.5 rounded bg-primary/10 px-1 text-[10px] text-primary">
                           {categoryLabel(e.ai_category)}
@@ -1066,22 +1242,65 @@ function InboxPage() {
 
                 {/* hover actions */}
                 <div className="absolute right-2 top-2 hidden gap-1 rounded-md border bg-background p-0.5 shadow-sm group-hover:flex">
-                  <IconBtn label={e.is_read ? "Marquer non lu" : "Marquer lu"} onClick={(ev) => { ev.stopPropagation(); toggleRead(e); }}>
-                    {e.is_read ? <Mail className="h-3.5 w-3.5" /> : <MailOpen className="h-3.5 w-3.5" />}
+                  <IconBtn
+                    label={e.is_read ? "Marquer non lu" : "Marquer lu"}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      toggleRead(e);
+                    }}
+                  >
+                    {e.is_read ? (
+                      <Mail className="h-3.5 w-3.5" />
+                    ) : (
+                      <MailOpen className="h-3.5 w-3.5" />
+                    )}
                   </IconBtn>
-                  <IconBtn label="Supprimer" onClick={(ev) => { ev.stopPropagation(); remove(e); }}>
+                  <IconBtn
+                    label="Supprimer"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      remove(e);
+                    }}
+                  >
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </IconBtn>
-                  <IconBtn label="Étoiler" onClick={(ev) => { ev.stopPropagation(); toggleStar(e); }}>
-                    <Star className={cn("h-3.5 w-3.5", e.is_starred && "fill-amber-400 text-amber-400")} />
+                  <IconBtn
+                    label="Étoiler"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      toggleStar(e);
+                    }}
+                  >
+                    <Star
+                      className={cn("h-3.5 w-3.5", e.is_starred && "fill-amber-400 text-amber-400")}
+                    />
                   </IconBtn>
-                  <IconBtn label="Archiver" onClick={(ev) => { ev.stopPropagation(); archive(e); }}>
+                  <IconBtn
+                    label="Archiver"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      archive(e);
+                    }}
+                  >
                     <Archive className="h-3.5 w-3.5" />
                   </IconBtn>
-                  <IconBtn label="Créer une tâche" onClick={(ev) => { ev.stopPropagation(); setSelectedId(e.id); setTaskOpen(true); }}>
+                  <IconBtn
+                    label="Créer une tâche"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      setSelectedId(e.id);
+                      setTaskOpen(true);
+                    }}
+                  >
                     <Plus className="h-3.5 w-3.5" />
                   </IconBtn>
-                  <IconBtn label="Reporter en tâche à traiter" onClick={(ev) => { ev.stopPropagation(); postponeAsTask(e); }}>
+                  <IconBtn
+                    label="Reporter en tâche à traiter"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      postponeAsTask(e);
+                    }}
+                  >
                     <Clock className="h-3.5 w-3.5" />
                   </IconBtn>
                 </div>
@@ -1101,9 +1320,7 @@ function InboxPage() {
       {/* RIGHT — reader (full overlay on mobile when selected) */}
       <aside
         style={{
-          width: winW >= 1024
-            ? Math.min(rightW, Math.max(360, winW - leftW - 380))
-            : undefined,
+          width: winW >= 1024 ? Math.min(rightW, Math.max(360, winW - leftW - 380)) : undefined,
         }}
         className={cn(
           "min-w-0 shrink-0 flex-col bg-card lg:flex lg:relative lg:inset-auto lg:z-auto",
@@ -1138,7 +1355,6 @@ function InboxPage() {
         )}
       </aside>
 
-
       {selected && (
         <CreateTaskFromEmailDialog
           open={taskOpen}
@@ -1151,7 +1367,10 @@ function InboxPage() {
       <ThemesManagerDialog
         open={themesOpen}
         onOpenChange={setThemesOpen}
-        onChanged={() => { refreshThemes(); setReloadKey((k) => k + 1); }}
+        onChanged={() => {
+          refreshThemes();
+          setReloadKey((k) => k + 1);
+        }}
       />
 
       <EmailComposer
@@ -1164,7 +1383,19 @@ function InboxPage() {
   );
 }
 
-function FilterRow({ label, icon, count, active, onClick }: { label: string; icon: React.ReactNode; count: number; active: boolean; onClick: () => void }) {
+function FilterRow({
+  label,
+  icon,
+  count,
+  active,
+  onClick,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  count: number;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
@@ -1180,7 +1411,15 @@ function FilterRow({ label, icon, count, active, onClick }: { label: string; ico
   );
 }
 
-function IconBtn({ children, label, onClick }: { children: React.ReactNode; label: string; onClick: (e: React.MouseEvent) => void }) {
+function IconBtn({
+  children,
+  label,
+  onClick,
+}: {
+  children: React.ReactNode;
+  label: string;
+  onClick: (e: React.MouseEvent) => void;
+}) {
   return (
     <button
       title={label}
@@ -1217,14 +1456,24 @@ function Reader({
 }) {
   const [sensitiveOverride, setSensitiveOverride] = useState<boolean | null>(null);
   const isSensitive = sensitiveOverride ?? email.is_sensitive;
-  useEffect(() => { setSensitiveOverride(null); }, [email.id]);
+  useEffect(() => {
+    setSensitiveOverride(null);
+  }, [email.id]);
   const unmarkSensitive = async () => {
-    if (!window.confirm("Confirmer que ce message ne contient pas de données sensibles ? L'analyse IA sera réactivée.")) return;
+    if (
+      !window.confirm(
+        "Confirmer que ce message ne contient pas de données sensibles ? L'analyse IA sera réactivée.",
+      )
+    )
+      return;
     const { error } = await supabase
       .from("emails")
       .update({ is_sensitive: false, sensitive_reason: null, sensitive_score: null })
       .eq("id", email.id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setSensitiveOverride(false);
     toast.success("Caractère sensible levé");
   };
@@ -1232,35 +1481,45 @@ function Reader({
   const isPostponed = (email.labels ?? []).includes("task-todo");
   const quoted = () => {
     const dateStr = email.received_at ? new Date(email.received_at).toLocaleString("fr-FR") : "";
-    const sender = email.from_name ? `${email.from_name} <${email.from_address}>` : (email.from_address ?? "");
-    const body = (email.body_text ?? "").split("\n").map((l) => "> " + l).join("\n");
+    const sender = email.from_name
+      ? `${email.from_name} <${email.from_address}>`
+      : (email.from_address ?? "");
+    const body = (email.body_text ?? "")
+      .split("\n")
+      .map((l) => "> " + l)
+      .join("\n");
     return `\n\n\nLe ${dateStr}, ${sender} a écrit :\n${body}`;
   };
   const replyRefs = email.message_id ? `<${email.message_id}>` : undefined;
   const subjReply = email.subject?.startsWith("Re:") ? email.subject : `Re: ${email.subject ?? ""}`;
   const subjFwd = email.subject?.startsWith("Fwd:") ? email.subject : `Fwd: ${email.subject ?? ""}`;
-  const doReply = (all: boolean) => onCompose({
-    mode: all ? "replyAll" : "reply",
-    defaultAccountId: email.account_id,
-    to: email.from_address ?? "",
-    cc: all ? (email.to_address ?? "") : undefined,
-    subject: subjReply,
-    body: quoted(),
-    inReplyTo: replyRefs,
-    references: replyRefs,
-  });
-  const doForward = () => onCompose({
-    mode: "forward",
-    defaultAccountId: email.account_id,
-    subject: subjFwd,
-    body: `\n\n---------- Message transféré ----------\nDe: ${email.from_name ?? ""} <${email.from_address ?? ""}>\nDate: ${email.received_at ?? ""}\nSujet: ${email.subject ?? ""}\nÀ: ${email.to_address ?? ""}\n\n${email.body_text ?? ""}`,
-  });
+  const doReply = (all: boolean) =>
+    onCompose({
+      mode: all ? "replyAll" : "reply",
+      defaultAccountId: email.account_id,
+      to: email.from_address ?? "",
+      cc: all ? (email.to_address ?? "") : undefined,
+      subject: subjReply,
+      body: quoted(),
+      inReplyTo: replyRefs,
+      references: replyRefs,
+    });
+  const doForward = () =>
+    onCompose({
+      mode: "forward",
+      defaultAccountId: email.account_id,
+      subject: subjFwd,
+      body: `\n\n---------- Message transféré ----------\nDe: ${email.from_name ?? ""} <${email.from_address ?? ""}>\nDate: ${email.received_at ?? ""}\nSujet: ${email.subject ?? ""}\nÀ: ${email.to_address ?? ""}\n\n${email.body_text ?? ""}`,
+    });
   return (
     <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-x-hidden overflow-y-auto">
       <header className="min-w-0 border-b p-3 sm:p-4">
         <div className="mb-2 flex min-w-0 items-center gap-2">
           {account && (
-            <Badge style={{ background: account.color ?? "#64748b", color: "#fff" }} className="border-0">
+            <Badge
+              style={{ background: account.color ?? "#64748b", color: "#fff" }}
+              className="border-0"
+            >
               {account.icon} {account.name}
             </Badge>
           )}
@@ -1270,16 +1529,42 @@ function Reader({
         </div>
         <h2 className="break-words text-base font-semibold">{email.subject || "(sans objet)"}</h2>
         <div className="mt-2 space-y-0.5 break-words text-xs text-muted-foreground">
-          <div><span className="font-medium text-foreground">De :</span> <span className="break-all">{email.from_name ? `${email.from_name} <${email.from_address}>` : email.from_address}</span></div>
-          <div><span className="font-medium text-foreground">À :</span> <span className="break-all">{email.to_address}</span></div>
-          <div><span className="font-medium text-foreground">Date :</span> {email.received_at ? new Date(email.received_at).toLocaleString("fr-FR") : ""}</div>
+          <div>
+            <span className="font-medium text-foreground">De :</span>{" "}
+            <span className="break-all">
+              {email.from_name ? `${email.from_name} <${email.from_address}>` : email.from_address}
+            </span>
+          </div>
+          <div>
+            <span className="font-medium text-foreground">À :</span>{" "}
+            <span className="break-all">{email.to_address}</span>
+          </div>
+          <div>
+            <span className="font-medium text-foreground">Date :</span>{" "}
+            {email.received_at ? new Date(email.received_at).toLocaleString("fr-FR") : ""}
+          </div>
         </div>
         <div className="mt-3 flex min-w-0 flex-wrap gap-1">
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(false)}><Reply className="h-3 w-3" /> Répondre</Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(true)}><ReplyAll className="h-3 w-3" /> Tous</Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={doForward}><Forward className="h-3 w-3" /> Transférer</Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}><Archive className="h-3 w-3" /> Archiver</Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1 text-destructive" onClick={onDelete}><Trash2 className="h-3 w-3" /> Suppr.</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(false)}>
+            <Reply className="h-3 w-3" /> Répondre
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(true)}>
+            <ReplyAll className="h-3 w-3" /> Tous
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={doForward}>
+            <Forward className="h-3 w-3" /> Transférer
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}>
+            <Archive className="h-3 w-3" /> Archiver
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1 text-destructive"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-3 w-3" /> Suppr.
+          </Button>
           <Button size="sm" className="h-7 gap-1" onClick={onCreateTask}>
             <Plus className="h-3 w-3" /> Créer tâche
           </Button>
@@ -1298,22 +1583,37 @@ function Reader({
             variant="outline"
             className="h-7 gap-1"
             onClick={() => onMarkSpam(!isSpamEmail)}
-            title={isSpamEmail ? "Marquer comme légitime (whitelist)" : "Marquer comme indésirable (blacklist)"}
+            title={
+              isSpamEmail
+                ? "Marquer comme légitime (whitelist)"
+                : "Marquer comme indésirable (blacklist)"
+            }
           >
             {isSpamEmail ? <Shield className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
             {isSpamEmail ? "Pas indésirable" : "Indésirable"}
           </Button>
         </div>
-        {(email.spam_label === "spam" || email.spam_label === "phishing" || email.spam_label === "promo") && (
-          <div className={cn(
-            "mt-2 flex items-start gap-1.5 rounded-md border px-2 py-1.5 text-[11px]",
-            email.spam_label === "phishing" && "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300",
-            email.spam_label === "spam" && "border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-300",
-            email.spam_label === "promo" && "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-          )}>
-            {email.spam_label === "phishing" ? <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0" /> :
-             email.spam_label === "spam" ? <ShieldOff className="mt-0.5 h-3 w-3 shrink-0" /> :
-             <Megaphone className="mt-0.5 h-3 w-3 shrink-0" />}
+        {(email.spam_label === "spam" ||
+          email.spam_label === "phishing" ||
+          email.spam_label === "promo") && (
+          <div
+            className={cn(
+              "mt-2 flex items-start gap-1.5 rounded-md border px-2 py-1.5 text-[11px]",
+              email.spam_label === "phishing" &&
+                "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-300",
+              email.spam_label === "spam" &&
+                "border-orange-500/40 bg-orange-500/10 text-orange-700 dark:text-orange-300",
+              email.spam_label === "promo" &&
+                "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300",
+            )}
+          >
+            {email.spam_label === "phishing" ? (
+              <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0" />
+            ) : email.spam_label === "spam" ? (
+              <ShieldOff className="mt-0.5 h-3 w-3 shrink-0" />
+            ) : (
+              <Megaphone className="mt-0.5 h-3 w-3 shrink-0" />
+            )}
             <span>
               <span className="font-semibold capitalize">{email.spam_label}</span>
               {typeof email.spam_score === "number" && ` · score ${email.spam_score}`}
@@ -1330,8 +1630,9 @@ function Reader({
             <div className="flex-1">
               <div className="font-semibold">Email marqué sensible (HDS)</div>
               <div className="mt-0.5 opacity-90">
-                Données de santé potentielles détectées : {email.sensitive_reason ?? "motif inconnu"}.
-                Aucune analyse IA n'est effectuée sur ce message.
+                Données de santé potentielles détectées :{" "}
+                {email.sensitive_reason ?? "motif inconnu"}. Aucune analyse IA n'est effectuée sur
+                ce message.
               </div>
             </div>
             <Button
@@ -1351,7 +1652,9 @@ function Reader({
           emailId={email.id}
           priority={email.ai_priority}
           category={email.ai_category}
-          onUpdated={() => { /* cache will refresh on next sync */ }}
+          onUpdated={() => {
+            /* cache will refresh on next sync */
+          }}
         />
       )}
 
@@ -1372,7 +1675,9 @@ function Reader({
             dangerouslySetInnerHTML={{ __html: email.body_html }}
           />
         ) : (
-          <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed [overflow-wrap:anywhere]">{email.body_text ?? "(vide)"}</pre>
+          <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed [overflow-wrap:anywhere]">
+            {email.body_text ?? "(vide)"}
+          </pre>
         )}
       </div>
 
@@ -1390,28 +1695,39 @@ function Reader({
   );
 }
 
-
-
 function priorityDotClass(p: string | null | undefined): string {
   switch (p) {
-    case "urgent": return "bg-red-500";
-    case "important": return "bg-orange-500";
-    case "normal": return "bg-yellow-400";
-    case "low": return "bg-green-500";
-    default: return "bg-muted-foreground/30";
+    case "urgent":
+      return "bg-red-500";
+    case "important":
+      return "bg-orange-500";
+    case "normal":
+      return "bg-yellow-400";
+    case "low":
+      return "bg-green-500";
+    default:
+      return "bg-muted-foreground/30";
   }
 }
 
 function categoryLabel(c: string | null | undefined): string {
   switch (c) {
-    case "action": return "📋 Action";
-    case "rendez-vous": return "📅 RDV";
-    case "document": return "📄 Doc";
-    case "facturation": return "💰 Facture";
-    case "rh": return "👥 RH";
-    case "info": return "📣 Info";
-    case "newsletter": return "🗑️ Newsletter";
-    default: return c ?? "";
+    case "action":
+      return "📋 Action";
+    case "rendez-vous":
+      return "📅 RDV";
+    case "document":
+      return "📄 Doc";
+    case "facturation":
+      return "💰 Facture";
+    case "rh":
+      return "👥 RH";
+    case "info":
+      return "📣 Info";
+    case "newsletter":
+      return "🗑️ Newsletter";
+    default:
+      return c ?? "";
   }
 }
 
@@ -1451,7 +1767,13 @@ function VaultActions({ email, onMoved }: { email: Email; onMoved: () => void })
   return (
     <div className="flex flex-wrap items-center gap-2">
       {unlocked ? (
-        <Button size="sm" variant="outline" className="h-7 gap-1" onClick={moveToVault} disabled={busy}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 gap-1"
+          onClick={moveToVault}
+          disabled={busy}
+        >
           <Lock className="h-3 w-3" /> Mettre au coffre
         </Button>
       ) : (

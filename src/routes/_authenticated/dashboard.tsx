@@ -17,9 +17,23 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Sun, Cloud, CloudRain, CloudSnow, Wind,
-  Mail, ListTodo, Calendar as CalIcon, Sparkles, RefreshCw, Zap,
-  GripVertical, Settings2, Plus, Video, AlertTriangle, CheckCircle2,
+  Sun,
+  Cloud,
+  CloudRain,
+  CloudSnow,
+  Wind,
+  Mail,
+  ListTodo,
+  Calendar as CalIcon,
+  Sparkles,
+  RefreshCw,
+  Zap,
+  GripVertical,
+  Settings2,
+  Plus,
+  Video,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -29,12 +43,20 @@ import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { relativeTime } from "@/lib/relative-time";
 import {
-  DndContext, closestCenter, KeyboardSensor, PointerSensor,
-  useSensor, useSensors, type DragEndEvent,
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove, SortableContext, sortableKeyboardCoordinates,
-  useSortable, rectSortingStrategy,
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -64,11 +86,17 @@ function loadLayout(): Layout {
     // Validate
     const valid: WidgetId[] = ["hello", "emails", "tasks", "agenda", "ai", "sync", "quick"];
     const order = p.order?.filter((w) => valid.includes(w)) ?? DEFAULT_LAYOUT.order;
-    valid.forEach((w) => { if (!order.includes(w)) order.push(w); });
+    valid.forEach((w) => {
+      if (!order.includes(w)) order.push(w);
+    });
     return { order, hidden: p.hidden ?? [], columns: p.columns === 2 ? 2 : 3 };
-  } catch { return DEFAULT_LAYOUT; }
+  } catch {
+    return DEFAULT_LAYOUT;
+  }
 }
-function saveLayout(l: Layout) { localStorage.setItem(STORAGE_KEY, JSON.stringify(l)); }
+function saveLayout(l: Layout) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(l));
+}
 
 const QUICK_ACTIONS_KEY = "myhubpro.dashboard.quick";
 type QuickAction = { label: string; to: string };
@@ -83,18 +111,26 @@ function loadQuick(): QuickAction[] {
     const raw = localStorage.getItem(QUICK_ACTIONS_KEY);
     if (!raw) return DEFAULT_QUICK;
     return JSON.parse(raw);
-  } catch { return DEFAULT_QUICK; }
+  } catch {
+    return DEFAULT_QUICK;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sortable wrapper
 // ─────────────────────────────────────────────────────────────────────────────
 function SortableWidget({ id, children }: { id: string; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      }}
       className="relative group min-w-0 max-w-full"
     >
       <button
@@ -118,7 +154,9 @@ function DashboardPage() {
   const [layout, setLayout] = useState<Layout>(loadLayout);
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
-  useEffect(() => { saveLayout(layout); }, [layout]);
+  useEffect(() => {
+    saveLayout(layout);
+  }, [layout]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -163,12 +201,14 @@ function DashboardPage() {
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={visibleOrder} strategy={rectSortingStrategy}>
-          <div className={cn(
-            "min-w-0 max-w-full gap-4 [column-fill:_balance]",
-            layout.columns === 2
-              ? "columns-1 md:columns-2"
-              : "columns-1 md:columns-2 xl:columns-3"
-          )}>
+          <div
+            className={cn(
+              "min-w-0 max-w-full gap-4 [column-fill:_balance]",
+              layout.columns === 2
+                ? "columns-1 md:columns-2"
+                : "columns-1 md:columns-2 xl:columns-3",
+            )}
+          >
             {visibleOrder.map((w) => (
               <div key={w} className="mb-4 min-w-0 max-w-full break-inside-avoid overflow-hidden">
                 <SortableWidget id={w}>{widgets[w]}</SortableWidget>
@@ -194,36 +234,62 @@ const WIDGET_LABELS: Record<WidgetId, string> = {
   quick: "Accès rapides",
 };
 
-function CustomizeDialog({ layout, setLayout }: { layout: Layout; setLayout: (l: Layout) => void }) {
+function CustomizeDialog({
+  layout,
+  setLayout,
+}: {
+  layout: Layout;
+  setLayout: (l: Layout) => void;
+}) {
   return (
     <DialogContent>
-      <DialogHeader><DialogTitle>Personnaliser le dashboard</DialogTitle></DialogHeader>
+      <DialogHeader>
+        <DialogTitle>Personnaliser le dashboard</DialogTitle>
+      </DialogHeader>
       <div className="space-y-4">
         <div>
           <div className="text-sm font-medium mb-2">Widgets visibles</div>
           <div className="space-y-2">
-            {(["hello", "emails", "tasks", "agenda", "ai", "sync", "quick"] as WidgetId[]).map((w) => (
-              <label key={w} className="flex items-center justify-between text-sm">
-                <span>{WIDGET_LABELS[w]}</span>
-                <Switch
-                  checked={!layout.hidden.includes(w)}
-                  onCheckedChange={(v) => setLayout({
-                    ...layout,
-                    hidden: v ? layout.hidden.filter((x) => x !== w) : [...layout.hidden, w],
-                  })}
-                />
-              </label>
-            ))}
+            {(["hello", "emails", "tasks", "agenda", "ai", "sync", "quick"] as WidgetId[]).map(
+              (w) => (
+                <label key={w} className="flex items-center justify-between text-sm">
+                  <span>{WIDGET_LABELS[w]}</span>
+                  <Switch
+                    checked={!layout.hidden.includes(w)}
+                    onCheckedChange={(v) =>
+                      setLayout({
+                        ...layout,
+                        hidden: v ? layout.hidden.filter((x) => x !== w) : [...layout.hidden, w],
+                      })
+                    }
+                  />
+                </label>
+              ),
+            )}
           </div>
         </div>
         <div>
           <div className="text-sm font-medium mb-2">Colonnes</div>
           <div className="flex gap-2">
-            <Button variant={layout.columns === 2 ? "default" : "outline"} size="sm" onClick={() => setLayout({ ...layout, columns: 2 })}>2 colonnes</Button>
-            <Button variant={layout.columns === 3 ? "default" : "outline"} size="sm" onClick={() => setLayout({ ...layout, columns: 3 })}>3 colonnes</Button>
+            <Button
+              variant={layout.columns === 2 ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLayout({ ...layout, columns: 2 })}
+            >
+              2 colonnes
+            </Button>
+            <Button
+              variant={layout.columns === 3 ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLayout({ ...layout, columns: 3 })}
+            >
+              3 colonnes
+            </Button>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">Astuce : glisse-dépose les widgets sur le dashboard pour les réorganiser.</p>
+        <p className="text-xs text-muted-foreground">
+          Astuce : glisse-dépose les widgets sur le dashboard pour les réorganiser.
+        </p>
       </div>
     </DialogContent>
   );
@@ -235,7 +301,12 @@ function CustomizeDialog({ layout, setLayout }: { layout: Layout; setLayout: (l:
 function HelloWidget() {
   const { user } = useAuth();
   const [now, setNow] = useState(new Date());
-  const [weather, setWeather] = useState<{ temp: number; code: number; loading: boolean; error?: string }>({ temp: 0, code: 0, loading: true });
+  const [weather, setWeather] = useState<{
+    temp: number;
+    code: number;
+    loading: boolean;
+    error?: string;
+  }>({ temp: 0, code: 0, loading: true });
 
   useEffect(() => {
     const i = setInterval(() => setNow(new Date()), 1000);
@@ -250,20 +321,39 @@ function HelloWidget() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=temperature_2m,weather_code`);
+          const r = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&current=temperature_2m,weather_code`,
+          );
           const j = await r.json();
-          setWeather({ temp: Math.round(j.current?.temperature_2m ?? 0), code: j.current?.weather_code ?? 0, loading: false });
-        } catch { setWeather((w) => ({ ...w, loading: false, error: "fetch" })); }
+          setWeather({
+            temp: Math.round(j.current?.temperature_2m ?? 0),
+            code: j.current?.weather_code ?? 0,
+            loading: false,
+          });
+        } catch {
+          setWeather((w) => ({ ...w, loading: false, error: "fetch" }));
+        }
       },
       () => setWeather((w) => ({ ...w, loading: false, error: "denied" })),
       { timeout: 5000 },
     );
   }, []);
 
-  const firstName = (user?.user_metadata?.display_name as string | undefined)?.split(" ")[0]
-    ?? user?.email?.split("@")[0] ?? "";
-  const dateStr = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const timeStr = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const firstName =
+    (user?.user_metadata?.display_name as string | undefined)?.split(" ")[0] ??
+    user?.email?.split("@")[0] ??
+    "";
+  const dateStr = now.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const timeStr = now.toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 
   const WeatherIcon = weatherCodeIcon(weather.code);
 
@@ -308,8 +398,21 @@ function weatherCodeIcon(code: number) {
 // WIDGET 2 — Emails summary
 // ─────────────────────────────────────────────────────────────────────────────
 function EmailsWidget({ userId }: { userId?: string }) {
-  type EmailRow = { id: string; from_name: string | null; from_address: string | null; subject: string | null; is_read: boolean; account_id: string; received_at: string | null };
-  type AccountRow = { id: string; name: string; color: string | null; credentials?: { calendar_only?: boolean } | null };
+  type EmailRow = {
+    id: string;
+    from_name: string | null;
+    from_address: string | null;
+    subject: string | null;
+    is_read: boolean;
+    account_id: string;
+    received_at: string | null;
+  };
+  type AccountRow = {
+    id: string;
+    name: string;
+    color: string | null;
+    credentials?: { calendar_only?: boolean } | null;
+  };
   const [emails, setEmails] = useState<EmailRow[]>([]);
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
 
@@ -322,52 +425,79 @@ function EmailsWidget({ userId }: { userId?: string }) {
         cacheGetAll<AccountRow>("accounts"),
       ]);
       if (cachedEmails.length) setEmails(cachedEmails.slice(0, 50));
-      if (cachedAccounts.length) setAccounts(cachedAccounts.filter((a) => !(a.credentials?.calendar_only === true)));
+      if (cachedAccounts.length)
+        setAccounts(cachedAccounts.filter((a) => !(a.credentials?.calendar_only === true)));
       // 2. Network refresh
       if (!navigator.onLine) return;
       const [emailsRes, accountsRes] = await Promise.all([
-        supabase.from("emails").select("id, from_name, from_address, subject, is_read, account_id, received_at").order("received_at", { ascending: false }).limit(50),
+        supabase
+          .from("emails")
+          .select("id, from_name, from_address, subject, is_read, account_id, received_at")
+          .order("received_at", { ascending: false })
+          .limit(50),
         supabase.from("accounts").select("id, name, color, credentials").eq("user_id", userId),
       ]);
-      if (emailsRes.data) { setEmails(emailsRes.data); cacheReplaceAll("emails", emailsRes.data).catch(() => {}); }
+      if (emailsRes.data) {
+        setEmails(emailsRes.data);
+        cacheReplaceAll("emails", emailsRes.data).catch(() => {});
+      }
       if (accountsRes.data) {
-        const filtered = (accountsRes.data as AccountRow[]).filter((a) => !(a.credentials?.calendar_only === true));
+        const filtered = (accountsRes.data as AccountRow[]).filter(
+          (a) => !(a.credentials?.calendar_only === true),
+        );
         setAccounts(filtered);
         cacheReplaceAll("accounts", accountsRes.data).catch(() => {});
       }
-
     })();
   }, [userId]);
 
   const unreadByAccount = useMemo(() => {
     const m: Record<string, number> = {};
-    emails.forEach((e) => { if (!e.is_read) m[e.account_id] = (m[e.account_id] ?? 0) + 1; });
+    emails.forEach((e) => {
+      if (!e.is_read) m[e.account_id] = (m[e.account_id] ?? 0) + 1;
+    });
     return m;
   }, [emails]);
   const latest = emails.slice(0, 5);
 
   return (
     <Card>
-      <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><Mail className="h-4 w-4" /> Emails du jour</CardTitle></CardHeader>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Mail className="h-4 w-4" /> Emails du jour
+        </CardTitle>
+      </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">
           {accounts.map((a) => (
-            <Badge key={a.id} variant="secondary" style={{ backgroundColor: a.color ?? undefined, color: a.color ? "#fff" : undefined }}>
+            <Badge
+              key={a.id}
+              variant="secondary"
+              style={{ backgroundColor: a.color ?? undefined, color: a.color ? "#fff" : undefined }}
+            >
               {a.name} · {unreadByAccount[a.id] ?? 0}
             </Badge>
           ))}
-          {accounts.length === 0 && <span className="text-xs text-muted-foreground">Aucun compte</span>}
+          {accounts.length === 0 && (
+            <span className="text-xs text-muted-foreground">Aucun compte</span>
+          )}
         </div>
         <div className="space-y-1">
-          {latest.length === 0 && <p className="text-xs text-muted-foreground">Aucun email récent</p>}
+          {latest.length === 0 && (
+            <p className="text-xs text-muted-foreground">Aucun email récent</p>
+          )}
           {latest.map((e) => (
             <div key={e.id} className="min-w-0 border-l-2 border-border pl-2 text-sm">
               <div className="break-words font-medium">{e.from_name ?? e.from_address ?? "—"}</div>
-              <div className="break-words text-xs text-muted-foreground">{e.subject ?? "(sans sujet)"}</div>
+              <div className="break-words text-xs text-muted-foreground">
+                {e.subject ?? "(sans sujet)"}
+              </div>
             </div>
           ))}
         </div>
-        <Button asChild variant="ghost" size="sm" className="w-full"><Link to="/inbox">Voir tous</Link></Button>
+        <Button asChild variant="ghost" size="sm" className="w-full">
+          <Link to="/inbox">Voir tous</Link>
+        </Button>
       </CardContent>
     </Card>
   );
@@ -377,7 +507,13 @@ function EmailsWidget({ userId }: { userId?: string }) {
 // WIDGET 3 — Tasks
 // ─────────────────────────────────────────────────────────────────────────────
 function TasksWidget({ userId }: { userId?: string }) {
-  type Task = { id: string; title: string; due_date: string | null; priority: string; status: string };
+  type Task = {
+    id: string;
+    title: string;
+    due_date: string | null;
+    priority: string;
+    status: string;
+  };
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTitle, setNewTitle] = useState("");
 
@@ -388,49 +524,115 @@ function TasksWidget({ userId }: { userId?: string }) {
     if (cached.length) setTasks(cached as Task[]);
     // 2. network
     if (!navigator.onLine) return;
-    const { data } = await supabase.from("tasks").select("id, title, due_date, priority, status").order("due_date", { ascending: true, nullsFirst: false }).limit(200);
+    const { data } = await supabase
+      .from("tasks")
+      .select("id, title, due_date, priority, status")
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .limit(200);
     if (data) setTasks(data);
   }, [userId]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-  const dueToday = tasks.filter((t) => t.due_date && new Date(t.due_date) >= today && new Date(t.due_date) < tomorrow);
-  const overdue = tasks.filter((t) => t.due_date && new Date(t.due_date) < today && t.status !== "done");
-  const urgent = tasks.filter((t) => (t.priority === "urgent" || t.priority === "high") && t.status !== "done").slice(0, 5);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const dueToday = tasks.filter(
+    (t) => t.due_date && new Date(t.due_date) >= today && new Date(t.due_date) < tomorrow,
+  );
+  const overdue = tasks.filter(
+    (t) => t.due_date && new Date(t.due_date) < today && t.status !== "done",
+  );
+  const urgent = tasks
+    .filter((t) => (t.priority === "urgent" || t.priority === "high") && t.status !== "done")
+    .slice(0, 5);
   const todayDone = dueToday.filter((t) => t.status === "done").length;
   const todayPct = dueToday.length > 0 ? Math.round((todayDone / dueToday.length) * 100) : 0;
 
   const quickAdd = async () => {
     if (!newTitle.trim() || !userId) return;
     const { error } = await supabase.from("tasks").insert({
-      title: newTitle.trim(), user_id: userId, priority: "medium", status: "todo", source_app: "myhubpro",
+      title: newTitle.trim(),
+      user_id: userId,
+      priority: "medium",
+      status: "todo",
+      source_app: "myhubpro",
     });
-    if (error) toast.error("Impossible d'ajouter"); else { toast.success("Tâche ajoutée"); setNewTitle(""); load(); requestAutoSync(); }
+    if (error) toast.error("Impossible d'ajouter");
+    else {
+      toast.success("Tâche ajoutée");
+      setNewTitle("");
+      load();
+      requestAutoSync();
+    }
   };
 
   return (
     <Card>
-      <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><ListTodo className="h-4 w-4" /> Tâches du jour</CardTitle></CardHeader>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <ListTodo className="h-4 w-4" /> Tâches du jour
+        </CardTitle>
+      </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs">
-          <span className="min-w-0 break-words text-muted-foreground">{dueToday.length} aujourd'hui · {todayDone} terminée(s)</span>
-          {overdue.length > 0 && <Badge variant="destructive" className="shrink-0">{overdue.length} en retard</Badge>}
+          <span className="min-w-0 break-words text-muted-foreground">
+            {dueToday.length} aujourd'hui · {todayDone} terminée(s)
+          </span>
+          {overdue.length > 0 && (
+            <Badge variant="destructive" className="shrink-0">
+              {overdue.length} en retard
+            </Badge>
+          )}
         </div>
         <Progress value={todayPct} className="h-2" />
         <div className="space-y-1">
-          {dueToday.length === 0 && urgent.length === 0 && <p className="text-xs text-muted-foreground">Aucune tâche prioritaire</p>}
-          {[...dueToday, ...urgent.filter((u) => !dueToday.some((d) => d.id === u.id))].slice(0, 5).map((t) => (
-            <div key={t.id} className="flex min-w-0 items-center gap-2 text-sm">
-              <span className={cn("h-2 w-2 rounded-full", t.priority === "urgent" ? "bg-destructive" : t.priority === "high" ? "bg-orange-500" : "bg-muted-foreground")} />
-              <span className={cn("min-w-0 flex-1 break-words", t.status === "done" && "line-through text-muted-foreground")}>{t.title}</span>
-              {t.due_date && new Date(t.due_date) < today && t.status !== "done" && <Badge variant="destructive" className="text-[10px]">Retard</Badge>}
-            </div>
-          ))}
+          {dueToday.length === 0 && urgent.length === 0 && (
+            <p className="text-xs text-muted-foreground">Aucune tâche prioritaire</p>
+          )}
+          {[...dueToday, ...urgent.filter((u) => !dueToday.some((d) => d.id === u.id))]
+            .slice(0, 5)
+            .map((t) => (
+              <div key={t.id} className="flex min-w-0 items-center gap-2 text-sm">
+                <span
+                  className={cn(
+                    "h-2 w-2 rounded-full",
+                    t.priority === "urgent"
+                      ? "bg-destructive"
+                      : t.priority === "high"
+                        ? "bg-orange-500"
+                        : "bg-muted-foreground",
+                  )}
+                />
+                <span
+                  className={cn(
+                    "min-w-0 flex-1 break-words",
+                    t.status === "done" && "line-through text-muted-foreground",
+                  )}
+                >
+                  {t.title}
+                </span>
+                {t.due_date && new Date(t.due_date) < today && t.status !== "done" && (
+                  <Badge variant="destructive" className="text-[10px]">
+                    Retard
+                  </Badge>
+                )}
+              </div>
+            ))}
         </div>
         <div className="flex min-w-0 gap-2">
-          <Input placeholder="＋ Nouvelle tâche rapide" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && quickAdd()} className="h-8 text-sm" />
-          <Button size="sm" onClick={quickAdd}><Plus className="h-4 w-4" /></Button>
+          <Input
+            placeholder="＋ Nouvelle tâche rapide"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && quickAdd()}
+            className="h-8 text-sm"
+          />
+          <Button size="sm" onClick={quickAdd}>
+            <Plus className="h-4 w-4" />
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -441,7 +643,14 @@ function TasksWidget({ userId }: { userId?: string }) {
 // WIDGET 4 — Agenda
 // ─────────────────────────────────────────────────────────────────────────────
 function AgendaWidget({ userId }: { userId?: string }) {
-  type Evt = { id: string; title: string; start_at: string; end_at: string; location: string | null; description: string | null };
+  type Evt = {
+    id: string;
+    title: string;
+    start_at: string;
+    end_at: string;
+    location: string | null;
+    description: string | null;
+  };
   const [events, setEvents] = useState<Evt[]>([]);
 
   useEffect(() => {
@@ -449,38 +658,58 @@ function AgendaWidget({ userId }: { userId?: string }) {
     (async () => {
       // 1. cache (filter to today/tomorrow window)
       const cached = await cacheGetAll<Evt>("calendar_events");
-      const start = new Date(); start.setHours(0, 0, 0, 0);
-      const end = new Date(start); end.setDate(end.getDate() + 2);
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 2);
       if (cached.length) {
-        setEvents(cached.filter((e) => {
-          const t = new Date(e.start_at).getTime();
-          return t >= start.getTime() && t < end.getTime();
-        }));
+        setEvents(
+          cached.filter((e) => {
+            const t = new Date(e.start_at).getTime();
+            return t >= start.getTime() && t < end.getTime();
+          }),
+        );
       }
       // 2. network
       if (!navigator.onLine) return;
-      const { data } = await supabase.from("calendar_events")
+      const { data } = await supabase
+        .from("calendar_events")
         .select("id, title, start_at, end_at, location, description")
-        .gte("start_at", start.toISOString()).lt("start_at", end.toISOString()).order("start_at");
+        .gte("start_at", start.toISOString())
+        .lt("start_at", end.toISOString())
+        .order("start_at");
       if (data) setEvents(data);
     })();
   }, [userId]);
 
   const now = new Date();
-  const startOfTomorrow = new Date(); startOfTomorrow.setHours(0, 0, 0, 0); startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+  const startOfTomorrow = new Date();
+  startOfTomorrow.setHours(0, 0, 0, 0);
+  startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
   const today = events.filter((e) => new Date(e.start_at) < startOfTomorrow);
   const tomorrow = events.filter((e) => new Date(e.start_at) >= startOfTomorrow);
   const next = today.find((e) => new Date(e.start_at) > now);
-  const hasVideo = (e: Evt) => /meet\.google\.com|teams\.microsoft\.com|zoom\.us/.test(`${e.location ?? ""} ${e.description ?? ""}`);
+  const hasVideo = (e: Evt) =>
+    /meet\.google\.com|teams\.microsoft\.com|zoom\.us/.test(
+      `${e.location ?? ""} ${e.description ?? ""}`,
+    );
 
   return (
     <Card>
-      <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><CalIcon className="h-4 w-4" /> Agenda</CardTitle></CardHeader>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CalIcon className="h-4 w-4" /> Agenda
+        </CardTitle>
+      </CardHeader>
       <CardContent className="space-y-3">
         {next && (
           <div className="min-w-0 rounded-md border border-primary/20 bg-primary/10 p-2 text-sm">
-            <div className="text-xs text-primary font-medium">Prochain · {relativeTime(next.start_at)}</div>
-            <div className="flex min-w-0 items-center gap-1 break-words font-medium">{next.title} {hasVideo(next) && <Video className="h-3 w-3 shrink-0" />}</div>
+            <div className="text-xs text-primary font-medium">
+              Prochain · {relativeTime(next.start_at)}
+            </div>
+            <div className="flex min-w-0 items-center gap-1 break-words font-medium">
+              {next.title} {hasVideo(next) && <Video className="h-3 w-3 shrink-0" />}
+            </div>
           </div>
         )}
         <div>
@@ -488,7 +717,12 @@ function AgendaWidget({ userId }: { userId?: string }) {
           {today.length === 0 && <p className="text-xs text-muted-foreground">Aucun événement</p>}
           {today.map((e) => (
             <div key={e.id} className="flex min-w-0 items-center gap-2 text-sm">
-              <span className="text-xs tabular-nums text-muted-foreground w-12">{new Date(e.start_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+              <span className="text-xs tabular-nums text-muted-foreground w-12">
+                {new Date(e.start_at).toLocaleTimeString("fr-FR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
               <span className="min-w-0 flex-1 break-words">{e.title}</span>
               {hasVideo(e) && <Video className="h-3 w-3 shrink-0 text-primary" />}
             </div>
@@ -499,7 +733,12 @@ function AgendaWidget({ userId }: { userId?: string }) {
             <div className="text-xs text-muted-foreground mb-1">Demain</div>
             {tomorrow.slice(0, 3).map((e) => (
               <div key={e.id} className="flex min-w-0 items-center gap-2 text-sm opacity-60">
-                <span className="text-xs tabular-nums w-12">{new Date(e.start_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                <span className="text-xs tabular-nums w-12">
+                  {new Date(e.start_at).toLocaleTimeString("fr-FR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
                 <span className="min-w-0 flex-1 break-words">{e.title}</span>
               </div>
             ))}
@@ -515,7 +754,11 @@ function AgendaWidget({ userId }: { userId?: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function AIInsightsWidget({ userId }: { userId?: string }) {
   const generate = useServerFn(generateDashboardInsights);
-  const [insights, setInsights] = useState<{ summary: string; suggestions: string[]; alerts: string[] } | null>(null);
+  const [insights, setInsights] = useState<{
+    summary: string;
+    suggestions: string[];
+    alerts: string[];
+  } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const run = useCallback(async () => {
@@ -526,35 +769,58 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
       const in48h = new Date(now.getTime() + 48 * 3600 * 1000);
       const [emailsRes, tasksRes, eventsRes] = await Promise.all([
         supabase.from("emails").select("subject, is_read").eq("is_read", false).limit(50),
-        supabase.from("tasks").select("title, due_date, status, priority").neq("status", "done").limit(100),
-        supabase.from("calendar_events").select("id").gte("start_at", new Date(now.setHours(0, 0, 0, 0)).toISOString()).lt("start_at", new Date(now.getTime() + 86400000).toISOString()),
+        supabase
+          .from("tasks")
+          .select("title, due_date, status, priority")
+          .neq("status", "done")
+          .limit(100),
+        supabase
+          .from("calendar_events")
+          .select("id")
+          .gte("start_at", new Date(now.setHours(0, 0, 0, 0)).toISOString())
+          .lt("start_at", new Date(now.getTime() + 86400000).toISOString()),
       ]);
       const unread = emailsRes.data ?? [];
       const tasks = tasksRes.data ?? [];
       const overdue = tasks.filter((t) => t.due_date && new Date(t.due_date) < new Date()).length;
-      const dueSoon = tasks.filter((t) => t.due_date && new Date(t.due_date) <= in48h && new Date(t.due_date) >= new Date());
-      const urgentSubjects = unread.filter((_, i) => i < 10).map((e) => e.subject ?? "").filter(Boolean);
+      const dueSoon = tasks.filter(
+        (t) => t.due_date && new Date(t.due_date) <= in48h && new Date(t.due_date) >= new Date(),
+      );
+      const urgentSubjects = unread
+        .filter((_, i) => i < 10)
+        .map((e) => e.subject ?? "")
+        .filter(Boolean);
 
-      const res = await generate({ data: {
-        unreadCount: unread.length,
-        urgentEmailSubjects: urgentSubjects,
-        tasksDueSoon: dueSoon.map((t) => ({ title: t.title, due_date: t.due_date })),
-        overdueCount: overdue,
-        todayEvents: (eventsRes.data ?? []).length,
-      }});
+      const res = await generate({
+        data: {
+          unreadCount: unread.length,
+          urgentEmailSubjects: urgentSubjects,
+          tasksDueSoon: dueSoon.map((t) => ({ title: t.title, due_date: t.due_date })),
+          overdueCount: overdue,
+          todayEvents: (eventsRes.data ?? []).length,
+        },
+      });
       setInsights(res);
     } catch (e) {
       toast.error("Insights IA indisponibles");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }, [userId, generate]);
 
-  useEffect(() => { run(); }, [run]);
+  useEffect(() => {
+    run();
+  }, [run]);
 
   return (
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2 text-base"><Sparkles className="h-4 w-4" /> IA Insights</CardTitle>
-        <Button variant="ghost" size="icon" onClick={run} disabled={loading}><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} /></Button>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Sparkles className="h-4 w-4" /> IA Insights
+        </CardTitle>
+        <Button variant="ghost" size="icon" onClick={run} disabled={loading}>
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+        </Button>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         {loading && !insights && <p className="text-xs text-muted-foreground">Analyse en cours…</p>}
@@ -564,13 +830,27 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
             {insights.suggestions.length > 0 && (
               <div>
                 <div className="text-xs text-muted-foreground mb-1">Suggestions</div>
-                <ul className="space-y-1">{insights.suggestions.map((s, i) => <li key={i} className="flex min-w-0 gap-2 text-xs"><CheckCircle2 className="h-3 w-3 mt-0.5 text-primary shrink-0" /><span className="min-w-0 break-words">{s}</span></li>)}</ul>
+                <ul className="space-y-1">
+                  {insights.suggestions.map((s, i) => (
+                    <li key={i} className="flex min-w-0 gap-2 text-xs">
+                      <CheckCircle2 className="h-3 w-3 mt-0.5 text-primary shrink-0" />
+                      <span className="min-w-0 break-words">{s}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
             {insights.alerts.length > 0 && (
               <div>
                 <div className="text-xs text-muted-foreground mb-1">Alertes</div>
-                <ul className="space-y-1">{insights.alerts.map((s, i) => <li key={i} className="flex min-w-0 gap-2 text-xs"><AlertTriangle className="h-3 w-3 mt-0.5 text-destructive shrink-0" /><span className="min-w-0 break-words">{s}</span></li>)}</ul>
+                <ul className="space-y-1">
+                  {insights.alerts.map((s, i) => (
+                    <li key={i} className="flex min-w-0 gap-2 text-xs">
+                      <AlertTriangle className="h-3 w-3 mt-0.5 text-destructive shrink-0" />
+                      <span className="min-w-0 break-words">{s}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </>
@@ -586,44 +866,81 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
 function SyncStatusWidget() {
   const { user } = useAuth();
   const { syncing, syncNow } = useSyncStatus();
-  const [accounts, setAccounts] = useState<Array<{ id: string; name: string; last_sync_at: string | null; is_active: boolean }>>([]);
+  const [accounts, setAccounts] = useState<
+    Array<{ id: string; name: string; last_sync_at: string | null; is_active: boolean }>
+  >([]);
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase.from("accounts").select("id, name, last_sync_at, is_active, credentials").eq("user_id", user.id);
+    const { data } = await supabase
+      .from("accounts")
+      .select("id, name, last_sync_at, is_active, credentials")
+      .eq("user_id", user.id);
     setAccounts((data ?? []).filter((a: any) => !(a.credentials?.calendar_only === true)));
-
   }, [user]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const health = useMemo(() => {
     if (accounts.length === 0) return "neutral";
     const now = Date.now();
-    const stale = accounts.filter((a) => !a.last_sync_at || now - new Date(a.last_sync_at).getTime() > 60 * 60 * 1000).length;
+    const stale = accounts.filter(
+      (a) => !a.last_sync_at || now - new Date(a.last_sync_at).getTime() > 60 * 60 * 1000,
+    ).length;
     if (stale === 0) return "ok";
     if (stale === accounts.length) return "bad";
     return "warn";
   }, [accounts]);
 
-  const dotClass = health === "ok" ? "bg-green-500" : health === "warn" ? "bg-orange-500" : health === "bad" ? "bg-destructive" : "bg-muted-foreground";
+  const dotClass =
+    health === "ok"
+      ? "bg-green-500"
+      : health === "warn"
+        ? "bg-orange-500"
+        : health === "bad"
+          ? "bg-destructive"
+          : "bg-muted-foreground";
 
   return (
     <Card>
-      <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><RefreshCw className="h-4 w-4" /> Synchronisation</CardTitle></CardHeader>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <RefreshCw className="h-4 w-4" /> Synchronisation
+        </CardTitle>
+      </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex min-w-0 items-center gap-2 text-sm">
           <span className={cn("h-2 w-2 rounded-full", dotClass)} />
-          <span className="min-w-0 break-words">{health === "ok" ? "Toutes les sources à jour" : health === "warn" ? "Certaines sources en retard" : health === "bad" ? "Sources non synchronisées" : "Aucune source"}</span>
+          <span className="min-w-0 break-words">
+            {health === "ok"
+              ? "Toutes les sources à jour"
+              : health === "warn"
+                ? "Certaines sources en retard"
+                : health === "bad"
+                  ? "Sources non synchronisées"
+                  : "Aucune source"}
+          </span>
         </div>
         <div className="space-y-1">
           {accounts.map((a) => (
             <div key={a.id} className="flex min-w-0 items-center justify-between gap-2 text-xs">
               <span className="min-w-0 break-words">{a.name}</span>
-              <span className="shrink-0 text-muted-foreground">{a.last_sync_at ? relativeTime(a.last_sync_at) : "jamais"}</span>
+              <span className="shrink-0 text-muted-foreground">
+                {a.last_sync_at ? relativeTime(a.last_sync_at) : "jamais"}
+              </span>
             </div>
           ))}
         </div>
-        <Button size="sm" className="w-full" disabled={syncing} onClick={async () => { await syncNow(); load(); }}>
+        <Button
+          size="sm"
+          className="w-full"
+          disabled={syncing}
+          onClick={async () => {
+            await syncNow();
+            load();
+          }}
+        >
           <RefreshCw className={cn("h-4 w-4 mr-2", syncing && "animate-spin")} /> Tout synchroniser
         </Button>
       </CardContent>
@@ -646,21 +963,46 @@ function QuickActionsWidget() {
   return (
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2 text-base"><Zap className="h-4 w-4" /> Accès rapides</CardTitle>
-        <Button variant="ghost" size="sm" onClick={() => setEditing((e) => !e)}>{editing ? "OK" : "Éditer"}</Button>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Zap className="h-4 w-4" /> Accès rapides
+        </CardTitle>
+        <Button variant="ghost" size="sm" onClick={() => setEditing((e) => !e)}>
+          {editing ? "OK" : "Éditer"}
+        </Button>
       </CardHeader>
       <CardContent>
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-          {actions.map((a, i) => editing ? (
-            <div key={i} className="space-y-1">
-              <Input value={a.label} onChange={(e) => save(actions.map((x, j) => j === i ? { ...x, label: e.target.value } : x))} className="h-8 text-xs" />
-              <Input value={a.to} onChange={(e) => save(actions.map((x, j) => j === i ? { ...x, to: e.target.value } : x))} className="h-8 text-xs" placeholder="/inbox" />
-            </div>
-          ) : (
-            <Button key={i} asChild variant="outline" size="sm" className="h-auto min-w-0 justify-start whitespace-normal py-2 text-left">
-              <Link to={a.to}>{a.label}</Link>
-            </Button>
-          ))}
+          {actions.map((a, i) =>
+            editing ? (
+              <div key={i} className="space-y-1">
+                <Input
+                  value={a.label}
+                  onChange={(e) =>
+                    save(actions.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))
+                  }
+                  className="h-8 text-xs"
+                />
+                <Input
+                  value={a.to}
+                  onChange={(e) =>
+                    save(actions.map((x, j) => (j === i ? { ...x, to: e.target.value } : x)))
+                  }
+                  className="h-8 text-xs"
+                  placeholder="/inbox"
+                />
+              </div>
+            ) : (
+              <Button
+                key={i}
+                asChild
+                variant="outline"
+                size="sm"
+                className="h-auto min-w-0 justify-start whitespace-normal py-2 text-left"
+              >
+                <Link to={a.to}>{a.label}</Link>
+              </Button>
+            ),
+          )}
         </div>
       </CardContent>
     </Card>
