@@ -755,11 +755,7 @@ function AgendaWidget({ userId }: { userId?: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function AIInsightsWidget({ userId }: { userId?: string }) {
   const generate = useServerFn(generateDashboardInsights);
-  const [insights, setInsights] = useState<{
-    summary: string;
-    suggestions: string[];
-    alerts: string[];
-  } | null>(null);
+  const [insights, setInsights] = useState<DashboardInsights | null>(null);
   const [loading, setLoading] = useState(false);
   const [processorOpen, setProcessorOpen] = useState(false);
   const [ctx, setCtx] = useState<{ unreadCount: number; overdueCount: number; todayEvents: number }>({
@@ -775,10 +771,14 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
       const now = new Date();
       const in48h = new Date(now.getTime() + 48 * 3600 * 1000);
       const [emailsRes, tasksRes, eventsRes] = await Promise.all([
-        supabase.from("emails").select("subject, is_read").eq("is_read", false).limit(50),
+        supabase
+          .from("emails")
+          .select("id, subject, from_address, is_read")
+          .eq("is_read", false)
+          .limit(50),
         supabase
           .from("tasks")
-          .select("title, due_date, status, priority")
+          .select("id, title, due_date, status, priority")
           .neq("status", "done")
           .limit(100),
         supabase
@@ -793,16 +793,21 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
       const dueSoon = tasks.filter(
         (t) => t.due_date && new Date(t.due_date) <= in48h && new Date(t.due_date) >= new Date(),
       );
-      const urgentSubjects = unread
-        .filter((_, i) => i < 10)
-        .map((e) => e.subject ?? "")
-        .filter(Boolean);
+      const urgentEmails = unread.slice(0, 10).map((e) => ({
+        id: e.id as string,
+        subject: (e.subject ?? "(sans objet)") as string,
+        from: (e.from_address ?? null) as string | null,
+      }));
 
       const res = await generate({
         data: {
           unreadCount: unread.length,
-          urgentEmailSubjects: urgentSubjects,
-          tasksDueSoon: dueSoon.map((t) => ({ title: t.title, due_date: t.due_date })),
+          urgentEmails,
+          tasksDueSoon: dueSoon.map((t) => ({
+            id: t.id as string,
+            title: t.title as string,
+            due_date: t.due_date as string | null,
+          })),
           overdueCount: overdue,
           todayEvents: (eventsRes.data ?? []).length,
         },
@@ -827,6 +832,19 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
   const hasItems = !!insights && (insights.suggestions.length + insights.alerts.length) > 0;
   const openProcessor = () => {
     if (hasItems) setProcessorOpen(true);
+  };
+
+  const dismiss = (kind: "suggestion" | "alert", index: number) => {
+    setInsights((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      if (kind === "suggestion") {
+        next.suggestions = prev.suggestions.filter((_, i) => i !== index);
+      } else {
+        next.alerts = prev.alerts.filter((_, i) => i !== index);
+      }
+      return next;
+    });
   };
 
   return (
@@ -870,7 +888,7 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
                   {insights.suggestions.map((s, i) => (
                     <li key={i} className="flex min-w-0 gap-2 text-xs">
                       <CheckCircle2 className="h-3 w-3 mt-0.5 text-primary shrink-0" />
-                      <span className="min-w-0 break-words">{s}</span>
+                      <span className="min-w-0 break-words">{s.text}</span>
                     </li>
                   ))}
                 </ul>
@@ -883,7 +901,7 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
                   {insights.alerts.map((s, i) => (
                     <li key={i} className="flex min-w-0 gap-2 text-xs">
                       <AlertTriangle className="h-3 w-3 mt-0.5 text-destructive shrink-0" />
-                      <span className="min-w-0 break-words">{s}</span>
+                      <span className="min-w-0 break-words">{s.text}</span>
                     </li>
                   ))}
                 </ul>
@@ -910,14 +928,26 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
         onOpenChange={setProcessorOpen}
         userId={userId}
         items={[
-          ...(insights?.alerts ?? []).map((t) => ({ kind: "alert" as const, text: t })),
-          ...(insights?.suggestions ?? []).map((t) => ({ kind: "suggestion" as const, text: t })),
+          ...(insights?.alerts ?? []).map((t, i) => ({
+            kind: "alert" as const,
+            text: t.text,
+            origin: t.origin,
+            sourceIndex: i,
+          })),
+          ...(insights?.suggestions ?? []).map((t, i) => ({
+            kind: "suggestion" as const,
+            text: t.text,
+            origin: t.origin,
+            sourceIndex: i,
+          })),
         ]}
         context={ctx}
+        onDismiss={(kind, sourceIndex) => dismiss(kind, sourceIndex)}
       />
     </Card>
   );
 }
+
 
 
 // ─────────────────────────────────────────────────────────────────────────────
