@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { requestAutoSync } from "@/lib/sync-queue";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -405,7 +406,7 @@ function TasksWidget({ userId }: { userId?: string }) {
     const { error } = await supabase.from("tasks").insert({
       title: newTitle.trim(), user_id: userId, priority: "medium", status: "todo", source_app: "myhubpro",
     });
-    if (error) toast.error("Impossible d'ajouter"); else { toast.success("Tâche ajoutée"); setNewTitle(""); load(); }
+    if (error) toast.error("Impossible d'ajouter"); else { toast.success("Tâche ajoutée"); setNewTitle(""); load(); requestAutoSync(); }
   };
 
   return (

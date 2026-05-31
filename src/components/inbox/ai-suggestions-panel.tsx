@@ -9,6 +9,7 @@ import {
   type EmailSuggestions,
 } from "@/lib/api/email-suggestions.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { requestAutoSync } from "@/lib/sync-queue";
 
 type Props = {
   emailId: string;
@@ -72,7 +73,7 @@ export function AiSuggestionsPanel({
       source: null,
     });
     if (err) toast.error(err.message);
-    else toast.success("Événement ajouté à l'agenda");
+    else { toast.success("Événement ajouté à l'agenda"); requestAutoSync(); }
   };
 
 

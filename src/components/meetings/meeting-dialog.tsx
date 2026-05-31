@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { requestAutoSync } from "@/lib/sync-queue";
 import { useAuth } from "@/lib/auth-context";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -215,6 +216,7 @@ export function MeetingDialog({
       }
       toast.success(form.id ? "Réunion mise à jour" : "Réunion créée");
       onSaved?.();
+      requestAutoSync();
       onOpenChange(false);
       return id!;
     } catch (e) {

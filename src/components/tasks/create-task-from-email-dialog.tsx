@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Paperclip, Zap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { requestAutoSync } from "@/lib/sync-queue";
 import { getSignedUrl, type DocumentRow } from "@/lib/documents";
 import { formatBytes } from "@/lib/file-icons";
 import { Input } from "@/components/ui/input";
@@ -177,6 +178,7 @@ export function CreateTaskFromEmailDialog({
       await supabase.from("emails").update({ labels }).eq("id", email.id);
 
       toast.success(calendarEventId ? "Tâche + événement créés" : "Tâche créée");
+      requestAutoSync();
       onOpenChange(false);
       onCreated?.();
     } catch (e) {

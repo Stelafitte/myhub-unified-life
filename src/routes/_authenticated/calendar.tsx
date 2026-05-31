@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { requestAutoSync } from "@/lib/sync-queue";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Calendar as CalendarIcon,
@@ -1024,6 +1025,7 @@ function NewEventDialog({
         toast.success("Événement créé");
       }
       onCreated();
+      requestAutoSync();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {

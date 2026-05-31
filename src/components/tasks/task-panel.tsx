@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { enqueue } from "@/lib/sync-queue";
+import { enqueue, requestAutoSync } from "@/lib/sync-queue";
 import { analyzeTaskText } from "@/lib/api/task-analysis.functions";
 import {
   Sheet,
@@ -309,6 +309,8 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
         onSaved(optimistic);
         toast.success(editing ? "Modification mise en file (offline)" : "Création mise en file (offline)");
       }
+      // Auto-sync after any create/update so the change propagates immediately.
+      requestAutoSync();
       onOpenChange(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
