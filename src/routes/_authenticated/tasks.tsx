@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDeleteKey } from "@/hooks/use-delete-key";
 import { KanbanView } from "@/components/tasks/kanban-view";
 import { GanttView } from "@/components/tasks/gantt-view";
 import { TaskListView } from "@/components/tasks/task-list-view";
