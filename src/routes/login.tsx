@@ -10,8 +10,38 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+const REMEMBER_KEY = "myhubpro:remember-me";
+const SUPABASE_AUTH_STORAGE_KEY = `sb-${import.meta.env.VITE_SUPABASE_PROJECT_ID}-auth-token`;
+
+/** If "rester connecté" is off, move the persisted session from localStorage
+ *  to sessionStorage so it disappears when the tab/browser is closed. */
+function applyRememberPreference(remember: boolean) {
+  if (typeof window === "undefined") return;
+  try {
+    if (remember) {
+      localStorage.setItem(REMEMBER_KEY, "1");
+      const sess = sessionStorage.getItem(SUPABASE_AUTH_STORAGE_KEY);
+      if (sess && !localStorage.getItem(SUPABASE_AUTH_STORAGE_KEY)) {
+        localStorage.setItem(SUPABASE_AUTH_STORAGE_KEY, sess);
+      }
+      sessionStorage.removeItem(SUPABASE_AUTH_STORAGE_KEY);
+    } else {
+      localStorage.setItem(REMEMBER_KEY, "0");
+      const token = localStorage.getItem(SUPABASE_AUTH_STORAGE_KEY);
+      if (token) {
+        sessionStorage.setItem(SUPABASE_AUTH_STORAGE_KEY, token);
+        localStorage.removeItem(SUPABASE_AUTH_STORAGE_KEY);
+      }
+    }
+  } catch {
+    /* storage may be blocked in private mode */
+  }
+}
+
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
