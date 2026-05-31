@@ -640,32 +640,41 @@ function WeekOrDayView({
   const ROW_H = 48;
   const [dragOffset, setDragOffset] = useState<{ id: string; dy: number } | null>(null);
 
-  const startDrag = (ev: UnifiedEvent) => (downEvt: React.MouseEvent) => {
+  const startDrag = (ev: UnifiedEvent) => (downEvt: React.MouseEvent | React.TouchEvent) => {
     if (!onMove || ev.kind !== "event") return;
-    downEvt.preventDefault();
     downEvt.stopPropagation();
-    const startY = downEvt.clientY;
+    const isTouch = "touches" in downEvt;
+    const startY = isTouch ? (downEvt as React.TouchEvent).touches[0].clientY : (downEvt as React.MouseEvent).clientY;
     let moved = false;
-    const onMouseMove = (m: MouseEvent) => {
-      const dy = m.clientY - startY;
-      if (Math.abs(dy) > 3) moved = true;
+    let lastY = startY;
+    const onMove2 = (clientY: number) => {
+      const dy = clientY - startY;
+      if (Math.abs(dy) > 4) moved = true;
+      lastY = clientY;
       setDragOffset({ id: ev.id, dy });
     };
-    const onMouseUp = (u: MouseEvent) => {
+    const onMouseMove = (m: MouseEvent) => onMove2(m.clientY);
+    const onTouchMove = (m: TouchEvent) => { m.preventDefault(); onMove2(m.touches[0].clientY); };
+    const finish = () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
-      const dy = u.clientY - startY;
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      const dy = lastY - startY;
       setDragOffset(null);
       if (moved) {
-        // snap to 15min steps (1 hour = ROW_H px)
         const deltaMin = Math.round((dy / ROW_H) * 4) * 15;
         if (deltaMin !== 0) onMove(ev, deltaMin);
       } else {
         onSelect(ev);
       }
     };
+    const onMouseUp = () => finish();
+    const onTouchEnd = () => finish();
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
   };
 
   return (
