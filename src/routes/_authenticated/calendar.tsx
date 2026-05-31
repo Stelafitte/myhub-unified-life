@@ -323,7 +323,7 @@ function AgendaPage() {
         end: new Date(e.end_at),
         location: e.location,
         description: e.description,
-        color: catColors[cat],
+        color: e.color || catColors[cat],
         badge: meta.badge,
         sourceLabel: acc?.name ?? meta.label,
         accountId: e.account_id,
@@ -630,10 +630,12 @@ function AgendaPage() {
         <EventDetail
           event={selected}
           account={selected.accountId ? accById.get(selected.accountId) : undefined}
+          catColors={catColors}
           onClose={() => setSelected(null)}
           onDelete={() => deleteEvent(selected)}
           onCreateTask={() => createTaskFromEvent(selected)}
           onShare={() => shareEvent(selected)}
+          onUpdated={() => { load(); }}
         />
       )}
 
@@ -643,6 +645,7 @@ function AgendaPage() {
         accounts={accounts}
         userId={user?.id ?? ""}
         defaultDate={creatingAt ?? cursor}
+        catColors={catColors}
         onCreated={() => { setCreatingAt(null); load(); }}
       />
 
@@ -1062,21 +1065,55 @@ function ListView({ events, onSelect }: { events: UnifiedEvent[]; onSelect: (e: 
 function EventDetail({
   event,
   account,
+  catColors,
   onClose,
   onDelete,
   onCreateTask,
   onShare,
+  onUpdated,
 }: {
   event: UnifiedEvent;
   account?: Account;
+  catColors: Record<EventCategory, string>;
   onClose: () => void;
   onDelete: () => void;
   onCreateTask: () => void;
   onShare?: () => void;
+  onUpdated?: () => void;
 }) {
   const canEdit =
     event.kind === "event" &&
     (!account || account.sync_direction === "bidirectional" || account.sync_direction === "push");
+
+  const dbEv = event.raw as DbEvent;
+  const [savingType, setSavingType] = useState(false);
+  const currentCat = event.category;
+  const currentColor = event.color;
+
+  const updateType = async (nextCat: EventCategory, nextColor: string) => {
+    if (event.kind !== "event") return;
+    setSavingType(true);
+    try {
+      const base: "pro" | "perso" = nextCat.startsWith("perso") ? "perso" : "pro";
+      const recurring = nextCat.endsWith("recurring");
+      const existingRule = dbEv.recurrence_rule;
+      let nextRule: string | null = existingRule ?? null;
+      if (recurring && !existingRule) nextRule = "FREQ=WEEKLY";
+      if (!recurring) nextRule = null;
+      const { error } = await supabase
+        .from("calendar_events")
+        .update({ category: base, recurrence_rule: nextRule, color: nextColor })
+        .eq("id", dbEv.id);
+      if (error) throw error;
+      toast.success("Type d'événement mis à jour");
+      onUpdated?.();
+      requestAutoSync();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSavingType(false);
+    }
+  };
 
   const participants = extractEmails((event.raw as DbEvent).description ?? "");
 
@@ -1207,6 +1244,41 @@ function EventDetail({
           </div>
         )}
 
+        {canEdit && (
+          <div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">Type d'événement</div>
+            <div className="flex items-center gap-2">
+              <Select
+                value={currentCat}
+                onValueChange={(v) => updateType(v as EventCategory, catColors[v as EventCategory])}
+                disabled={savingType}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(CATEGORY_LABELS) as EventCategory[]).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: catColors[k] }} />
+                        {CATEGORY_LABELS[k]}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <input
+                type="color"
+                value={currentColor}
+                disabled={savingType}
+                onChange={(e) => updateType(currentCat, e.target.value)}
+                className="h-9 w-10 cursor-pointer rounded border bg-background"
+                title="Couleur personnalisée"
+              />
+            </div>
+          </div>
+        )}
+
         {event.description && (
           <div>
             <div className="text-xs font-medium text-muted-foreground">Notes</div>
@@ -1321,6 +1393,7 @@ function NewEventDialog({
   accounts,
   userId,
   defaultDate,
+  catColors,
   onCreated,
 }: {
   open: boolean;
@@ -1328,6 +1401,7 @@ function NewEventDialog({
   accounts: Account[];
   userId: string;
   defaultDate: Date;
+  catColors: Record<EventCategory, string>;
   onCreated: () => void;
 }) {
   const writable = accounts.filter(
@@ -1342,8 +1416,25 @@ function NewEventDialog({
   const [participants, setParticipants] = useState("");
   const [recurrence, setRecurrence] = useState<string>("none");
   const [category, setCategory] = useState<"pro" | "perso">("pro");
+  const [color, setColor] = useState<string>(catColors.pro_oneoff);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const derivedCat: EventCategory =
+    category === "perso"
+      ? (recurrence !== "none" ? "perso_recurring" : "perso_oneoff")
+      : (recurrence !== "none" ? "pro_recurring" : "pro_oneoff");
+
+  const applyType = (cat: EventCategory) => {
+    const base: "pro" | "perso" = cat.startsWith("perso") ? "perso" : "pro";
+    const recurring = cat.endsWith("recurring");
+    setCategory(base);
+    setRecurrence((prev) => {
+      if (recurring) return prev !== "none" ? prev : "weekly";
+      return "none";
+    });
+    setColor(catColors[cat]);
+  };
 
   useEffect(() => {
     if (open) {
@@ -1360,10 +1451,11 @@ function NewEventDialog({
       setParticipants("");
       setRecurrence("none");
       setCategory("pro");
+      setColor(catColors.pro_oneoff);
       setNotes("");
       setAccountId(writable[0]?.id ?? "local");
     }
-  }, [open, defaultDate, writable]);
+  }, [open, defaultDate, writable, catColors]);
 
   const submit = async () => {
     if (!title.trim() || !startStr) {
@@ -1400,7 +1492,7 @@ function NewEventDialog({
         is_all_day: allDay,
         recurrence_rule: rrule,
         category,
-        color: acc?.color || "#6366f1",
+        color,
         source: acc ? (acc.type as never) : null,
         sync_direction: acc?.sync_direction ?? "bidirectional",
       });
@@ -1478,30 +1570,45 @@ function NewEventDialog({
             <Input id="ev-part" value={participants} onChange={(e) => setParticipants(e.target.value)} placeholder="alice@x.com, bob@y.com" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Catégorie</Label>
-              <Select value={category} onValueChange={(v) => setCategory(v as "pro" | "perso")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+          <div>
+            <Label>Type d'événement</Label>
+            <div className="flex items-center gap-2">
+              <Select value={derivedCat} onValueChange={(v) => applyType(v as EventCategory)}>
+                <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pro">💼 Pro</SelectItem>
-                  <SelectItem value="perso">🏡 Perso</SelectItem>
+                  {(Object.keys(CATEGORY_LABELS) as EventCategory[]).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: catColors[k] }} />
+                        {CATEGORY_LABELS[k]}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-9 w-10 cursor-pointer rounded border bg-background"
+                title="Couleur personnalisée"
+              />
             </div>
+          </div>
+
+          {recurrence !== "none" && (
             <div>
-              <Label>Récurrence</Label>
+              <Label>Fréquence</Label>
               <Select value={recurrence} onValueChange={setRecurrence}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Aucune (ponctuel)</SelectItem>
                   <SelectItem value="daily">Tous les jours</SelectItem>
                   <SelectItem value="weekly">Toutes les semaines</SelectItem>
                   <SelectItem value="monthly">Tous les mois</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          )}
 
           <div>
             <Label htmlFor="ev-notes">Notes</Label>
