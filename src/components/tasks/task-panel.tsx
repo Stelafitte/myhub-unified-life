@@ -112,6 +112,15 @@ export function TaskPanel({
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [addToCalendar, setAddToCalendar] = useState(false);
+
+  // Thèmes / sous-thèmes du Plan d'opération
+  type OpTheme = { id: string; name: string; position: number };
+  type OpSubtheme = { id: string; theme_id: string; name: string; position: number };
+  const [opThemes, setOpThemes] = useState<OpTheme[]>([]);
+  const [opSubthemes, setOpSubthemes] = useState<OpSubtheme[]>([]);
+  const [themeId, setThemeId] = useState<string>("");
+  const [subthemeId, setSubthemeId] = useState<string>("");
+
   // Tracks the last initialized panel context to avoid clobbering user input on parent re-renders
   const initKeyRef = useRef<string>("");
 
@@ -181,6 +190,63 @@ export function TaskPanel({
     setEmailSearch("");
     setEmailResults([]);
   }, [open, task, defaultStatus]);
+
+  // Charger thèmes / sous-thèmes du plan d'opération
+  const loadOpThemes = async () => {
+    if (!user) return;
+    const [t, s] = await Promise.all([
+      supabase.from("op_plan_themes").select("id,name,position").order("position"),
+      supabase.from("op_plan_subthemes").select("id,theme_id,name,position").order("position"),
+    ]);
+    setOpThemes(((t.data ?? []) as OpTheme[]));
+    setOpSubthemes(((s.data ?? []) as OpSubtheme[]));
+  };
+  useEffect(() => { if (open && user) void loadOpThemes(); /* eslint-disable-next-line */ }, [open, user]);
+
+  // Initialiser theme/subtheme à partir des tags de la tâche
+  useEffect(() => {
+    if (!open) return;
+    const tags = (task?.tags ?? []) as string[];
+    const tTag = tags.find((x) => x.startsWith("theme:"))?.slice(6) ?? "";
+    const sTag = tags.find((x) => x.startsWith("subtheme:"))?.slice(9) ?? "";
+    setThemeId(tTag);
+    setSubthemeId(sTag);
+  }, [open, task, opThemes.length]);
+
+  const createOpTheme = async () => {
+    if (!user) return;
+    const name = window.prompt("Nom du nouveau thème ?")?.trim();
+    if (!name) return;
+    const position = opThemes.length ? Math.max(...opThemes.map((t) => t.position)) + 1 : 0;
+    const { data, error } = await supabase
+      .from("op_plan_themes")
+      .insert({ user_id: user.id, name, position })
+      .select("id,name,position")
+      .single();
+    if (error) { toast.error(error.message); return; }
+    setOpThemes((p) => [...p, data as OpTheme]);
+    setThemeId((data as OpTheme).id);
+    setSubthemeId("");
+    toast.success("Thème créé");
+  };
+
+  const createOpSubtheme = async () => {
+    if (!user) return;
+    if (!themeId) { toast.error("Choisis d'abord un thème"); return; }
+    const name = window.prompt("Nom du nouveau sous-thème ?")?.trim();
+    if (!name) return;
+    const existing = opSubthemes.filter((s) => s.theme_id === themeId);
+    const position = existing.length ? Math.max(...existing.map((s) => s.position)) + 1 : 0;
+    const { data, error } = await supabase
+      .from("op_plan_subthemes")
+      .insert({ user_id: user.id, theme_id: themeId, name, position, items: [] })
+      .select("id,theme_id,name,position")
+      .single();
+    if (error) { toast.error(error.message); return; }
+    setOpSubthemes((p) => [...p, data as OpSubtheme]);
+    setSubthemeId((data as OpSubtheme).id);
+    toast.success("Sous-thème créé");
+  };
 
   // Load linked email (label + full content)
   useEffect(() => {
@@ -363,6 +429,8 @@ export function TaskPanel({
         .map((t) => t.trim())
         .filter(Boolean),
       `section:${finalSection}`,
+      ...(themeId ? [`theme:${themeId}`] : []),
+      ...(subthemeId ? [`subtheme:${subthemeId}`] : []),
       ...(recurrence !== "none" ? [`recurrence:${recurrence}`] : []),
     ];
 
@@ -776,6 +844,55 @@ export function TaskPanel({
                 value={newSection}
                 onChange={(e) => setNewSection(e.target.value)}
               />
+            </div>
+
+            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Plan d'opération — Thème / Sous-thème
+              </Label>
+              <div className="flex gap-2">
+                <Select
+                  value={themeId || "__none__"}
+                  onValueChange={(v) => {
+                    const nv = v === "__none__" ? "" : v;
+                    setThemeId(nv);
+                    setSubthemeId("");
+                  }}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Choisir un thème…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Aucun —</SelectItem>
+                    {opThemes.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" size="sm" onClick={createOpTheme} title="Créer un nouveau thème">
+                  + Thème
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Select
+                  value={subthemeId || "__none__"}
+                  onValueChange={(v) => setSubthemeId(v === "__none__" ? "" : v)}
+                  disabled={!themeId}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder={themeId ? "Choisir un sous-thème…" : "Choisis d'abord un thème"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Aucun —</SelectItem>
+                    {opSubthemes.filter((s) => s.theme_id === themeId).map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" size="sm" onClick={createOpSubtheme} disabled={!themeId} title="Créer un nouveau sous-thème">
+                  + Sous-thème
+                </Button>
+              </div>
             </div>
 
             <div>
