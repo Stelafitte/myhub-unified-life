@@ -716,6 +716,7 @@ function InboxPage() {
 
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
+    setReaderOpen(true);
     if (!e.is_read) patch(e.id, { is_read: true });
   };
 
