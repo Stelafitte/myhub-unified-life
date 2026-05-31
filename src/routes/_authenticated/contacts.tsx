@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Users,
@@ -12,9 +12,11 @@ import {
   Send,
   Trash2,
   RefreshCw,
+  Upload,
   X,
   Check,
 } from "lucide-react";
+import { parseVCard, type ParsedContact } from "@/lib/vcard";
 import { supabase } from "@/integrations/supabase/client";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
@@ -274,6 +276,53 @@ function ContactsPage() {
     setSelectedId((data as Contact).id);
   };
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  const handleImportFile = async (file: File) => {
+    if (!user) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const parsed = parseVCard(text);
+      if (parsed.length === 0) {
+        toast.error("Aucun contact trouvé dans le fichier");
+        return;
+      }
+      const rows = parsed
+        .filter((p) => p.first_name || p.last_name || p.email.length > 0)
+        .map((p) => ({
+          user_id: user.id,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          organization: p.organization,
+          role: p.role,
+          email: p.email,
+          phone: p.phone,
+          notes: p.notes,
+          sources: ["iCloud"],
+        }));
+
+      // Insert in batches of 200
+      const inserted: Contact[] = [];
+      for (let i = 0; i < rows.length; i += 200) {
+        const chunk = rows.slice(i, i + 200);
+        const { data, error } = await supabase.from("contacts").insert(chunk as never).select();
+        if (error) { toast.error(error.message); break; }
+        if (data) inserted.push(...(data as Contact[]));
+      }
+      if (inserted.length > 0) {
+        setContacts((prev) => [...inserted, ...prev]);
+        toast.success(`${inserted.length} contact${inserted.length > 1 ? "s" : ""} importé${inserted.length > 1 ? "s" : ""}`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de l'import");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+
   return (
     <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT — list */}
@@ -287,6 +336,27 @@ function ContactsPage() {
               <Badge variant="secondary" className="text-[10px]">{filtered.length}</Badge>
             </div>
             <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".vcf,text/vcard,text/x-vcard,text/directory"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImportFile(f);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                className="h-8 gap-1 px-2 sm:px-3"
+                title="Importer un fichier vCard (.vcf) exporté depuis iCloud, Google, Outlook…"
+              >
+                <Upload className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{importing ? "Import…" : "Importer"}</span>
+              </Button>
               <Button size="sm" variant="outline" onClick={refresh} className="h-8 gap-1 px-2 sm:px-3">
                 <RefreshCw className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Actualiser</span>
               </Button>
