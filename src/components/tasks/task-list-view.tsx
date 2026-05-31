@@ -29,7 +29,7 @@ const STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
 
 export function TaskListView({ tasks, onEdit, onDelete, onMove, onOpenEmail }: Props) {
   const sorted = useMemo(() => {
-    const order: TaskStatus[] = ["todo", "in-progress", "review", "done"];
+    const order: TaskStatus[] = ["todo", "in_progress", "done", "archived"];
     return [...tasks].sort((a, b) => {
       const ao = order.indexOf(a.status);
       const bo = order.indexOf(b.status);
