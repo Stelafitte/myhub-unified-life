@@ -711,7 +711,7 @@ function InboxPage() {
   };
 
   return (
-    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] w-[100dvw] max-w-[100dvw] min-w-0 overflow-x-clip overflow-y-hidden [overflow-wrap:anywhere] sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6 md:w-auto md:max-w-full">
+    <div className="flex h-[calc(100dvh-5.5rem)] w-full max-w-full min-w-0 overflow-x-clip overflow-y-hidden [overflow-wrap:anywhere] sm:h-[calc(100dvh-6rem)]">
       {/* LEFT — filters */}
       <aside style={{ width: leftW }} className="hidden shrink-0 flex-col border-r bg-card md:flex">
         <div className="border-b p-4">
