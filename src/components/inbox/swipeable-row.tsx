@@ -112,7 +112,10 @@ export function SwipeableRow({
     <div className={cn("relative overflow-hidden", className)}>
       {/* Left actions (revealed when swiping right) */}
       {leftActions.length > 0 && (
-        <div className="absolute inset-y-0 left-0 flex" style={{ width: leftW }}>
+        <div
+          className="absolute inset-y-0 left-0 flex"
+          style={{ width: leftW, visibility: showLeft ? "visible" : "hidden" }}
+        >
           {leftActions.map((a) => (
             <button
               key={a.key}
@@ -135,7 +138,10 @@ export function SwipeableRow({
       )}
       {/* Right actions (revealed when swiping left) */}
       {rightActions.length > 0 && (
-        <div className="absolute inset-y-0 right-0 flex" style={{ width: rightW }}>
+        <div
+          className="absolute inset-y-0 right-0 flex"
+          style={{ width: rightW, visibility: showRight ? "visible" : "hidden" }}
+        >
           {rightActions.map((a) => (
             <button
               key={a.key}
@@ -163,7 +169,7 @@ export function SwipeableRow({
         onTouchCancel={onTouchEnd}
         style={{
           transform: `translate3d(${dx}px,0,0)`,
-          transition: dragging.current ? "none" : "transform 180ms ease-out",
+          transition: isDragging ? "none" : "transform 180ms ease-out",
         }}
         className="relative bg-background"
       >
