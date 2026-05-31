@@ -49,6 +49,7 @@ import {
 import { Calendar as MiniCal } from "@/components/ui/calendar";
 import { useCalendarHours } from "@/lib/calendar-prefs";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDeleteKey } from "@/hooks/use-delete-key";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
