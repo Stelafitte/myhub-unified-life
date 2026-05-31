@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, Mail, X, Sparkles, CalendarPlus } from "lucide-react";
+import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { enqueue, requestAutoSync } from "@/lib/sync-queue";
 import { analyzeTaskText } from "@/lib/api/task-analysis.functions";
-import { getSignedUrl } from "@/lib/documents";
+import { getSignedUrl, type DocumentRow } from "@/lib/documents";
+import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
+import { formatBytes } from "@/lib/file-icons";
 import {
   Sheet,
   SheetContent,
@@ -60,6 +62,7 @@ type Props = {
 
 type EmailLite = { id: string; subject: string | null; from_name: string | null; from_address: string | null };
 type EmailFull = EmailLite & { body_text: string | null; body_html: string | null; received_at: string | null; ai_summary: string | null };
+type TaskAttachment = { name?: string; url?: string | null; storage_path?: string | null; document_id?: string | null; mime?: string | null; size?: number | null };
 
 export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, onSaved, draft }: Props) {
   const { user } = useAuth();
@@ -83,6 +86,9 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
   const [emailFull, setEmailFull] = useState<EmailFull | null>(null);
   const [emailSearch, setEmailSearch] = useState("");
   const [emailResults, setEmailResults] = useState<EmailLite[]>([]);
+  const [attachmentDocs, setAttachmentDocs] = useState<DocumentRow[]>([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState<DocumentRow | null>(null);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [addToCalendar, setAddToCalendar] = useState(false);
