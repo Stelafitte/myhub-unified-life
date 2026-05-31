@@ -192,6 +192,42 @@ function InboxPage() {
     setComposerOpen(true);
   };
 
+  const buildReplyInit = (e: Email, all = false): ComposerInitial => {
+    const dateStr = e.received_at ? new Date(e.received_at).toLocaleString("fr-FR") : "";
+    const sender = e.from_name ? `${e.from_name} <${e.from_address}>` : (e.from_address ?? "");
+    const quoted =
+      "\n\n\nLe " +
+      dateStr +
+      ", " +
+      sender +
+      " a écrit :\n" +
+      (e.body_text ?? "")
+        .split("\n")
+        .map((l) => "> " + l)
+        .join("\n");
+    const refs = e.message_id ? `<${e.message_id}>` : undefined;
+    const subj = e.subject?.startsWith("Re:") ? e.subject : `Re: ${e.subject ?? ""}`;
+    return {
+      mode: all ? "replyAll" : "reply",
+      defaultAccountId: e.account_id,
+      to: e.from_address ?? "",
+      cc: all ? (e.to_address ?? "") : undefined,
+      subject: subj,
+      body: quoted,
+      inReplyTo: refs,
+      references: refs,
+    };
+  };
+  const buildForwardInit = (e: Email): ComposerInitial => {
+    const subj = e.subject?.startsWith("Fwd:") ? e.subject : `Fwd: ${e.subject ?? ""}`;
+    return {
+      mode: "forward",
+      defaultAccountId: e.account_id,
+      subject: subj,
+      body: `\n\n---------- Message transféré ----------\nDe: ${e.from_name ?? ""} <${e.from_address ?? ""}>\nDate: ${e.received_at ?? ""}\nSujet: ${e.subject ?? ""}\nÀ: ${e.to_address ?? ""}\n\n${e.body_text ?? ""}`,
+    };
+  };
+
   const relaunchAi = async () => {
     if (relaunching) return;
     setRelaunching(true);
