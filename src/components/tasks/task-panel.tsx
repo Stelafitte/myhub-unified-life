@@ -199,7 +199,6 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
   }, [open, emailId]);
 
   const taskAttachments = ((task as Task & { attachments?: TaskAttachment[] } | null)?.attachments ?? []).filter(Boolean);
-  const attachmentsByDocumentId = new Set(taskAttachments.map((a) => a.document_id).filter(Boolean));
   const fallbackAttachments = taskAttachments.filter((a) => !a.document_id || !attachmentDocs.some((d) => d.id === a.document_id));
 
   const openLegacyAttachment = async (attachment: TaskAttachment) => {
@@ -448,34 +447,56 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
             />
           </div>
 
-          {task && Array.isArray((task as Task & { attachments?: unknown[] }).attachments) && ((task as Task & { attachments?: unknown[] }).attachments?.length ?? 0) > 0 && (
+          {(attachmentsLoading || attachmentDocs.length > 0 || fallbackAttachments.length > 0) && (
             <div>
-              <Label className="mb-1.5 block">Pièces jointes ({(task as Task & { attachments?: unknown[] }).attachments!.length})</Label>
+              <Label className="mb-1.5 flex items-center gap-1.5">
+                <Paperclip className="h-3.5 w-3.5" /> Pièces jointes ({attachmentDocs.length + fallbackAttachments.length})
+              </Label>
               <ul className="space-y-1 rounded-md border bg-muted/30 p-2 text-xs">
-                {((task as Task & { attachments?: Array<{ name?: string; url?: string | null; storage_path?: string | null; document_id?: string | null; mime?: string | null }> }).attachments ?? []).map((a, i) => (
-                  <li key={i} className="flex items-center gap-1.5">
-                    📎{" "}
+                {attachmentsLoading && <li className="text-muted-foreground">Chargement des pièces jointes…</li>}
+                {attachmentDocs.map((doc) => (
+                  <li key={doc.id} className="flex items-center gap-2 rounded-sm px-1 py-1 hover:bg-accent">
+                    <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <button
                       type="button"
-                      className="underline text-left hover:text-primary disabled:opacity-50 disabled:no-underline"
-                      disabled={!a.storage_path && !a.url}
-                      onClick={async () => {
-                        try {
-                          let href = a.url ?? null;
-                          if (a.storage_path) {
-                            href = await getSignedUrl(a.storage_path);
-                          }
-                          if (!href) {
-                            toast.error("Pièce jointe indisponible");
-                            return;
-                          }
-                          window.open(href, "_blank", "noopener,noreferrer");
-                        } catch (err) {
-                          toast.error(err instanceof Error ? err.message : "Impossible d'ouvrir la pièce jointe");
-                        }
-                      }}
+                      className="min-w-0 flex-1 text-left hover:text-primary disabled:opacity-50"
+                      disabled={!doc.storage_path || doc.local_only}
+                      onClick={() => setPreviewAttachment(doc)}
                     >
-                      {a.name ?? `Fichier ${i + 1}`}
+                      <span className="block truncate font-medium">{doc.original_filename}</span>
+                      <span className="block text-muted-foreground">{formatBytes(doc.file_size)}</span>
+                    </button>
+                    {doc.storage_path && !doc.local_only && (
+                      <button
+                        type="button"
+                        className="rounded-sm p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        title="Télécharger"
+                        onClick={async (event) => {
+                          event.stopPropagation();
+                          try {
+                            const href = await getSignedUrl(doc.storage_path!);
+                            window.open(href, "_blank", "noopener,noreferrer");
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Impossible d'ouvrir la pièce jointe");
+                          }
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </li>
+                ))}
+                {fallbackAttachments.map((a, i) => (
+                  <li key={`${a.document_id ?? a.storage_path ?? a.name ?? "attachment"}-${i}`} className="flex items-center gap-2 rounded-sm px-1 py-1 hover:bg-accent">
+                    <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <button
+                      type="button"
+                      className="min-w-0 flex-1 text-left hover:text-primary disabled:opacity-50"
+                      disabled={!a.storage_path && !a.url}
+                      onClick={() => openLegacyAttachment(a)}
+                    >
+                      <span className="block truncate font-medium">{a.name ?? `Fichier ${i + 1}`}</span>
+                      {a.size ? <span className="block text-muted-foreground">{formatBytes(a.size)}</span> : null}
                     </button>
                   </li>
                 ))}
