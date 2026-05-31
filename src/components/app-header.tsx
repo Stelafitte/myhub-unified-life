@@ -1,10 +1,11 @@
-import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2 } from "lucide-react";
+import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2, Plus, CheckSquare } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useTheme } from "@/lib/theme-provider";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { useAuth } from "@/lib/auth-context";
+import { useTaskPanel } from "@/lib/task-panel-context";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
@@ -12,6 +13,7 @@ export function AppHeader() {
   const { theme, toggle } = useTheme();
   const { state, pending, syncing, syncNow } = useSyncStatus();
   const { user, signOut } = useAuth();
+  const { openCreate } = useTaskPanel();
   const navigate = useNavigate();
   const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
 
@@ -56,6 +58,13 @@ export function AppHeader() {
       <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
         {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </Button>
+
+      <Button variant="ghost" size="sm" onClick={() => openCreate()} className="h-8 gap-1 text-xs font-medium" aria-label="Nouvelle tâche">
+        <CheckSquare className="h-4 w-4" />
+        <span className="hidden sm:inline">Nouvelle tâche</span>
+        <span className="sm:hidden">Tâche</span>
+      </Button>
+
       <Button
         variant="ghost"
         size="icon"
