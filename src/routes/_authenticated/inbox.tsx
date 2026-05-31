@@ -167,6 +167,7 @@ function InboxPage() {
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
   const [relaunching, setRelaunching] = useState(false);
+  const [aiRanking, setAiRanking] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
 
