@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { generateDashboardInsights } from "@/lib/api/dashboard-insights.functions";
+import { InsightsProcessorDialog } from "@/components/dashboard/insights-processor-dialog";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { relativeTime } from "@/lib/relative-time";
@@ -760,6 +761,12 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
     alerts: string[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [processorOpen, setProcessorOpen] = useState(false);
+  const [ctx, setCtx] = useState<{ unreadCount: number; overdueCount: number; todayEvents: number }>({
+    unreadCount: 0,
+    overdueCount: 0,
+    todayEvents: 0,
+  });
 
   const run = useCallback(async () => {
     if (!userId) return;
@@ -801,6 +808,11 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
         },
       });
       setInsights(res);
+      setCtx({
+        unreadCount: unread.length,
+        overdueCount: overdue,
+        todayEvents: (eventsRes.data ?? []).length,
+      });
     } catch (e) {
       toast.error("Insights IA indisponibles");
     } finally {
@@ -853,9 +865,29 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
                 </ul>
               </div>
             )}
+            {(insights.suggestions.length > 0 || insights.alerts.length > 0) && (
+              <Button
+                size="sm"
+                className="w-full mt-2"
+                onClick={() => setProcessorOpen(true)}
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Traiter ({insights.suggestions.length + insights.alerts.length})
+              </Button>
+            )}
           </>
         )}
       </CardContent>
+      <InsightsProcessorDialog
+        open={processorOpen}
+        onOpenChange={setProcessorOpen}
+        userId={userId}
+        items={[
+          ...(insights?.alerts ?? []).map((t) => ({ kind: "alert" as const, text: t })),
+          ...(insights?.suggestions ?? []).map((t) => ({ kind: "suggestion" as const, text: t })),
+        ]}
+        context={ctx}
+      />
     </Card>
   );
 }
