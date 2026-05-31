@@ -562,6 +562,14 @@ export function PlanOperationSection() {
                         {subs.map((s) => (
                           <div key={s.id} className={cn("rounded border bg-background")}>
                             <div className="flex items-center gap-1 px-2 py-1.5">
+                              {editingSub !== s.id && (
+                                <Checkbox
+                                  checked={isSel(`sub:${s.id}`)}
+                                  onCheckedChange={() => toggleSel(`sub:${s.id}`)}
+                                  className="shrink-0"
+                                  aria-label="Sélectionner le sous-thème"
+                                />
+                              )}
                               {editingSub === s.id ? (
                                 <>
                                   <Input
