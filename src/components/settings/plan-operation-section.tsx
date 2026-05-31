@@ -546,15 +546,6 @@ export function PlanOperationSection() {
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 gap-1 px-2 text-primary"
-                            onClick={() => integrateTheme(theme.name)}
-                            title="Intégrer ce thème (et tous ses sous-thèmes/items) dans le tableau Plan d'opération"
-                          >
-                            <Send className="h-3.5 w-3.5" /> <span className="hidden sm:inline text-xs">Intégrer</span>
-                          </Button>
-                          <Button
                             size="icon"
                             variant="ghost"
                             className="h-7 w-7 text-destructive"
