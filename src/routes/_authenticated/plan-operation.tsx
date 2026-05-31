@@ -286,6 +286,18 @@ function PlanOperationPage() {
     return () => window.removeEventListener("online", onOnline);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+  // Rafraîchit dès qu'une tâche est créée/modifiée/supprimée ailleurs dans l'app
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`plan-op-tasks-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `user_id=eq.${user.id}` }, () => {
+        load();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Build bars (tasks only — événements/RDV gérés dans l'Agenda)
   // Toute tâche avec AU MOINS une date (gantt_start, gantt_end ou due_date) apparaît dans le Plan d'opération.
