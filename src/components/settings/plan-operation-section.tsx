@@ -400,6 +400,37 @@ export function PlanOperationSection() {
     for (const it of sub.items) await integrateInPlan(themeName, it, sub.name);
   };
 
+  const addSelection = async () => {
+    if (!user) return;
+    if (selected.size === 0) return toast.error("Aucune ligne sélectionnée");
+    let count = 0;
+    for (const t of themes) {
+      const themeKey = `theme:${t.id}`;
+      const themeChecked = selected.has(themeKey);
+      const subs = subthemes.filter((s) => s.theme_id === t.id);
+      // If theme itself is checked (without any sub/item), create a generic task
+      if (themeChecked && !subs.some((s) => selected.has(`sub:${s.id}`) || s.items.some((_, i) => selected.has(`item:${s.id}:${i}`)))) {
+        await integrateInPlan(t.name, t.name);
+        count++;
+      }
+      for (const s of subs) {
+        const subKey = `sub:${s.id}`;
+        if (selected.has(subKey)) {
+          await integrateInPlan(t.name, s.name, s.name);
+          count++;
+        }
+        for (let i = 0; i < s.items.length; i++) {
+          if (selected.has(`item:${s.id}:${i}`)) {
+            await integrateInPlan(t.name, s.items[i], s.name);
+            count++;
+          }
+        }
+      }
+    }
+    setSelected(new Set());
+    toast.success(`${count} ligne${count > 1 ? "s" : ""} ajoutée${count > 1 ? "s" : ""} au Plan d'opération`);
+  };
+
   return (
     <div className="space-y-4">
       <Card>
