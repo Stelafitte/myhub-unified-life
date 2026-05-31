@@ -70,7 +70,9 @@ type Zoom = "week" | "month" | "quarter" | "year";
 
 const ZOOM_PX: Record<Zoom, number> = { week: 40, month: 14, quarter: 6, year: 2.2 };
 
-const SECTION_DEFS: { key: string; label: string; emoji: string; match: (s: string) => boolean }[] = [
+type SectionDef = { key: string; label: string; emoji: string; match?: (s: string) => boolean; alwaysShow?: boolean };
+
+const LEGACY_SECTIONS: SectionDef[] = [
   { key: "CHU", label: "CHU", emoji: "🏥", match: (s) => /chu|hopital|hôpital/i.test(s) },
   { key: "Université", label: "Université", emoji: "🎓", match: (s) => /univ|fac|école|ecole/i.test(s) },
   { key: "Professionnel", label: "Professionnel", emoji: "💼", match: (s) => /pro|travail|work|bureau/i.test(s) },
@@ -78,9 +80,14 @@ const SECTION_DEFS: { key: string; label: string; emoji: string; match: (s: stri
   { key: "Autres", label: "Autres", emoji: "📧", match: () => true },
 ];
 
-function sectionOf(label: string): string {
-  for (const def of SECTION_DEFS) if (def.match(label)) return def.key;
-  return "Autres";
+function buildSectionOf(allSections: SectionDef[]) {
+  return (label: string): string => {
+    // Exact match (theme name) wins
+    const exact = allSections.find((d) => d.key === label);
+    if (exact) return exact.key;
+    for (const def of allSections) if (def.match && def.match(label)) return def.key;
+    return "Autres";
+  };
 }
 
 type Bar = {
@@ -111,6 +118,15 @@ function PlanOperationPage() {
   const [toDelete, setToDelete] = useState<Task | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
+  const [opThemes, setOpThemes] = useState<{ id: string; name: string; position: number }[]>([]);
+  const [opSubthemes, setOpSubthemes] = useState<{ id: string; name: string; theme_id: string; position: number }[]>([]);
+
+  // Sections dynamiques : thèmes utilisateurs (toujours visibles) + sections legacy (visibles si elles contiennent des tâches)
+  const SECTION_DEFS = useMemo<SectionDef[]>(() => {
+    const themeSecs: SectionDef[] = opThemes.map((t) => ({ key: t.name, label: t.name, emoji: "📋", alwaysShow: true }));
+    return [...themeSecs, ...LEGACY_SECTIONS];
+  }, [opThemes]);
+  const sectionOf = useMemo(() => buildSectionOf(SECTION_DEFS), [SECTION_DEFS]);
 
   // Déplacer une tâche dans une autre section (drag & drop)
   const moveToSection = async (taskId: string, sectionKey: string) => {
@@ -188,24 +204,23 @@ function PlanOperationPage() {
       .order("position", { ascending: false })
       .limit(1);
     const position = existing && existing.length ? (existing[0].position as number) + 1 : 0;
-    const { error } = await supabase
+    const { data: ins, error } = await supabase
       .from("op_plan_themes")
-      .insert({ user_id: user.id, name, position });
+      .insert({ user_id: user.id, name, position })
+      .select("id,name,position")
+      .single();
     if (error) { toast.error(error.message); return; }
+    if (ins) setOpThemes((p) => [...p, ins as typeof opThemes[number]]);
     toast.success(`Thème « ${name} » créé`);
   };
 
   const createOpSubtheme = async () => {
     if (!user) return;
-    const { data: themesRows } = await supabase
-      .from("op_plan_themes")
-      .select("id,name")
-      .order("position");
-    const themes = (themesRows ?? []) as { id: string; name: string }[];
-    if (!themes.length) {
+    if (!opThemes.length) {
       toast.error("Crée d'abord un thème");
       return;
     }
+    const themes = opThemes;
     const list = themes.map((t, i) => `${i + 1}. ${t.name}`).join("\n");
     const pick = window.prompt(`Sous quel thème ?\n${list}\n\nEntre le numéro :`)?.trim();
     const idx = pick ? parseInt(pick, 10) - 1 : -1;
@@ -220,10 +235,13 @@ function PlanOperationPage() {
       .order("position", { ascending: false })
       .limit(1);
     const position = existingSubs && existingSubs.length ? (existingSubs[0].position as number) + 1 : 0;
-    const { error } = await supabase
+    const { data: ins, error } = await supabase
       .from("op_plan_subthemes")
-      .insert({ user_id: user.id, theme_id: theme.id, name, position, items: [] });
+      .insert({ user_id: user.id, theme_id: theme.id, name, position, items: [] })
+      .select("id,name,theme_id,position")
+      .single();
     if (error) { toast.error(error.message); return; }
+    if (ins) setOpSubthemes((p) => [...p, ins as typeof opSubthemes[number]]);
     toast.success(`Sous-thème « ${name} » créé sous « ${theme.name} »`);
   };
 
@@ -240,12 +258,18 @@ function PlanOperationPage() {
     if (cTasks.length) setTasks(cTasks);
     setLoading(true);
     if (!navigator.onLine) { setLoading(false); return; }
-    const t = await supabase.from("tasks").select("*").neq("status", "archived");
+    const [t, th, sub] = await Promise.all([
+      supabase.from("tasks").select("*").neq("status", "archived"),
+      supabase.from("op_plan_themes").select("id,name,position").order("position"),
+      supabase.from("op_plan_subthemes").select("id,name,theme_id,position").order("position"),
+    ]);
     if (t.error && !cTasks.length) toast.error(t.error.message);
     if (t.data) {
       setTasks(t.data as Task[]);
       cacheReplaceAll("tasks", t.data as Task[]).catch(() => {});
     }
+    if (th.data) setOpThemes(th.data as typeof opThemes);
+    if (sub.data) setOpSubthemes(sub.data as typeof opSubthemes);
     setLoading(false);
   };
   useEffect(() => { if (user) load(); }, [user]);
@@ -278,7 +302,7 @@ function PlanOperationPage() {
       });
     });
     return out;
-  }, [tasks]);
+  }, [tasks, sectionOf]);
 
   // Apply filters
   const bars = useMemo(() => {
@@ -347,13 +371,17 @@ function PlanOperationPage() {
     return out;
   }, [days, start, dayPx, zoom]);
 
-  // Group by section
+  // Group by section — thèmes utilisateurs toujours visibles (même vides), sections legacy seulement si non vides
   const grouped = useMemo(() => {
     const m = new Map<string, Bar[]>();
     SECTION_DEFS.forEach((s) => m.set(s.key, []));
-    bars.forEach((b) => { m.get(b.section)!.push(b); });
-    return Array.from(m.entries()).filter(([, v]) => v.length > 0);
-  }, [bars]);
+    bars.forEach((b) => { const arr = m.get(b.section); if (arr) arr.push(b); else m.get("Autres")!.push(b); });
+    return Array.from(m.entries()).filter(([key, v]) => {
+      if (v.length > 0) return true;
+      const def = SECTION_DEFS.find((d) => d.key === key);
+      return !!def?.alwaysShow;
+    });
+  }, [bars, SECTION_DEFS]);
 
   const goToday = () => {
     if (!timelineRef.current) return;
