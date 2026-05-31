@@ -49,6 +49,7 @@ import {
 import { Calendar as MiniCal } from "@/components/ui/calendar";
 import { useCalendarHours } from "@/lib/calendar-prefs";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDeleteKey } from "@/hooks/use-delete-key";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -204,6 +205,8 @@ function AgendaPage() {
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
   const [catColors, setCatColors] = useState<Record<EventCategory, string>>(() => loadCategoryColors());
+  // Touche Suppr : supprime l'événement sélectionné
+  useDeleteKey(!!selected, () => { if (selected) deleteEvent(selected); });
   const [catEditorOpen, setCatEditorOpen] = useState(false);
   const updateCatColor = (k: EventCategory, v: string) => {
     setCatColors((prev) => {

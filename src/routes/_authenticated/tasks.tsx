@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDeleteKey } from "@/hooks/use-delete-key";
 import { KanbanView } from "@/components/tasks/kanban-view";
 import { GanttView } from "@/components/tasks/gantt-view";
 import { TaskListView } from "@/components/tasks/task-list-view";
@@ -158,6 +159,14 @@ function TasksPage() {
 
   const openCreate = (status: TaskStatus) => { setEditing(null); setDraft(null); setDefaultStatus(status); setPanelOpen(true); };
   const openEdit = (t: Task) => { setEditing(t); setDraft(null); setPanelOpen(true); };
+
+  // Touche Suppr : supprime la tâche en cours d'édition dans le panneau
+  useDeleteKey(panelOpen && !!editing, () => {
+    if (editing) {
+      setPanelOpen(false);
+      removeTask(editing);
+    }
+  });
 
   const forceSync = async () => {
     const res = await flushQueue();

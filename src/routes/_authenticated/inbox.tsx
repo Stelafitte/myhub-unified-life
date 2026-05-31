@@ -69,6 +69,7 @@ import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
 import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
+import { useDeleteKey } from "@/hooks/use-delete-key";
 
 type Account = {
   id: string;
@@ -618,6 +619,9 @@ function InboxPage() {
     () => emails.find((e) => e.id === selectedId) ?? null,
     [emails, selectedId],
   );
+
+  // Touche Suppr : supprime l'email sélectionné
+  useDeleteKey(!!selected, () => { if (selected) remove(selected); });
 
   // Quand le filtre change, sur mobile on revient à la liste ; sur desktop on garde le panneau de lecture rempli.
   useEffect(() => {
