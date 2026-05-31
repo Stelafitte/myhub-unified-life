@@ -31,8 +31,11 @@ const baseItems = [
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { isAdmin } = useIsAdmin();
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
+  const closeIfMobile = () => {
+    if (isMobile) setOpenMobile(false);
+  };
   const items = [
     ...baseItems,
     { title: "Paramètres", url: "/settings", icon: Settings } as const,
