@@ -10,8 +10,38 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+const REMEMBER_KEY = "myhubpro:remember-me";
+const SUPABASE_AUTH_STORAGE_KEY = `sb-${import.meta.env.VITE_SUPABASE_PROJECT_ID}-auth-token`;
+
+/** If "rester connecté" is off, move the persisted session from localStorage
+ *  to sessionStorage so it disappears when the tab/browser is closed. */
+function applyRememberPreference(remember: boolean) {
+  if (typeof window === "undefined") return;
+  try {
+    if (remember) {
+      localStorage.setItem(REMEMBER_KEY, "1");
+      const sess = sessionStorage.getItem(SUPABASE_AUTH_STORAGE_KEY);
+      if (sess && !localStorage.getItem(SUPABASE_AUTH_STORAGE_KEY)) {
+        localStorage.setItem(SUPABASE_AUTH_STORAGE_KEY, sess);
+      }
+      sessionStorage.removeItem(SUPABASE_AUTH_STORAGE_KEY);
+    } else {
+      localStorage.setItem(REMEMBER_KEY, "0");
+      const token = localStorage.getItem(SUPABASE_AUTH_STORAGE_KEY);
+      if (token) {
+        sessionStorage.setItem(SUPABASE_AUTH_STORAGE_KEY, token);
+        localStorage.removeItem(SUPABASE_AUTH_STORAGE_KEY);
+      }
+    }
+  } catch {
+    /* storage may be blocked in private mode */
+  }
+}
+
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -63,6 +93,10 @@ function LoginPage() {
   const [confirm, setConfirm] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [remember, setRemember] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem(REMEMBER_KEY) !== "0";
+  });
 
   useEffect(() => {
     if (user) navigate({ to: "/dashboard", replace: true });
@@ -74,7 +108,10 @@ function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) toast.error(error.message);
-    else navigate({ to: "/dashboard" });
+    else {
+      applyRememberPreference(remember);
+      navigate({ to: "/dashboard" });
+    }
   };
 
   const signUp = async (e: React.FormEvent) => {
@@ -128,7 +165,10 @@ function LoginPage() {
 
       completedFromMessage = true;
       void completeOAuthSession({ access_token: accessToken, refresh_token: refreshToken })
-        .then(() => navigate({ to: "/dashboard", replace: true }))
+        .then(() => {
+          applyRememberPreference(remember);
+          navigate({ to: "/dashboard", replace: true });
+        })
         .catch((error) =>
           toast.error(error instanceof Error ? error.message : "Échec de connexion"),
         )
@@ -155,7 +195,10 @@ function LoginPage() {
     const { data, error } = await supabase.auth.getUser();
     setBusy(false);
     if (error) toast.error(error.message);
-    else if (data.user) navigate({ to: "/dashboard", replace: true });
+    else if (data.user) {
+      applyRememberPreference(remember);
+      navigate({ to: "/dashboard", replace: true });
+    }
   };
 
   const mismatch = confirm.length > 0 && confirm !== password;
@@ -243,6 +286,16 @@ function LoginPage() {
                     onChange={setPassword}
                     autoComplete="current-password"
                   />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="remember-me"
+                    checked={remember}
+                    onCheckedChange={(v) => setRemember(v === true)}
+                  />
+                  <Label htmlFor="remember-me" className="cursor-pointer text-sm font-normal text-muted-foreground">
+                    Rester connecté sur cet appareil
+                  </Label>
                 </div>
                 <Button type="submit" disabled={busy} className="w-full">
                   {busy ? "Connexion…" : "Se connecter"}
