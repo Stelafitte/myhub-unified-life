@@ -13,6 +13,7 @@ export function AppHeader() {
   const { theme, toggle } = useTheme();
   const { state, pending, syncing, syncNow } = useSyncStatus();
   const { user, signOut } = useAuth();
+  const { openCreate } = useTaskPanel();
   const navigate = useNavigate();
   const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
 
