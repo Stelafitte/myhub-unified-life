@@ -1098,7 +1098,16 @@ function InboxPage() {
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
             <Select
-              value={filter.startsWith("account:") ? filter : "all"}
+              value={
+                filter.startsWith("account:") ||
+                filter === "unread" ||
+                filter === "starred" ||
+                filter === "attachments" ||
+                filter === "spam" ||
+                filter === "trash"
+                  ? filter
+                  : "all"
+              }
               onValueChange={(v) => {
                 setFilter(v as Filter);
                 // Quand on choisit "Tous les comptes" ou un compte spécifique,
