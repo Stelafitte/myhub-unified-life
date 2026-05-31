@@ -29,10 +29,11 @@ export function SwipeableRow({
 }: Props) {
   const [dx, setDx] = useState(0);
   const [open, setOpen] = useState<0 | "left" | "right">(0);
+  const [isDragging, setIsDragging] = useState(false);
   const startX = useRef(0);
   const startY = useRef(0);
   const dragging = useRef(false);
-  const decided = useRef(false); // horizontal vs vertical
+  const decided = useRef<"h" | "v" | null>(null);
 
   const leftW = leftActions.length * ACTION_W;
   const rightW = rightActions.length * ACTION_W;
@@ -43,22 +44,26 @@ export function SwipeableRow({
     startX.current = t.clientX;
     startY.current = t.clientY;
     dragging.current = true;
-    decided.current = false;
+    decided.current = null;
   };
   const onTouchMove = (e: TouchEvent) => {
     if (!enabled || !dragging.current) return;
     const t = e.touches[0];
     const dX = t.clientX - startX.current;
     const dY = t.clientY - startY.current;
-    if (!decided.current) {
-      if (Math.abs(dX) < 8 && Math.abs(dY) < 8) return;
-      if (Math.abs(dY) > Math.abs(dX)) {
-        // vertical scroll wins; abort
+    if (decided.current === null) {
+      // Wait for a clear gesture before committing
+      if (Math.abs(dX) < 12 && Math.abs(dY) < 12) return;
+      if (Math.abs(dX) < Math.abs(dY) * 1.2) {
+        // vertical scroll wins; abort and do not translate
+        decided.current = "v";
         dragging.current = false;
         return;
       }
-      decided.current = true;
+      decided.current = "h";
+      setIsDragging(true);
     }
+    if (decided.current !== "h") return;
     const base = open === "left" ? leftW : open === "right" ? -rightW : 0;
     let next = base + dX;
     // clamp
