@@ -239,6 +239,6 @@ function TaskRow({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </li>
+    </div>
   );
 }
