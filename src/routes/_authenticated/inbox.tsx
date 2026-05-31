@@ -711,7 +711,7 @@ function InboxPage() {
   };
 
   return (
-    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
+    <div className="flex h-[calc(100dvh-5.5rem)] w-full max-w-full min-w-0 overflow-x-clip overflow-y-hidden [overflow-wrap:anywhere] sm:h-[calc(100dvh-6rem)]">
       {/* LEFT — filters */}
       <aside style={{ width: leftW }} className="hidden shrink-0 flex-col border-r bg-card md:flex">
         <div className="border-b p-4">
@@ -950,14 +950,14 @@ function InboxPage() {
       />
 
       {/* CENTER — list */}
-      <section className="flex min-w-0 max-w-full flex-1 flex-col border-r overflow-hidden">
+      <section className="flex w-full min-w-0 max-w-full flex-1 flex-col overflow-x-clip overflow-y-hidden border-r">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
             <Select
               value={filter.startsWith("account:") ? filter : "all"}
               onValueChange={(v) => setFilter(v as Filter)}
             >
-              <SelectTrigger className="h-7 w-auto max-w-[150px] gap-1 border-0 bg-transparent px-1 text-xs font-medium text-foreground hover:bg-accent/50 focus:ring-0 sm:max-w-none [&>svg]:hidden">
+              <SelectTrigger className="h-8 w-auto max-w-[170px] gap-1 border-0 bg-transparent px-1 text-sm font-medium text-foreground hover:bg-accent/50 focus:ring-0 sm:max-w-none sm:text-xs [&>svg]:hidden">
                 <SelectValue placeholder="Tous les comptes" />
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </SelectTrigger>
@@ -1019,7 +1019,7 @@ function InboxPage() {
             <Button
               size="sm"
               variant={aiRanking ? "default" : "ghost"}
-              className="h-7 shrink-0 gap-1 px-2 text-xs font-medium"
+              className="h-8 shrink-0 gap-1 px-2 text-sm font-medium sm:h-7 sm:text-xs"
               onClick={() => setAiRanking((v) => !v)}
               title="Trier la liste par thème IA (mails les plus récents en tête)"
             >
@@ -1027,13 +1027,13 @@ function InboxPage() {
               <span className="hidden sm:inline">Classement IA</span>
             </Button>
           </div>
-          <span className="shrink-0 text-xs text-muted-foreground">
+          <span className="shrink-0 text-sm text-muted-foreground sm:text-xs">
             {filtered.length} email{filtered.length > 1 ? "s" : ""}
           </span>
         </div>
         <div
           className={cn(
-            "flex flex-wrap items-center gap-2 border-b px-4 py-1.5 text-xs",
+            "flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm sm:py-1.5 sm:text-xs",
             checked.size > 0 ? "bg-primary/5" : "bg-muted/30",
           )}
         >
@@ -1096,7 +1096,7 @@ function InboxPage() {
             <span className="text-muted-foreground">Sélectionner pour actions groupées</span>
           )}
         </div>
-        <ul className="flex-1 divide-y overflow-y-auto">
+        <ul className="min-w-0 flex-1 divide-y overflow-x-clip overflow-y-auto">
           {filtered.length === 0 && (
             <li className="p-6 text-center text-sm text-muted-foreground sm:p-10">
               {emails.length === 0
@@ -1110,7 +1110,7 @@ function InboxPage() {
                 <li
                   key={`h:${item.key}`}
                   onClick={() => toggleTheme(item.key)}
-                  className="sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20"
+                  className="sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20 sm:py-1.5 sm:text-[11px]"
                 >
                   {collapsedThemes.has(item.key) ? (
                     <ChevronRight className="h-3 w-3 text-primary" />
@@ -1131,7 +1131,7 @@ function InboxPage() {
                 key={e.id}
                 onClick={() => openEmail(e)}
                 className={cn(
-                  "group relative min-w-0 cursor-pointer px-3 py-2.5 transition-colors",
+                  "group relative min-w-0 cursor-pointer px-3 py-3 transition-colors sm:py-2.5",
                   isSel ? "bg-accent" : "hover:bg-accent/50",
                   !e.is_read && "bg-primary/[0.03]",
                 )}
@@ -1166,13 +1166,13 @@ function InboxPage() {
                       />
                       <span
                         className={cn(
-                          "min-w-0 flex-1 truncate text-sm",
+                          "min-w-0 flex-1 truncate text-base sm:text-sm",
                           !e.is_read && "font-semibold",
                         )}
                       >
                         {e.from_name || e.from_address || "Inconnu"}
                       </span>
-                      <div className="ml-auto shrink-0 text-right text-[11px] text-muted-foreground leading-tight">
+                      <div className="ml-auto shrink-0 text-right text-xs leading-tight text-muted-foreground sm:text-[11px]">
                         <div>{relativeTime(e.received_at)}</div>
                         {e.received_at && (
                           <div className="hidden text-[10px] opacity-75 sm:block">
@@ -1192,23 +1192,25 @@ function InboxPage() {
                     </div>
                     <div
                       className={cn(
-                        "break-words text-sm",
+                        "text-base [overflow-wrap:anywhere] sm:text-sm",
                         !e.is_read ? "font-semibold" : "text-foreground/80",
                       )}
                     >
                       {e.subject || "(sans objet)"}
                     </div>
                     {e.ai_summary ? (
-                      <div className="mt-0.5 flex items-start gap-1 text-xs italic text-muted-foreground">
+                      <div className="mt-0.5 flex min-w-0 items-start gap-1 text-sm italic text-muted-foreground sm:text-xs">
                         <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" />
-                        <span className="line-clamp-2">{e.ai_summary}</span>
+                        <span className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">
+                          {e.ai_summary}
+                        </span>
                       </div>
                     ) : (
-                      <div className="truncate text-xs text-muted-foreground">
+                      <div className="truncate text-sm text-muted-foreground sm:text-xs">
                         {(e.body_text ?? "").replace(/\s+/g, " ").slice(0, 120)}
                       </div>
                     )}
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
+                    <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-muted-foreground">
                       {e.is_sensitive && (
                         <span
                           className="flex items-center gap-0.5 rounded bg-red-500/15 px-1 text-[10px] font-medium text-red-600 dark:text-red-400"
@@ -1331,9 +1333,9 @@ function InboxPage() {
         {selected && (
           <button
             onClick={() => setSelectedId(null)}
-            className="flex items-center gap-1 border-b px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent lg:hidden"
+            className="flex items-center gap-1 border-b px-3 py-3 text-base font-medium text-muted-foreground hover:bg-accent lg:hidden"
           >
-            <ChevronDown className="h-3.5 w-3.5 rotate-90" /> Retour à la liste
+            <ChevronDown className="h-4 w-4 rotate-90" /> Retour à la liste
           </button>
         )}
         {!selected ? (
@@ -1514,7 +1516,7 @@ function Reader({
     });
   return (
     <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-x-hidden overflow-y-auto">
-      <header className="min-w-0 border-b p-3 sm:p-4">
+      <header className="min-w-0 max-w-full border-b p-3 sm:p-4">
         <div className="mb-2 flex min-w-0 items-center gap-2">
           {account && (
             <Badge
@@ -1528,8 +1530,10 @@ function Reader({
             <Star className={cn("h-4 w-4", email.is_starred && "fill-amber-400 text-amber-400")} />
           </button>
         </div>
-        <h2 className="break-words text-base font-semibold">{email.subject || "(sans objet)"}</h2>
-        <div className="mt-2 space-y-0.5 break-words text-xs text-muted-foreground">
+        <h2 className="text-lg font-semibold [overflow-wrap:anywhere] sm:text-base">
+          {email.subject || "(sans objet)"}
+        </h2>
+        <div className="mt-2 space-y-1 text-sm text-muted-foreground [overflow-wrap:anywhere] sm:space-y-0.5 sm:text-xs">
           <div>
             <span className="font-medium text-foreground">De :</span>{" "}
             <span className="break-all">
@@ -1546,33 +1550,43 @@ function Reader({
           </div>
         </div>
         <div className="mt-3 flex min-w-0 flex-wrap gap-1">
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(false)}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1 text-sm"
+            onClick={() => doReply(false)}
+          >
             <Reply className="h-3 w-3" /> Répondre
           </Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(true)}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1 text-sm"
+            onClick={() => doReply(true)}
+          >
             <ReplyAll className="h-3 w-3" /> Tous
           </Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={doForward}>
+          <Button size="sm" variant="outline" className="h-8 gap-1 text-sm" onClick={doForward}>
             <Forward className="h-3 w-3" /> Transférer
           </Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}>
+          <Button size="sm" variant="outline" className="h-8 gap-1 text-sm" onClick={onArchive}>
             <Archive className="h-3 w-3" /> Archiver
           </Button>
           <Button
             size="sm"
             variant="outline"
-            className="h-7 gap-1 text-destructive"
+            className="h-8 gap-1 text-sm text-destructive"
             onClick={onDelete}
           >
             <Trash2 className="h-3 w-3" /> Suppr.
           </Button>
-          <Button size="sm" className="h-7 gap-1" onClick={onCreateTask}>
+          <Button size="sm" className="h-8 gap-1 text-sm" onClick={onCreateTask}>
             <Plus className="h-3 w-3" /> Créer tâche
           </Button>
           <Button
             size="sm"
             variant="outline"
-            className="h-7 gap-1"
+            className="h-8 gap-1 text-sm"
             onClick={onPostpone}
             disabled={isPostponed}
           >
@@ -1582,7 +1596,7 @@ function Reader({
           <Button
             size="sm"
             variant="outline"
-            className="h-7 gap-1"
+            className="h-8 gap-1 text-sm"
             onClick={() => onMarkSpam(!isSpamEmail)}
             title={
               isSpamEmail
@@ -1667,10 +1681,10 @@ function Reader({
         />
       )}
 
-      <div className="min-w-0 max-w-full p-3 text-sm sm:p-4">
+      <div className="min-w-0 max-w-full overflow-x-clip p-3 text-base sm:p-4 sm:text-sm">
         {email.body_html ? (
           <div
-            className="prose prose-sm max-w-none break-words dark:prose-invert [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:table-fixed"
+            className="prose prose-sm max-w-none break-words dark:prose-invert [&_*]:max-w-full [&_*]:whitespace-normal [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:table-fixed"
             style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
             dangerouslySetInnerHTML={{ __html: email.body_html }}
           />

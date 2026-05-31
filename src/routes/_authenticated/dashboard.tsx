@@ -186,7 +186,7 @@ function DashboardPage() {
   };
 
   return (
-    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden">
+    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden text-base [&_.text-xs]:text-sm [&_.text-sm]:text-base">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <h1 className="min-w-0 text-2xl font-semibold">Dashboard</h1>
         <Dialog open={customizeOpen} onOpenChange={setCustomizeOpen}>
@@ -359,18 +359,18 @@ function HelloWidget() {
 
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent className="pt-6 text-base">
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="break-words text-xl font-semibold">Bonjour {firstName}</h2>
-            <p className="text-sm text-muted-foreground capitalize">{dateStr}</p>
+            <h2 className="break-words text-2xl font-semibold">Bonjour {firstName}</h2>
+            <p className="text-base text-muted-foreground capitalize">{dateStr}</p>
             <p className="text-3xl font-light tabular-nums mt-2">{timeStr}</p>
           </div>
           <div className="shrink-0 text-right">
             {weather.loading ? (
-              <div className="text-xs text-muted-foreground">Météo…</div>
+              <div className="text-sm text-muted-foreground">Météo…</div>
             ) : weather.error ? (
-              <div className="text-xs text-muted-foreground">Météo indispo</div>
+              <div className="text-sm text-muted-foreground">Météo indispo</div>
             ) : (
               <div className="flex flex-col items-center">
                 <WeatherIcon className="h-10 w-10 text-primary" />
@@ -463,7 +463,7 @@ function EmailsWidget({ userId }: { userId?: string }) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-lg sm:text-base">
           <Mail className="h-4 w-4" /> Emails du jour
         </CardTitle>
       </CardHeader>
@@ -479,17 +479,17 @@ function EmailsWidget({ userId }: { userId?: string }) {
             </Badge>
           ))}
           {accounts.length === 0 && (
-            <span className="text-xs text-muted-foreground">Aucun compte</span>
+            <span className="text-sm text-muted-foreground">Aucun compte</span>
           )}
         </div>
         <div className="space-y-1">
           {latest.length === 0 && (
-            <p className="text-xs text-muted-foreground">Aucun email récent</p>
+            <p className="text-sm text-muted-foreground">Aucun email récent</p>
           )}
           {latest.map((e) => (
-            <div key={e.id} className="min-w-0 border-l-2 border-border pl-2 text-sm">
+            <div key={e.id} className="min-w-0 border-l-2 border-border pl-2 text-base">
               <div className="break-words font-medium">{e.from_name ?? e.from_address ?? "—"}</div>
-              <div className="break-words text-xs text-muted-foreground">
+              <div className="break-words text-sm text-muted-foreground">
                 {e.subject ?? "(sans sujet)"}
               </div>
             </div>
@@ -572,12 +572,12 @@ function TasksWidget({ userId }: { userId?: string }) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-lg sm:text-base">
           <ListTodo className="h-4 w-4" /> Tâches du jour
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-sm sm:text-xs">
           <span className="min-w-0 break-words text-muted-foreground">
             {dueToday.length} aujourd'hui · {todayDone} terminée(s)
           </span>
@@ -590,12 +590,12 @@ function TasksWidget({ userId }: { userId?: string }) {
         <Progress value={todayPct} className="h-2" />
         <div className="space-y-1">
           {dueToday.length === 0 && urgent.length === 0 && (
-            <p className="text-xs text-muted-foreground">Aucune tâche prioritaire</p>
+            <p className="text-sm text-muted-foreground">Aucune tâche prioritaire</p>
           )}
           {[...dueToday, ...urgent.filter((u) => !dueToday.some((d) => d.id === u.id))]
             .slice(0, 5)
             .map((t) => (
-              <div key={t.id} className="flex min-w-0 items-center gap-2 text-sm">
+              <div key={t.id} className="flex min-w-0 items-center gap-2 text-base sm:text-sm">
                 <span
                   className={cn(
                     "h-2 w-2 rounded-full",
@@ -697,14 +697,14 @@ function AgendaWidget({ userId }: { userId?: string }) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
+        <CardTitle className="flex items-center gap-2 text-lg sm:text-base">
           <CalIcon className="h-4 w-4" /> Agenda
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {next && (
-          <div className="min-w-0 rounded-md border border-primary/20 bg-primary/10 p-2 text-sm">
-            <div className="text-xs text-primary font-medium">
+          <div className="min-w-0 rounded-md border border-primary/20 bg-primary/10 p-2 text-base sm:text-sm">
+            <div className="text-sm font-medium text-primary sm:text-xs">
               Prochain · {relativeTime(next.start_at)}
             </div>
             <div className="flex min-w-0 items-center gap-1 break-words font-medium">
@@ -713,11 +713,11 @@ function AgendaWidget({ userId }: { userId?: string }) {
           </div>
         )}
         <div>
-          <div className="text-xs text-muted-foreground mb-1">Aujourd'hui</div>
-          {today.length === 0 && <p className="text-xs text-muted-foreground">Aucun événement</p>}
+          <div className="mb-1 text-sm text-muted-foreground sm:text-xs">Aujourd'hui</div>
+          {today.length === 0 && <p className="text-sm text-muted-foreground">Aucun événement</p>}
           {today.map((e) => (
-            <div key={e.id} className="flex min-w-0 items-center gap-2 text-sm">
-              <span className="text-xs tabular-nums text-muted-foreground w-12">
+            <div key={e.id} className="flex min-w-0 items-center gap-2 text-base sm:text-sm">
+              <span className="w-12 text-sm tabular-nums text-muted-foreground sm:text-xs">
                 {new Date(e.start_at).toLocaleTimeString("fr-FR", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -730,10 +730,13 @@ function AgendaWidget({ userId }: { userId?: string }) {
         </div>
         {tomorrow.length > 0 && (
           <div>
-            <div className="text-xs text-muted-foreground mb-1">Demain</div>
+            <div className="mb-1 text-sm text-muted-foreground sm:text-xs">Demain</div>
             {tomorrow.slice(0, 3).map((e) => (
-              <div key={e.id} className="flex min-w-0 items-center gap-2 text-sm opacity-60">
-                <span className="text-xs tabular-nums w-12">
+              <div
+                key={e.id}
+                className="flex min-w-0 items-center gap-2 text-base opacity-60 sm:text-sm"
+              >
+                <span className="w-12 text-sm tabular-nums sm:text-xs">
                   {new Date(e.start_at).toLocaleTimeString("fr-FR", {
                     hour: "2-digit",
                     minute: "2-digit",
