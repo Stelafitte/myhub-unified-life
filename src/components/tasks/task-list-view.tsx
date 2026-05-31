@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Pencil, Trash2, Mail, Clock, CheckCircle2, Circle, PlayCircle, Archive, MoreHorizontal, ArrowRight } from "lucide-react";
+import { Pencil, Trash2, Mail, Clock, CheckCircle2, Circle, PlayCircle, Archive, MoreHorizontal, ArrowRight, Check } from "lucide-react";
+import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
