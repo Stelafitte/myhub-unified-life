@@ -586,6 +586,15 @@ export function PlanOperationSection() {
                                   <Button
                                     size="icon"
                                     variant="ghost"
+                                    className="h-6 w-6 text-primary"
+                                    onClick={() => integrateInPlan(theme.name, it, s.name)}
+                                    title="Intégrer cet item dans le tableau Plan d'opération"
+                                  >
+                                    <Send className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
                                     className="h-6 w-6"
                                     onClick={() => removeItem(s.id, i)}
                                   >
