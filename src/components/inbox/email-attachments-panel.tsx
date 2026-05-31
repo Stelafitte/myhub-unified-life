@@ -129,6 +129,12 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
         open={!!preview}
         onOpenChange={(v) => !v && setPreview(null)}
       />
+      <DownloadOptionsDialog
+        doc={download}
+        open={!!download}
+        onOpenChange={(v) => !v && setDownload(null)}
+        context={{ fromAddress, subject }}
+      />
     </>
   );
 }
