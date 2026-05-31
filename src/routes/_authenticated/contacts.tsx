@@ -623,17 +623,28 @@ function ContactsPage() {
               <span className="text-amber-700 dark:text-amber-400">
                 {duplicates.length} groupe{duplicates.length > 1 ? "s" : ""} de doublons détecté{duplicates.length > 1 ? "s" : ""}
               </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 gap-1 text-amber-700 dark:text-amber-400"
-                onClick={() => {
-                  const g = duplicates[0];
-                  setMergeOpen({ a: g[0], b: g[1] });
-                }}
-              >
-                <Merge className="h-3 w-3" /> Examiner
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 gap-1 text-amber-700 dark:text-amber-400"
+                  onClick={() => {
+                    const g = duplicates[0];
+                    setMergeOpen({ a: g[0], b: g[1] });
+                  }}
+                >
+                  <Merge className="h-3 w-3" /> Examiner
+                </Button>
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-6 gap-1"
+                  disabled={mergingAll}
+                  onClick={mergeAllDuplicates}
+                >
+                  <Merge className="h-3 w-3" /> {mergingAll ? "Fusion…" : "Tout fusionner"}
+                </Button>
+              </div>
             </div>
           )}
         </div>
