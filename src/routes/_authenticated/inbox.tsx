@@ -458,6 +458,48 @@ function InboxPage() {
     return list;
   }, [emails, filter, query]);
 
+  // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
+  // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
+  type RenderItem =
+    | { kind: "header"; key: string; label: string; count: number }
+    | { kind: "email"; email: Email };
+  const displayItems = useMemo<RenderItem[]>(() => {
+    if (!aiRanking) return filtered.map((e) => ({ kind: "email" as const, email: e }));
+    const groups = new Map<string, { ts: number; emails: Email[] }>();
+    const NO_THEME = "__none__";
+    for (const e of filtered) {
+      const key = e.ai_theme_id ?? NO_THEME;
+      const ts = e.received_at ? new Date(e.received_at).getTime() : 0;
+      const g = groups.get(key);
+      if (g) {
+        g.emails.push(e);
+        if (ts > g.ts) g.ts = ts;
+      } else groups.set(key, { ts, emails: [e] });
+    }
+    const ordered = [...groups.entries()].sort((a, b) => {
+      if (a[0] === NO_THEME) return 1;
+      if (b[0] === NO_THEME) return -1;
+      return b[1].ts - a[1].ts;
+    });
+    const out: RenderItem[] = [];
+    for (const [key, g] of ordered) {
+      g.emails.sort(
+        (a, b) =>
+          (b.received_at ? new Date(b.received_at).getTime() : 0) -
+          (a.received_at ? new Date(a.received_at).getTime() : 0),
+      );
+      const t = key === NO_THEME ? null : themeById.get(key);
+      out.push({
+        kind: "header",
+        key,
+        label: t?.name ?? "Sans thème",
+        count: g.emails.length,
+      });
+      for (const e of g.emails) out.push({ kind: "email", email: e });
+    }
+    return out;
+  }, [filtered, aiRanking, themeById]);
+
   const selected = useMemo(
     () => emails.find((e) => e.id === selectedId) ?? null,
     [emails, selectedId],
