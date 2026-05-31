@@ -429,6 +429,8 @@ export function TaskPanel({
         .map((t) => t.trim())
         .filter(Boolean),
       `section:${finalSection}`,
+      ...(themeId ? [`theme:${themeId}`] : []),
+      ...(subthemeId ? [`subtheme:${subthemeId}`] : []),
       ...(recurrence !== "none" ? [`recurrence:${recurrence}`] : []),
     ];
 
