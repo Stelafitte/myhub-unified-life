@@ -23,7 +23,7 @@ import { getSignedUrl, type DocumentRow } from "@/lib/documents";
 import { formatBytes } from "@/lib/file-icons";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useServerFn } from "@tanstack/react-start";
-import { startGoogleCalendarOAuth, syncGoogleCalendarEvents } from "@/lib/api/google-calendar.functions";
+import { startGoogleCalendarOAuth, syncGoogleCalendarEvents, deleteCalendarEvent } from "@/lib/api/google-calendar.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
