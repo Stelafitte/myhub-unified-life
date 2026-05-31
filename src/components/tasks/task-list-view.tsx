@@ -141,9 +141,9 @@ function TaskRow({
   const tagsClean = (task.tags ?? []).filter((t) => !t.startsWith("section:") && !t.startsWith("recurrence:"));
 
   return (
-    <li
+    <div
       onClick={onEdit}
-      className="flex items-start gap-3 px-3 py-3 cursor-pointer hover:bg-accent/30 active:bg-accent/50"
+      className="flex items-start gap-3 bg-background px-3 py-3 cursor-pointer hover:bg-accent/30 active:bg-accent/50"
     >
       <button
         onClick={(e) => {
