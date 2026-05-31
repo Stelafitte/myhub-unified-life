@@ -245,6 +245,8 @@ function InboxPage() {
   const [winW, setWinW] = useState<number>(() =>
     typeof window !== "undefined" ? window.innerWidth : 1280,
   );
+  const isMobileInbox = winW < 1024;
+  const [readerOpen, setReaderOpen] = useState(false);
   useEffect(() => {
     // Sync immédiatement après hydratation (SSR peut renvoyer 1280 par défaut)
     setWinW(window.innerWidth);
@@ -565,13 +567,14 @@ function InboxPage() {
   }, [filtered, aiRanking, themeById, collapsedThemes]);
 
   const selected = useMemo(
-    () => emails.find((e) => e.id === selectedId) ?? null,
-    [emails, selectedId],
+    () => filtered.find((e) => e.id === selectedId) ?? null,
+    [filtered, selectedId],
   );
 
   // Quand le filtre change, sur mobile on revient à la liste ; sur desktop on garde le panneau de lecture rempli.
   useEffect(() => {
-    if (winW < 1024) {
+    if (isMobileInbox) {
+      setReaderOpen(false);
       setSelectedId(null);
       return;
     }
@@ -584,18 +587,18 @@ function InboxPage() {
       setSelectedId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, winW]);
+  }, [filter, isMobileInbox]);
 
   // Fallback: si rien n'est sélectionné mais la liste est non vide
   // ⚠️ Uniquement sur desktop (≥1024) — sur mobile/tablette, l'utilisateur doit
   // choisir explicitement un email pour ouvrir le lecteur plein écran.
   useEffect(() => {
-    if (winW < 1024) return;
+    if (isMobileInbox) return;
     if (filtered.length === 0) return;
     if (!selectedId || !filtered.some((e) => e.id === selectedId)) {
       setSelectedId(filtered[0].id);
     }
-  }, [filtered, selectedId, winW]);
+  }, [filtered, isMobileInbox, selectedId]);
 
   // Mutations (optimistic)
   const patch = async (id: string, updates: Partial<Email>) => {
