@@ -917,6 +917,17 @@ function InboxPage() {
             count={counts.spam}
             active={filter === "spam"}
             onClick={() => setFilter("spam")}
+            onAction={counts.spam > 0 ? emptySpam : undefined}
+            actionLabel="Vider les indésirables"
+          />
+          <FilterRow
+            label="Corbeille"
+            icon={<Trash2 className="h-4 w-4" />}
+            count={counts.trash}
+            active={filter === "trash"}
+            onClick={() => setFilter("trash")}
+            onAction={counts.trash > 0 ? emptyTrash : undefined}
+            actionLabel="Vider la corbeille"
           />
 
           {/* Comptes first */}
