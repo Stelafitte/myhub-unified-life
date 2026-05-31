@@ -37,13 +37,13 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
 
   useEffect(() => { void load(); }, [emailId]);
 
-  async function dl(d: DocumentRow) {
+  async function openNative(d: DocumentRow) {
     if (!d.storage_path) return;
     try {
       const url = await getSignedUrl(d.storage_path);
       window.open(url, "_blank", "noopener");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Téléchargement impossible");
+      toast.error(e instanceof Error ? e.message : "Ouverture impossible");
     }
   }
 
