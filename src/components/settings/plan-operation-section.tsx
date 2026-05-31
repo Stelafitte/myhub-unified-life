@@ -32,6 +32,7 @@ type Theme = {
   user_id: string;
   name: string;
   position: number;
+  show_in_plan?: boolean;
 };
 
 type Subtheme = {
@@ -41,6 +42,7 @@ type Subtheme = {
   name: string;
   position: number;
   items: string[];
+  show_in_plan?: boolean;
 };
 
 // Modèle inspiré du fichier Excel "Plan opérationnel"
