@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Loader2, Send, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Paperclip, Send, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,34 @@ export type ComposerInitial = {
   references?: string;
 };
 
+type Attachment = {
+  name: string;
+  type: string;
+  size: number;
+  contentBase64: string;
+};
+
 const SENDABLE_TYPES = new Set(["gmail", "outlook", "imap"]);
+const MAX_TOTAL_BYTES = 20 * 1024 * 1024; // 20 MB total
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(fr.error ?? new Error("read error"));
+    fr.onload = () => {
+      const res = fr.result as string;
+      const idx = res.indexOf(",");
+      resolve(idx >= 0 ? res.slice(idx + 1) : res);
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+function formatSize(n: number): string {
+  if (n < 1024) return `${n} o`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} Ko`;
+  return `${(n / 1024 / 1024).toFixed(1)} Mo`;
+}
 
 export function EmailComposer({
   open,
@@ -49,7 +76,9 @@ export function EmailComposer({
   const [subject, setSubject] = useState(initial.subject ?? "");
   const [body, setBody] = useState(initial.body ?? "");
   const [showCc, setShowCc] = useState(!!initial.cc);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const send = useServerFn(sendEmail);
 
   useEffect(() => {
@@ -61,9 +90,35 @@ export function EmailComposer({
       setSubject(initial.subject ?? "");
       setBody(initial.body ?? "");
       setShowCc(!!initial.cc);
+      setAttachments([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const onPickFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+    const currentTotal = attachments.reduce((a, b) => a + b.size, 0);
+    let runningTotal = currentTotal;
+    const next: Attachment[] = [];
+    for (const f of files) {
+      if (runningTotal + f.size > MAX_TOTAL_BYTES) {
+        toast.error(`"${f.name}" ignoré — limite totale 20 Mo`);
+        continue;
+      }
+      try {
+        const contentBase64 = await readFileAsBase64(f);
+        next.push({ name: f.name, type: f.type || "application/octet-stream", size: f.size, contentBase64 });
+        runningTotal += f.size;
+      } catch {
+        toast.error(`Impossible de lire "${f.name}"`);
+      }
+    }
+    if (next.length > 0) setAttachments((prev) => [...prev, ...next]);
+  };
+
+  const removeAttachment = (i: number) => setAttachments((prev) => prev.filter((_, idx) => idx !== i));
 
   const submit = async () => {
     if (!accountId) return toast.error("Choisir un compte expéditeur");
@@ -81,6 +136,7 @@ export function EmailComposer({
           body,
           in_reply_to: initial.inReplyTo,
           references: initial.references,
+          attachments: attachments.length > 0 ? attachments : undefined,
         },
       });
       toast.success("Email envoyé");
@@ -95,6 +151,8 @@ export function EmailComposer({
   const title =
     initial.mode === "reply" || initial.mode === "replyAll" ? "Répondre" :
     initial.mode === "forward" ? "Transférer" : "Nouveau message";
+
+  const totalAttachSize = attachments.reduce((a, b) => a + b.size, 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -151,15 +209,59 @@ export function EmailComposer({
             placeholder="Votre message…"
             className="resize-none"
           />
+          {attachments.length > 0 && (
+            <div className="space-y-1 rounded-md border border-border bg-muted/30 p-2">
+              <div className="text-xs text-muted-foreground">
+                {attachments.length} pièce{attachments.length > 1 ? "s" : ""} jointe{attachments.length > 1 ? "s" : ""} · {formatSize(totalAttachSize)} / 20 Mo
+              </div>
+              <ul className="space-y-1">
+                {attachments.map((a, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm">
+                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="flex-1 truncate">{a.name}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{formatSize(a.size)}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(i)}
+                      className="text-muted-foreground hover:text-destructive"
+                      aria-label={`Retirer ${a.name}`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
-            <X className="mr-1 h-4 w-4" /> Annuler
-          </Button>
-          <Button onClick={submit} disabled={busy}>
-            {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
-            Envoyer
-          </Button>
+        <DialogFooter className="sm:justify-between">
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              hidden
+              onChange={onPickFiles}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={busy}
+            >
+              <Paperclip className="mr-1 h-4 w-4" /> Joindre
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
+              <X className="mr-1 h-4 w-4" /> Annuler
+            </Button>
+            <Button onClick={submit} disabled={busy}>
+              {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
+              Envoyer
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
