@@ -569,8 +569,12 @@ function InboxPage() {
     [emails, selectedId],
   );
 
-  // Quand le filtre change, sélectionne automatiquement le mail le plus récent (haut de liste)
+  // Quand le filtre change, sur mobile on revient à la liste ; sur desktop on garde le panneau de lecture rempli.
   useEffect(() => {
+    if (winW < 1024) {
+      setSelectedId(null);
+      return;
+    }
     if (filtered.length > 0) {
       setSelectedId((prev) => {
         if (prev && filtered.some((e) => e.id === prev)) return prev;
@@ -580,7 +584,7 @@ function InboxPage() {
       setSelectedId(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, [filter, winW]);
 
   // Fallback: si rien n'est sélectionné mais la liste est non vide
   // ⚠️ Uniquement sur desktop (≥1024) — sur mobile/tablette, l'utilisateur doit
