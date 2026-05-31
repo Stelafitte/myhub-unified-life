@@ -1110,7 +1110,7 @@ function InboxPage() {
                 <li
                   key={`h:${item.key}`}
                   onClick={() => toggleTheme(item.key)}
-                  className="sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20"
+                  className="sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20 sm:py-1.5 sm:text-[11px]"
                 >
                   {collapsedThemes.has(item.key) ? (
                     <ChevronRight className="h-3 w-3 text-primary" />
@@ -1131,7 +1131,7 @@ function InboxPage() {
                 key={e.id}
                 onClick={() => openEmail(e)}
                 className={cn(
-                  "group relative min-w-0 cursor-pointer px-3 py-2.5 transition-colors",
+                  "group relative min-w-0 cursor-pointer px-3 py-3 transition-colors sm:py-2.5",
                   isSel ? "bg-accent" : "hover:bg-accent/50",
                   !e.is_read && "bg-primary/[0.03]",
                 )}
@@ -1166,13 +1166,13 @@ function InboxPage() {
                       />
                       <span
                         className={cn(
-                          "min-w-0 flex-1 truncate text-sm",
+                          "min-w-0 flex-1 truncate text-base sm:text-sm",
                           !e.is_read && "font-semibold",
                         )}
                       >
                         {e.from_name || e.from_address || "Inconnu"}
                       </span>
-                      <div className="ml-auto shrink-0 text-right text-[11px] text-muted-foreground leading-tight">
+                      <div className="ml-auto shrink-0 text-right text-xs leading-tight text-muted-foreground sm:text-[11px]">
                         <div>{relativeTime(e.received_at)}</div>
                         {e.received_at && (
                           <div className="hidden text-[10px] opacity-75 sm:block">
@@ -1192,23 +1192,23 @@ function InboxPage() {
                     </div>
                     <div
                       className={cn(
-                        "break-words text-sm",
+                        "text-base [overflow-wrap:anywhere] sm:text-sm",
                         !e.is_read ? "font-semibold" : "text-foreground/80",
                       )}
                     >
                       {e.subject || "(sans objet)"}
                     </div>
                     {e.ai_summary ? (
-                      <div className="mt-0.5 flex items-start gap-1 text-xs italic text-muted-foreground">
+                      <div className="mt-0.5 flex min-w-0 items-start gap-1 text-sm italic text-muted-foreground sm:text-xs">
                         <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" />
-                        <span className="line-clamp-2">{e.ai_summary}</span>
+                        <span className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">{e.ai_summary}</span>
                       </div>
                     ) : (
-                      <div className="truncate text-xs text-muted-foreground">
+                      <div className="truncate text-sm text-muted-foreground sm:text-xs">
                         {(e.body_text ?? "").replace(/\s+/g, " ").slice(0, 120)}
                       </div>
                     )}
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground">
+                    <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-muted-foreground">
                       {e.is_sensitive && (
                         <span
                           className="flex items-center gap-0.5 rounded bg-red-500/15 px-1 text-[10px] font-medium text-red-600 dark:text-red-400"
@@ -1243,7 +1243,7 @@ function InboxPage() {
 
                 {/* hover actions */}
                 <div className="absolute right-2 top-2 hidden gap-1 rounded-md border bg-background p-0.5 shadow-sm group-hover:flex">
-                  <IconBtn
+                    <IconBtn
                     label={e.is_read ? "Marquer non lu" : "Marquer lu"}
                     onClick={(ev) => {
                       ev.stopPropagation();
