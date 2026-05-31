@@ -123,7 +123,7 @@ function PlanOperationPage() {
 
   // Sections dynamiques : thèmes utilisateurs (toujours visibles) + sections legacy (visibles si elles contiennent des tâches)
   const SECTION_DEFS = useMemo<SectionDef[]>(() => {
-    const themeSecs: SectionDef[] = opThemes.map((t) => ({ key: t.name, label: t.name, emoji: "📋", alwaysShow: true }));
+    const themeSecs: SectionDef[] = opThemes.map((t) => ({ key: t.name, label: t.name, emoji: "📋", alwaysShow: false }));
     return [...themeSecs, ...LEGACY_SECTIONS];
   }, [opThemes]);
   const sectionOf = useMemo(() => buildSectionOf(SECTION_DEFS), [SECTION_DEFS]);
