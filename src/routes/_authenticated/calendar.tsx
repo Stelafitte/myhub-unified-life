@@ -1392,6 +1392,7 @@ function NewEventDialog({
   accounts,
   userId,
   defaultDate,
+  catColors,
   onCreated,
 }: {
   open: boolean;
@@ -1399,6 +1400,7 @@ function NewEventDialog({
   accounts: Account[];
   userId: string;
   defaultDate: Date;
+  catColors: Record<EventCategory, string>;
   onCreated: () => void;
 }) {
   const writable = accounts.filter(
