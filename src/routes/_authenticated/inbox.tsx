@@ -711,7 +711,7 @@ function InboxPage() {
   };
 
   return (
-    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] w-[100dvw] max-w-[100dvw] min-w-0 overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6 md:w-auto md:max-w-full">
+    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] w-[100dvw] max-w-[100dvw] min-w-0 overflow-x-clip overflow-y-hidden [overflow-wrap:anywhere] sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6 md:w-auto md:max-w-full">
       {/* LEFT — filters */}
       <aside style={{ width: leftW }} className="hidden shrink-0 flex-col border-r bg-card md:flex">
         <div className="border-b p-4">
@@ -950,7 +950,7 @@ function InboxPage() {
       />
 
       {/* CENTER — list */}
-      <section className="flex w-full min-w-0 max-w-full flex-1 flex-col overflow-hidden border-r">
+      <section className="flex w-full min-w-0 max-w-full flex-1 flex-col overflow-x-clip overflow-y-hidden border-r">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
             <Select
@@ -1096,7 +1096,7 @@ function InboxPage() {
             <span className="text-muted-foreground">Sélectionner pour actions groupées</span>
           )}
         </div>
-        <ul className="flex-1 divide-y overflow-y-auto">
+        <ul className="min-w-0 flex-1 divide-y overflow-x-clip overflow-y-auto">
           {filtered.length === 0 && (
             <li className="p-6 text-center text-sm text-muted-foreground sm:p-10">
               {emails.length === 0
@@ -1669,10 +1669,10 @@ function Reader({
         />
       )}
 
-        <div className="min-w-0 max-w-full p-3 text-base sm:p-4 sm:text-sm">
+        <div className="min-w-0 max-w-full overflow-x-clip p-3 text-base sm:p-4 sm:text-sm">
         {email.body_html ? (
           <div
-            className="prose prose-sm max-w-none break-words dark:prose-invert [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:table-fixed"
+              className="prose prose-sm max-w-none break-words dark:prose-invert [&_*]:max-w-full [&_*]:whitespace-normal [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:table-fixed"
             style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
             dangerouslySetInnerHTML={{ __html: email.body_html }}
           />
