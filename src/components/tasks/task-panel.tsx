@@ -846,6 +846,55 @@ export function TaskPanel({
               />
             </div>
 
+            <div className="space-y-2 rounded-md border bg-muted/20 p-3">
+              <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                Plan d'opération — Thème / Sous-thème
+              </Label>
+              <div className="flex gap-2">
+                <Select
+                  value={themeId || "__none__"}
+                  onValueChange={(v) => {
+                    const nv = v === "__none__" ? "" : v;
+                    setThemeId(nv);
+                    setSubthemeId("");
+                  }}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Choisir un thème…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Aucun —</SelectItem>
+                    {opThemes.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" size="sm" onClick={createOpTheme} title="Créer un nouveau thème">
+                  + Thème
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Select
+                  value={subthemeId || "__none__"}
+                  onValueChange={(v) => setSubthemeId(v === "__none__" ? "" : v)}
+                  disabled={!themeId}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder={themeId ? "Choisir un sous-thème…" : "Choisis d'abord un thème"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Aucun —</SelectItem>
+                    {opSubthemes.filter((s) => s.theme_id === themeId).map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" size="sm" onClick={createOpSubtheme} disabled={!themeId} title="Créer un nouveau sous-thème">
+                  + Sous-thème
+                </Button>
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="t-tags">Tags (séparés par des virgules)</Label>
               <Input
