@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { enqueue, requestAutoSync } from "@/lib/sync-queue";
 import { analyzeTaskText } from "@/lib/api/task-analysis.functions";
+import { getSignedUrl } from "@/lib/documents";
 import {
   Sheet,
   SheetContent,
@@ -58,6 +59,7 @@ type Props = {
 };
 
 type EmailLite = { id: string; subject: string | null; from_name: string | null; from_address: string | null };
+type EmailFull = EmailLite & { body_text: string | null; body_html: string | null; received_at: string | null; ai_summary: string | null };
 
 export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, onSaved, draft }: Props) {
   const { user } = useAuth();
@@ -78,6 +80,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
   const [recurrence, setRecurrence] = useState<"none" | "daily" | "weekly" | "monthly">("none");
   const [emailId, setEmailId] = useState<string | null>(null);
   const [emailLabel, setEmailLabel] = useState<string>("");
+  const [emailFull, setEmailFull] = useState<EmailFull | null>(null);
   const [emailSearch, setEmailSearch] = useState("");
   const [emailResults, setEmailResults] = useState<EmailLite[]>([]);
   const [saving, setSaving] = useState(false);
@@ -149,12 +152,19 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
     setEmailResults([]);
   }, [open, task, defaultStatus]);
 
-  // Load linked email label
+  // Load linked email (label + full content)
   useEffect(() => {
-    if (!emailId) { setEmailLabel(""); return; }
-    supabase.from("emails").select("subject,from_name,from_address").eq("id", emailId).maybeSingle()
+    if (!emailId) { setEmailLabel(""); setEmailFull(null); return; }
+    supabase.from("emails")
+      .select("id,subject,from_name,from_address,body_text,body_html,received_at,ai_summary")
+      .eq("id", emailId).maybeSingle()
       .then(({ data }) => {
-        if (data) setEmailLabel(`${data.subject ?? "(sans objet)"} — ${data.from_name || data.from_address || ""}`);
+        if (data) {
+          setEmailLabel(`${data.subject ?? "(sans objet)"} — ${data.from_name || data.from_address || ""}`);
+          setEmailFull(data as EmailFull);
+        } else {
+          setEmailFull(null);
+        }
       });
   }, [emailId]);
 
@@ -350,6 +360,33 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
             <Textarea id="t-desc" rows={4} value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
 
+          {emailFull && (emailFull.body_text || emailFull.body_html || emailFull.ai_summary) && (
+            <div>
+              <Label className="mb-1.5 block flex items-center gap-1.5">
+                <Mail className="h-3.5 w-3.5" /> Mail d'origine
+              </Label>
+              <div className="rounded-md border bg-muted/30 p-3 text-xs space-y-1.5">
+                <div className="font-medium">{emailFull.subject || "(sans objet)"}</div>
+                <div className="text-muted-foreground">
+                  {emailFull.from_name || emailFull.from_address}
+                  {emailFull.received_at && ` — ${format(new Date(emailFull.received_at), "dd/MM/yyyy HH:mm")}`}
+                </div>
+                {emailFull.body_text ? (
+                  <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-xs leading-relaxed max-h-96 overflow-y-auto">
+                    {emailFull.body_text}
+                  </pre>
+                ) : emailFull.body_html ? (
+                  <div
+                    className="mt-2 max-h-96 overflow-y-auto prose prose-sm dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: emailFull.body_html }}
+                  />
+                ) : emailFull.ai_summary ? (
+                  <p className="mt-2 italic text-muted-foreground">{emailFull.ai_summary}</p>
+                ) : null}
+              </div>
+            </div>
+          )}
+
           <div>
             <Label htmlFor="t-comments">Commentaires</Label>
             <Textarea
@@ -365,9 +402,31 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
             <div>
               <Label className="mb-1.5 block">Pièces jointes ({(task as Task & { attachments?: unknown[] }).attachments!.length})</Label>
               <ul className="space-y-1 rounded-md border bg-muted/30 p-2 text-xs">
-                {((task as Task & { attachments?: Array<{ name?: string; url?: string | null }> }).attachments ?? []).map((a, i) => (
+                {((task as Task & { attachments?: Array<{ name?: string; url?: string | null; storage_path?: string | null; document_id?: string | null; mime?: string | null }> }).attachments ?? []).map((a, i) => (
                   <li key={i} className="flex items-center gap-1.5">
-                    📎 {a.url ? <a href={a.url} target="_blank" rel="noreferrer" className="underline">{a.name ?? `Fichier ${i + 1}`}</a> : <span>{a.name ?? `Fichier ${i + 1}`}</span>}
+                    📎{" "}
+                    <button
+                      type="button"
+                      className="underline text-left hover:text-primary disabled:opacity-50 disabled:no-underline"
+                      disabled={!a.storage_path && !a.url}
+                      onClick={async () => {
+                        try {
+                          let href = a.url ?? null;
+                          if (a.storage_path) {
+                            href = await getSignedUrl(a.storage_path);
+                          }
+                          if (!href) {
+                            toast.error("Pièce jointe indisponible");
+                            return;
+                          }
+                          window.open(href, "_blank", "noopener,noreferrer");
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : "Impossible d'ouvrir la pièce jointe");
+                        }
+                      }}
+                    >
+                      {a.name ?? `Fichier ${i + 1}`}
+                    </button>
                   </li>
                 ))}
               </ul>
