@@ -513,11 +513,11 @@ function AgendaPage() {
           }}
         >
           {view === "month" ? (
-            <MonthView cursor={cursor} events={unified} onSelect={setSelected} onPick={setCursor} />
+            <MonthView cursor={cursor} events={unified} onSelect={setSelected} onPick={setCursor} onLongCreate={openCreate} />
           ) : view === "week" ? (
-            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} />
+            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} onLongCreate={openCreate} />
           ) : view === "day" ? (
-            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} />
+            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} onLongCreate={openCreate} />
           ) : (
             <ListView events={inRange} onSelect={setSelected} />
           )}
@@ -525,7 +525,7 @@ function AgendaPage() {
 
         {/* Mobile FAB */}
         <Button
-          onClick={() => setCreating(true)}
+          onClick={() => openCreate()}
           className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full p-0 shadow-lg md:hidden"
           aria-label="Nouvel événement"
         >
@@ -546,13 +546,14 @@ function AgendaPage() {
       )}
 
       <NewEventDialog
-        open={creating}
-        onOpenChange={setCreating}
+        open={creatingAt !== null}
+        onOpenChange={(v) => !v && setCreatingAt(null)}
         accounts={accounts}
         userId={user?.id ?? ""}
-        defaultDate={cursor}
-        onCreated={() => { setCreating(false); load(); }}
+        defaultDate={creatingAt ?? cursor}
+        onCreated={() => { setCreatingAt(null); load(); }}
       />
+
     </div>
   );
 }
