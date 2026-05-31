@@ -25,14 +25,8 @@ type Props = {
   onOpenChange: (v: boolean) => void;
   context?: { fromAddress?: string | null; subject?: string | null; emailId?: string | null };
 };
-import { uploadFileToOneDrive } from "@/lib/api/onedrive-upload.functions";
 
-type Props = {
-  doc: DocumentRow | null;
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  context?: { fromAddress?: string | null; subject?: string | null };
-};
+
 
 type Crumb = { id: string; name: string };
 type ChildItem = { id: string; name: string; childCount: number };
