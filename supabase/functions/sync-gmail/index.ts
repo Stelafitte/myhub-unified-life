@@ -122,11 +122,11 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
         const messageId = header(headers, "Message-ID") || m.id;
         const dateStr = header(headers, "Date");
         const receivedAt = dateStr ? new Date(dateStr).toISOString() : new Date(Number(m.internalDate || Date.now())).toISOString();
-        const { text, html, hasAttach } = extractParts(m.payload);
+        const { text, html, hasAttach, attachments } = extractParts(m.payload);
         const isRead = !((m.labelIds ?? []).includes("UNREAD"));
         const isStarred = (m.labelIds ?? []).includes("STARRED");
 
-        const { error: upErr } = await admin.from("emails").upsert({
+        const { data: upserted, error: upErr } = await admin.from("emails").upsert({
           account_id: account.id,
           user_id: account.user_id,
           message_id: messageId,
@@ -143,9 +143,21 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
           is_starred: isStarred,
           origin_tag: "gmail",
           thread_id: m.threadId || null,
-        }, { onConflict: "account_id,message_id", ignoreDuplicates: false });
-        if (!upErr) count++;
-        else console.error("[sync-gmail] upsert", upErr.message);
+        }, { onConflict: "account_id,message_id", ignoreDuplicates: false })
+          .select("id")
+          .maybeSingle();
+        if (upErr) { console.error("[sync-gmail] upsert", upErr.message); continue; }
+        count++;
+
+        // Persist attachments
+        if (upserted?.id && attachments.length > 0) {
+          for (const ref of attachments) {
+            const file = await fetchGmailAttachment(id, ref);
+            if (file) {
+              await persistAttachment(admin, account.user_id, account.id, upserted.id, false, file);
+            }
+          }
+        }
       } catch (e) {
         console.error("[sync-gmail] msg fail", e);
       }
