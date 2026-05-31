@@ -581,8 +581,31 @@ function PlanOperationPage() {
               {grouped.map(([sectionKey, items]) => {
                 const def = SECTION_DEFS.find((d) => d.key === sectionKey)!;
                 const isCollapsed = collapsed[sectionKey];
+                const isDropTarget = dragOverSection === sectionKey;
+                const onDragOver = (e: React.DragEvent) => {
+                  if (!dragTaskId) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "move";
+                  if (dragOverSection !== sectionKey) setDragOverSection(sectionKey);
+                };
+                const onDragLeave = () => {
+                  if (dragOverSection === sectionKey) setDragOverSection(null);
+                };
+                const onDrop = (e: React.DragEvent) => {
+                  e.preventDefault();
+                  const id = e.dataTransfer.getData("text/plain") || dragTaskId;
+                  setDragOverSection(null);
+                  setDragTaskId(null);
+                  if (id) moveToSection(id, sectionKey);
+                };
                 return (
-                  <div key={sectionKey}>
+                  <div
+                    key={sectionKey}
+                    onDragOver={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onDrop={onDrop}
+                    className={cn(isDropTarget && "bg-primary/5 ring-1 ring-inset ring-primary/40")}
+                  >
                     <button
                       onClick={() => setCollapsed((p) => ({ ...p, [sectionKey]: !p[sectionKey] }))}
                       className="flex w-full items-center gap-1 border-b bg-muted/50 px-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted"
@@ -596,10 +619,20 @@ function PlanOperationPage() {
                       <ContextMenu key={b.id}>
                         <ContextMenuTrigger asChild>
                           <div
+                            draggable
+                            onDragStart={(e) => {
+                              setDragTaskId(b.id);
+                              e.dataTransfer.setData("text/plain", b.id);
+                              e.dataTransfer.effectAllowed = "move";
+                            }}
+                            onDragEnd={() => { setDragTaskId(null); setDragOverSection(null); }}
                             onClick={() => handleBarClick(b)}
-                            className="group flex cursor-pointer items-center gap-2 border-b px-3 text-xs hover:bg-accent/50"
+                            className={cn(
+                              "group flex cursor-grab items-center gap-2 border-b px-3 text-xs hover:bg-accent/50 active:cursor-grabbing",
+                              dragTaskId === b.id && "opacity-40",
+                            )}
                             style={{ height: ROW_H }}
-                            title={b.title}
+                            title={`${b.title} — glisser pour changer de section`}
                           >
                             <span className={cn("h-2 w-2 shrink-0 rounded-full", b.priority ? PRIORITY_META[b.priority].dot : "bg-muted-foreground")} />
                             <span className="flex-1 truncate">{b.title}</span>
@@ -618,6 +651,12 @@ function PlanOperationPage() {
                           <ContextMenuItem onClick={() => handleBarClick(b)}>
                             <Pencil className="mr-2 h-3.5 w-3.5" /> Ouvrir / Modifier
                           </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          {SECTION_DEFS.filter((d) => d.key !== sectionKey).map((d) => (
+                            <ContextMenuItem key={d.key} onClick={() => moveToSection(b.id, d.key)}>
+                              Déplacer vers {d.emoji} {d.label}
+                            </ContextMenuItem>
+                          ))}
                           <ContextMenuSeparator />
                           <ContextMenuItem
                             className="text-red-600 focus:text-red-600"
