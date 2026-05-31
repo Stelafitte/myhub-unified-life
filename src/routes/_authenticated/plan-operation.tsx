@@ -451,10 +451,40 @@ function PlanOperationPage() {
                       <Badge variant="secondary" className="ml-auto h-4 px-1.5 text-[10px]">{items.length}</Badge>
                     </button>
                     {!isCollapsed && items.map((b) => (
-                      <div key={b.id} className="flex items-center gap-2 border-b px-3 text-xs" style={{ height: ROW_H }}>
-                        <span className={cn("h-2 w-2 rounded-full", b.priority ? PRIORITY_META[b.priority].dot : "bg-muted-foreground")} />
-                        <span className="truncate">{b.title}</span>
-                      </div>
+                      <ContextMenu key={b.id}>
+                        <ContextMenuTrigger asChild>
+                          <div
+                            onClick={() => handleBarClick(b)}
+                            className="group flex cursor-pointer items-center gap-2 border-b px-3 text-xs hover:bg-accent/50"
+                            style={{ height: ROW_H }}
+                            title={b.title}
+                          >
+                            <span className={cn("h-2 w-2 shrink-0 rounded-full", b.priority ? PRIORITY_META[b.priority].dot : "bg-muted-foreground")} />
+                            <span className="flex-1 truncate">{b.title}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setToDelete(b.raw as Task); }}
+                              className="opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-red-500"
+                              aria-label="Supprimer"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => handleBarClick(b)}>
+                            <Pencil className="mr-2 h-3.5 w-3.5" /> Ouvrir / Modifier
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem
+                            className="text-red-600 focus:text-red-600"
+                            onClick={() => setToDelete(b.raw as Task)}
+                          >
+                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Supprimer
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))}
                   </div>
                 );
