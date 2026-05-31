@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Users,
@@ -12,9 +12,11 @@ import {
   Send,
   Trash2,
   RefreshCw,
+  Upload,
   X,
   Check,
 } from "lucide-react";
+import { parseVCard, type ParsedContact } from "@/lib/vcard";
 import { supabase } from "@/integrations/supabase/client";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
