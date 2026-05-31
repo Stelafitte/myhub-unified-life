@@ -115,6 +115,7 @@ export function DownloadOptionsDialog({ doc, open, onOpenChange, context }: Prop
             mimeType: doc.mime_type ?? undefined,
             subject: context?.subject ?? undefined,
             fromAddress: context?.fromAddress ?? undefined,
+            emailId: context?.emailId ?? undefined,
             bodyHint: undefined,
             paths,
           },
