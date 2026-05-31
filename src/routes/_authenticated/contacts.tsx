@@ -323,8 +323,188 @@ function ContactsPage() {
     }
   };
 
+  // ---- Fusion automatique de tous les doublons ----
+  const [mergingAll, setMergingAll] = useState(false);
+  const mergeAllDuplicates = async () => {
+    if (duplicates.length === 0) {
+      toast.info("Aucun doublon détecté");
+      return;
+    }
+    if (!confirm(`Fusionner automatiquement ${duplicates.length} groupe(s) de doublons ?`)) return;
+    setMergingAll(true);
+    let mergedCount = 0;
+    let deletedCount = 0;
+    try {
+      const updatedContacts = [...contacts];
+      const removedIds = new Set<string>();
 
-  return (
+      for (const group of duplicates) {
+        // Choose the most complete record as base (most filled fields + most recent)
+        const base = [...group].sort((x, y) => {
+          const sx = (x.first_name ? 1 : 0) + (x.last_name ? 1 : 0) + (x.organization ? 1 : 0)
+            + (x.role ? 1 : 0) + (x.avatar_url ? 1 : 0) + (x.notes ? 1 : 0)
+            + (x.email?.length ?? 0) + (x.phone?.length ?? 0);
+          const sy = (y.first_name ? 1 : 0) + (y.last_name ? 1 : 0) + (y.organization ? 1 : 0)
+            + (y.role ? 1 : 0) + (y.avatar_url ? 1 : 0) + (y.notes ? 1 : 0)
+            + (y.email?.length ?? 0) + (y.phone?.length ?? 0);
+          if (sy !== sx) return sy - sx;
+          return (y.updated_at ?? "").localeCompare(x.updated_at ?? "");
+        })[0];
+        const others = group.filter((g) => g.id !== base.id);
+
+        const lowerSet = (arr: string[] | null | undefined) => new Set((arr ?? []).map((s) => s.toLowerCase()));
+        const mergedEmails = Array.from(new Map(
+          [...(base.email ?? []), ...others.flatMap((o) => o.email ?? [])].map((e) => [e.toLowerCase(), e]),
+        ).values());
+        const mergedPhones = Array.from(new Map(
+          [...(base.phone ?? []), ...others.flatMap((o) => o.phone ?? [])].map((p) => [p.replace(/\s/g, ""), p]),
+        ).values());
+        const mergedTags = Array.from(new Set([...(base.tags ?? []), ...others.flatMap((o) => o.tags ?? [])]));
+        const mergedSources = Array.from(new Set([...(base.sources ?? []), ...others.flatMap((o) => o.sources ?? [])]));
+        void lowerSet;
+
+        const updates = {
+          first_name: base.first_name ?? others.find((o) => o.first_name)?.first_name ?? null,
+          last_name: base.last_name ?? others.find((o) => o.last_name)?.last_name ?? null,
+          organization: base.organization ?? others.find((o) => o.organization)?.organization ?? null,
+          role: base.role ?? others.find((o) => o.role)?.role ?? null,
+          avatar_url: base.avatar_url ?? others.find((o) => o.avatar_url)?.avatar_url ?? null,
+          notes: [base.notes, ...others.map((o) => o.notes)].filter(Boolean).join("\n---\n") || null,
+          email: mergedEmails,
+          phone: mergedPhones,
+          tags: mergedTags,
+          sources: mergedSources,
+        };
+
+        const { error: uerr } = await supabase.from("contacts").update(updates as never).eq("id", base.id);
+        if (uerr) { toast.error(`Fusion ${fullName(base)}: ${uerr.message}`); continue; }
+
+        const otherIds = others.map((o) => o.id);
+        const { error: derr } = await supabase.from("contacts").delete().in("id", otherIds);
+        if (derr) { toast.error(derr.message); continue; }
+
+        // Update local state representation
+        const idx = updatedContacts.findIndex((c) => c.id === base.id);
+        if (idx >= 0) updatedContacts[idx] = { ...updatedContacts[idx], ...updates } as Contact;
+        otherIds.forEach((id) => removedIds.add(id));
+        mergedCount++;
+        deletedCount += otherIds.length;
+      }
+
+      setContacts(updatedContacts.filter((c) => !removedIds.has(c.id)));
+      toast.success(`${mergedCount} groupe(s) fusionné(s), ${deletedCount} doublon(s) supprimé(s)`);
+    } finally {
+      setMergingAll(false);
+    }
+  };
+
+  // ---- Import des contacts depuis les emails de l'inbox ----
+  const [importingInbox, setImportingInbox] = useState(false);
+  const importFromInbox = async () => {
+    if (!user) return;
+    setImportingInbox(true);
+    try {
+      const { data, error } = await supabase
+        .from("emails")
+        .select("from_address,from_name,received_at")
+        .not("from_address", "is", null)
+        .order("received_at", { ascending: false })
+        .limit(5000);
+      if (error) { toast.error(error.message); return; }
+      const rows = (data ?? []) as { from_address: string | null; from_name: string | null; received_at: string | null }[];
+
+      // Build unique map email -> best name found
+      const byEmail = new Map<string, { email: string; name: string | null }>();
+      for (const r of rows) {
+        const raw = (r.from_address ?? "").trim();
+        if (!raw) continue;
+        // Extract email if "Name <email@x>"
+        const m = raw.match(/<([^>]+)>/);
+        const email = (m ? m[1] : raw).trim().toLowerCase();
+        if (!email.includes("@")) continue;
+        // Skip noreply-style
+        if (/^(no-?reply|noreply|mailer-daemon|postmaster|bounce|notifications?)@/i.test(email)) continue;
+        const name = (r.from_name ?? raw.replace(/<[^>]+>/, "").replace(/"/g, "").trim()) || null;
+        const existing = byEmail.get(email);
+        if (!existing || (!existing.name && name)) byEmail.set(email, { email, name });
+      }
+
+      // Existing emails in contacts
+      const existing = new Set<string>();
+      contacts.forEach((c) => (c.email ?? []).forEach((e) => existing.add(e.toLowerCase())));
+
+      const toCreate: { user_id: string; first_name: string | null; last_name: string | null; email: string[]; sources: string[] }[] = [];
+      let mergedExisting = 0;
+      const updatesByContactId = new Map<string, string[]>();
+
+      for (const { email, name } of byEmail.values()) {
+        if (existing.has(email)) continue;
+        // Find a contact with same name to merge into
+        const target = name
+          ? contacts.find((c) => {
+              const fn = fullName(c).toLowerCase().trim();
+              return fn && fn === name.toLowerCase().trim();
+            })
+          : null;
+        if (target) {
+          const arr = updatesByContactId.get(target.id) ?? [...(target.email ?? [])];
+          if (!arr.map((e) => e.toLowerCase()).includes(email)) {
+            arr.push(email);
+            updatesByContactId.set(target.id, arr);
+            mergedExisting++;
+          }
+        } else {
+          const parts = (name ?? "").trim().split(/\s+/);
+          const first = parts.slice(0, -1).join(" ") || parts[0] || null;
+          const last = parts.length > 1 ? parts[parts.length - 1] : null;
+          toCreate.push({
+            user_id: user.id,
+            first_name: first,
+            last_name: last,
+            email: [email],
+            sources: ["Inbox"],
+          });
+          existing.add(email);
+        }
+      }
+
+      // Apply merges to existing contacts
+      for (const [cid, emails] of updatesByContactId) {
+        const target = contacts.find((c) => c.id === cid);
+        if (!target) continue;
+        const sources = Array.from(new Set([...(target.sources ?? []), "Inbox"]));
+        const { error: uerr } = await supabase.from("contacts").update({ email: emails, sources } as never).eq("id", cid);
+        if (uerr) { toast.error(uerr.message); }
+      }
+
+      // Insert new contacts in batches
+      const created: Contact[] = [];
+      for (let i = 0; i < toCreate.length; i += 200) {
+        const chunk = toCreate.slice(i, i + 200);
+        const { data: ins, error: ierr } = await supabase.from("contacts").insert(chunk as never).select();
+        if (ierr) { toast.error(ierr.message); break; }
+        if (ins) created.push(...(ins as Contact[]));
+      }
+
+      // Update local state
+      setContacts((prev) => {
+        const next = prev.map((c) => {
+          const newEmails = updatesByContactId.get(c.id);
+          if (!newEmails) return c;
+          return { ...c, email: newEmails, sources: Array.from(new Set([...(c.sources ?? []), "Inbox"])) };
+        });
+        return [...created, ...next];
+      });
+
+      toast.success(`${created.length} nouveau(x), ${mergedExisting} email(s) ajouté(s) à des contacts existants`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de l'import depuis l'inbox");
+    } finally {
+      setImportingInbox(false);
+    }
+  };
+
+
     <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT — list */}
       <section className="flex min-w-0 flex-1 flex-col border-r">
