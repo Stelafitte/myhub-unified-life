@@ -70,7 +70,9 @@ type Zoom = "week" | "month" | "quarter" | "year";
 
 const ZOOM_PX: Record<Zoom, number> = { week: 40, month: 14, quarter: 6, year: 2.2 };
 
-const SECTION_DEFS: { key: string; label: string; emoji: string; match: (s: string) => boolean }[] = [
+type SectionDef = { key: string; label: string; emoji: string; match?: (s: string) => boolean; alwaysShow?: boolean };
+
+const LEGACY_SECTIONS: SectionDef[] = [
   { key: "CHU", label: "CHU", emoji: "🏥", match: (s) => /chu|hopital|hôpital/i.test(s) },
   { key: "Université", label: "Université", emoji: "🎓", match: (s) => /univ|fac|école|ecole/i.test(s) },
   { key: "Professionnel", label: "Professionnel", emoji: "💼", match: (s) => /pro|travail|work|bureau/i.test(s) },
@@ -78,9 +80,14 @@ const SECTION_DEFS: { key: string; label: string; emoji: string; match: (s: stri
   { key: "Autres", label: "Autres", emoji: "📧", match: () => true },
 ];
 
-function sectionOf(label: string): string {
-  for (const def of SECTION_DEFS) if (def.match(label)) return def.key;
-  return "Autres";
+function buildSectionOf(allSections: SectionDef[]) {
+  return (label: string): string => {
+    // Exact match (theme name) wins
+    const exact = allSections.find((d) => d.key === label);
+    if (exact) return exact.key;
+    for (const def of allSections) if (def.match && def.match(label)) return def.key;
+    return "Autres";
+  };
 }
 
 type Bar = {
