@@ -602,6 +602,8 @@ function MonthView({
           <button
             key={d.toISOString()}
             onClick={() => onPick(d)}
+            onContextMenu={(e) => { if (onLongCreate) { e.preventDefault(); onLongCreate(d); } }}
+            {...useLongPress(() => onLongCreate?.(d))}
             className={cn(
               "min-h-[110px] border-b border-r p-1.5 text-left text-xs transition-colors hover:bg-accent/40",
               isOther && "bg-muted/20 text-muted-foreground",
