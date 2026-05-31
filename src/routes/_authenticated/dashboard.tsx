@@ -872,7 +872,7 @@ function SyncStatusWidget() {
       name: string;
       last_sync_at: string | null;
       is_active: boolean;
-      credentials?: { calendar_only?: boolean } | null;
+      credentials?: unknown;
     }>
   >([]);
 
@@ -882,7 +882,17 @@ function SyncStatusWidget() {
       .from("accounts")
       .select("id, name, last_sync_at, is_active, credentials")
       .eq("user_id", user.id);
-    setAccounts((data ?? []).filter((a) => !(a.credentials?.calendar_only === true)));
+    setAccounts(
+      (data ?? []).filter(
+        (a) =>
+          !(
+            typeof a.credentials === "object" &&
+            a.credentials !== null &&
+            "calendar_only" in a.credentials &&
+            a.credentials.calendar_only === true
+          ),
+      ),
+    );
   }, [user]);
   useEffect(() => {
     load();
