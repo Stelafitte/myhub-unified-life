@@ -367,7 +367,7 @@ function AgendaPage() {
             <CalendarIcon className="h-5 w-5 text-primary" />
             <h1 className="text-sm font-semibold">Agenda unifié</h1>
           </div>
-          <Button className="w-full gap-1.5" onClick={() => setCreating(true)}>
+          <Button className="w-full gap-1.5" onClick={() => openCreate()}>
             <Plus className="h-4 w-4" /> Nouvel événement
           </Button>
         </div>
