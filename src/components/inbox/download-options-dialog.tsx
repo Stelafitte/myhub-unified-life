@@ -184,6 +184,25 @@ export function DownloadOptionsDialog({ doc, open, onOpenChange, context }: Prop
     setBusy("onedrive");
     try {
       await uploadFn({ data: { storagePath: doc.storage_path, folderId: target.id, filename: doc.original_filename } });
+      const aiHit = aiPicks.find((p) => p.path === target.path);
+      // Persist learning signal (theme/sender → folder), regardless of source.
+      try {
+        await recordFn({
+          data: {
+            folderId: target.id,
+            folderPath: target.path,
+            filename: doc.original_filename,
+            mimeType: doc.mime_type ?? undefined,
+            emailId: context?.emailId ?? undefined,
+            fromAddress: context?.fromAddress ?? undefined,
+            subject: context?.subject ?? undefined,
+            aiSuggested: Boolean(aiHit),
+            aiScore: aiHit?.score,
+          },
+        });
+      } catch (e) {
+        console.warn("recordFolderChoice failed", e);
+      }
       toast.success(`Envoyé dans OneDrive › ${target.path}`);
       onOpenChange(false);
     } catch (e) {
