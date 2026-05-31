@@ -133,23 +133,24 @@ const fmtMonth = (d: Date) =>
 
 // Long press detector (works for mouse and touch). Fires `cb` after 500ms hold without significant movement.
 function useLongPress(cb: () => void, ms = 500) {
-  const ref = { current: null as ReturnType<typeof setTimeout> | null, startX: 0, startY: 0, fired: false };
-  const clear = () => { if (ref.current) { clearTimeout(ref.current); ref.current = null; } };
+  const state = React.useRef<{ t: ReturnType<typeof setTimeout> | null; x: number; y: number; fired: boolean }>({ t: null, x: 0, y: 0, fired: false });
+  const clear = () => { if (state.current.t) { clearTimeout(state.current.t); state.current.t = null; } };
   return {
     onPointerDown: (e: React.PointerEvent) => {
-      ref.startX = e.clientX; ref.startY = e.clientY; ref.fired = false;
+      state.current.x = e.clientX; state.current.y = e.clientY; state.current.fired = false;
       clear();
-      ref.current = setTimeout(() => { ref.fired = true; cb(); }, ms);
+      state.current.t = setTimeout(() => { state.current.fired = true; cb(); }, ms);
     },
     onPointerMove: (e: React.PointerEvent) => {
-      if (!ref.current) return;
-      if (Math.abs(e.clientX - ref.startX) > 8 || Math.abs(e.clientY - ref.startY) > 8) clear();
+      if (!state.current.t) return;
+      if (Math.abs(e.clientX - state.current.x) > 8 || Math.abs(e.clientY - state.current.y) > 8) clear();
     },
     onPointerUp: () => clear(),
     onPointerLeave: () => clear(),
     onPointerCancel: () => clear(),
   };
 }
+
 
 
 function AgendaPage() {
