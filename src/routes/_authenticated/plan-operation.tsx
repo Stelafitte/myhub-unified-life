@@ -302,7 +302,7 @@ function PlanOperationPage() {
       });
     });
     return out;
-  }, [tasks]);
+  }, [tasks, sectionOf]);
 
   // Apply filters
   const bars = useMemo(() => {
