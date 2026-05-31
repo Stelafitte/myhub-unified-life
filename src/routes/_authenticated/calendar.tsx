@@ -131,6 +131,27 @@ const fmtDate = (d: Date) =>
 const fmtMonth = (d: Date) =>
   d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
+// Long press detector (works for mouse and touch). Fires `cb` after 500ms hold without significant movement.
+function useLongPress(cb: () => void, ms = 500) {
+  const ref = { current: null as ReturnType<typeof setTimeout> | null, startX: 0, startY: 0, fired: false };
+  const clear = () => { if (ref.current) { clearTimeout(ref.current); ref.current = null; } };
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      ref.startX = e.clientX; ref.startY = e.clientY; ref.fired = false;
+      clear();
+      ref.current = setTimeout(() => { ref.fired = true; cb(); }, ms);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (!ref.current) return;
+      if (Math.abs(e.clientX - ref.startX) > 8 || Math.abs(e.clientY - ref.startY) > 8) clear();
+    },
+    onPointerUp: () => clear(),
+    onPointerLeave: () => clear(),
+    onPointerCancel: () => clear(),
+  };
+}
+
+
 function AgendaPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
