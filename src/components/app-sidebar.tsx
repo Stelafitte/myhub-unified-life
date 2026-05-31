@@ -1,19 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import {
-  LayoutDashboard,
-  Inbox,
-  CheckSquare,
-  Calendar,
-  Users,
-  ClipboardList,
-  Settings,
-  Lock,
-  CalendarClock,
-  FolderOpen,
-  BarChart3,
-  Shield,
-} from "lucide-react";
+import { LayoutDashboard, Inbox, CheckSquare, Calendar, Users, ClipboardList, Settings, Lock, CalendarClock, FolderOpen, BarChart3, Shield } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -61,31 +48,27 @@ export function AppSidebar() {
     ...(isAdmin ? [{ title: "Administration", url: "/admin", icon: Shield } as const] : []),
   ];
 
+
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className={cn("border-b py-4", collapsed ? "px-2" : "px-4")}>
+      <SidebarHeader className={cn("border-b py-3", collapsed ? "px-2" : "px-4")}>
         <div className={cn("flex items-center", collapsed ? "justify-center" : "gap-2")}>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-base font-bold text-primary-foreground">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">
             M
           </div>
-          {!collapsed && <span className="text-base font-semibold">MyHub Pro</span>}
+          {!collapsed && <span className="font-semibold text-sm">MyHub Pro</span>}
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sm">Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.url}
-                    tooltip={item.title}
-                    className="h-11 text-base"
-                  >
+                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
                     <Link to={item.url} onClick={closeIfMobile}>
-                      <item.icon className="h-5 w-5" />
+                      <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
