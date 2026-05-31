@@ -155,6 +155,56 @@ function PlanOperationPage() {
     }
   };
 
+  // Création rapide d'un thème / sous-thème du Plan d'opération (table op_plan_themes / op_plan_subthemes)
+  const createOpTheme = async () => {
+    if (!user) return;
+    const name = window.prompt("Nom du nouveau thème ?")?.trim();
+    if (!name) return;
+    const { data: existing } = await supabase
+      .from("op_plan_themes")
+      .select("position")
+      .order("position", { ascending: false })
+      .limit(1);
+    const position = existing && existing.length ? (existing[0].position as number) + 1 : 0;
+    const { error } = await supabase
+      .from("op_plan_themes")
+      .insert({ user_id: user.id, name, position });
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Thème « ${name} » créé`);
+  };
+
+  const createOpSubtheme = async () => {
+    if (!user) return;
+    const { data: themesRows } = await supabase
+      .from("op_plan_themes")
+      .select("id,name")
+      .order("position");
+    const themes = (themesRows ?? []) as { id: string; name: string }[];
+    if (!themes.length) {
+      toast.error("Crée d'abord un thème");
+      return;
+    }
+    const list = themes.map((t, i) => `${i + 1}. ${t.name}`).join("\n");
+    const pick = window.prompt(`Sous quel thème ?\n${list}\n\nEntre le numéro :`)?.trim();
+    const idx = pick ? parseInt(pick, 10) - 1 : -1;
+    if (Number.isNaN(idx) || idx < 0 || idx >= themes.length) return;
+    const theme = themes[idx];
+    const name = window.prompt(`Nom du nouveau sous-thème dans « ${theme.name} » ?`)?.trim();
+    if (!name) return;
+    const { data: existingSubs } = await supabase
+      .from("op_plan_subthemes")
+      .select("position")
+      .eq("theme_id", theme.id)
+      .order("position", { ascending: false })
+      .limit(1);
+    const position = existingSubs && existingSubs.length ? (existingSubs[0].position as number) + 1 : 0;
+    const { error } = await supabase
+      .from("op_plan_subthemes")
+      .insert({ user_id: user.id, theme_id: theme.id, name, position, items: [] });
+    if (error) { toast.error(error.message); return; }
+    toast.success(`Sous-thème « ${name} » créé sous « ${theme.name} »`);
+  };
+
   // Filters
   const [fPriority, setFPriority] = useState<Set<TaskPriority>>(new Set());
   const [fStatus, setFStatus] = useState<Set<TaskStatus>>(new Set());
