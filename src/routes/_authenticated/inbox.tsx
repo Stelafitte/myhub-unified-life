@@ -68,7 +68,6 @@ import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
 import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
-import { ShieldAlert as SpamIcon } from "lucide-react";
 
 type Account = {
   id: string;
