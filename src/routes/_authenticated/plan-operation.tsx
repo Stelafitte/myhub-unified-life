@@ -267,8 +267,8 @@ function PlanOperationPage() {
     if (!navigator.onLine) { setLoading(false); return; }
     const [t, th, sub] = await Promise.all([
       supabase.from("tasks").select("*").neq("status", "archived"),
-      supabase.from("op_plan_themes").select("id,name,position").order("position"),
-      supabase.from("op_plan_subthemes").select("id,name,theme_id,position").order("position"),
+      supabase.from("op_plan_themes").select("id,name,position,show_in_plan").order("position"),
+      supabase.from("op_plan_subthemes").select("id,name,theme_id,position,show_in_plan").order("position"),
     ]);
     if (t.error && !cTasks.length) toast.error(t.error.message);
     if (t.data) {
