@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   ChevronDown,
@@ -194,6 +195,16 @@ export function PlanOperationSection() {
   const [editingSub, setEditingSub] = useState<string | null>(null);
   const [editingSubName, setEditingSubName] = useState("");
   const [newItem, setNewItem] = useState<Record<string, string>>({});
+  // Selection: keys are "theme:<id>" | "sub:<id>" | "item:<subId>:<index>"
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggleSel = (key: string) =>
+    setSelected((p) => {
+      const n = new Set(p);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
+  const isSel = (key: string) => selected.has(key);
 
   const load = async () => {
     setLoading(true);
@@ -389,6 +400,37 @@ export function PlanOperationSection() {
     for (const it of sub.items) await integrateInPlan(themeName, it, sub.name);
   };
 
+  const addSelection = async () => {
+    if (!user) return;
+    if (selected.size === 0) return toast.error("Aucune ligne sélectionnée");
+    let count = 0;
+    for (const t of themes) {
+      const themeKey = `theme:${t.id}`;
+      const themeChecked = selected.has(themeKey);
+      const subs = subthemes.filter((s) => s.theme_id === t.id);
+      // If theme itself is checked (without any sub/item), create a generic task
+      if (themeChecked && !subs.some((s) => selected.has(`sub:${s.id}`) || s.items.some((_, i) => selected.has(`item:${s.id}:${i}`)))) {
+        await integrateInPlan(t.name, t.name);
+        count++;
+      }
+      for (const s of subs) {
+        const subKey = `sub:${s.id}`;
+        if (selected.has(subKey)) {
+          await integrateInPlan(t.name, s.name, s.name);
+          count++;
+        }
+        for (let i = 0; i < s.items.length; i++) {
+          if (selected.has(`item:${s.id}:${i}`)) {
+            await integrateInPlan(t.name, s.items[i], s.name);
+            count++;
+          }
+        }
+      }
+    }
+    setSelected(new Set());
+    toast.success(`${count} ligne${count > 1 ? "s" : ""} ajoutée${count > 1 ? "s" : ""} au Plan d'opération`);
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -397,7 +439,7 @@ export function PlanOperationSection() {
             <ClipboardList className="h-4 w-4 text-primary" /> Configuration du Plan d'opération
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Définissez les thèmes et sous-thèmes (et leurs items) qui structureront votre plan d'opération.
+            Définissez les thèmes et sous-thèmes (et leurs items). Cochez les lignes à ajouter au tableau Plan d'opération, puis cliquez sur « Ajouter la sélection ».
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -416,6 +458,9 @@ export function PlanOperationSection() {
             <Button variant="outline" onClick={seedFromTemplate} className="gap-1">
               <Sparkles className="h-4 w-4" /> Importer le modèle
             </Button>
+            <Button onClick={addSelection} disabled={selected.size === 0} className="gap-1">
+              <Send className="h-4 w-4" /> Ajouter la sélection{selected.size > 0 ? ` (${selected.size})` : ""}
+            </Button>
           </div>
 
           {loading ? (
@@ -433,6 +478,12 @@ export function PlanOperationSection() {
                 return (
                   <div key={theme.id} className="rounded-md border bg-card">
                     <div className="flex items-center gap-1 border-b bg-muted/30 px-2 py-1.5">
+                      <Checkbox
+                        checked={isSel(`theme:${theme.id}`)}
+                        onCheckedChange={() => toggleSel(`theme:${theme.id}`)}
+                        className="shrink-0"
+                        aria-label="Sélectionner le thème"
+                      />
                       <button
                         onClick={() => toggleOpen(theme.id)}
                         className="rounded p-1 hover:bg-accent shrink-0"
@@ -495,15 +546,6 @@ export function PlanOperationSection() {
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 gap-1 px-2 text-primary"
-                            onClick={() => integrateTheme(theme.name)}
-                            title="Intégrer ce thème (et tous ses sous-thèmes/items) dans le tableau Plan d'opération"
-                          >
-                            <Send className="h-3.5 w-3.5" /> <span className="hidden sm:inline text-xs">Intégrer</span>
-                          </Button>
-                          <Button
                             size="icon"
                             variant="ghost"
                             className="h-7 w-7 text-destructive"
@@ -520,6 +562,14 @@ export function PlanOperationSection() {
                         {subs.map((s) => (
                           <div key={s.id} className={cn("rounded border bg-background")}>
                             <div className="flex items-center gap-1 px-2 py-1.5">
+                              {editingSub !== s.id && (
+                                <Checkbox
+                                  checked={isSel(`sub:${s.id}`)}
+                                  onCheckedChange={() => toggleSel(`sub:${s.id}`)}
+                                  className="shrink-0"
+                                  aria-label="Sélectionner le sous-thème"
+                                />
+                              )}
                               {editingSub === s.id ? (
                                 <>
                                   <Input
@@ -559,15 +609,6 @@ export function PlanOperationSection() {
                                   <Pencil className="h-3.5 w-3.5" />
                                 </Button>
                                 <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 gap-1 px-2 text-primary"
-                                  onClick={() => integrateSubtheme(theme.name, s)}
-                                  title="Intégrer ce sous-thème (et ses items) dans le tableau Plan d'opération"
-                                >
-                                  <Send className="h-3.5 w-3.5" /> <span className="hidden sm:inline text-xs">Intégrer</span>
-                                </Button>
-                                <Button
                                   size="icon"
                                   variant="ghost"
                                   className="h-7 w-7 text-destructive"
@@ -582,16 +623,13 @@ export function PlanOperationSection() {
                             <div className="space-y-1 border-t bg-muted/20 px-2 py-1.5">
                               {s.items.map((it, i) => (
                                 <div key={i} className="flex items-center gap-1 text-xs">
-                                  <span className="flex-1 truncate">• {it}</span>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-6 w-6 text-primary"
-                                    onClick={() => integrateInPlan(theme.name, it, s.name)}
-                                    title="Intégrer cet item dans le tableau Plan d'opération"
-                                  >
-                                    <Send className="h-3 w-3" />
-                                  </Button>
+                                  <Checkbox
+                                    checked={isSel(`item:${s.id}:${i}`)}
+                                    onCheckedChange={() => toggleSel(`item:${s.id}:${i}`)}
+                                    className="shrink-0 h-3.5 w-3.5"
+                                    aria-label="Sélectionner l'item"
+                                  />
+                                  <span className="flex-1 truncate">{it}</span>
                                   <Button
                                     size="icon"
                                     variant="ghost"
