@@ -4,6 +4,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
 import { HdsNoticeDialog } from "@/components/security/hds-notice-dialog";
 import { SecureVaultProvider } from "@/lib/secure-vault-context";
+import { TaskPanelProvider } from "@/lib/task-panel-context";
+import { GlobalTaskPanel } from "@/components/tasks/global-task-panel";
 import { SessionExpiredBanner } from "@/components/session-expired-banner";
 import { supabase } from "@/integrations/supabase/client";
 
