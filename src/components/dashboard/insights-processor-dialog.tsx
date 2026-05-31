@@ -270,14 +270,27 @@ function DetailView({
           const priority: Prio = (allowed as readonly string[]).includes(a.priority)
             ? (a.priority as Prio)
             : "medium";
+          // Résolution de la source email :
+          // 1. Si l'origine est un mail => utiliser directement le refId
+          // 2. Si l'origine est une tâche => hériter du source_email_id de la tâche parente
+          let sourceEmailId: string | null = null;
+          if (item.origin?.type === "email" && item.origin.refId) {
+            sourceEmailId = item.origin.refId;
+          } else if (item.origin?.type === "task" && item.origin.refId) {
+            const { data: parent } = await supabase
+              .from("tasks")
+              .select("source_email_id")
+              .eq("id", item.origin.refId)
+              .maybeSingle();
+            sourceEmailId = parent?.source_email_id ?? null;
+          }
           const { error } = await supabase.from("tasks").insert({
             user_id: userId,
             title: a.title,
             status: "todo",
             priority,
             due_date: due,
-            source_email_id:
-              item.origin?.type === "email" && item.origin.refId ? item.origin.refId : null,
+            source_email_id: sourceEmailId,
           });
           if (error) throw new Error(error.message);
           toast.success("Tâche créée");
