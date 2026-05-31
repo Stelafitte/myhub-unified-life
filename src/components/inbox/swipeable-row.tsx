@@ -72,7 +72,9 @@ export function SwipeableRow({
       setIsDragging(true);
       try {
         (e.currentTarget as Element).setPointerCapture(e.pointerId);
-      } catch {}
+      } catch {
+        return;
+      }
     }
     if (decided.current !== "h") return;
     e.preventDefault();
@@ -115,7 +117,9 @@ export function SwipeableRow({
   const onPointerUp = (e: PointerEvent) => {
     try {
       (e.currentTarget as Element).releasePointerCapture(e.pointerId);
-    } catch {}
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
     finish();
   };
 
