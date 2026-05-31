@@ -528,12 +528,15 @@ function InboxPage() {
   }, [filter]);
 
   // Fallback: si rien n'est sélectionné mais la liste est non vide
+  // ⚠️ Uniquement sur desktop (≥1024) — sur mobile/tablette, l'utilisateur doit
+  // choisir explicitement un email pour ouvrir le lecteur plein écran.
   useEffect(() => {
+    if (winW < 1024) return;
     if (filtered.length === 0) return;
     if (!selectedId || !filtered.some((e) => e.id === selectedId)) {
       setSelectedId(filtered[0].id);
     }
-  }, [filtered, selectedId]);
+  }, [filtered, selectedId, winW]);
 
   // Mutations (optimistic)
   const patch = async (id: string, updates: Partial<Email>) => {
