@@ -352,7 +352,6 @@ function ContactsPage() {
         })[0];
         const others = group.filter((g) => g.id !== base.id);
 
-        const lowerSet = (arr: string[] | null | undefined) => new Set((arr ?? []).map((s) => s.toLowerCase()));
         const mergedEmails = Array.from(new Map(
           [...(base.email ?? []), ...others.flatMap((o) => o.email ?? [])].map((e) => [e.toLowerCase(), e]),
         ).values());
@@ -361,7 +360,6 @@ function ContactsPage() {
         ).values());
         const mergedTags = Array.from(new Set([...(base.tags ?? []), ...others.flatMap((o) => o.tags ?? [])]));
         const mergedSources = Array.from(new Set([...(base.sources ?? []), ...others.flatMap((o) => o.sources ?? [])]));
-        void lowerSet;
 
         const updates = {
           first_name: base.first_name ?? others.find((o) => o.first_name)?.first_name ?? null,
