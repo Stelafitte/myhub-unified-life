@@ -561,7 +561,7 @@ function PlanOperationPage() {
 }
 
 function BarRow({
-  bar, rowHeight, dayPx, start, today, onClick, onUpdateRange,
+  bar, rowHeight, dayPx, start, today, onClick, onDelete, onUpdateRange,
 }: {
   bar: Bar;
   rowHeight: number;
@@ -569,6 +569,7 @@ function BarRow({
   start: Date;
   today: Date;
   onClick: () => void;
+  onDelete: () => void;
   onUpdateRange: (s: Date, e: Date) => void;
 }) {
   const [drag, setDrag] = useState<null | { mode: "move" | "resize-l" | "resize-r"; startX: number; origStart: Date; origEnd: Date }>(null);
