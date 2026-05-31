@@ -216,6 +216,7 @@ export function MeetingDialog({
       }
       toast.success(form.id ? "Réunion mise à jour" : "Réunion créée");
       onSaved?.();
+      requestAutoSync();
       onOpenChange(false);
       return id!;
     } catch (e) {
