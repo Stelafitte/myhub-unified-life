@@ -203,8 +203,8 @@ export function DownloadOptionsDialog({ doc, open, onOpenChange, context }: Prop
 
   return (
     <Dialog open={open} onOpenChange={(v) => !busy && onOpenChange(v)}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] max-w-xl flex-col gap-0 overflow-hidden bg-background p-0">
+        <DialogHeader className="shrink-0 border-b bg-background px-6 pb-3 pt-5">
           <DialogTitle className="truncate">Télécharger « {doc?.original_filename} »</DialogTitle>
           <DialogDescription>Choisis la destination du fichier.</DialogDescription>
         </DialogHeader>
