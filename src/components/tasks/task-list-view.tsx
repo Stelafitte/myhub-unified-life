@@ -64,16 +64,50 @@ export function TaskListView({ tasks, onEdit, onDelete, onMove, onOpenEmail }: P
               <span className="ml-auto text-xs text-muted-foreground">{colTasks.length}</span>
             </header>
             <ul className="divide-y">
-              {colTasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  onEdit={() => onEdit(task)}
-                  onDelete={() => onDelete(task)}
-                  onStatusChange={(status) => onMove(task, status)}
-                  onOpenEmail={() => task.source_email_id && onOpenEmail?.(task.source_email_id)}
-                />
-              ))}
+              {colTasks.map((task) => {
+                const leftActions: SwipeAction[] = task.status !== "done" ? [{
+                  key: "done",
+                  label: "Terminé",
+                  icon: <Check className="h-4 w-4" />,
+                  color: "bg-emerald-500",
+                  onAction: () => onMove(task, "done"),
+                }] : [{
+                  key: "todo",
+                  label: "À faire",
+                  icon: <Circle className="h-4 w-4" />,
+                  color: "bg-slate-500",
+                  onAction: () => onMove(task, "todo"),
+                }];
+                const rightActions: SwipeAction[] = [
+                  ...(task.status !== "archived" ? [{
+                    key: "archive",
+                    label: "Archiver",
+                    icon: <Archive className="h-4 w-4" />,
+                    color: "bg-slate-500",
+                    onAction: () => onMove(task, "archived"),
+                  }] : []),
+                  {
+                    key: "delete",
+                    label: "Suppr.",
+                    icon: <Trash2 className="h-4 w-4" />,
+                    color: "bg-destructive",
+                    onAction: () => onDelete(task),
+                  },
+                ];
+                return (
+                  <li key={task.id}>
+                    <SwipeableRow leftActions={leftActions} rightActions={rightActions}>
+                      <TaskRow
+                        task={task}
+                        onEdit={() => onEdit(task)}
+                        onDelete={() => onDelete(task)}
+                        onStatusChange={(status) => onMove(task, status)}
+                        onOpenEmail={() => task.source_email_id && onOpenEmail?.(task.source_email_id)}
+                      />
+                    </SwipeableRow>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         );
