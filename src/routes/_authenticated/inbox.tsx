@@ -711,7 +711,7 @@ function InboxPage() {
   };
 
   return (
-    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
+    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] w-[100dvw] max-w-[100dvw] min-w-0 overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6 md:w-auto md:max-w-full">
       {/* LEFT — filters */}
       <aside style={{ width: leftW }} className="hidden shrink-0 flex-col border-r bg-card md:flex">
         <div className="border-b p-4">
@@ -950,14 +950,14 @@ function InboxPage() {
       />
 
       {/* CENTER — list */}
-      <section className="flex min-w-0 max-w-full flex-1 flex-col border-r overflow-hidden">
+      <section className="flex w-full min-w-0 max-w-full flex-1 flex-col overflow-hidden border-r">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
             <Select
               value={filter.startsWith("account:") ? filter : "all"}
               onValueChange={(v) => setFilter(v as Filter)}
             >
-              <SelectTrigger className="h-7 w-auto max-w-[150px] gap-1 border-0 bg-transparent px-1 text-xs font-medium text-foreground hover:bg-accent/50 focus:ring-0 sm:max-w-none [&>svg]:hidden">
+              <SelectTrigger className="h-8 w-auto max-w-[170px] gap-1 border-0 bg-transparent px-1 text-sm font-medium text-foreground hover:bg-accent/50 focus:ring-0 sm:max-w-none sm:text-xs [&>svg]:hidden">
                 <SelectValue placeholder="Tous les comptes" />
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </SelectTrigger>
@@ -1019,7 +1019,7 @@ function InboxPage() {
             <Button
               size="sm"
               variant={aiRanking ? "default" : "ghost"}
-              className="h-7 shrink-0 gap-1 px-2 text-xs font-medium"
+              className="h-8 shrink-0 gap-1 px-2 text-sm font-medium sm:h-7 sm:text-xs"
               onClick={() => setAiRanking((v) => !v)}
               title="Trier la liste par thème IA (mails les plus récents en tête)"
             >
@@ -1027,13 +1027,13 @@ function InboxPage() {
               <span className="hidden sm:inline">Classement IA</span>
             </Button>
           </div>
-          <span className="shrink-0 text-xs text-muted-foreground">
+          <span className="shrink-0 text-sm text-muted-foreground sm:text-xs">
             {filtered.length} email{filtered.length > 1 ? "s" : ""}
           </span>
         </div>
         <div
           className={cn(
-            "flex flex-wrap items-center gap-2 border-b px-4 py-1.5 text-xs",
+            "flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm sm:py-1.5 sm:text-xs",
             checked.size > 0 ? "bg-primary/5" : "bg-muted/30",
           )}
         >
