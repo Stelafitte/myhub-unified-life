@@ -11,10 +11,14 @@ import {
   AlertTriangle,
   Target,
   CheckCircle2,
+  Trash2,
+  Pencil,
+  ExternalLink,
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
+import { enqueue, requestAutoSync } from "@/lib/sync-queue";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
