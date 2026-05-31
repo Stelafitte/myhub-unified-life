@@ -955,7 +955,14 @@ function InboxPage() {
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
             <Select
               value={filter.startsWith("account:") ? filter : "all"}
-              onValueChange={(v) => setFilter(v as Filter)}
+              onValueChange={(v) => {
+                setFilter(v as Filter);
+                // Quand on choisit "Tous les comptes" ou un compte spécifique,
+                // on désactive le classement IA pour revenir à une liste
+                // chronologique plate (évite que la vue groupée par thème
+                // reste affichée, notamment sur mobile).
+                if (v === "all" || v.startsWith("account:")) setAiRanking(false);
+              }}
             >
               <SelectTrigger className="h-7 w-auto max-w-[150px] gap-1 border-0 bg-transparent px-1 text-xs font-medium text-foreground hover:bg-accent/50 focus:ring-0 sm:max-w-none [&>svg]:hidden">
                 <SelectValue placeholder="Tous les comptes" />
