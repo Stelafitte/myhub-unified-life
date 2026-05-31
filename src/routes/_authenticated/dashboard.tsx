@@ -406,7 +406,7 @@ function TasksWidget({ userId }: { userId?: string }) {
     const { error } = await supabase.from("tasks").insert({
       title: newTitle.trim(), user_id: userId, priority: "medium", status: "todo", source_app: "myhubpro",
     });
-    if (error) toast.error("Impossible d'ajouter"); else { toast.success("Tâche ajoutée"); setNewTitle(""); load(); }
+    if (error) toast.error("Impossible d'ajouter"); else { toast.success("Tâche ajoutée"); setNewTitle(""); load(); requestAutoSync(); }
   };
 
   return (
