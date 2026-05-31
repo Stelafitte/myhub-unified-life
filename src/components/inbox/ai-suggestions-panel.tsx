@@ -9,6 +9,7 @@ import {
   type EmailSuggestions,
 } from "@/lib/api/email-suggestions.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { requestAutoSync } from "@/lib/sync-queue";
 
 type Props = {
   emailId: string;
