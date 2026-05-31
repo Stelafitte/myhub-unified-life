@@ -520,6 +520,7 @@ function PlanOperationPage() {
                       {!isCollapsed && items.map((b) => (
                         <BarRow key={b.id} bar={b} rowHeight={ROW_H} dayPx={dayPx} start={start} today={today}
                           onClick={() => handleBarClick(b)}
+                          onDelete={() => setToDelete(b.raw as Task)}
                           onUpdateRange={(s, e) => handleUpdateRange(b, s, e)} />
                       ))}
                     </div>
