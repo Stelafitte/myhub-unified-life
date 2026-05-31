@@ -19,6 +19,10 @@ import {
   ArrowUp,
   ArrowDown,
   Send,
+  CheckSquare,
+  Square,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
