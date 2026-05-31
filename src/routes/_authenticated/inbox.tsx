@@ -836,6 +836,12 @@ function InboxPage() {
                 ))}
               </SelectContent>
             </Select>
+            <ThemesRankingButton
+              emails={emails}
+              themes={themes}
+              activeFilter={filter}
+              onPick={(id) => setFilter(`theme:${id}` as Filter)}
+            />
           </div>
           <span className="text-xs text-muted-foreground">{filtered.length} email{filtered.length > 1 ? "s" : ""}</span>
         </div>
