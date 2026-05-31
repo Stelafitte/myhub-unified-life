@@ -141,7 +141,11 @@ function AgendaPage() {
   const [events, setEvents] = useState<DbEvent[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [creatingAt, setCreatingAt] = useState<Date | null>(null);
+  const openCreate = (d?: Date) => {
+    const base = d ? new Date(d) : (() => { const x = new Date(cursor); x.setHours(9, 0, 0, 0); return x; })();
+    setCreatingAt(base);
+  };
   const [connectingGoogle, setConnectingGoogle] = useState(false);
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [syncingGoogle, setSyncingGoogle] = useState(false);
