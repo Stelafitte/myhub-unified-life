@@ -380,13 +380,13 @@ function AgendaPage() {
     setEvents(next);
     setSelected(null);
     cacheReplaceAll("calendar_events", next).catch(() => {});
-    const { error } = await supabase.from("calendar_events").delete().eq("id", id);
-    if (error) {
-      toast.error(error.message);
+    try {
+      await deleteEventFn({ data: { eventId: id } });
+      toast.success("Événement supprimé");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Suppression impossible");
       setEvents(prev);
       cacheReplaceAll("calendar_events", prev).catch(() => {});
-    } else {
-      toast.success("Événement supprimé");
     }
   };
 
