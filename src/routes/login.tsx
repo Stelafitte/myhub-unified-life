@@ -165,7 +165,10 @@ function LoginPage() {
 
       completedFromMessage = true;
       void completeOAuthSession({ access_token: accessToken, refresh_token: refreshToken })
-        .then(() => navigate({ to: "/dashboard", replace: true }))
+        .then(() => {
+          applyRememberPreference(remember);
+          navigate({ to: "/dashboard", replace: true });
+        })
         .catch((error) =>
           toast.error(error instanceof Error ? error.message : "Échec de connexion"),
         )
