@@ -1,10 +1,11 @@
-import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2 } from "lucide-react";
+import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2, Plus, CheckSquare } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useTheme } from "@/lib/theme-provider";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { useAuth } from "@/lib/auth-context";
+import { useTaskPanel } from "@/lib/task-panel-context";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
