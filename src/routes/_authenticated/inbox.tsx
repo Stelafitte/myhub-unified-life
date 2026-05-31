@@ -87,6 +87,7 @@ type Filter =
   | "starred"
   | "spam"
   | "promo"
+  | "trash"
   | `account:${string}`
   | `theme:${string}`
   | "theme:__none__";
