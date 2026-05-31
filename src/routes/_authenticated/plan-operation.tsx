@@ -615,24 +615,74 @@ function BarRow({
       {overdueWidth > 0 && (
         <div className="pointer-events-none absolute top-0 h-full bg-red-500/15" style={{ left: overdueLeft, width: overdueWidth }} />
       )}
-      <div
-        title={`${bar.title} — ${cur.s.toLocaleDateString()} → ${cur.e.toLocaleDateString()}`}
-        onClick={(ev) => { if (!drag) { ev.stopPropagation(); onClick(); } }}
-        onPointerDown={onPointerDown("move")}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        className={cn(
-          "group absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium text-white shadow-sm cursor-grab active:cursor-grabbing",
-          barColor,
-          isDone && "opacity-60",
-          isOverdue && "ring-1 ring-red-600",
-        )}
-        style={{ left, width }}
-      >
-        <span onPointerDown={onPointerDown("resize-l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
-        <span className="truncate">{bar.title}</span>
-        <span onPointerDown={onPointerDown("resize-r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
-      </div>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <HoverCard openDelay={250} closeDelay={100}>
+            <HoverCardTrigger asChild>
+              <div
+                onClick={(ev) => { if (!drag) { ev.stopPropagation(); onClick(); } }}
+                onPointerDown={onPointerDown("move")}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                className={cn(
+                  "group absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium text-white shadow-sm cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md hover:ring-2 hover:ring-foreground/20",
+                  barColor,
+                  isDone && "opacity-60",
+                  isOverdue && "ring-1 ring-red-600",
+                )}
+                style={{ left, width }}
+              >
+                <span onPointerDown={onPointerDown("resize-l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
+                <span className="truncate">{bar.title}</span>
+                <span onPointerDown={onPointerDown("resize-r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
+              </div>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-80 p-3" side="top" align="start">
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", bar.priority ? PRIORITY_META[bar.priority].dot : "bg-muted-foreground")} />
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold leading-snug">{bar.title}</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      {cur.s.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })} → {cur.e.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {bar.priority && (
+                    <Badge variant="secondary" className="text-[10px]">{PRIORITY_META[bar.priority].emoji} {PRIORITY_META[bar.priority].label}</Badge>
+                  )}
+                  {bar.status && <Badge variant="outline" className="text-[10px]">{bar.status}</Badge>}
+                  {isOverdue && <Badge variant="destructive" className="text-[10px]">En retard</Badge>}
+                  {(bar.tags ?? []).filter((t) => !t.startsWith("section:")).slice(0, 4).map((t) => (
+                    <Badge key={t} variant="outline" className="text-[10px]">#{t}</Badge>
+                  ))}
+                </div>
+                {bar.raw.description && (
+                  <p className="line-clamp-3 text-xs text-muted-foreground">{bar.raw.description}</p>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" variant="default" className="h-7 flex-1 gap-1 text-xs" onClick={onClick}>
+                    <ExternalLink className="h-3 w-3" /> Ouvrir
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 gap-1 text-xs text-red-600 hover:text-red-700" onClick={onDelete}>
+                    <Trash2 className="h-3 w-3" /> Supprimer
+                  </Button>
+                </div>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onClick={onClick}>
+            <Pencil className="mr-2 h-3.5 w-3.5" /> Ouvrir / Modifier
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem className="text-red-600 focus:text-red-600" onClick={onDelete}>
+            <Trash2 className="mr-2 h-3.5 w-3.5" /> Supprimer
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     </div>
   );
 }
