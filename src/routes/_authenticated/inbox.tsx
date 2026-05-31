@@ -1346,7 +1346,7 @@ function InboxPage() {
         }}
         className={cn(
           "min-w-0 shrink-0 flex-col bg-card lg:flex lg:relative lg:inset-auto lg:z-auto",
-                  selected && (!isMobileInbox || readerOpen) ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
+          selected && (!isMobileInbox || readerOpen) ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
         )}
       >
         {selected && (
