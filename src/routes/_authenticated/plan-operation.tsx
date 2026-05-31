@@ -235,10 +235,13 @@ function PlanOperationPage() {
       .order("position", { ascending: false })
       .limit(1);
     const position = existingSubs && existingSubs.length ? (existingSubs[0].position as number) + 1 : 0;
-    const { error } = await supabase
+    const { data: ins, error } = await supabase
       .from("op_plan_subthemes")
-      .insert({ user_id: user.id, theme_id: theme.id, name, position, items: [] });
+      .insert({ user_id: user.id, theme_id: theme.id, name, position, items: [] })
+      .select("id,name,theme_id,position")
+      .single();
     if (error) { toast.error(error.message); return; }
+    if (ins) setOpSubthemes((p) => [...p, ins as typeof opSubthemes[number]]);
     toast.success(`Sous-thème « ${name} » créé sous « ${theme.name} »`);
   };
 
