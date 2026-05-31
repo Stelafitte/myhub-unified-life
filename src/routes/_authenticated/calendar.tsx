@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { requestAutoSync } from "@/lib/sync-queue";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   Calendar as CalendarIcon,
