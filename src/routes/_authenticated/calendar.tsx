@@ -1415,8 +1415,25 @@ function NewEventDialog({
   const [participants, setParticipants] = useState("");
   const [recurrence, setRecurrence] = useState<string>("none");
   const [category, setCategory] = useState<"pro" | "perso">("pro");
+  const [color, setColor] = useState<string>(catColors.pro_oneoff);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const derivedCat: EventCategory =
+    category === "perso"
+      ? (recurrence !== "none" ? "perso_recurring" : "perso_oneoff")
+      : (recurrence !== "none" ? "pro_recurring" : "pro_oneoff");
+
+  const applyType = (cat: EventCategory) => {
+    const base: "pro" | "perso" = cat.startsWith("perso") ? "perso" : "pro";
+    const recurring = cat.endsWith("recurring");
+    setCategory(base);
+    setRecurrence((prev) => {
+      if (recurring) return prev !== "none" ? prev : "weekly";
+      return "none";
+    });
+    setColor(catColors[cat]);
+  };
 
   useEffect(() => {
     if (open) {
