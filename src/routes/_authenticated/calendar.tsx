@@ -1025,6 +1025,7 @@ function NewEventDialog({
         toast.success("Événement créé");
       }
       onCreated();
+      requestAutoSync();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
