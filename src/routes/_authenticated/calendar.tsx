@@ -645,6 +645,7 @@ function AgendaPage() {
         accounts={accounts}
         userId={user?.id ?? ""}
         defaultDate={creatingAt ?? cursor}
+        catColors={catColors}
         onCreated={() => { setCreatingAt(null); load(); }}
       />
 
