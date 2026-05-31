@@ -371,13 +371,17 @@ function PlanOperationPage() {
     return out;
   }, [days, start, dayPx, zoom]);
 
-  // Group by section
+  // Group by section — thèmes utilisateurs toujours visibles (même vides), sections legacy seulement si non vides
   const grouped = useMemo(() => {
     const m = new Map<string, Bar[]>();
     SECTION_DEFS.forEach((s) => m.set(s.key, []));
-    bars.forEach((b) => { m.get(b.section)!.push(b); });
-    return Array.from(m.entries()).filter(([, v]) => v.length > 0);
-  }, [bars]);
+    bars.forEach((b) => { const arr = m.get(b.section); if (arr) arr.push(b); else m.get("Autres")!.push(b); });
+    return Array.from(m.entries()).filter(([key, v]) => {
+      if (v.length > 0) return true;
+      const def = SECTION_DEFS.find((d) => d.key === key);
+      return !!def?.alwaysShow;
+    });
+  }, [bars, SECTION_DEFS]);
 
   const goToday = () => {
     if (!timelineRef.current) return;
