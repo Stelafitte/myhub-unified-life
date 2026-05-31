@@ -1590,25 +1590,42 @@ function FilterRow({
   count,
   active,
   onClick,
+  onAction,
+  actionLabel,
 }: {
   label: string;
   icon: React.ReactNode;
   count: number;
   active: boolean;
   onClick: () => void;
+  onAction?: () => void;
+  actionLabel?: string;
 }) {
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+        "group flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
         active ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
       )}
     >
-      <span className="text-muted-foreground">{icon}</span>
-      <span className="flex-1 text-sm">{label}</span>
-      <span className="text-[11px] text-muted-foreground">{count}</span>
-    </button>
+      <button onClick={onClick} className="flex flex-1 items-center gap-2 min-w-0">
+        <span className="text-muted-foreground">{icon}</span>
+        <span className="flex-1 truncate text-sm">{label}</span>
+        <span className="text-[11px] text-muted-foreground">{count}</span>
+      </button>
+      {onAction && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onAction();
+          }}
+          title={actionLabel}
+          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-destructive group-hover:opacity-100"
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      )}
+    </div>
   );
 }
 
