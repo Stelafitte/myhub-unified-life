@@ -88,6 +88,9 @@ Tâches en retard: ${data.overdueCount}
       parsed = {};
     }
 
+    const emailIds = new Set(data.urgentEmails.map((e) => e.id));
+    const taskIds = new Set(data.tasksDueSoon.map((t) => t.id));
+
     const normalize = (arr: any): DashboardInsightItem[] => {
       if (!Array.isArray(arr)) return [];
       return arr
@@ -98,15 +101,19 @@ Tâches en retard: ${data.overdueCount}
           }
           if (it && typeof it.text === "string") {
             const o = it.origin ?? {};
-            const type = ["email", "task", "calendar", "none"].includes(o.type)
+            let type: InsightOrigin["type"] = ["email", "task", "calendar", "none"].includes(o.type)
               ? (o.type as InsightOrigin["type"])
               : "none";
+            const refId = typeof o.refId === "string" ? o.refId : null;
+            // Valider que le refId existe vraiment dans le contexte fourni
+            if (type === "email" && (!refId || !emailIds.has(refId))) type = "none";
+            if (type === "task" && (!refId || !taskIds.has(refId))) type = "none";
             return {
               text: String(it.text).slice(0, 160),
               origin: {
                 type,
                 label: typeof o.label === "string" ? o.label.slice(0, 160) : null,
-                refId: typeof o.refId === "string" ? o.refId : null,
+                refId: type === "none" ? null : refId,
               },
             };
           }
