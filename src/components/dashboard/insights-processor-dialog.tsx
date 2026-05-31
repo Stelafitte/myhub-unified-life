@@ -12,15 +12,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sparkles,
   Loader2,
   Check,
   X,
-  SkipForward,
   Wand2,
   Pencil,
   AlertTriangle,
@@ -30,17 +34,28 @@ import {
   Mail,
   Bell,
   Inbox,
+  ArrowLeft,
+  Trash2,
+  ChevronRight,
+  Link as LinkIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { requestAutoSync } from "@/lib/sync-queue";
+import { SwipeableRow } from "@/components/inbox/swipeable-row";
 import {
   proposeInsightAction,
   type ProposedAction,
 } from "@/lib/api/insight-action.functions";
+import type { InsightOrigin } from "@/lib/api/dashboard-insights.functions";
 
-export type InsightItem = { kind: "suggestion" | "alert"; text: string };
+export type InsightItem = {
+  kind: "suggestion" | "alert";
+  text: string;
+  origin?: InsightOrigin;
+  sourceIndex: number;
+};
 
 type Props = {
   open: boolean;
@@ -48,51 +63,186 @@ type Props = {
   userId?: string;
   items: InsightItem[];
   context?: { unreadCount?: number; overdueCount?: number; todayEvents?: number };
+  onDismiss?: (kind: "suggestion" | "alert", sourceIndex: number) => void;
 };
 
-type Outcome = "applied" | "ignored" | "skipped";
+export function InsightsProcessorDialog({
+  open,
+  onOpenChange,
+  userId,
+  items,
+  context,
+  onDismiss,
+}: Props) {
+  const [activeId, setActiveId] = useState<string | null>(null);
 
-export function InsightsProcessorDialog({ open, onOpenChange, userId, items, context }: Props) {
+  // Reset detail view on open / list change
+  useEffect(() => {
+    if (!open) setActiveId(null);
+  }, [open]);
+
+  const active = useMemo(
+    () => items.find((it) => itemId(it) === activeId) ?? null,
+    [items, activeId],
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {active ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 -ml-2"
+                  onClick={() => setActiveId(null)}
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                Suggestion
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-5 w-5 text-primary" /> Suggestions IA ({items.length})
+              </>
+            )}
+          </DialogTitle>
+        </DialogHeader>
+
+        {items.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            Aucune suggestion à traiter.
+          </div>
+        ) : active ? (
+          <DetailView
+            item={active}
+            userId={userId}
+            context={context}
+            onClose={() => setActiveId(null)}
+            onDone={() => {
+              onDismiss?.(active.kind, active.sourceIndex);
+              setActiveId(null);
+            }}
+            onNavigate={() => onOpenChange(false)}
+          />
+        ) : (
+          <ListView
+            items={items}
+            onOpen={(it) => setActiveId(itemId(it))}
+            onDismiss={(it) => onDismiss?.(it.kind, it.sourceIndex)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function itemId(it: InsightItem) {
+  return `${it.kind}:${it.sourceIndex}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// List view (swipe to delete, click to open)
+// ─────────────────────────────────────────────────────────────────────────────
+function ListView({
+  items,
+  onOpen,
+  onDismiss,
+}: {
+  items: InsightItem[];
+  onOpen: (it: InsightItem) => void;
+  onDismiss: (it: InsightItem) => void;
+}) {
+  return (
+    <div className="-mx-6 max-h-[60vh] overflow-y-auto">
+      <ul className="divide-y">
+        {items.map((it) => (
+          <li key={itemId(it)}>
+            <SwipeableRow
+              rightActions={[
+                {
+                  key: "del",
+                  label: "Suppr.",
+                  icon: <Trash2 className="h-4 w-4" />,
+                  color: "bg-destructive",
+                  onAction: () => onDismiss(it),
+                },
+              ]}
+            >
+              <button
+                type="button"
+                onClick={() => onOpen(it)}
+                className="flex w-full items-start gap-3 px-6 py-3 text-left hover:bg-accent/40"
+              >
+                <div className="mt-0.5 shrink-0">
+                  {it.kind === "alert" ? (
+                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm leading-snug break-words">{it.text}</p>
+                  {it.origin && it.origin.type !== "none" && (
+                    <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <OriginIcon type={it.origin.type} />
+                      <span className="truncate">{originLabel(it.origin)}</span>
+                    </p>
+                  )}
+                </div>
+                <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            </SwipeableRow>
+          </li>
+        ))}
+      </ul>
+      <p className="px-6 py-2 text-[11px] text-muted-foreground">
+        Astuce : glissez une ligne vers la gauche pour la supprimer.
+      </p>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Detail view (origin + AI proposed action with apply/edit/skip)
+// ─────────────────────────────────────────────────────────────────────────────
+function DetailView({
+  item,
+  userId,
+  context,
+  onClose,
+  onDone,
+  onNavigate,
+}: {
+  item: InsightItem;
+  userId?: string;
+  context?: { unreadCount?: number; overdueCount?: number; todayEvents?: number };
+  onClose: () => void;
+  onDone: () => void;
+  onNavigate: () => void;
+}) {
   const propose = useServerFn(proposeInsightAction);
   const navigate = useNavigate();
-  const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState<ProposedAction | null>(null);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<ProposedAction | null>(null);
-  const [outcomes, setOutcomes] = useState<Record<number, Outcome>>({});
 
-  const total = items.length;
-  const current = items[index];
-  const done = index >= total;
-
-  // Reset on open
   useEffect(() => {
-    if (open) {
-      setIndex(0);
-      setAction(null);
-      setEditing(false);
-      setOutcomes({});
-    }
-  }, [open]);
-
-  // Auto-propose on each item
-  useEffect(() => {
-    if (!open || done || !current) return;
     let cancelled = false;
+    setLoading(true);
     setAction(null);
     setEditing(false);
-    setLoading(true);
-    propose({ data: { text: current.text, kind: current.kind, context } })
+    propose({ data: { text: item.text, kind: item.kind, context } })
       .then((res) => {
         if (cancelled) return;
         setAction(res);
         setEditForm(res);
       })
       .catch(() => {
-        if (!cancelled) {
-          setAction({ type: "none", reason: "Analyse IA indisponible." });
-        }
+        if (!cancelled) setAction({ type: "none", reason: "Analyse IA indisponible." });
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -101,12 +251,7 @@ export function InsightsProcessorDialog({ open, onOpenChange, userId, items, con
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, index]);
-
-  const advance = (outcome: Outcome) => {
-    setOutcomes((o) => ({ ...o, [index]: outcome }));
-    setIndex((i) => i + 1);
-  };
+  }, [itemId(item)]);
 
   const applyAction = async (a: ProposedAction) => {
     if (!userId) {
@@ -131,6 +276,8 @@ export function InsightsProcessorDialog({ open, onOpenChange, userId, items, con
             status: "todo",
             priority,
             due_date: due,
+            source_email_id:
+              item.origin?.type === "email" && item.origin.refId ? item.origin.refId : null,
           });
           if (error) throw new Error(error.message);
           toast.success("Tâche créée");
@@ -168,12 +315,12 @@ export function InsightsProcessorDialog({ open, onOpenChange, userId, items, con
           break;
         }
         case "open_inbox": {
-          onOpenChange(false);
+          onNavigate();
           navigate({ to: "/inbox" });
           return;
         }
         case "open_tasks": {
-          onOpenChange(false);
+          onNavigate();
           navigate({ to: "/tasks" });
           return;
         }
@@ -182,163 +329,188 @@ export function InsightsProcessorDialog({ open, onOpenChange, userId, items, con
           toast.message("Aucune action exécutée");
           break;
       }
-      advance("applied");
+      onDone();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     }
   };
 
-  const stats = useMemo(() => {
-    const v = Object.values(outcomes);
-    return {
-      applied: v.filter((x) => x === "applied").length,
-      ignored: v.filter((x) => x === "ignored").length,
-      skipped: v.filter((x) => x === "skipped").length,
-    };
-  }, [outcomes]);
-
   const ActionIcon = action ? actionIcon(action.type) : Sparkles;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" /> Traitement des insights IA
-          </DialogTitle>
-        </DialogHeader>
+    <div className="space-y-4">
+      <div className="rounded-md border bg-card p-3">
+        <div className="mb-2 flex items-center gap-2">
+          {item.kind === "alert" ? (
+            <Badge variant="destructive" className="gap-1">
+              <AlertTriangle className="h-3 w-3" /> Alerte
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="gap-1">
+              <CheckCircle2 className="h-3 w-3" /> Suggestion
+            </Badge>
+          )}
+        </div>
+        <p className="text-sm leading-snug">{item.text}</p>
+      </div>
 
-        {total === 0 ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            Aucune suggestion ni alerte à traiter.
+      <OriginPanel
+        origin={item.origin}
+        onOpen={() => {
+          onNavigate();
+        }}
+      />
+
+      <div className="rounded-md border bg-primary/5 p-3">
+        <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-primary">
+          <Wand2 className="h-3.5 w-3.5" /> Action proposée par l'IA
+        </div>
+        {loading ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" /> Analyse en cours…
           </div>
-        ) : done ? (
-          <div className="space-y-4 py-4">
-            <div className="text-center">
-              <CheckCircle2 className="mx-auto h-12 w-12 text-primary" />
-              <div className="mt-3 text-lg font-medium">Traitement terminé</div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {stats.applied} appliquée·s · {stats.ignored} ignorée·s · {stats.skipped} passée·s
+        ) : action ? (
+          editing && editForm ? (
+            <EditActionForm
+              action={editForm}
+              onChange={setEditForm}
+              onCancel={() => {
+                setEditing(false);
+                setEditForm(action);
+              }}
+              onSave={() => {
+                if (editForm) {
+                  applyAction(editForm);
+                  setEditing(false);
+                }
+              }}
+            />
+          ) : (
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-2">
+                <ActionIcon className="h-4 w-4 text-primary" />
+                <span className="font-medium">{actionLabel(action)}</span>
               </div>
+              <div className="text-xs text-muted-foreground">{action.reason}</div>
+              <ActionSummary action={action} />
             </div>
+          )
+        ) : null}
+      </div>
+
+      {!editing && (
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="ghost" size="sm" onClick={onClose} disabled={loading}>
+              <ArrowLeft className="mr-1 h-3.5 w-3.5" /> Retour
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onDone} disabled={loading}>
+              <X className="mr-1 h-3.5 w-3.5" /> Ne pas traiter
+            </Button>
           </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>
-                  {index + 1} / {total}
-                </span>
-                <span>
-                  ✓ {stats.applied} · ✕ {stats.ignored} · ↷ {stats.skipped}
-                </span>
-              </div>
-              <Progress value={((index + (loading ? 0 : 0.5)) / total) * 100} />
-            </div>
-
-            {current && (
-              <div className="rounded-md border bg-card p-3">
-                <div className="mb-2 flex items-center gap-2">
-                  {current.kind === "alert" ? (
-                    <Badge variant="destructive" className="gap-1">
-                      <AlertTriangle className="h-3 w-3" /> Alerte
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Suggestion
-                    </Badge>
-                  )}
-                </div>
-                <p className="text-sm leading-snug">{current.text}</p>
-              </div>
-            )}
-
-            <div className="rounded-md border bg-primary/5 p-3">
-              <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-primary">
-                <Wand2 className="h-3.5 w-3.5" /> Action proposée par l'IA
-              </div>
-              {loading ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3 w-3 animate-spin" /> Analyse en cours…
-                </div>
-              ) : action ? (
-                editing && editForm ? (
-                  <EditActionForm
-                    action={editForm}
-                    onChange={setEditForm}
-                    onCancel={() => {
-                      setEditing(false);
-                      setEditForm(action);
-                    }}
-                    onSave={() => {
-                      if (editForm) {
-                        applyAction(editForm);
-                        setEditing(false);
-                      }
-                    }}
-                  />
-                ) : (
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <ActionIcon className="h-4 w-4 text-primary" />
-                      <span className="font-medium">{actionLabel(action)}</span>
-                    </div>
-                    <div className="text-xs text-muted-foreground">{action.reason}</div>
-                    <ActionSummary action={action} />
-                  </div>
-                )
-              ) : null}
-            </div>
-
-            {!editing && (
-              <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => advance("skipped")}
-                    disabled={loading}
-                  >
-                    <SkipForward className="mr-1 h-3.5 w-3.5" /> Passer
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => advance("ignored")}
-                    disabled={loading}
-                  >
-                    <X className="mr-1 h-3.5 w-3.5" /> Ne pas traiter
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (action) setEditForm(action);
-                      setEditing(true);
-                    }}
-                    disabled={loading || !action || action.type === "none"}
-                  >
-                    <Pencil className="mr-1 h-3.5 w-3.5" /> Corriger
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => action && applyAction(action)}
-                    disabled={loading || !action || action.type === "none"}
-                  >
-                    <Check className="mr-1 h-3.5 w-3.5" /> Appliquer (auto IA)
-                  </Button>
-                </div>
-              </DialogFooter>
-            )}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (action) setEditForm(action);
+                setEditing(true);
+              }}
+              disabled={loading || !action || action.type === "none"}
+            >
+              <Pencil className="mr-1 h-3.5 w-3.5" /> Corriger
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => action && applyAction(action)}
+              disabled={loading || !action || action.type === "none"}
+            >
+              <Check className="mr-1 h-3.5 w-3.5" /> Appliquer (auto IA)
+            </Button>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+        </DialogFooter>
+      )}
+    </div>
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Origin panel
+// ─────────────────────────────────────────────────────────────────────────────
+function OriginPanel({
+  origin,
+  onOpen,
+}: {
+  origin?: InsightOrigin;
+  onOpen: () => void;
+}) {
+  const navigate = useNavigate();
+  if (!origin || origin.type === "none") {
+    return (
+      <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <LinkIcon className="h-3.5 w-3.5" /> Origine : analyse globale (pas de mail ni tâche
+          source identifiée).
+        </div>
+      </div>
+    );
+  }
+  const open = () => {
+    onOpen();
+    if (origin.type === "email") navigate({ to: "/inbox" });
+    else if (origin.type === "task") navigate({ to: "/tasks" });
+    else if (origin.type === "calendar") navigate({ to: "/calendar" });
+  };
+  return (
+    <div className="rounded-md border bg-muted/30 p-3">
+      <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+        <OriginIcon type={origin.type} /> Origine : {originTypeLabel(origin.type)}
+      </div>
+      {origin.label && (
+        <div className="break-words text-sm">{origin.label}</div>
+      )}
+      <Button variant="link" size="sm" className="h-auto px-0 py-1 text-xs" onClick={open}>
+        Ouvrir {originTypeLabel(origin.type).toLowerCase()}
+      </Button>
+    </div>
+  );
+}
+
+function OriginIcon({ type }: { type: InsightOrigin["type"] }) {
+  const cls = "h-3.5 w-3.5";
+  switch (type) {
+    case "email":
+      return <Mail className={cls} />;
+    case "task":
+      return <ListTodo className={cls} />;
+    case "calendar":
+      return <CalendarPlus className={cls} />;
+    default:
+      return <LinkIcon className={cls} />;
+  }
+}
+
+function originTypeLabel(t: InsightOrigin["type"]) {
+  switch (t) {
+    case "email":
+      return "Mail";
+    case "task":
+      return "Tâche";
+    case "calendar":
+      return "Agenda";
+    default:
+      return "Aucune";
+  }
+}
+
+function originLabel(o: InsightOrigin) {
+  if (o.label) return o.label;
+  return originTypeLabel(o.type);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Action helpers (unchanged)
+// ─────────────────────────────────────────────────────────────────────────────
 function actionIcon(type: ProposedAction["type"]) {
   switch (type) {
     case "create_task":
