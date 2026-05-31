@@ -247,3 +247,78 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
 
     return { synced: totalSynced, connections: connections.length };
   });
+
+/**
+ * Delete a calendar event. If the event came from Google and the connection
+ * allows write-back, also delete it on Google. Always records a tombstone so
+ * the next sync does not re-import it.
+ */
+export const deleteCalendarEvent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ eventId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as { userId: string };
+
+    const { data: ev, error: evErr } = await supabaseAdmin
+      .from("calendar_events")
+      .select("id, user_id, gcal_connection_id, google_event_id")
+      .eq("id", data.eventId)
+      .maybeSingle();
+    if (evErr) throw new Error(evErr.message);
+    if (!ev || ev.user_id !== userId) throw new Error("Événement introuvable");
+
+    // If linked to Google → try to delete remotely + tombstone
+    if (ev.gcal_connection_id && ev.google_event_id) {
+      const { data: conn } = await supabaseAdmin
+        .from("google_calendar_connections")
+        .select("*")
+        .eq("id", ev.gcal_connection_id)
+        .maybeSingle();
+
+      if (conn) {
+        // Tombstone first (idempotent) so even a failed remote delete won't re-sync
+        await supabaseAdmin.from("deleted_calendar_events").upsert(
+          {
+            user_id: userId,
+            gcal_connection_id: ev.gcal_connection_id,
+            google_event_id: ev.google_event_id,
+          },
+          { onConflict: "gcal_connection_id,google_event_id" },
+        );
+
+        if (conn.sync_direction !== "pull") {
+          let accessToken = conn.access_token;
+          if (new Date(conn.expires_at).getTime() < Date.now() + 60_000) {
+            try {
+              const refreshed = await refreshAccessToken(conn.refresh_token);
+              accessToken = refreshed.accessToken;
+              await supabaseAdmin
+                .from("google_calendar_connections")
+                .update({ access_token: accessToken, expires_at: refreshed.expiresAt })
+                .eq("id", conn.id);
+            } catch (e) {
+              console.warn("Token refresh failed before delete", e);
+            }
+          }
+          const calendarId = encodeURIComponent(conn.calendar_id || "primary");
+          const r = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(ev.google_event_id)}`,
+            { method: "DELETE", headers: { authorization: `Bearer ${accessToken}` } },
+          );
+          // 404/410 = already gone, OK. Other errors → log, tombstone keeps it hidden.
+          if (!r.ok && r.status !== 404 && r.status !== 410) {
+            console.warn("Google delete failed", r.status, await r.text().catch(() => ""));
+          }
+        }
+      }
+    }
+
+    const { error: delErr } = await supabaseAdmin
+      .from("calendar_events")
+      .delete()
+      .eq("id", ev.id);
+    if (delErr) throw new Error(delErr.message);
+
+    return { ok: true };
+  });
+
