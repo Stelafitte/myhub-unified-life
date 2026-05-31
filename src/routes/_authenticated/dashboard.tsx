@@ -413,22 +413,22 @@ function TasksWidget({ userId }: { userId?: string }) {
     <Card>
       <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><ListTodo className="h-4 w-4" /> Tâches du jour</CardTitle></CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">{dueToday.length} aujourd'hui · {todayDone} terminée(s)</span>
-          {overdue.length > 0 && <Badge variant="destructive">{overdue.length} en retard</Badge>}
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs">
+          <span className="min-w-0 break-words text-muted-foreground">{dueToday.length} aujourd'hui · {todayDone} terminée(s)</span>
+          {overdue.length > 0 && <Badge variant="destructive" className="shrink-0">{overdue.length} en retard</Badge>}
         </div>
         <Progress value={todayPct} className="h-2" />
         <div className="space-y-1">
           {dueToday.length === 0 && urgent.length === 0 && <p className="text-xs text-muted-foreground">Aucune tâche prioritaire</p>}
           {[...dueToday, ...urgent.filter((u) => !dueToday.some((d) => d.id === u.id))].slice(0, 5).map((t) => (
-            <div key={t.id} className="flex items-center gap-2 text-sm">
+            <div key={t.id} className="flex min-w-0 items-center gap-2 text-sm">
               <span className={cn("h-2 w-2 rounded-full", t.priority === "urgent" ? "bg-destructive" : t.priority === "high" ? "bg-orange-500" : "bg-muted-foreground")} />
-              <span className={cn("flex-1 truncate", t.status === "done" && "line-through text-muted-foreground")}>{t.title}</span>
+              <span className={cn("min-w-0 flex-1 break-words", t.status === "done" && "line-through text-muted-foreground")}>{t.title}</span>
               {t.due_date && new Date(t.due_date) < today && t.status !== "done" && <Badge variant="destructive" className="text-[10px]">Retard</Badge>}
             </div>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex min-w-0 gap-2">
           <Input placeholder="＋ Nouvelle tâche rapide" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} onKeyDown={(e) => e.key === "Enter" && quickAdd()} className="h-8 text-sm" />
           <Button size="sm" onClick={quickAdd}><Plus className="h-4 w-4" /></Button>
         </div>
