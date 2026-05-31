@@ -207,7 +207,20 @@ export function TaskPanel({
   }, [emailId]);
 
   useEffect(() => {
-    if (!open || !emailId) {
+    if (!open) {
+      setAttachmentDocs([]);
+      return;
+    }
+
+    const documentIds = Array.from(
+      new Set(
+        (((task as (Task & { attachments?: TaskAttachment[] }) | null)?.attachments ?? [])
+          .map((attachment) => attachment.document_id)
+          .filter(Boolean) as string[]),
+      ),
+    );
+
+    if (!emailId && documentIds.length === 0) {
       setAttachmentDocs([]);
       return;
     }
@@ -215,14 +228,22 @@ export function TaskPanel({
     let cancelled = false;
     setAttachmentsLoading(true);
     void (async () => {
-      const { data } = await supabase
-        .from("documents")
-        .select("*")
-        .eq("source_type", "email")
-        .eq("source_id", emailId)
-        .order("created_at", { ascending: false });
+      const [emailDocs, linkedDocs] = await Promise.all([
+        emailId
+          ? supabase
+              .from("documents")
+              .select("*")
+              .eq("source_type", "email")
+              .eq("source_id", emailId)
+              .order("created_at", { ascending: false })
+          : Promise.resolve({ data: [] }),
+        documentIds.length > 0
+          ? supabase.from("documents").select("*").in("id", documentIds)
+          : Promise.resolve({ data: [] }),
+      ]);
       if (!cancelled) {
-        setAttachmentDocs((data as DocumentRow[]) ?? []);
+        const merged = [...((emailDocs.data as DocumentRow[]) ?? []), ...((linkedDocs.data as DocumentRow[]) ?? [])];
+        setAttachmentDocs(Array.from(new Map(merged.map((doc) => [doc.id, doc])).values()));
         setAttachmentsLoading(false);
       }
     })();
@@ -230,7 +251,7 @@ export function TaskPanel({
     return () => {
       cancelled = true;
     };
-  }, [open, emailId]);
+  }, [open, emailId, task]);
 
   const taskAttachments = (
     (task as (Task & { attachments?: TaskAttachment[] }) | null)?.attachments ?? []
