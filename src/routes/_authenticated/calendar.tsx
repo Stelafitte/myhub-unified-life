@@ -1491,7 +1491,7 @@ function NewEventDialog({
         is_all_day: allDay,
         recurrence_rule: rrule,
         category,
-        color: acc?.color || "#6366f1",
+        color,
         source: acc ? (acc.type as never) : null,
         sync_direction: acc?.sync_direction ?? "bidirectional",
       });
