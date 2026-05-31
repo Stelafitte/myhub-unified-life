@@ -37,6 +37,11 @@ export function AppSidebar() {
   const closeIfMobile = () => {
     if (isMobile) setOpenMobile(false);
   };
+  // Ferme automatiquement la sidebar mobile lors d'un changement de route
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, isMobile]);
   const items = [
     ...baseItems,
     { title: "Paramètres", url: "/settings", icon: Settings } as const,
