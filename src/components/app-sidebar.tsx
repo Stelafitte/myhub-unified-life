@@ -51,24 +51,29 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className={cn("border-b py-3", collapsed ? "px-2" : "px-4")}>
+      <SidebarHeader className={cn("border-b py-4", collapsed ? "px-2" : "px-4")}>
         <div className={cn("flex items-center", collapsed ? "justify-center" : "gap-2")}>
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-sm">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-base font-bold text-primary-foreground">
             M
           </div>
-          {!collapsed && <span className="font-semibold text-sm">MyHub Pro</span>}
+          {!collapsed && <span className="text-base font-semibold">MyHub Pro</span>}
         </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-sm">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.url}
+                    tooltip={item.title}
+                    className="h-11 text-base"
+                  >
                     <Link to={item.url} onClick={closeIfMobile}>
-                      <item.icon className="h-4 w-4" />
+                      <item.icon className="h-5 w-5" />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
