@@ -109,6 +109,27 @@ function PlanOperationPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [toDelete, setToDelete] = useState<Task | null>(null);
+  const [dragTaskId, setDragTaskId] = useState<string | null>(null);
+  const [dragOverSection, setDragOverSection] = useState<string | null>(null);
+
+  // Déplacer une tâche dans une autre section (drag & drop)
+  const moveToSection = async (taskId: string, sectionKey: string) => {
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t) return;
+    const current = sectionOf(getSection(t));
+    if (current === sectionKey) return;
+    const newTags = [...withoutSection(t.tags), `section:${sectionKey}`];
+    setTasks((prev) => prev.map((x) => (x.id === taskId ? { ...x, tags: newTags } : x)));
+    if (navigator.onLine) {
+      const { error } = await supabase.from("tasks").update({ tags: newTags }).eq("id", taskId);
+      if (error) { toast.error(error.message); load(); return; }
+      const def = SECTION_DEFS.find((d) => d.key === sectionKey);
+      toast.success(`Déplacée vers ${def?.emoji ?? ""} ${def?.label ?? sectionKey}`);
+      requestAutoSync();
+    } else {
+      await enqueue({ entity_type: "task", entity_id: taskId, action: "update", payload: { tags: newTags } });
+    }
+  };
 
   // Overrides pour les labels de section (édition inline persistée localement)
   const SECTION_LABELS_KEY = "plan-op-section-labels-v1";
