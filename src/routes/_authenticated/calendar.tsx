@@ -78,6 +78,8 @@ type DbEvent = {
   color: string | null;
   account_id: string | null;
   source: string | null;
+  recurrence_rule?: string | null;
+  category?: string | null;
 };
 
 type TaskRow = {
@@ -86,6 +88,8 @@ type TaskRow = {
   due_date: string | null;
   description: string | null;
 };
+
+type EventCategory = "pro_recurring" | "pro_oneoff" | "perso_recurring" | "perso_oneoff";
 
 type UnifiedEvent = {
   id: string;
@@ -96,11 +100,12 @@ type UnifiedEvent = {
   location: string | null;
   description: string | null;
   color: string;
-  badge: string; // emoji
+  badge: string;
   sourceLabel: string;
   accountId: string | null;
   isAllDay: boolean;
   hasVideo: boolean;
+  category: EventCategory;
   raw: DbEvent | TaskRow;
 };
 
@@ -116,6 +121,41 @@ const SOURCE_META: Record<
   imap: { badge: "✉️", color: "#64748b", label: "IMAP" },
   task: { badge: "🟠", color: "#f97316", label: "Tâche MyHub" },
 };
+
+const DEFAULT_CATEGORY_COLORS: Record<EventCategory, string> = {
+  pro_recurring: "#2563eb",
+  pro_oneoff: "#0ea5e9",
+  perso_recurring: "#16a34a",
+  perso_oneoff: "#f59e0b",
+};
+
+const CATEGORY_LABELS: Record<EventCategory, string> = {
+  pro_recurring: "Pro · récurrent",
+  pro_oneoff: "Pro · ponctuel",
+  perso_recurring: "Perso · récurrent",
+  perso_oneoff: "Perso · ponctuel",
+};
+
+const CATEGORY_COLOR_STORAGE_KEY = "myhub.calendar.categoryColors.v1";
+
+function loadCategoryColors(): Record<EventCategory, string> {
+  if (typeof window === "undefined") return { ...DEFAULT_CATEGORY_COLORS };
+  try {
+    const raw = window.localStorage.getItem(CATEGORY_COLOR_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_CATEGORY_COLORS };
+    const parsed = JSON.parse(raw) as Partial<Record<EventCategory, string>>;
+    return { ...DEFAULT_CATEGORY_COLORS, ...parsed };
+  } catch {
+    return { ...DEFAULT_CATEGORY_COLORS };
+  }
+}
+
+function categoryOf(e: DbEvent): EventCategory {
+  const rec = !!(e.recurrence_rule && e.recurrence_rule.trim().length > 0);
+  const base = e.category === "perso" ? "perso" : "pro";
+  if (base === "perso") return rec ? "perso_recurring" : "perso_oneoff";
+  return rec ? "pro_recurring" : "pro_oneoff";
+}
 
 // ------- Date helpers -------
 const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
