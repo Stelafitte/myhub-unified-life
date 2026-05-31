@@ -73,7 +73,7 @@ export function AiSuggestionsPanel({
       source: null,
     });
     if (err) toast.error(err.message);
-    else toast.success("Événement ajouté à l'agenda");
+    else { toast.success("Événement ajouté à l'agenda"); requestAutoSync(); }
   };
 
 
