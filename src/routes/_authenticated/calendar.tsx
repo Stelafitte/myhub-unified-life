@@ -456,16 +456,16 @@ function AgendaPage() {
       </aside>
 
       {/* MAIN */}
-      <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
-          <Button size="sm" variant="outline" onClick={() => nav(0)}>Aujourd'hui</Button>
+      <section className="relative flex min-w-0 flex-1 flex-col">
+        <header className="flex flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4 sm:py-2.5">
+          <Button size="sm" variant="outline" onClick={() => nav(0)}>Auj.</Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <h2 className="ml-1 text-sm font-semibold capitalize">{periodLabel()}</h2>
+          <h2 className="ml-1 truncate text-xs font-semibold capitalize sm:text-sm">{periodLabel()}</h2>
 
           <div className="ml-auto inline-flex overflow-hidden rounded-md border">
             {(["day", "week", "month", "list"] as View[]).map((v) => (
@@ -473,17 +473,33 @@ function AgendaPage() {
                 key={v}
                 onClick={() => setView(v)}
                 className={cn(
-                  "px-3 py-1.5 text-xs transition-colors",
+                  "px-2 py-1.5 text-xs transition-colors sm:px-3",
                   view === v ? "bg-primary text-primary-foreground" : "hover:bg-accent",
                 )}
               >
-                {v === "day" ? "Jour" : v === "week" ? "Semaine" : v === "month" ? "Mois" : "Liste"}
+                <span className="sm:hidden">{v === "day" ? "J" : v === "week" ? "Sem" : v === "month" ? "M" : "L"}</span>
+                <span className="hidden sm:inline">{v === "day" ? "Jour" : v === "week" ? "Semaine" : v === "month" ? "Mois" : "Liste"}</span>
               </button>
             ))}
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto">
+        <div
+          className="flex-1 overflow-y-auto"
+          onTouchStart={(e) => {
+            const t = e.touches[0];
+            (e.currentTarget as any)._sw = { x: t.clientX, y: t.clientY };
+          }}
+          onTouchEnd={(e) => {
+            const s = (e.currentTarget as any)._sw;
+            if (!s) return;
+            const t = e.changedTouches[0];
+            const dx = t.clientX - s.x;
+            const dy = t.clientY - s.y;
+            if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) nav(dx < 0 ? 1 : -1);
+            (e.currentTarget as any)._sw = null;
+          }}
+        >
           {view === "month" ? (
             <MonthView cursor={cursor} events={unified} onSelect={setSelected} onPick={setCursor} />
           ) : view === "week" ? (
@@ -494,6 +510,15 @@ function AgendaPage() {
             <ListView events={inRange} onSelect={setSelected} />
           )}
         </div>
+
+        {/* Mobile FAB */}
+        <Button
+          onClick={() => setCreating(true)}
+          className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full p-0 shadow-lg md:hidden"
+          aria-label="Nouvel événement"
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
       </section>
 
       {/* RIGHT DETAIL */}
