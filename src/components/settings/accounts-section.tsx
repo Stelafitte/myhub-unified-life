@@ -174,6 +174,7 @@ export function AccountsSection() {
               key={acc.id}
               account={acc}
               onTest={() => testConnection(acc)}
+              onResyncAttachments={() => resyncAttachments(acc)}
               onRemove={() => remove(acc.id)}
               onChanged={load}
             />
@@ -196,11 +197,13 @@ export function AccountsSection() {
 function AccountCard({
   account,
   onTest,
+  onResyncAttachments,
   onRemove,
   onChanged,
 }: {
   account: Account;
   onTest: () => void;
+  onResyncAttachments: () => void;
   onRemove: () => void;
   onChanged: () => void;
 }) {
@@ -235,8 +238,11 @@ function AccountCard({
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={onTest} title="Tester">
+          <Button variant="ghost" size="icon" onClick={onTest} title="Tester / sync incrémental">
             <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onResyncAttachments} title="Re-sync complète des pièces jointes (30j)">
+            <Paperclip className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setEditing(true)} title="Modifier">
             <Pencil className="h-4 w-4" />
