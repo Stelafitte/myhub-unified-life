@@ -182,18 +182,18 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
 
     let cancelled = false;
     setAttachmentsLoading(true);
-    supabase
-      .from("documents")
-      .select("*")
-      .eq("source_type", "email")
-      .eq("source_id", emailId)
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        if (!cancelled) setAttachmentDocs((data as DocumentRow[]) ?? []);
-      })
-      .finally(() => {
-        if (!cancelled) setAttachmentsLoading(false);
-      });
+    void (async () => {
+      const { data } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("source_type", "email")
+        .eq("source_id", emailId)
+        .order("created_at", { ascending: false });
+      if (!cancelled) {
+        setAttachmentDocs((data as DocumentRow[]) ?? []);
+        setAttachmentsLoading(false);
+      }
+    })();
 
     return () => { cancelled = true; };
   }, [open, emailId]);
