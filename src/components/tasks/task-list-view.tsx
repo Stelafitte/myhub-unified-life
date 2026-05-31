@@ -1,8 +1,16 @@
 import { useMemo } from "react";
-import { Pencil, Trash2, Mail, Clock, CheckCircle2, Circle, PlayCircle, Archive } from "lucide-react";
+import { Pencil, Trash2, Mail, Clock, CheckCircle2, Circle, PlayCircle, Archive, MoreHorizontal, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   type Task,
   type TaskStatus,
@@ -98,9 +106,13 @@ function TaskRow({
   const tagsClean = (task.tags ?? []).filter((t) => !t.startsWith("section:") && !t.startsWith("recurrence:"));
 
   return (
-    <li className="flex items-start gap-3 px-3 py-3 active:bg-accent/50">
+    <li
+      onClick={onEdit}
+      className="flex items-start gap-3 px-3 py-3 cursor-pointer hover:bg-accent/30 active:bg-accent/50"
+    >
       <button
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           const next: TaskStatus = task.status === "done" ? "todo" : "done";
           onStatusChange(next);
         }}
@@ -163,18 +175,34 @@ function TaskRow({
         )}
       </div>
 
-      <div className="flex shrink-0 flex-col gap-1">
-        {task.source_email_id && (
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onOpenEmail} aria-label="Voir email">
-            <Mail className="h-3.5 w-3.5" />
-          </Button>
-        )}
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit} aria-label="Éditer">
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onDelete} aria-label="Supprimer">
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+      <div className="flex shrink-0 flex-col gap-1" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Actions">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onEdit}><Pencil className="mr-2 h-3.5 w-3.5" /> Éditer</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">Déplacer vers</DropdownMenuLabel>
+            {STATUS_COLUMNS.filter((c) => c.id !== task.status).map((c) => (
+              <DropdownMenuItem key={c.id} onClick={() => onStatusChange(c.id)}>
+                <ArrowRight className="mr-2 h-3.5 w-3.5" /> {c.icon} {c.label}
+              </DropdownMenuItem>
+            ))}
+            {task.source_email_id && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onOpenEmail}><Mail className="mr-2 h-3.5 w-3.5" /> Voir email source</DropdownMenuItem>
+              </>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onDelete} className="text-destructive">
+              <Trash2 className="mr-2 h-3.5 w-3.5" /> Supprimer
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </li>
   );
