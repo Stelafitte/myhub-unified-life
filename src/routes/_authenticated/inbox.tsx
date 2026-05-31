@@ -1683,6 +1683,7 @@ function Reader({
   onStar,
   onArchive,
   onDelete,
+  onRestore,
   onCreateTask,
   onPostpone,
   onCompose,
@@ -1694,6 +1695,7 @@ function Reader({
   onStar: () => void;
   onArchive: () => void;
   onDelete: () => void;
+  onRestore?: () => void;
   onCreateTask: () => void;
   onPostpone: () => void;
   onCompose: (init: ComposerInitial) => void;
