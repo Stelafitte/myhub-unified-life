@@ -186,7 +186,7 @@ function DashboardPage() {
   };
 
   return (
-    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden">
+    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden text-base">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <h1 className="min-w-0 text-2xl font-semibold">Dashboard</h1>
         <Dialog open={customizeOpen} onOpenChange={setCustomizeOpen}>
@@ -359,18 +359,18 @@ function HelloWidget() {
 
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent className="pt-6 text-base">
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="break-words text-xl font-semibold">Bonjour {firstName}</h2>
-            <p className="text-sm text-muted-foreground capitalize">{dateStr}</p>
+            <h2 className="break-words text-2xl font-semibold">Bonjour {firstName}</h2>
+            <p className="text-base text-muted-foreground capitalize">{dateStr}</p>
             <p className="text-3xl font-light tabular-nums mt-2">{timeStr}</p>
           </div>
           <div className="shrink-0 text-right">
             {weather.loading ? (
-              <div className="text-xs text-muted-foreground">Météo…</div>
+              <div className="text-sm text-muted-foreground">Météo…</div>
             ) : weather.error ? (
-              <div className="text-xs text-muted-foreground">Météo indispo</div>
+              <div className="text-sm text-muted-foreground">Météo indispo</div>
             ) : (
               <div className="flex flex-col items-center">
                 <WeatherIcon className="h-10 w-10 text-primary" />
@@ -479,17 +479,17 @@ function EmailsWidget({ userId }: { userId?: string }) {
             </Badge>
           ))}
           {accounts.length === 0 && (
-            <span className="text-xs text-muted-foreground">Aucun compte</span>
+            <span className="text-sm text-muted-foreground">Aucun compte</span>
           )}
         </div>
         <div className="space-y-1">
           {latest.length === 0 && (
-            <p className="text-xs text-muted-foreground">Aucun email récent</p>
+            <p className="text-sm text-muted-foreground">Aucun email récent</p>
           )}
           {latest.map((e) => (
-            <div key={e.id} className="min-w-0 border-l-2 border-border pl-2 text-sm">
+            <div key={e.id} className="min-w-0 border-l-2 border-border pl-2 text-base">
               <div className="break-words font-medium">{e.from_name ?? e.from_address ?? "—"}</div>
-              <div className="break-words text-xs text-muted-foreground">
+              <div className="break-words text-sm text-muted-foreground">
                 {e.subject ?? "(sans sujet)"}
               </div>
             </div>
