@@ -276,6 +276,53 @@ function ContactsPage() {
     setSelectedId((data as Contact).id);
   };
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importing, setImporting] = useState(false);
+
+  const handleImportFile = async (file: File) => {
+    if (!user) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const parsed = parseVCard(text);
+      if (parsed.length === 0) {
+        toast.error("Aucun contact trouvé dans le fichier");
+        return;
+      }
+      const rows = parsed
+        .filter((p) => p.first_name || p.last_name || p.email.length > 0)
+        .map((p) => ({
+          user_id: user.id,
+          first_name: p.first_name,
+          last_name: p.last_name,
+          organization: p.organization,
+          role: p.role,
+          email: p.email,
+          phone: p.phone,
+          notes: p.notes,
+          sources: ["iCloud"],
+        }));
+
+      // Insert in batches of 200
+      const inserted: Contact[] = [];
+      for (let i = 0; i < rows.length; i += 200) {
+        const chunk = rows.slice(i, i + 200);
+        const { data, error } = await supabase.from("contacts").insert(chunk as never).select();
+        if (error) { toast.error(error.message); break; }
+        if (data) inserted.push(...(data as Contact[]));
+      }
+      if (inserted.length > 0) {
+        setContacts((prev) => [...inserted, ...prev]);
+        toast.success(`${inserted.length} contact${inserted.length > 1 ? "s" : ""} importé${inserted.length > 1 ? "s" : ""}`);
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de l'import");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+
   return (
     <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT — list */}
