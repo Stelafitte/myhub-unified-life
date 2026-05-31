@@ -357,25 +357,40 @@ function PlanOperationPage() {
   const todayX = dateToX(today);
   const totalWidth = days * dayPx;
 
-  // Header ticks
-  const ticks = useMemo(() => {
-    const out: { x: number; label: string; major: boolean }[] = [];
+  // Header ticks — deux niveaux : major (ligne du haut) et minor (ligne du bas, plus dense)
+  const { majorTicks, minorTicks } = useMemo(() => {
+    const major: { x: number; label: string }[] = [];
+    const minor: { x: number; label: string }[] = [];
+    const MONTHS_SHORT = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
     for (let i = 0; i < days; i++) {
       const d = new Date(start); d.setDate(d.getDate() + i);
-      const isFirstOfMonth = d.getDate() === 1;
-      const isFirstOfQuarter = isFirstOfMonth && d.getMonth() % 3 === 0;
-      const isFirstOfYear = isFirstOfMonth && d.getMonth() === 0;
+      const x = i * dayPx;
+      const day = d.getDate();
+      const month = d.getMonth();
+      const isFirstOfMonth = day === 1;
+      const isFirstOfQuarter = isFirstOfMonth && month % 3 === 0;
+      const isFirstOfYear = isFirstOfMonth && month === 0;
+
       if (zoom === "week") {
-        if (d.getDay() === 1) out.push({ x: i * dayPx, label: `${d.getDate()}/${d.getMonth()+1}`, major: isFirstOfMonth });
+        // Major : début de mois ; Minor : chaque jour (jour + initiale)
+        if (isFirstOfMonth) major.push({ x, label: d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" }) });
+        const dow = ["D", "L", "M", "M", "J", "V", "S"][d.getDay()];
+        minor.push({ x, label: `${dow}${day}` });
       } else if (zoom === "month") {
-        if (isFirstOfMonth) out.push({ x: i * dayPx, label: d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }), major: true });
+        // Major : début de mois ; Minor : chaque lundi (numéro du jour)
+        if (isFirstOfMonth) major.push({ x, label: d.toLocaleDateString("fr-FR", { month: "long", year: "2-digit" }) });
+        if (d.getDay() === 1) minor.push({ x, label: String(day) });
       } else if (zoom === "quarter") {
-        if (isFirstOfQuarter) out.push({ x: i * dayPx, label: `T${Math.floor(d.getMonth()/3)+1} ${d.getFullYear()}`, major: true });
+        // Major : trimestre ; Minor : nom de mois
+        if (isFirstOfQuarter) major.push({ x, label: `T${Math.floor(month / 3) + 1} ${d.getFullYear()}` });
+        if (isFirstOfMonth) minor.push({ x, label: MONTHS_SHORT[month] });
       } else {
-        if (isFirstOfYear) out.push({ x: i * dayPx, label: String(d.getFullYear()), major: true });
+        // year — Major : année ; Minor : trimestres
+        if (isFirstOfYear) major.push({ x, label: String(d.getFullYear()) });
+        if (isFirstOfQuarter) minor.push({ x, label: `T${Math.floor(month / 3) + 1}` });
       }
     }
-    return out;
+    return { majorTicks: major, minorTicks: minor };
   }, [days, start, dayPx, zoom]);
 
   // Group by section — thèmes utilisateurs toujours visibles (même vides), sections legacy seulement si non vides
@@ -612,7 +627,7 @@ function PlanOperationPage() {
           <div ref={timelineRef} className="flex max-h-[calc(100vh-22rem)] overflow-auto">
             {/* Left labels */}
             <div className="sticky left-0 z-20 shrink-0 border-r bg-card" style={{ width: LABEL_W }}>
-              <div className="h-10 border-b bg-muted/30" />
+              <div className="h-14 border-b bg-muted/30" />
               {grouped.map(([sectionKey, items]) => {
                 const def = SECTION_DEFS.find((d) => d.key === sectionKey)!;
                 const isCollapsed = collapsed[sectionKey];
@@ -709,19 +724,28 @@ function PlanOperationPage() {
 
             {/* Timeline */}
             <div className="relative" style={{ width: totalWidth, minWidth: "100%" }}>
-              <div className="sticky top-0 z-10 h-10 border-b bg-card">
-                {ticks.map((t, i) => (
-                  <div key={i}
-                    className={cn("absolute top-0 h-full border-l text-[10px]", t.major ? "border-foreground/30 font-semibold" : "border-border")}
-                    style={{ left: t.x }}>
-                    <span className="ml-1 mt-1 inline-block whitespace-nowrap text-muted-foreground">{t.label}</span>
-                  </div>
-                ))}
+              <div className="sticky top-0 z-10 h-14 border-b bg-card">
+                {/* Ligne du haut : repères majeurs */}
+                <div className="relative h-7 border-b">
+                  {majorTicks.map((t, i) => (
+                    <div key={`M${i}`} className="absolute top-0 h-full border-l border-foreground/30" style={{ left: t.x }}>
+                      <span className="ml-1 mt-0.5 inline-block whitespace-nowrap text-[11px] font-semibold text-foreground">{t.label}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Ligne du bas : repères fins (jours / semaines / mois / trimestres selon le zoom) */}
+                <div className="relative h-7">
+                  {minorTicks.map((t, i) => (
+                    <div key={`m${i}`} className="absolute top-0 h-full border-l border-border" style={{ left: t.x }}>
+                      <span className="ml-0.5 mt-0.5 inline-block whitespace-nowrap text-[9px] text-muted-foreground">{t.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Today line */}
               {todayX >= 0 && todayX <= totalWidth && (
-                <div className="pointer-events-none absolute top-10 z-20 bottom-0 border-l-2 border-red-500" style={{ left: todayX }}>
+                <div className="pointer-events-none absolute top-14 z-20 bottom-0 border-l-2 border-red-500" style={{ left: todayX }}>
                   <span className="absolute -left-5 -top-3 rounded bg-red-500 px-1 text-[9px] font-bold text-white">AUJ.</span>
                 </div>
               )}
