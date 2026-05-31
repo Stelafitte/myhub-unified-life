@@ -623,16 +623,13 @@ export function PlanOperationSection() {
                             <div className="space-y-1 border-t bg-muted/20 px-2 py-1.5">
                               {s.items.map((it, i) => (
                                 <div key={i} className="flex items-center gap-1 text-xs">
-                                  <span className="flex-1 truncate">• {it}</span>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-6 w-6 text-primary"
-                                    onClick={() => integrateInPlan(theme.name, it, s.name)}
-                                    title="Intégrer cet item dans le tableau Plan d'opération"
-                                  >
-                                    <Send className="h-3 w-3" />
-                                  </Button>
+                                  <Checkbox
+                                    checked={isSel(`item:${s.id}:${i}`)}
+                                    onCheckedChange={() => toggleSel(`item:${s.id}:${i}`)}
+                                    className="shrink-0 h-3.5 w-3.5"
+                                    aria-label="Sélectionner l'item"
+                                  />
+                                  <span className="flex-1 truncate">{it}</span>
                                   <Button
                                     size="icon"
                                     variant="ghost"
