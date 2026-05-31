@@ -458,6 +458,9 @@ export function PlanOperationSection() {
             <Button variant="outline" onClick={seedFromTemplate} className="gap-1">
               <Sparkles className="h-4 w-4" /> Importer le modèle
             </Button>
+            <Button onClick={addSelection} disabled={selected.size === 0} className="gap-1">
+              <Send className="h-4 w-4" /> Ajouter la sélection{selected.size > 0 ? ` (${selected.size})` : ""}
+            </Button>
           </div>
 
           {loading ? (
