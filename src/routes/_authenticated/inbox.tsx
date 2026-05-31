@@ -837,12 +837,16 @@ function InboxPage() {
                 ))}
               </SelectContent>
             </Select>
-            <ThemesRankingButton
-              emails={emails}
-              themes={themes}
-              activeFilter={filter}
-              onPick={(id) => setFilter(`theme:${id}` as Filter)}
-            />
+            <Button
+              size="sm"
+              variant={aiRanking ? "default" : "ghost"}
+              className="h-7 gap-1 px-2 text-xs font-medium"
+              onClick={() => setAiRanking((v) => !v)}
+              title="Trier la liste par thème IA (mails les plus récents en tête)"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Classement IA
+            </Button>
           </div>
           <span className="text-xs text-muted-foreground">{filtered.length} email{filtered.length > 1 ? "s" : ""}</span>
         </div>
