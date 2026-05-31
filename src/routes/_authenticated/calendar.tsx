@@ -205,6 +205,8 @@ function AgendaPage() {
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
   const [catColors, setCatColors] = useState<Record<EventCategory, string>>(() => loadCategoryColors());
+  // Touche Suppr : supprime l'événement sélectionné
+  useDeleteKey(!!selected, () => { if (selected) deleteEvent(selected); });
   const [catEditorOpen, setCatEditorOpen] = useState(false);
   const updateCatColor = (k: EventCategory, v: string) => {
     setCatColors((prev) => {
