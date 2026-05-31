@@ -60,7 +60,7 @@ import { listThemes, classifyPendingThemes, discoverThemes, seedThemesFromFolder
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
 
 type Account = {
   id: string;
@@ -167,6 +167,7 @@ function InboxPage() {
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
   const [relaunching, setRelaunching] = useState(false);
+  const [aiRanking, setAiRanking] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
 
@@ -456,6 +457,48 @@ function InboxPage() {
     }
     return list;
   }, [emails, filter, query]);
+
+  // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
+  // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
+  type RenderItem =
+    | { kind: "header"; key: string; label: string; count: number }
+    | { kind: "email"; email: Email };
+  const displayItems = useMemo<RenderItem[]>(() => {
+    if (!aiRanking) return filtered.map((e) => ({ kind: "email" as const, email: e }));
+    const groups = new Map<string, { ts: number; emails: Email[] }>();
+    const NO_THEME = "__none__";
+    for (const e of filtered) {
+      const key = e.ai_theme_id ?? NO_THEME;
+      const ts = e.received_at ? new Date(e.received_at).getTime() : 0;
+      const g = groups.get(key);
+      if (g) {
+        g.emails.push(e);
+        if (ts > g.ts) g.ts = ts;
+      } else groups.set(key, { ts, emails: [e] });
+    }
+    const ordered = [...groups.entries()].sort((a, b) => {
+      if (a[0] === NO_THEME) return 1;
+      if (b[0] === NO_THEME) return -1;
+      return b[1].ts - a[1].ts;
+    });
+    const out: RenderItem[] = [];
+    for (const [key, g] of ordered) {
+      g.emails.sort(
+        (a, b) =>
+          (b.received_at ? new Date(b.received_at).getTime() : 0) -
+          (a.received_at ? new Date(a.received_at).getTime() : 0),
+      );
+      const t = key === NO_THEME ? null : themeById.get(key);
+      out.push({
+        kind: "header",
+        key,
+        label: t?.name ?? "Sans thème",
+        count: g.emails.length,
+      });
+      for (const e of g.emails) out.push({ kind: "email", email: e });
+    }
+    return out;
+  }, [filtered, aiRanking, themeById]);
 
   const selected = useMemo(
     () => emails.find((e) => e.id === selectedId) ?? null,
@@ -836,12 +879,16 @@ function InboxPage() {
                 ))}
               </SelectContent>
             </Select>
-            <ThemesRankingButton
-              emails={emails}
-              themes={themes}
-              activeFilter={filter}
-              onPick={(id) => setFilter(`theme:${id}` as Filter)}
-            />
+            <Button
+              size="sm"
+              variant={aiRanking ? "default" : "ghost"}
+              className="h-7 gap-1 px-2 text-xs font-medium"
+              onClick={() => setAiRanking((v) => !v)}
+              title="Trier la liste par thème IA (mails les plus récents en tête)"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Classement IA
+            </Button>
           </div>
           <span className="text-xs text-muted-foreground">{filtered.length} email{filtered.length > 1 ? "s" : ""}</span>
         </div>
@@ -892,7 +939,20 @@ function InboxPage() {
               {emails.length === 0 ? "Aucun email — configurez un compte dans Paramètres." : "Aucun résultat."}
             </li>
           )}
-          {filtered.map((e) => {
+          {displayItems.map((item) => {
+            if (item.kind === "header") {
+              return (
+                <li
+                  key={`h:${item.key}`}
+                  className="sticky top-0 z-10 flex items-center gap-2 border-b bg-muted/80 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur"
+                >
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span className="truncate">{item.label}</span>
+                  <span className="ml-auto text-[10px] font-normal">{item.count}</span>
+                </li>
+              );
+            }
+            const e = item.email;
             const acc = accountById.get(e.account_id);
             const isSel = e.id === selectedId;
             return (
@@ -1382,89 +1442,5 @@ function VaultActions({ email, onMoved }: { email: Email; onMoved: () => void })
       )}
       <VaultPinDialog open={pinOpen} onOpenChange={setPinOpen} />
     </div>
-  );
-}
-
-function ThemesRankingButton({
-  emails,
-  themes,
-  activeFilter,
-  onPick,
-}: {
-  emails: Email[];
-  themes: Theme[];
-  activeFilter: Filter;
-  onPick: (id: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ranked = useMemo(() => {
-    const latest = new Map<string, { ts: number; count: number }>();
-    for (const e of emails) {
-      const tid = e.ai_theme_id;
-      if (!tid) continue;
-      const ts = e.received_at ? new Date(e.received_at).getTime() : 0;
-      const cur = latest.get(tid);
-      if (!cur) latest.set(tid, { ts, count: 1 });
-      else {
-        cur.count += 1;
-        if (ts > cur.ts) cur.ts = ts;
-      }
-    }
-    const byId = new Map(themes.map((t) => [t.id, t]));
-    return [...latest.entries()]
-      .map(([id, v]) => ({ theme: byId.get(id), ts: v.ts, count: v.count }))
-      .filter((x): x is { theme: Theme; ts: number; count: number } => !!x.theme && !x.theme.archived_at)
-      .sort((a, b) => b.ts - a.ts);
-  }, [emails, themes]);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 gap-1 px-2 text-xs font-medium"
-          title="Trier par thème IA selon les emails les plus récents"
-        >
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-          Classement IA
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 p-1">
-        <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Thèmes IA · plus récents en premier
-        </div>
-        <div className="max-h-80 overflow-y-auto">
-          {ranked.length === 0 && (
-            <div className="px-2 py-3 text-center text-xs text-muted-foreground">
-              Aucun thème classé pour l'instant.
-            </div>
-          )}
-          {ranked.map(({ theme, ts, count }) => {
-            const active = activeFilter === `theme:${theme.id}`;
-            return (
-              <button
-                key={theme.id}
-                onClick={() => {
-                  onPick(theme.id);
-                  setOpen(false);
-                }}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-accent",
-                  active && "bg-accent",
-                )}
-              >
-                <Sparkles className="h-3 w-3 shrink-0 text-primary/70" />
-                <span className="truncate flex-1">{theme.name}</span>
-                <span className="text-[10px] text-muted-foreground">{count}</span>
-                <span className="text-[10px] text-muted-foreground tabular-nums">
-                  {ts ? relativeTime(new Date(ts).toISOString()) : ""}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </PopoverContent>
-    </Popover>
   );
 }
