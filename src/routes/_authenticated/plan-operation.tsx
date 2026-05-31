@@ -273,8 +273,29 @@ function PlanOperationPage() {
     if (b.type !== "task") return;
     const payload = { gantt_start: s.toISOString(), gantt_end: e.toISOString(), due_date: e.toISOString() };
     setTasks((prev) => prev.map((t) => (t.id === b.id ? { ...t, ...payload } : t)));
-    const { error } = await supabase.from("tasks").update(payload).eq("id", b.id);
-    if (error) toast.error(error.message);
+    if (navigator.onLine) {
+      const { error } = await supabase.from("tasks").update(payload).eq("id", b.id);
+      if (error) toast.error(error.message);
+      else requestAutoSync();
+    } else {
+      await enqueue({ entity_type: "task", entity_id: b.id, action: "update", payload });
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    const id = toDelete.id;
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+    setToDelete(null);
+    if (navigator.onLine) {
+      const { error } = await supabase.from("tasks").delete().eq("id", id);
+      if (error) { toast.error(error.message); load(); return; }
+      toast.success("Tâche supprimée");
+      requestAutoSync();
+    } else {
+      await enqueue({ entity_type: "task", entity_id: id, action: "delete" });
+      toast.success("Suppression mise en file (offline)");
+    }
   };
 
   const toggleSet = <T,>(set: Set<T>, value: T): Set<T> => {
