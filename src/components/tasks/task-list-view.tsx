@@ -106,9 +106,13 @@ function TaskRow({
   const tagsClean = (task.tags ?? []).filter((t) => !t.startsWith("section:") && !t.startsWith("recurrence:"));
 
   return (
-    <li className="flex items-start gap-3 px-3 py-3 active:bg-accent/50">
+    <li
+      onClick={onEdit}
+      className="flex items-start gap-3 px-3 py-3 cursor-pointer hover:bg-accent/30 active:bg-accent/50"
+    >
       <button
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           const next: TaskStatus = task.status === "done" ? "todo" : "done";
           onStatusChange(next);
         }}
