@@ -186,7 +186,7 @@ function DashboardPage() {
   };
 
   return (
-    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden text-base">
+    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden text-base [&_.text-xs]:text-sm [&_.text-sm]:text-base">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
         <h1 className="min-w-0 text-2xl font-semibold">Dashboard</h1>
         <Dialog open={customizeOpen} onOpenChange={setCustomizeOpen}>
