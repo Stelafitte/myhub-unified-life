@@ -432,6 +432,7 @@ export type Database = {
           body_html: string | null
           body_text: string | null
           created_at: string
+          deleted_at: string | null
           from_address: string | null
           from_name: string | null
           has_attachment: boolean
@@ -466,6 +467,7 @@ export type Database = {
           body_html?: string | null
           body_text?: string | null
           created_at?: string
+          deleted_at?: string | null
           from_address?: string | null
           from_name?: string | null
           has_attachment?: boolean
@@ -500,6 +502,7 @@ export type Database = {
           body_html?: string | null
           body_text?: string | null
           created_at?: string
+          deleted_at?: string | null
           from_address?: string | null
           from_name?: string | null
           has_attachment?: boolean
