@@ -256,6 +256,30 @@ export type Database = {
         }
         Relationships: []
       }
+      deleted_calendar_events: {
+        Row: {
+          deleted_at: string
+          gcal_connection_id: string
+          google_event_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          deleted_at?: string
+          gcal_connection_id: string
+          google_event_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          deleted_at?: string
+          gcal_connection_id?: string
+          google_event_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       deleted_emails: {
         Row: {
           account_id: string
