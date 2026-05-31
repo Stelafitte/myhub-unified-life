@@ -574,11 +574,13 @@ function MonthView({
   events,
   onSelect,
   onPick,
+  onLongCreate,
 }: {
   cursor: Date;
   events: UnifiedEvent[];
   onSelect: (e: UnifiedEvent) => void;
   onPick: (d: Date) => void;
+  onLongCreate?: (d: Date) => void;
 }) {
   const first = startOfMonth(cursor);
   const gridStart = startOfWeek(first);
