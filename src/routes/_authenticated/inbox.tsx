@@ -604,8 +604,8 @@ function InboxPage() {
   }, [filtered, aiRanking, themeById, collapsedThemes]);
 
   const selected = useMemo(
-    () => filtered.find((e) => e.id === selectedId) ?? null,
-    [filtered, selectedId],
+    () => emails.find((e) => e.id === selectedId) ?? null,
+    [emails, selectedId],
   );
 
   // Quand le filtre change, sur mobile on revient à la liste ; sur desktop on garde le panneau de lecture rempli.
