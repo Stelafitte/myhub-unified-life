@@ -55,6 +55,15 @@ Deno.serve(async (req: Request) => {
       auth: { user: username, pass: password },
     });
 
+    const mailAttachments = Array.isArray(attachments)
+      ? attachments.map((a: any) => ({
+          filename: a.filename,
+          content: a.content_base64,
+          encoding: "base64",
+          contentType: a.mime_type,
+        }))
+      : undefined;
+
     const info = await transporter.sendMail({
       from: `"${account.name}" <${username}>`,
       to,
@@ -65,6 +74,7 @@ Deno.serve(async (req: Request) => {
       html: html || undefined,
       inReplyTo: in_reply_to || undefined,
       references: references || undefined,
+      attachments: mailAttachments,
     });
 
     return new Response(JSON.stringify({ ok: true, messageId: info.messageId }), {
