@@ -109,6 +109,52 @@ function PlanOperationPage() {
   const [editing, setEditing] = useState<Task | null>(null);
   const [toDelete, setToDelete] = useState<Task | null>(null);
 
+  // Overrides pour les labels de section (édition inline persistée localement)
+  const SECTION_LABELS_KEY = "plan-op-section-labels-v1";
+  const [sectionLabels, setSectionLabels] = useState<Record<string, string>>(() => {
+    if (typeof window === "undefined") return {};
+    try { return JSON.parse(window.localStorage.getItem(SECTION_LABELS_KEY) ?? "{}"); }
+    catch { return {}; }
+  });
+  const renameSection = (key: string, label: string) => {
+    setSectionLabels((prev) => {
+      const next = { ...prev, [key]: label };
+      try { window.localStorage.setItem(SECTION_LABELS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  // Création rapide d'une tâche dans une section donnée
+  const createInSection = async (sectionKey: string) => {
+    if (!user) return;
+    const title = window.prompt("Titre de la nouvelle tâche ?");
+    if (!title || !title.trim()) return;
+    const sectionTag = `section:${sectionKey}`;
+    const today = new Date();
+    const due = new Date(today); due.setDate(due.getDate() + 7);
+    const payload = {
+      user_id: user.id,
+      title: title.trim(),
+      priority: "medium" as TaskPriority,
+      status: "todo" as TaskStatus,
+      source_app: "myhubpro" as TaskSource,
+      tags: [sectionTag],
+      gantt_start: today.toISOString(),
+      gantt_end: due.toISOString(),
+      due_date: due.toISOString(),
+      attachments: [],
+    };
+    if (navigator.onLine) {
+      const { data, error } = await supabase.from("tasks").insert(payload).select().single();
+      if (error) { toast.error(error.message); return; }
+      if (data) setTasks((prev) => [data as Task, ...prev]);
+      toast.success("Tâche créée");
+      requestAutoSync();
+    } else {
+      toast.error("Hors-ligne — réessaie plus tard");
+    }
+  };
+
   // Filters
   const [fPriority, setFPriority] = useState<Set<TaskPriority>>(new Set());
   const [fStatus, setFStatus] = useState<Set<TaskStatus>>(new Set());
