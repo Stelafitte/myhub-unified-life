@@ -131,6 +131,7 @@ export type Database = {
       calendar_events: {
         Row: {
           account_id: string | null
+          category: string
           color: string | null
           created_at: string
           description: string | null
@@ -151,6 +152,7 @@ export type Database = {
         }
         Insert: {
           account_id?: string | null
+          category?: string
           color?: string | null
           created_at?: string
           description?: string | null
@@ -171,6 +173,7 @@ export type Database = {
         }
         Update: {
           account_id?: string | null
+          category?: string
           color?: string | null
           created_at?: string
           description?: string | null
