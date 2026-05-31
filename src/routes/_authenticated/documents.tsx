@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, LayoutGrid, List, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter } from "lucide-react";
+import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,7 @@ function DocumentsPage() {
   const [typeF, setTypeF] = useState<TypeFilter>("all");
   const [dateF, setDateF] = useState<DateFilter>("all");
   const [sizeF, setSizeF] = useState<SizeFilter>("all");
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [preview, setPreview] = useState<DocumentRow | null>(null);
 
@@ -83,23 +83,18 @@ function DocumentsPage() {
     const now = Date.now();
     const dayMs = 86400000;
     return docs.filter((d) => {
-      // source
       if (source.kind === "sensitive" && !d.is_sensitive) return false;
       if (source.kind !== "all" && source.kind !== "sensitive") {
         if (d.source_type !== source.kind) return false;
         if (source.kind === "email" && source.accountId && d.account_id !== source.accountId) return false;
       }
-      // type
       if (typeF !== "all" && categorize(d.mime_type, d.filename) !== typeF) return false;
-      // date
       if (dateF !== "all") {
         const age = now - new Date(d.created_at).getTime();
         const lim = dateF === "today" ? dayMs : dateF === "week" ? 7 * dayMs : 30 * dayMs;
         if (age > lim) return false;
       }
-      // size
       if (sizeF === "heavy" && d.file_size < 5 * 1024 * 1024) return false;
-      // search
       if (search) {
         const q = search.toLowerCase();
         if (!d.filename.toLowerCase().includes(q) && !(d.description ?? "").toLowerCase().includes(q)) return false;
@@ -137,22 +132,25 @@ function DocumentsPage() {
   const totalSize = docs.reduce((s, d) => s + (d.file_size ?? 0), 0);
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)]">
-      {/* Sidebar arborescence */}
-      <aside className="w-64 border-r bg-muted/20 flex flex-col">
+    <div className="flex h-[calc(100vh-3.5rem)] relative">
+      {/* Sidebar — hidden on mobile, shown on md+ */}
+      <aside className={cn(
+        "absolute inset-y-0 left-0 z-20 w-64 border-r bg-muted/20 flex flex-col transition-transform md:relative md:translate-x-0",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
         <div className="p-3 border-b">
           <Button className="w-full" size="sm" onClick={() => setUploadOpen(true)}>＋ Ajouter un document</Button>
           <p className="text-xs text-muted-foreground mt-2">{docs.length} fichiers · {formatBytes(totalSize)}</p>
         </div>
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-0.5 text-sm">
-            <TreeItem icon={Folder} label="Tous" count={counts.all} active={source.kind === "all"} onClick={() => setSource({ kind: "all" })} />
+            <TreeItem icon={Folder} label="Tous" count={counts.all} active={source.kind === "all"} onClick={() => { setSource({ kind: "all" }); setSidebarOpen(false); }} />
 
-            <TreeItem icon={Mail} label="Emails" count={counts.email} active={source.kind === "email" && !source.accountId} onClick={() => setSource({ kind: "email" })} />
+            <TreeItem icon={Mail} label="Emails" count={counts.email} active={source.kind === "email" && !source.accountId} onClick={() => { setSource({ kind: "email" }); setSidebarOpen(false); }} />
             {source.kind === "email" && (
               <div className="ml-5 space-y-0.5">
                 {accounts.map((a) => (
-                  <TreeItem key={a.id} label={a.name} count={emailsByAccount.get(a.id) ?? 0} active={source.kind === "email" && source.accountId === a.id} onClick={() => setSource({ kind: "email", accountId: a.id })} small />
+                  <TreeItem key={a.id} label={a.name} count={emailsByAccount.get(a.id) ?? 0} active={source.kind === "email" && source.accountId === a.id} onClick={() => { setSource({ kind: "email", accountId: a.id }); setSidebarOpen(false); }} small />
                 ))}
                 {(emailsByAccount.get("none") ?? 0) > 0 && (
                   <TreeItem label="Sans compte" count={emailsByAccount.get("none") ?? 0} onClick={() => {}} small />
@@ -160,10 +158,10 @@ function DocumentsPage() {
               </div>
             )}
 
-            <TreeItem icon={CheckSquare} label="Tâches" count={counts.task} active={source.kind === "task"} onClick={() => setSource({ kind: "task" })} />
-            <TreeItem icon={CalendarClock} label="Réunions" count={counts.meeting} active={source.kind === "meeting"} onClick={() => setSource({ kind: "meeting" })} />
-            <TreeItem icon={FolderOpen} label="Manuel" count={counts.manual} active={source.kind === "manual"} onClick={() => setSource({ kind: "manual" })} />
-            <TreeItem icon={Lock} label="Sensibles" count={counts.sensitive} active={source.kind === "sensitive"} onClick={() => setSource({ kind: "sensitive" })} className="text-red-600" />
+            <TreeItem icon={CheckSquare} label="Tâches" count={counts.task} active={source.kind === "task"} onClick={() => { setSource({ kind: "task" }); setSidebarOpen(false); }} />
+            <TreeItem icon={CalendarClock} label="Réunions" count={counts.meeting} active={source.kind === "meeting"} onClick={() => { setSource({ kind: "meeting" }); setSidebarOpen(false); }} />
+            <TreeItem icon={FolderOpen} label="Manuel" count={counts.manual} active={source.kind === "manual"} onClick={() => { setSource({ kind: "manual" }); setSidebarOpen(false); }} />
+            <TreeItem icon={Lock} label="Sensibles" count={counts.sensitive} active={source.kind === "sensitive"} onClick={() => { setSource({ kind: "sensitive" }); setSidebarOpen(false); }} className="text-red-600" />
 
             <div className="pt-3 mt-3 border-t">
               <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1"><Filter className="h-3 w-3" /> Filtres</p>
@@ -189,16 +187,20 @@ function DocumentsPage() {
         </ScrollArea>
       </aside>
 
+      {/* Overlay on mobile when sidebar open */}
+      {sidebarOpen && (
+        <div className="absolute inset-0 z-10 bg-black/40 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Right pane */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="p-4 border-b flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)}>
+            <Search className="h-4 w-4" />
+          </Button>
           <div className="relative flex-1 max-w-md">
             <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" className="pl-9" />
-          </div>
-          <div className="ml-auto flex items-center gap-1">
-            <Button variant={view === "grid" ? "secondary" : "ghost"} size="icon" onClick={() => setView("grid")}><LayoutGrid className="h-4 w-4" /></Button>
-            <Button variant={view === "list" ? "secondary" : "ghost"} size="icon" onClick={() => setView("list")}><List className="h-4 w-4" /></Button>
           </div>
         </div>
 
@@ -213,10 +215,6 @@ function DocumentsPage() {
                 <FolderOpen className="h-10 w-10 mx-auto mb-2 opacity-40" />
                 Aucun document.
               </Card>
-            ) : view === "grid" ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {filtered.map((d) => <DocCard key={d.id} doc={d} onPreview={() => setPreview(d)} onDelete={() => deleteDoc(d)} onCopy={() => copyLink(d)} />)}
-              </div>
             ) : (
               <div className="space-y-1">
                 {filtered.map((d) => <DocRow key={d.id} doc={d} onPreview={() => setPreview(d)} onDelete={() => deleteDoc(d)} onCopy={() => copyLink(d)} />)}
@@ -259,52 +257,32 @@ function FilterChip({ active, onClick, children }: { active?: boolean; onClick: 
   );
 }
 
-function DocCard({ doc, onPreview, onDelete, onCopy }: { doc: DocumentRow; onPreview: () => void; onDelete: () => void; onCopy: () => void }) {
-  const cat = categorize(doc.mime_type, doc.filename);
-  const Icon = iconFor(cat);
-  const src = sourceLabel(doc.source_type);
-  return (
-    <Card className="p-3 hover:shadow-md transition-shadow group flex flex-col">
-      <button onClick={onPreview} className="flex items-center justify-center h-20 bg-muted/40 rounded mb-2 hover:bg-muted">
-        <Icon className={cn("h-10 w-10", colorFor(cat))} />
-      </button>
-      <button onClick={onPreview} className="text-sm font-medium truncate text-left hover:underline" title={doc.filename}>{doc.filename}</button>
-      <div className="flex items-center gap-1 mt-1 flex-wrap">
-        <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full", src.cls)}>{src.label}</span>
-        {doc.is_sensitive && <Badge variant="destructive" className="text-[10px] px-1 py-0 h-4 gap-0.5"><Lock className="h-2.5 w-2.5" /></Badge>}
-      </div>
-      <p className="text-xs text-muted-foreground mt-1">{formatBytes(doc.file_size)} · {format(new Date(doc.created_at), "d MMM", { locale: fr })}</p>
-      {doc.tags.length > 0 && (
-        <div className="flex flex-wrap gap-0.5 mt-1">
-          {doc.tags.slice(0, 2).map((t) => <span key={t} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{t}</span>)}
-        </div>
-      )}
-      <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onPreview}><Eye className="h-3.5 w-3.5" /></Button>
-        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={onCopy}><LinkIcon className="h-3.5 w-3.5" /></Button>
-        <Button size="icon" variant="ghost" className="h-6 w-6 text-red-600 ml-auto" onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></Button>
-      </div>
-    </Card>
-  );
-}
-
 function DocRow({ doc, onPreview, onDelete, onCopy }: { doc: DocumentRow; onPreview: () => void; onDelete: () => void; onCopy: () => void }) {
   const cat = categorize(doc.mime_type, doc.filename);
   const Icon = iconFor(cat);
   const src = sourceLabel(doc.source_type);
   return (
-    <div className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 rounded group">
-      <Icon className={cn("h-5 w-5 shrink-0", colorFor(cat))} />
-      <button onClick={onPreview} className="flex-1 min-w-0 text-left">
-        <p className="text-sm font-medium truncate">{doc.filename}</p>
-        <p className="text-xs text-muted-foreground">{formatBytes(doc.file_size)} · {format(new Date(doc.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
-      </button>
-      <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full", src.cls)}>{src.label}</span>
-      {doc.is_sensitive && <Badge variant="destructive" className="text-[10px] gap-0.5"><Lock className="h-2.5 w-2.5" />Sensible</Badge>}
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onPreview}><Eye className="h-3.5 w-3.5" /></Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onCopy}><LinkIcon className="h-3.5 w-3.5" /></Button>
-        <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></Button>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 py-3 hover:bg-muted/50 rounded border-b last:border-b-0">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <Icon className={cn("h-6 w-6 shrink-0", colorFor(cat))} />
+        <button onClick={onPreview} className="flex-1 min-w-0 text-left">
+          <p className="text-sm font-medium truncate">{doc.filename}</p>
+          <p className="text-xs text-muted-foreground">{formatBytes(doc.file_size)} · {format(new Date(doc.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
+        </button>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full", src.cls)}>{src.label}</span>
+        {doc.is_sensitive && <Badge variant="destructive" className="text-[10px] gap-0.5"><Lock className="h-2.5 w-2.5" />Sensible</Badge>}
+        {doc.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {doc.tags.slice(0, 3).map((t) => <span key={t} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{t}</span>)}
+          </div>
+        )}
+        <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100">
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onPreview}><Eye className="h-3.5 w-3.5" /></Button>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onCopy}><LinkIcon className="h-3.5 w-3.5" /></Button>
+          <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></Button>
+        </div>
       </div>
     </div>
   );
