@@ -1331,9 +1331,9 @@ function InboxPage() {
         {selected && (
           <button
             onClick={() => setSelectedId(null)}
-            className="flex items-center gap-1 border-b px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent lg:hidden"
+            className="flex items-center gap-1 border-b px-3 py-3 text-base font-medium text-muted-foreground hover:bg-accent lg:hidden"
           >
-            <ChevronDown className="h-3.5 w-3.5 rotate-90" /> Retour à la liste
+            <ChevronDown className="h-4 w-4 rotate-90" /> Retour à la liste
           </button>
         )}
         {!selected ? (
@@ -1514,7 +1514,7 @@ function Reader({
     });
   return (
     <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-x-hidden overflow-y-auto">
-      <header className="min-w-0 border-b p-3 sm:p-4">
+      <header className="min-w-0 max-w-full border-b p-3 sm:p-4">
         <div className="mb-2 flex min-w-0 items-center gap-2">
           {account && (
             <Badge
@@ -1528,8 +1528,10 @@ function Reader({
             <Star className={cn("h-4 w-4", email.is_starred && "fill-amber-400 text-amber-400")} />
           </button>
         </div>
-        <h2 className="break-words text-base font-semibold">{email.subject || "(sans objet)"}</h2>
-        <div className="mt-2 space-y-0.5 break-words text-xs text-muted-foreground">
+        <h2 className="text-lg font-semibold [overflow-wrap:anywhere] sm:text-base">
+          {email.subject || "(sans objet)"}
+        </h2>
+        <div className="mt-2 space-y-1 text-sm text-muted-foreground [overflow-wrap:anywhere] sm:space-y-0.5 sm:text-xs">
           <div>
             <span className="font-medium text-foreground">De :</span>{" "}
             <span className="break-all">
@@ -1546,33 +1548,33 @@ function Reader({
           </div>
         </div>
         <div className="mt-3 flex min-w-0 flex-wrap gap-1">
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(false)}>
+          <Button size="sm" variant="outline" className="h-8 gap-1 text-sm" onClick={() => doReply(false)}>
             <Reply className="h-3 w-3" /> Répondre
           </Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(true)}>
+          <Button size="sm" variant="outline" className="h-8 gap-1 text-sm" onClick={() => doReply(true)}>
             <ReplyAll className="h-3 w-3" /> Tous
           </Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={doForward}>
+          <Button size="sm" variant="outline" className="h-8 gap-1 text-sm" onClick={doForward}>
             <Forward className="h-3 w-3" /> Transférer
           </Button>
-          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}>
+          <Button size="sm" variant="outline" className="h-8 gap-1 text-sm" onClick={onArchive}>
             <Archive className="h-3 w-3" /> Archiver
           </Button>
           <Button
             size="sm"
             variant="outline"
-            className="h-7 gap-1 text-destructive"
+            className="h-8 gap-1 text-sm text-destructive"
             onClick={onDelete}
           >
             <Trash2 className="h-3 w-3" /> Suppr.
           </Button>
-          <Button size="sm" className="h-7 gap-1" onClick={onCreateTask}>
+          <Button size="sm" className="h-8 gap-1 text-sm" onClick={onCreateTask}>
             <Plus className="h-3 w-3" /> Créer tâche
           </Button>
           <Button
             size="sm"
             variant="outline"
-            className="h-7 gap-1"
+            className="h-8 gap-1 text-sm"
             onClick={onPostpone}
             disabled={isPostponed}
           >
@@ -1582,7 +1584,7 @@ function Reader({
           <Button
             size="sm"
             variant="outline"
-            className="h-7 gap-1"
+            className="h-8 gap-1 text-sm"
             onClick={() => onMarkSpam(!isSpamEmail)}
             title={
               isSpamEmail
@@ -1667,7 +1669,7 @@ function Reader({
         />
       )}
 
-      <div className="min-w-0 max-w-full p-3 text-sm sm:p-4">
+        <div className="min-w-0 max-w-full p-3 text-base sm:p-4 sm:text-sm">
         {email.body_html ? (
           <div
             className="prose prose-sm max-w-none break-words dark:prose-invert [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:table-fixed"
