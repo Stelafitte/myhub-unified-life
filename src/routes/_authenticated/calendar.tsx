@@ -1014,7 +1014,77 @@ function EventDetail({
             <p className="whitespace-pre-wrap text-foreground/90">{event.description}</p>
           </div>
         )}
+
+        {linkedDocs.length > 0 && (
+          <div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">
+              <Paperclip className="mr-1 inline h-3 w-3" /> Pièces jointes ({linkedDocs.length})
+            </div>
+            <ul className="space-y-1">
+              {linkedDocs.map((d) => (
+                <li
+                  key={d.id}
+                  className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 text-xs"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDoc(d)}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  >
+                    <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{d.original_filename || d.filename}</div>
+                      <div className="text-[10px] text-muted-foreground">{formatBytes(d.file_size || 0)}</div>
+                    </div>
+                  </button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => openDoc(d)}
+                    disabled={!d.storage_path}
+                    aria-label="Télécharger"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {linkedEmail && (
+          <div className="rounded-md border bg-muted/20 p-3">
+            <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Mail className="h-3 w-3" /> Email d'origine
+            </div>
+            <div className="text-sm font-semibold">{linkedEmail.subject || "(sans objet)"}</div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              {linkedEmail.from_name || linkedEmail.from_address}
+              {linkedEmail.received_at && (
+                <> · {new Date(linkedEmail.received_at).toLocaleString("fr-FR")}</>
+              )}
+            </div>
+            <div className="mt-2 max-h-64 overflow-y-auto rounded border bg-background p-2 text-xs">
+              {linkedEmail.body_html ? (
+                <div
+                  className="prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{ __html: linkedEmail.body_html }}
+                />
+              ) : (
+                <pre className="whitespace-pre-wrap font-sans">{linkedEmail.body_text || "(vide)"}</pre>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      <AttachmentViewerDialog
+        doc={previewDoc}
+        open={!!previewDoc}
+        onOpenChange={(o) => !o && setPreviewDoc(null)}
+      />
+
 
       <footer className="space-y-2 border-t p-3">
         <Button className="w-full gap-1.5" onClick={onCreateTask}>
