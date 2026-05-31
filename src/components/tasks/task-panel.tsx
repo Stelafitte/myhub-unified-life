@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { enqueue, requestAutoSync } from "@/lib/sync-queue";
 import { analyzeTaskText } from "@/lib/api/task-analysis.functions";
+import { getSignedUrl } from "@/lib/documents";
 import {
   Sheet,
   SheetContent,
