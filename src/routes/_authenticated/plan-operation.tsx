@@ -627,7 +627,7 @@ function PlanOperationPage() {
           <div ref={timelineRef} className="flex max-h-[calc(100vh-22rem)] overflow-auto">
             {/* Left labels */}
             <div className="sticky left-0 z-20 shrink-0 border-r bg-card" style={{ width: LABEL_W }}>
-              <div className="h-10 border-b bg-muted/30" />
+              <div className="h-14 border-b bg-muted/30" />
               {grouped.map(([sectionKey, items]) => {
                 const def = SECTION_DEFS.find((d) => d.key === sectionKey)!;
                 const isCollapsed = collapsed[sectionKey];
