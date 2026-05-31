@@ -191,6 +191,63 @@ export function TaskPanel({
     setEmailResults([]);
   }, [open, task, defaultStatus]);
 
+  // Charger thèmes / sous-thèmes du plan d'opération
+  const loadOpThemes = async () => {
+    if (!user) return;
+    const [t, s] = await Promise.all([
+      supabase.from("op_plan_themes").select("id,name,position").order("position"),
+      supabase.from("op_plan_subthemes").select("id,theme_id,name,position").order("position"),
+    ]);
+    setOpThemes(((t.data ?? []) as OpTheme[]));
+    setOpSubthemes(((s.data ?? []) as OpSubtheme[]));
+  };
+  useEffect(() => { if (open && user) void loadOpThemes(); /* eslint-disable-next-line */ }, [open, user]);
+
+  // Initialiser theme/subtheme à partir des tags de la tâche
+  useEffect(() => {
+    if (!open) return;
+    const tags = (task?.tags ?? []) as string[];
+    const tTag = tags.find((x) => x.startsWith("theme:"))?.slice(6) ?? "";
+    const sTag = tags.find((x) => x.startsWith("subtheme:"))?.slice(9) ?? "";
+    setThemeId(tTag);
+    setSubthemeId(sTag);
+  }, [open, task, opThemes.length]);
+
+  const createOpTheme = async () => {
+    if (!user) return;
+    const name = window.prompt("Nom du nouveau thème ?")?.trim();
+    if (!name) return;
+    const position = opThemes.length ? Math.max(...opThemes.map((t) => t.position)) + 1 : 0;
+    const { data, error } = await supabase
+      .from("op_plan_themes")
+      .insert({ user_id: user.id, name, position })
+      .select("id,name,position")
+      .single();
+    if (error) { toast.error(error.message); return; }
+    setOpThemes((p) => [...p, data as OpTheme]);
+    setThemeId((data as OpTheme).id);
+    setSubthemeId("");
+    toast.success("Thème créé");
+  };
+
+  const createOpSubtheme = async () => {
+    if (!user) return;
+    if (!themeId) { toast.error("Choisis d'abord un thème"); return; }
+    const name = window.prompt("Nom du nouveau sous-thème ?")?.trim();
+    if (!name) return;
+    const existing = opSubthemes.filter((s) => s.theme_id === themeId);
+    const position = existing.length ? Math.max(...existing.map((s) => s.position)) + 1 : 0;
+    const { data, error } = await supabase
+      .from("op_plan_subthemes")
+      .insert({ user_id: user.id, theme_id: themeId, name, position, items: [] })
+      .select("id,theme_id,name,position")
+      .single();
+    if (error) { toast.error(error.message); return; }
+    setOpSubthemes((p) => [...p, data as OpSubtheme]);
+    setSubthemeId((data as OpSubtheme).id);
+    toast.success("Sous-thème créé");
+  };
+
   // Load linked email (label + full content)
   useEffect(() => {
     if (!emailId) {
