@@ -95,7 +95,7 @@ function SortableWidget({ id, children }: { id: string; children: React.ReactNod
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-      className="relative group"
+      className="relative group min-w-0 max-w-full"
     >
       <button
         {...attributes}
@@ -148,9 +148,9 @@ function DashboardPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
+    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <h1 className="min-w-0 text-2xl font-semibold">Dashboard</h1>
         <Dialog open={customizeOpen} onOpenChange={setCustomizeOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm">
@@ -164,13 +164,13 @@ function DashboardPage() {
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={visibleOrder} strategy={rectSortingStrategy}>
           <div className={cn(
-            "gap-4 [column-fill:_balance]",
+            "min-w-0 max-w-full gap-4 [column-fill:_balance]",
             layout.columns === 2
               ? "columns-1 md:columns-2"
               : "columns-1 md:columns-2 xl:columns-3"
           )}>
             {visibleOrder.map((w) => (
-              <div key={w} className="mb-4 break-inside-avoid">
+              <div key={w} className="mb-4 min-w-0 max-w-full break-inside-avoid overflow-hidden">
                 <SortableWidget id={w}>{widgets[w]}</SortableWidget>
               </div>
             ))}
