@@ -336,6 +336,27 @@ function ContactsPage() {
               <Badge variant="secondary" className="text-[10px]">{filtered.length}</Badge>
             </div>
             <div className="flex items-center gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".vcf,text/vcard,text/x-vcard,text/directory"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImportFile(f);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                className="h-8 gap-1 px-2 sm:px-3"
+                title="Importer un fichier vCard (.vcf) exporté depuis iCloud, Google, Outlook…"
+              >
+                <Upload className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{importing ? "Import…" : "Importer"}</span>
+              </Button>
               <Button size="sm" variant="outline" onClick={refresh} className="h-8 gap-1 px-2 sm:px-3">
                 <RefreshCw className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Actualiser</span>
               </Button>
