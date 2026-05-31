@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useTaskPanel } from "@/lib/task-panel-context";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { useEffect, useRef } from "react";
 
 export function AppHeader() {
   const { theme, toggle } = useTheme();
