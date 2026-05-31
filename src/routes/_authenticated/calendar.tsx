@@ -881,6 +881,80 @@ function EventDetail({
 
   const participants = extractEmails((event.raw as DbEvent).description ?? "");
 
+  type EmailLite = {
+    id: string;
+    subject: string | null;
+    from_address: string | null;
+    from_name: string | null;
+    received_at: string | null;
+    body_text: string | null;
+    body_html: string | null;
+  };
+  const [linkedEmail, setLinkedEmail] = useState<EmailLite | null>(null);
+  const [linkedDocs, setLinkedDocs] = useState<DocumentRow[]>([]);
+  const [previewDoc, setPreviewDoc] = useState<DocumentRow | null>(null);
+
+  useEffect(() => {
+    setLinkedEmail(null);
+    setLinkedDocs([]);
+    if (event.kind !== "event") return;
+    const evId = (event.raw as DbEvent).id;
+    let cancelled = false;
+    (async () => {
+      // 1) Via meetings linked to this calendar_event
+      const { data: mtgs } = await supabase
+        .from("meetings")
+        .select("id, source_email_id")
+        .eq("calendar_event_id", evId);
+      const emailId = mtgs?.find((m) => m.source_email_id)?.source_email_id ?? null;
+      const meetingIds = (mtgs ?? []).map((m) => m.id);
+
+      // 2) Fetch the linked email
+      let email: EmailLite | null = null;
+      if (emailId) {
+        const { data } = await supabase
+          .from("emails")
+          .select("id, subject, from_address, from_name, received_at, body_text, body_html")
+          .eq("id", emailId)
+          .maybeSingle();
+        email = (data as EmailLite | null) ?? null;
+      }
+
+      // 3) Documents: source_email_id OR source_id in meetingIds
+      const docPromises: Promise<{ data: DocumentRow[] | null }>[] = [];
+      if (emailId) {
+        docPromises.push(
+          supabase.from("documents").select("*").eq("source_id", emailId).eq("source_type", "email") as any,
+        );
+      }
+      if (meetingIds.length > 0) {
+        docPromises.push(
+          supabase.from("documents").select("*").in("source_id", meetingIds).eq("source_type", "meeting") as any,
+        );
+      }
+      const docResults = await Promise.all(docPromises);
+      const docMap = new Map<string, DocumentRow>();
+      for (const r of docResults) {
+        for (const d of r.data ?? []) docMap.set(d.id, d);
+      }
+      if (cancelled) return;
+      setLinkedEmail(email);
+      setLinkedDocs(Array.from(docMap.values()));
+    })();
+    return () => { cancelled = true; };
+  }, [event.id]);
+
+  const openDoc = async (d: DocumentRow) => {
+    if (!d.storage_path) return;
+    try {
+      const url = await getSignedUrl(d.storage_path);
+      window.open(url, "_blank");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Pièce jointe indisponible");
+    }
+  };
+
+
   return (
     <aside className="fixed inset-0 z-40 flex shrink-0 flex-col border-l bg-card lg:relative lg:inset-auto lg:z-auto lg:w-[380px]">
       <header className="flex items-start gap-2 border-b p-4">
