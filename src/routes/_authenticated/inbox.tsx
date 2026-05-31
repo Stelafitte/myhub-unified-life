@@ -493,14 +493,17 @@ function InboxPage() {
 
   const isSpam = (e: Email) => e.spam_label === "spam" || e.spam_label === "phishing";
   const isPromo = (e: Email) => e.spam_label === "promo";
+  const isTrashed = (e: Email) => !!e.deleted_at;
 
   const counts = useMemo(() => {
-    const inboxEmails = emails.filter((e) => !isSpam(e) && !isPromo(e));
+    const live = emails.filter((e) => !isTrashed(e));
+    const inboxEmails = live.filter((e) => !isSpam(e) && !isPromo(e));
     const unread = inboxEmails.filter((e) => !e.is_read).length;
     const attachments = inboxEmails.filter((e) => e.has_attachment).length;
     const starred = inboxEmails.filter((e) => e.is_starred).length;
-    const spam = emails.filter(isSpam).length;
-    const promo = emails.filter(isPromo).length;
+    const spam = live.filter(isSpam).length;
+    const promo = live.filter(isPromo).length;
+    const trash = emails.filter(isTrashed).length;
     const byAccount = new Map<string, number>();
     inboxEmails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
     const byTheme = new Map<string, number>();
@@ -516,6 +519,7 @@ function InboxPage() {
       starred,
       spam,
       promo,
+      trash,
       byAccount,
       byTheme,
       noTheme,
@@ -524,20 +528,25 @@ function InboxPage() {
 
   const filtered = useMemo(() => {
     let list = emails;
-    if (filter === "spam") list = list.filter(isSpam);
-    else if (filter === "promo") list = list.filter(isPromo);
-    else {
-      list = list.filter((e) => !isSpam(e) && !isPromo(e));
-      if (filter === "unread") list = list.filter((e) => !e.is_read);
-      else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
-      else if (filter === "starred") list = list.filter((e) => e.is_starred);
-      else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
-      else if (filter.startsWith("account:")) {
-        const id = filter.slice(8);
-        list = list.filter((e) => e.account_id === id);
-      } else if (filter.startsWith("theme:")) {
-        const id = filter.slice(6);
-        list = list.filter((e) => e.ai_theme_id === id);
+    if (filter === "trash") {
+      list = list.filter(isTrashed);
+    } else {
+      list = list.filter((e) => !isTrashed(e));
+      if (filter === "spam") list = list.filter(isSpam);
+      else if (filter === "promo") list = list.filter(isPromo);
+      else {
+        list = list.filter((e) => !isSpam(e) && !isPromo(e));
+        if (filter === "unread") list = list.filter((e) => !e.is_read);
+        else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
+        else if (filter === "starred") list = list.filter((e) => e.is_starred);
+        else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
+        else if (filter.startsWith("account:")) {
+          const id = filter.slice(8);
+          list = list.filter((e) => e.account_id === id);
+        } else if (filter.startsWith("theme:")) {
+          const id = filter.slice(6);
+          list = list.filter((e) => e.ai_theme_id === id);
+        }
       }
     }
     if (query.trim()) {
