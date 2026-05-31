@@ -379,6 +379,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
   };
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-md">
         <SheetHeader>
@@ -680,5 +681,11 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
         </div>
       </SheetContent>
     </Sheet>
+    <AttachmentViewerDialog
+      doc={previewAttachment}
+      open={!!previewAttachment}
+      onOpenChange={(v) => !v && setPreviewAttachment(null)}
+    />
+    </>
   );
 }
