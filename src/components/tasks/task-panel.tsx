@@ -214,9 +214,9 @@ export function TaskPanel({
 
     const documentIds = Array.from(
       new Set(
-        (((task as (Task & { attachments?: TaskAttachment[] }) | null)?.attachments ?? [])
+        ((task as (Task & { attachments?: TaskAttachment[] }) | null)?.attachments ?? [])
           .map((attachment) => attachment.document_id)
-          .filter(Boolean) as string[]),
+          .filter(Boolean) as string[],
       ),
     );
 
@@ -242,7 +242,10 @@ export function TaskPanel({
           : Promise.resolve({ data: [] }),
       ]);
       if (!cancelled) {
-        const merged = [...((emailDocs.data as DocumentRow[]) ?? []), ...((linkedDocs.data as DocumentRow[]) ?? [])];
+        const merged = [
+          ...((emailDocs.data as DocumentRow[]) ?? []),
+          ...((linkedDocs.data as DocumentRow[]) ?? []),
+        ];
         setAttachmentDocs(Array.from(new Map(merged.map((doc) => [doc.id, doc])).values()));
         setAttachmentsLoading(false);
       }
