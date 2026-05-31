@@ -1064,21 +1064,55 @@ function ListView({ events, onSelect }: { events: UnifiedEvent[]; onSelect: (e: 
 function EventDetail({
   event,
   account,
+  catColors,
   onClose,
   onDelete,
   onCreateTask,
   onShare,
+  onUpdated,
 }: {
   event: UnifiedEvent;
   account?: Account;
+  catColors: Record<EventCategory, string>;
   onClose: () => void;
   onDelete: () => void;
   onCreateTask: () => void;
   onShare?: () => void;
+  onUpdated?: () => void;
 }) {
   const canEdit =
     event.kind === "event" &&
     (!account || account.sync_direction === "bidirectional" || account.sync_direction === "push");
+
+  const dbEv = event.raw as DbEvent;
+  const [savingType, setSavingType] = useState(false);
+  const currentCat = event.category;
+  const currentColor = event.color;
+
+  const updateType = async (nextCat: EventCategory, nextColor: string) => {
+    if (event.kind !== "event") return;
+    setSavingType(true);
+    try {
+      const base: "pro" | "perso" = nextCat.startsWith("perso") ? "perso" : "pro";
+      const recurring = nextCat.endsWith("recurring");
+      const existingRule = dbEv.recurrence_rule;
+      let nextRule: string | null = existingRule ?? null;
+      if (recurring && !existingRule) nextRule = "FREQ=WEEKLY";
+      if (!recurring) nextRule = null;
+      const { error } = await supabase
+        .from("calendar_events")
+        .update({ category: base, recurrence_rule: nextRule, color: nextColor })
+        .eq("id", dbEv.id);
+      if (error) throw error;
+      toast.success("Type d'événement mis à jour");
+      onUpdated?.();
+      requestAutoSync();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSavingType(false);
+    }
+  };
 
   const participants = extractEmails((event.raw as DbEvent).description ?? "");
 
