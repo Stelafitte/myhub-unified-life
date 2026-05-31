@@ -14,7 +14,13 @@ import {
   CheckSquare,
   Link2,
   Share2,
+  Paperclip,
+  Download,
+  Mail,
 } from "lucide-react";
+import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
+import { getSignedUrl, type DocumentRow } from "@/lib/documents";
+import { formatBytes } from "@/lib/file-icons";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useServerFn } from "@tanstack/react-start";
 import { startGoogleCalendarOAuth, syncGoogleCalendarEvents } from "@/lib/api/google-calendar.functions";
@@ -450,16 +456,16 @@ function AgendaPage() {
       </aside>
 
       {/* MAIN */}
-      <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
-          <Button size="sm" variant="outline" onClick={() => nav(0)}>Aujourd'hui</Button>
+      <section className="relative flex min-w-0 flex-1 flex-col">
+        <header className="flex flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4 sm:py-2.5">
+          <Button size="sm" variant="outline" onClick={() => nav(0)}>Auj.</Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(-1)}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => nav(1)}>
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <h2 className="ml-1 text-sm font-semibold capitalize">{periodLabel()}</h2>
+          <h2 className="ml-1 truncate text-xs font-semibold capitalize sm:text-sm">{periodLabel()}</h2>
 
           <div className="ml-auto inline-flex overflow-hidden rounded-md border">
             {(["day", "week", "month", "list"] as View[]).map((v) => (
@@ -467,17 +473,33 @@ function AgendaPage() {
                 key={v}
                 onClick={() => setView(v)}
                 className={cn(
-                  "px-3 py-1.5 text-xs transition-colors",
+                  "px-2 py-1.5 text-xs transition-colors sm:px-3",
                   view === v ? "bg-primary text-primary-foreground" : "hover:bg-accent",
                 )}
               >
-                {v === "day" ? "Jour" : v === "week" ? "Semaine" : v === "month" ? "Mois" : "Liste"}
+                <span className="sm:hidden">{v === "day" ? "J" : v === "week" ? "Sem" : v === "month" ? "M" : "L"}</span>
+                <span className="hidden sm:inline">{v === "day" ? "Jour" : v === "week" ? "Semaine" : v === "month" ? "Mois" : "Liste"}</span>
               </button>
             ))}
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto">
+        <div
+          className="flex-1 overflow-y-auto"
+          onTouchStart={(e) => {
+            const t = e.touches[0];
+            (e.currentTarget as any)._sw = { x: t.clientX, y: t.clientY };
+          }}
+          onTouchEnd={(e) => {
+            const s = (e.currentTarget as any)._sw;
+            if (!s) return;
+            const t = e.changedTouches[0];
+            const dx = t.clientX - s.x;
+            const dy = t.clientY - s.y;
+            if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5) nav(dx < 0 ? 1 : -1);
+            (e.currentTarget as any)._sw = null;
+          }}
+        >
           {view === "month" ? (
             <MonthView cursor={cursor} events={unified} onSelect={setSelected} onPick={setCursor} />
           ) : view === "week" ? (
@@ -488,6 +510,15 @@ function AgendaPage() {
             <ListView events={inRange} onSelect={setSelected} />
           )}
         </div>
+
+        {/* Mobile FAB */}
+        <Button
+          onClick={() => setCreating(true)}
+          className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full p-0 shadow-lg md:hidden"
+          aria-label="Nouvel événement"
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
       </section>
 
       {/* RIGHT DETAIL */}
@@ -609,32 +640,41 @@ function WeekOrDayView({
   const ROW_H = 48;
   const [dragOffset, setDragOffset] = useState<{ id: string; dy: number } | null>(null);
 
-  const startDrag = (ev: UnifiedEvent) => (downEvt: React.MouseEvent) => {
+  const startDrag = (ev: UnifiedEvent) => (downEvt: React.MouseEvent | React.TouchEvent) => {
     if (!onMove || ev.kind !== "event") return;
-    downEvt.preventDefault();
     downEvt.stopPropagation();
-    const startY = downEvt.clientY;
+    const isTouch = "touches" in downEvt;
+    const startY = isTouch ? (downEvt as React.TouchEvent).touches[0].clientY : (downEvt as React.MouseEvent).clientY;
     let moved = false;
-    const onMouseMove = (m: MouseEvent) => {
-      const dy = m.clientY - startY;
-      if (Math.abs(dy) > 3) moved = true;
+    let lastY = startY;
+    const onMove2 = (clientY: number) => {
+      const dy = clientY - startY;
+      if (Math.abs(dy) > 4) moved = true;
+      lastY = clientY;
       setDragOffset({ id: ev.id, dy });
     };
-    const onMouseUp = (u: MouseEvent) => {
+    const onMouseMove = (m: MouseEvent) => onMove2(m.clientY);
+    const onTouchMove = (m: TouchEvent) => { m.preventDefault(); onMove2(m.touches[0].clientY); };
+    const finish = () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
-      const dy = u.clientY - startY;
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      const dy = lastY - startY;
       setDragOffset(null);
       if (moved) {
-        // snap to 15min steps (1 hour = ROW_H px)
         const deltaMin = Math.round((dy / ROW_H) * 4) * 15;
         if (deltaMin !== 0) onMove(ev, deltaMin);
       } else {
         onSelect(ev);
       }
     };
+    const onMouseUp = () => finish();
+    const onTouchEnd = () => finish();
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
   };
 
   return (
@@ -721,6 +761,7 @@ function WeekOrDayView({
                       <HoverCardTrigger asChild>
                         <div
                           onMouseDown={draggable ? startDrag(e) : undefined}
+                          onTouchStart={draggable ? startDrag(e) : undefined}
                           onClick={draggable ? undefined : () => onSelect(e)}
                           className={cn(
                             "absolute select-none overflow-hidden rounded-md p-1 text-left text-[10px] text-white shadow-sm transition-transform hover:scale-[1.01]",
@@ -840,6 +881,80 @@ function EventDetail({
 
   const participants = extractEmails((event.raw as DbEvent).description ?? "");
 
+  type EmailLite = {
+    id: string;
+    subject: string | null;
+    from_address: string | null;
+    from_name: string | null;
+    received_at: string | null;
+    body_text: string | null;
+    body_html: string | null;
+  };
+  const [linkedEmail, setLinkedEmail] = useState<EmailLite | null>(null);
+  const [linkedDocs, setLinkedDocs] = useState<DocumentRow[]>([]);
+  const [previewDoc, setPreviewDoc] = useState<DocumentRow | null>(null);
+
+  useEffect(() => {
+    setLinkedEmail(null);
+    setLinkedDocs([]);
+    if (event.kind !== "event") return;
+    const evId = (event.raw as DbEvent).id;
+    let cancelled = false;
+    (async () => {
+      // 1) Via meetings linked to this calendar_event
+      const { data: mtgs } = await supabase
+        .from("meetings")
+        .select("id, source_email_id")
+        .eq("calendar_event_id", evId);
+      const emailId = mtgs?.find((m) => m.source_email_id)?.source_email_id ?? null;
+      const meetingIds = (mtgs ?? []).map((m) => m.id);
+
+      // 2) Fetch the linked email
+      let email: EmailLite | null = null;
+      if (emailId) {
+        const { data } = await supabase
+          .from("emails")
+          .select("id, subject, from_address, from_name, received_at, body_text, body_html")
+          .eq("id", emailId)
+          .maybeSingle();
+        email = (data as EmailLite | null) ?? null;
+      }
+
+      // 3) Documents: source_email_id OR source_id in meetingIds
+      const docPromises: Promise<{ data: DocumentRow[] | null }>[] = [];
+      if (emailId) {
+        docPromises.push(
+          supabase.from("documents").select("*").eq("source_id", emailId).eq("source_type", "email") as any,
+        );
+      }
+      if (meetingIds.length > 0) {
+        docPromises.push(
+          supabase.from("documents").select("*").in("source_id", meetingIds).eq("source_type", "meeting") as any,
+        );
+      }
+      const docResults = await Promise.all(docPromises);
+      const docMap = new Map<string, DocumentRow>();
+      for (const r of docResults) {
+        for (const d of r.data ?? []) docMap.set(d.id, d);
+      }
+      if (cancelled) return;
+      setLinkedEmail(email);
+      setLinkedDocs(Array.from(docMap.values()));
+    })();
+    return () => { cancelled = true; };
+  }, [event.id]);
+
+  const openDoc = async (d: DocumentRow) => {
+    if (!d.storage_path) return;
+    try {
+      const url = await getSignedUrl(d.storage_path);
+      window.open(url, "_blank");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Pièce jointe indisponible");
+    }
+  };
+
+
   return (
     <aside className="fixed inset-0 z-40 flex shrink-0 flex-col border-l bg-card lg:relative lg:inset-auto lg:z-auto lg:w-[380px]">
       <header className="flex items-start gap-2 border-b p-4">
@@ -899,7 +1014,77 @@ function EventDetail({
             <p className="whitespace-pre-wrap text-foreground/90">{event.description}</p>
           </div>
         )}
+
+        {linkedDocs.length > 0 && (
+          <div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">
+              <Paperclip className="mr-1 inline h-3 w-3" /> Pièces jointes ({linkedDocs.length})
+            </div>
+            <ul className="space-y-1">
+              {linkedDocs.map((d) => (
+                <li
+                  key={d.id}
+                  className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 text-xs"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDoc(d)}
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  >
+                    <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{d.original_filename || d.filename}</div>
+                      <div className="text-[10px] text-muted-foreground">{formatBytes(d.file_size || 0)}</div>
+                    </div>
+                  </button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 shrink-0"
+                    onClick={() => openDoc(d)}
+                    disabled={!d.storage_path}
+                    aria-label="Télécharger"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {linkedEmail && (
+          <div className="rounded-md border bg-muted/20 p-3">
+            <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Mail className="h-3 w-3" /> Email d'origine
+            </div>
+            <div className="text-sm font-semibold">{linkedEmail.subject || "(sans objet)"}</div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">
+              {linkedEmail.from_name || linkedEmail.from_address}
+              {linkedEmail.received_at && (
+                <> · {new Date(linkedEmail.received_at).toLocaleString("fr-FR")}</>
+              )}
+            </div>
+            <div className="mt-2 max-h-64 overflow-y-auto rounded border bg-background p-2 text-xs">
+              {linkedEmail.body_html ? (
+                <div
+                  className="prose prose-sm max-w-none dark:prose-invert"
+                  dangerouslySetInnerHTML={{ __html: linkedEmail.body_html }}
+                />
+              ) : (
+                <pre className="whitespace-pre-wrap font-sans">{linkedEmail.body_text || "(vide)"}</pre>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      <AttachmentViewerDialog
+        doc={previewDoc}
+        open={!!previewDoc}
+        onOpenChange={(o) => !o && setPreviewDoc(null)}
+      />
+
 
       <footer className="space-y-2 border-t p-3">
         <Button className="w-full gap-1.5" onClick={onCreateTask}>
