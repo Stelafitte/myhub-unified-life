@@ -560,17 +560,17 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
         {loading && !insights && <p className="text-xs text-muted-foreground">Analyse en cours…</p>}
         {insights && (
           <>
-            <p className="font-medium leading-snug">{insights.summary}</p>
+            <p className="break-words font-medium leading-snug">{insights.summary}</p>
             {insights.suggestions.length > 0 && (
               <div>
                 <div className="text-xs text-muted-foreground mb-1">Suggestions</div>
-                <ul className="space-y-1">{insights.suggestions.map((s, i) => <li key={i} className="flex gap-2 text-xs"><CheckCircle2 className="h-3 w-3 mt-0.5 text-primary shrink-0" /><span>{s}</span></li>)}</ul>
+                <ul className="space-y-1">{insights.suggestions.map((s, i) => <li key={i} className="flex min-w-0 gap-2 text-xs"><CheckCircle2 className="h-3 w-3 mt-0.5 text-primary shrink-0" /><span className="min-w-0 break-words">{s}</span></li>)}</ul>
               </div>
             )}
             {insights.alerts.length > 0 && (
               <div>
                 <div className="text-xs text-muted-foreground mb-1">Alertes</div>
-                <ul className="space-y-1">{insights.alerts.map((s, i) => <li key={i} className="flex gap-2 text-xs"><AlertTriangle className="h-3 w-3 mt-0.5 text-destructive shrink-0" /><span>{s}</span></li>)}</ul>
+                <ul className="space-y-1">{insights.alerts.map((s, i) => <li key={i} className="flex min-w-0 gap-2 text-xs"><AlertTriangle className="h-3 w-3 mt-0.5 text-destructive shrink-0" /><span className="min-w-0 break-words">{s}</span></li>)}</ul>
               </div>
             )}
           </>
@@ -611,15 +611,15 @@ function SyncStatusWidget() {
     <Card>
       <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><RefreshCw className="h-4 w-4" /> Synchronisation</CardTitle></CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex min-w-0 items-center gap-2 text-sm">
           <span className={cn("h-2 w-2 rounded-full", dotClass)} />
-          <span>{health === "ok" ? "Toutes les sources à jour" : health === "warn" ? "Certaines sources en retard" : health === "bad" ? "Sources non synchronisées" : "Aucune source"}</span>
+          <span className="min-w-0 break-words">{health === "ok" ? "Toutes les sources à jour" : health === "warn" ? "Certaines sources en retard" : health === "bad" ? "Sources non synchronisées" : "Aucune source"}</span>
         </div>
         <div className="space-y-1">
           {accounts.map((a) => (
-            <div key={a.id} className="flex items-center justify-between text-xs">
-              <span className="truncate">{a.name}</span>
-              <span className="text-muted-foreground">{a.last_sync_at ? relativeTime(a.last_sync_at) : "jamais"}</span>
+            <div key={a.id} className="flex min-w-0 items-center justify-between gap-2 text-xs">
+              <span className="min-w-0 break-words">{a.name}</span>
+              <span className="shrink-0 text-muted-foreground">{a.last_sync_at ? relativeTime(a.last_sync_at) : "jamais"}</span>
             </div>
           ))}
         </div>
