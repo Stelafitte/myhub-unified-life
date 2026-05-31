@@ -204,24 +204,23 @@ function PlanOperationPage() {
       .order("position", { ascending: false })
       .limit(1);
     const position = existing && existing.length ? (existing[0].position as number) + 1 : 0;
-    const { error } = await supabase
+    const { data: ins, error } = await supabase
       .from("op_plan_themes")
-      .insert({ user_id: user.id, name, position });
+      .insert({ user_id: user.id, name, position })
+      .select("id,name,position")
+      .single();
     if (error) { toast.error(error.message); return; }
+    if (ins) setOpThemes((p) => [...p, ins as typeof opThemes[number]]);
     toast.success(`Thème « ${name} » créé`);
   };
 
   const createOpSubtheme = async () => {
     if (!user) return;
-    const { data: themesRows } = await supabase
-      .from("op_plan_themes")
-      .select("id,name")
-      .order("position");
-    const themes = (themesRows ?? []) as { id: string; name: string }[];
-    if (!themes.length) {
+    if (!opThemes.length) {
       toast.error("Crée d'abord un thème");
       return;
     }
+    const themes = opThemes;
     const list = themes.map((t, i) => `${i + 1}. ${t.name}`).join("\n");
     const pick = window.prompt(`Sous quel thème ?\n${list}\n\nEntre le numéro :`)?.trim();
     const idx = pick ? parseInt(pick, 10) - 1 : -1;
