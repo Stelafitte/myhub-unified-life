@@ -5,6 +5,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractMeetingLink } from "../_shared/meeting-link.ts";
+import { persistAttachment, base64ToBytes } from "../_shared/persist-attachment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -68,7 +69,7 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
         const text = isHtml ? stripHtml(html) : (m.body?.content ?? m.bodyPreview ?? "");
         const isStarred = m.flag?.flagStatus === "flagged";
 
-        const { error: upErr } = await admin.from("emails").upsert({
+        const { data: upserted, error: upErr } = await admin.from("emails").upsert({
           account_id: account.id,
           user_id: account.user_id,
           message_id: messageId,
@@ -85,9 +86,36 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
           is_starred: isStarred,
           origin_tag: "outlook",
           thread_id: m.conversationId || null,
-        }, { onConflict: "account_id,message_id", ignoreDuplicates: false });
-        if (!upErr) count++;
-        else console.error("[sync-outlook] upsert", upErr.message);
+        }, { onConflict: "account_id,message_id", ignoreDuplicates: false })
+          .select("id")
+          .maybeSingle();
+        if (upErr) { console.error("[sync-outlook] upsert", upErr.message); continue; }
+        count++;
+
+        // Fetch + persist attachments
+        if (upserted?.id && m.hasAttachments) {
+          try {
+            const aRes = await fetch(`${GATEWAY}/me/messages/${m.id}/attachments`, { headers: gh() });
+            if (aRes.ok) {
+              const aJson = await aRes.json();
+              const items: any[] = aJson.value ?? [];
+              for (const att of items) {
+                if (att["@odata.type"] !== "#microsoft.graph.fileAttachment") continue; // skip itemAttachment/referenceAttachment
+                if (!att.contentBytes) continue;
+                const file = {
+                  filename: att.name || "fichier",
+                  mimeType: att.contentType || "application/octet-stream",
+                  data: base64ToBytes(att.contentBytes, false),
+                };
+                await persistAttachment(admin, account.user_id, account.id, upserted.id, false, file);
+              }
+            } else {
+              console.error(`[sync-outlook] attachments ${aRes.status}`);
+            }
+          } catch (e) {
+            console.error(`[sync-outlook] attachments error`, e);
+          }
+        }
       } catch (e) {
         console.error("[sync-outlook] msg fail", e);
       }

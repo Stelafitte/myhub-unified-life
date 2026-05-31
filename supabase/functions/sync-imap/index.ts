@@ -499,11 +499,12 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
 
     let count = 0;
 
-    // Cap each message at 10MB to capture attachments while keeping memory bounded.
-    for (let i = 0; i < toFetch.length; i += 5) {
-      const batch = toFetch.slice(i, i + 5);
+    // Cap each message at 25MB (standard provider attachment limit). Smaller batch (2)
+    // keeps peak memory bounded (~50MB/batch).
+    for (let i = 0; i < toFetch.length; i += 2) {
+      const batch = toFetch.slice(i, i + 2);
       const fetchRes = await imap.cmd(
-        `UID FETCH ${batch.join(",")} (UID FLAGS BODY.PEEK[]<0.10485760>)`
+        `UID FETCH ${batch.join(",")} (UID FLAGS BODY.PEEK[]<0.26214400>)`
       );
       if (!fetchRes.ok) {
         console.error(`[sync-imap] FETCH batch failed: ${fetchRes.statusLine}`);

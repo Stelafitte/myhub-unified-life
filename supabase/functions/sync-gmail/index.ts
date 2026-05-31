@@ -3,6 +3,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractMeetingLink } from "../_shared/meeting-link.ts";
+import { persistAttachment, base64ToBytes, type AttachmentFile } from "../_shared/persist-attachment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,18 +50,46 @@ function parseAddr(raw: string): { name: string | null; address: string | null }
   return { name: null, address: raw.trim() };
 }
 
-function extractParts(payload: any): { text: string; html: string; hasAttach: boolean } {
+type GmailAttachmentRef = { partId: string; filename: string; mimeType: string; attachmentId: string; size: number };
+
+function extractParts(payload: any): { text: string; html: string; hasAttach: boolean; attachments: GmailAttachmentRef[] } {
   let text = "", html = "", hasAttach = false;
+  const attachments: GmailAttachmentRef[] = [];
   function walk(p: any) {
     if (!p) return;
     const mt = (p.mimeType || "").toLowerCase();
-    if (p.filename && p.body?.attachmentId) hasAttach = true;
+    if (p.filename && p.body?.attachmentId) {
+      hasAttach = true;
+      attachments.push({
+        partId: p.partId,
+        filename: p.filename,
+        mimeType: p.mimeType || "application/octet-stream",
+        attachmentId: p.body.attachmentId,
+        size: p.body.size ?? 0,
+      });
+    }
     if (mt === "text/plain" && p.body?.data) text += b64urlDecode(p.body.data) + "\n";
     else if (mt === "text/html" && p.body?.data) html += b64urlDecode(p.body.data);
     if (Array.isArray(p.parts)) p.parts.forEach(walk);
   }
   walk(payload);
-  return { text: text.slice(0, 100000), html: html.slice(0, 200000), hasAttach };
+  return { text: text.slice(0, 100000), html: html.slice(0, 200000), hasAttach, attachments };
+}
+
+async function fetchGmailAttachment(messageId: string, ref: GmailAttachmentRef): Promise<AttachmentFile | null> {
+  try {
+    const r = await fetch(`${GATEWAY}/users/me/messages/${messageId}/attachments/${ref.attachmentId}`, { headers: gh() });
+    if (!r.ok) {
+      console.error(`[sync-gmail] attachment ${ref.filename} ${r.status}`);
+      return null;
+    }
+    const j = await r.json();
+    if (!j.data) return null;
+    return { filename: ref.filename, mimeType: ref.mimeType, data: base64ToBytes(j.data, true) };
+  } catch (e) {
+    console.error(`[sync-gmail] attachment fetch error`, e);
+    return null;
+  }
 }
 
 async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count: number; error?: string }> {
@@ -93,11 +122,11 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
         const messageId = header(headers, "Message-ID") || m.id;
         const dateStr = header(headers, "Date");
         const receivedAt = dateStr ? new Date(dateStr).toISOString() : new Date(Number(m.internalDate || Date.now())).toISOString();
-        const { text, html, hasAttach } = extractParts(m.payload);
+        const { text, html, hasAttach, attachments } = extractParts(m.payload);
         const isRead = !((m.labelIds ?? []).includes("UNREAD"));
         const isStarred = (m.labelIds ?? []).includes("STARRED");
 
-        const { error: upErr } = await admin.from("emails").upsert({
+        const { data: upserted, error: upErr } = await admin.from("emails").upsert({
           account_id: account.id,
           user_id: account.user_id,
           message_id: messageId,
@@ -114,9 +143,21 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
           is_starred: isStarred,
           origin_tag: "gmail",
           thread_id: m.threadId || null,
-        }, { onConflict: "account_id,message_id", ignoreDuplicates: false });
-        if (!upErr) count++;
-        else console.error("[sync-gmail] upsert", upErr.message);
+        }, { onConflict: "account_id,message_id", ignoreDuplicates: false })
+          .select("id")
+          .maybeSingle();
+        if (upErr) { console.error("[sync-gmail] upsert", upErr.message); continue; }
+        count++;
+
+        // Persist attachments
+        if (upserted?.id && attachments.length > 0) {
+          for (const ref of attachments) {
+            const file = await fetchGmailAttachment(id, ref);
+            if (file) {
+              await persistAttachment(admin, account.user_id, account.id, upserted.id, false, file);
+            }
+          }
+        }
       } catch (e) {
         console.error("[sync-gmail] msg fail", e);
       }
