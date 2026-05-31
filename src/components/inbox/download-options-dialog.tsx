@@ -57,6 +57,7 @@ export function DownloadOptionsDialog({ doc, open, onOpenChange, context }: Prop
   const listChildrenFn = useServerFn(listOneDriveChildren);
   const createFolderFn = useServerFn(createOneDriveFolder);
   const aiFn = useServerFn(suggestOneDriveFolderAI);
+  const recordFn = useServerFn(recordFolderChoice);
 
   // Reset on open
   useEffect(() => {
