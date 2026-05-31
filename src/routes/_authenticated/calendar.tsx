@@ -461,7 +461,22 @@ function AgendaPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-3">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Types d'événements
+            </span>
+            <button
+              onClick={() => setCatEditorOpen(true)}
+              className="text-[10px] font-medium text-primary hover:underline"
+            >
+              Personnaliser
+            </button>
+          </div>
+          {(Object.keys(CATEGORY_LABELS) as EventCategory[]).map((k) => (
+            <Legend key={k} color={catColors[k]} badge="●" label={CATEGORY_LABELS[k]} />
+          ))}
+
+          <div className="mt-4 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
             Sources
           </div>
           <Legend color={SOURCE_META.gmail.color} badge="🔵" label="Google Calendar" />
