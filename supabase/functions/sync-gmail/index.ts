@@ -50,18 +50,46 @@ function parseAddr(raw: string): { name: string | null; address: string | null }
   return { name: null, address: raw.trim() };
 }
 
-function extractParts(payload: any): { text: string; html: string; hasAttach: boolean } {
+type GmailAttachmentRef = { partId: string; filename: string; mimeType: string; attachmentId: string; size: number };
+
+function extractParts(payload: any): { text: string; html: string; hasAttach: boolean; attachments: GmailAttachmentRef[] } {
   let text = "", html = "", hasAttach = false;
+  const attachments: GmailAttachmentRef[] = [];
   function walk(p: any) {
     if (!p) return;
     const mt = (p.mimeType || "").toLowerCase();
-    if (p.filename && p.body?.attachmentId) hasAttach = true;
+    if (p.filename && p.body?.attachmentId) {
+      hasAttach = true;
+      attachments.push({
+        partId: p.partId,
+        filename: p.filename,
+        mimeType: p.mimeType || "application/octet-stream",
+        attachmentId: p.body.attachmentId,
+        size: p.body.size ?? 0,
+      });
+    }
     if (mt === "text/plain" && p.body?.data) text += b64urlDecode(p.body.data) + "\n";
     else if (mt === "text/html" && p.body?.data) html += b64urlDecode(p.body.data);
     if (Array.isArray(p.parts)) p.parts.forEach(walk);
   }
   walk(payload);
-  return { text: text.slice(0, 100000), html: html.slice(0, 200000), hasAttach };
+  return { text: text.slice(0, 100000), html: html.slice(0, 200000), hasAttach, attachments };
+}
+
+async function fetchGmailAttachment(messageId: string, ref: GmailAttachmentRef): Promise<AttachmentFile | null> {
+  try {
+    const r = await fetch(`${GATEWAY}/users/me/messages/${messageId}/attachments/${ref.attachmentId}`, { headers: gh() });
+    if (!r.ok) {
+      console.error(`[sync-gmail] attachment ${ref.filename} ${r.status}`);
+      return null;
+    }
+    const j = await r.json();
+    if (!j.data) return null;
+    return { filename: ref.filename, mimeType: ref.mimeType, data: base64ToBytes(j.data, true) };
+  } catch (e) {
+    console.error(`[sync-gmail] attachment fetch error`, e);
+    return null;
+  }
 }
 
 async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count: number; error?: string }> {
