@@ -824,13 +824,37 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
     run();
   }, [run]);
 
+  const hasItems = !!insights && (insights.suggestions.length + insights.alerts.length) > 0;
+  const openProcessor = () => {
+    if (hasItems) setProcessorOpen(true);
+  };
+
   return (
-    <Card>
+    <Card
+      className={cn(hasItems && "cursor-pointer transition-colors hover:bg-accent/40")}
+      onClick={openProcessor}
+      role={hasItems ? "button" : undefined}
+      tabIndex={hasItems ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (hasItems && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          openProcessor();
+        }
+      }}
+    >
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2 text-base">
           <Sparkles className="h-4 w-4" /> IA Insights
         </CardTitle>
-        <Button variant="ghost" size="icon" onClick={run} disabled={loading}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            run();
+          }}
+          disabled={loading}
+        >
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
         </Button>
       </CardHeader>
@@ -865,11 +889,14 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
                 </ul>
               </div>
             )}
-            {(insights.suggestions.length > 0 || insights.alerts.length > 0) && (
+            {hasItems && (
               <Button
                 size="sm"
                 className="w-full mt-2"
-                onClick={() => setProcessorOpen(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setProcessorOpen(true);
+                }}
               >
                 <Sparkles className="h-4 w-4 mr-2" />
                 Traiter ({insights.suggestions.length + insights.alerts.length})
@@ -891,6 +918,7 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
     </Card>
   );
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WIDGET 6 — Sync status
