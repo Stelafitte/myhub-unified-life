@@ -195,6 +195,16 @@ export function PlanOperationSection() {
   const [editingSub, setEditingSub] = useState<string | null>(null);
   const [editingSubName, setEditingSubName] = useState("");
   const [newItem, setNewItem] = useState<Record<string, string>>({});
+  // Selection: keys are "theme:<id>" | "sub:<id>" | "item:<subId>:<index>"
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const toggleSel = (key: string) =>
+    setSelected((p) => {
+      const n = new Set(p);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
+  const isSel = (key: string) => selected.has(key);
 
   const load = async () => {
     setLoading(true);
