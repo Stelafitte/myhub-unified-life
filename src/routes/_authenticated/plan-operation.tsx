@@ -594,6 +594,8 @@ function PlanOperationPage() {
             </div>
           </div>
         </div>
+          </div>
+        </>
       )}
 
       <TaskPanel
