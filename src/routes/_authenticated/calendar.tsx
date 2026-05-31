@@ -310,6 +310,7 @@ function AgendaPage() {
       const isGoogle = e.source === "google" || (e as any).gcal_connection_id != null;
       const meta = isGoogle ? SOURCE_META.gmail : (acc ? SOURCE_META[acc.type] : SOURCE_META.imap);
       const blob = `${e.description ?? ""} ${e.location ?? ""}`;
+      const cat = categoryOf(e);
       items.push({
         id: `e:${e.id}`,
         kind: "event",
@@ -318,18 +319,19 @@ function AgendaPage() {
         end: new Date(e.end_at),
         location: e.location,
         description: e.description,
-        color: e.color || acc?.color || meta.color,
+        color: catColors[cat],
         badge: meta.badge,
         sourceLabel: acc?.name ?? meta.label,
         accountId: e.account_id,
         isAllDay: e.is_all_day,
         hasVideo: VIDEO_RX.test(blob),
+        category: cat,
         raw: e,
       });
     }
     // Les tâches ne sont volontairement pas affichées dans l'agenda
     return items.sort((a, b) => a.start.getTime() - b.start.getTime());
-  }, [events, tasks, accById]);
+  }, [events, tasks, accById, catColors]);
 
   // Range for current view
   const range = useMemo(() => {
