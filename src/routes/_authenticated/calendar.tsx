@@ -761,6 +761,7 @@ function WeekOrDayView({
                       <HoverCardTrigger asChild>
                         <div
                           onMouseDown={draggable ? startDrag(e) : undefined}
+                          onTouchStart={draggable ? startDrag(e) : undefined}
                           onClick={draggable ? undefined : () => onSelect(e)}
                           className={cn(
                             "absolute select-none overflow-hidden rounded-md p-1 text-left text-[10px] text-white shadow-sm transition-transform hover:scale-[1.01]",
