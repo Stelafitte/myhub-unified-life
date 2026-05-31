@@ -203,6 +203,15 @@ function AgendaPage() {
   const [events, setEvents] = useState<DbEvent[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
+  const [catColors, setCatColors] = useState<Record<EventCategory, string>>(() => loadCategoryColors());
+  const [catEditorOpen, setCatEditorOpen] = useState(false);
+  const updateCatColor = (k: EventCategory, v: string) => {
+    setCatColors((prev) => {
+      const next = { ...prev, [k]: v };
+      try { window.localStorage.setItem(CATEGORY_COLOR_STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
   const [creatingAt, setCreatingAt] = useState<Date | null>(null);
   const openCreate = (d?: Date) => {
     const base = d ? new Date(d) : (() => { const x = new Date(cursor); x.setHours(9, 0, 0, 0); return x; })();
