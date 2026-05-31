@@ -233,6 +233,14 @@ function TasksPage() {
           onCreate={openCreate}
           onOpenEmail={() => navigate({ to: "/inbox" })}
         />
+      ) : view === "list" ? (
+        <TaskListView
+          tasks={tasks}
+          onMove={moveTask}
+          onEdit={openEdit}
+          onDelete={removeTask}
+          onOpenEmail={() => navigate({ to: "/inbox" })}
+        />
       ) : (
         <GanttView tasks={tasks} onEdit={openEdit} onUpdateRange={updateRange} />
       )}
