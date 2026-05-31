@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Paperclip, Folder, Download, Loader2, FolderPlus, Eye } from "lucide-react";
+import { Paperclip, Folder, Download, Loader2, FolderPlus, Eye, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { type DocumentRow, getSignedUrl } from "@/lib/documents";
 import { iconFor, colorFor, categorize, formatBytes } from "@/lib/file-icons";
 import { SaveToFolderDialog } from "@/components/documents/save-to-folder-dialog";
 import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
+import { DownloadOptionsDialog } from "@/components/inbox/download-options-dialog";
 
 type Props = {
   emailId: string;
@@ -20,6 +21,7 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
   const [loading, setLoading] = useState(true);
   const [pick, setPick] = useState<DocumentRow | null>(null);
   const [preview, setPreview] = useState<DocumentRow | null>(null);
+  const [download, setDownload] = useState<DocumentRow | null>(null);
 
   async function load() {
     setLoading(true);
@@ -35,13 +37,13 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
 
   useEffect(() => { void load(); }, [emailId]);
 
-  async function dl(d: DocumentRow) {
+  async function openNative(d: DocumentRow) {
     if (!d.storage_path) return;
     try {
       const url = await getSignedUrl(d.storage_path);
       window.open(url, "_blank", "noopener");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Téléchargement impossible");
+      toast.error(e instanceof Error ? e.message : "Ouverture impossible");
     }
   }
 
@@ -99,7 +101,12 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
                   </Button>
                 )}
                 {d.storage_path && (
-                  <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => dl(d)} title="Ouvrir avec l'application native / Télécharger">
+                  <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => openNative(d)} title="Ouvrir avec l'application native">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {d.storage_path && (
+                  <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => setDownload(d)} title="Télécharger (local ou OneDrive)">
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                 )}
@@ -121,6 +128,12 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
         doc={preview}
         open={!!preview}
         onOpenChange={(v) => !v && setPreview(null)}
+      />
+      <DownloadOptionsDialog
+        doc={download}
+        open={!!download}
+        onOpenChange={(v) => !v && setDownload(null)}
+        context={{ fromAddress, subject }}
       />
     </>
   );
