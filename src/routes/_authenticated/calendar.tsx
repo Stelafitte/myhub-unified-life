@@ -296,12 +296,20 @@ function AgendaPage() {
   const deleteEvent = async (ev: UnifiedEvent) => {
     if (ev.kind !== "event") return;
     if (!confirm(`Supprimer "${ev.title}" ?`)) return;
-    const { error } = await supabase.from("calendar_events").delete().eq("id", (ev.raw as DbEvent).id);
-    if (error) toast.error(error.message);
-    else {
+    const id = (ev.raw as DbEvent).id;
+    // Optimistic update + cache: avoid the cache rehydrate flash that reintroduced the event.
+    const prev = events;
+    const next = prev.filter((e) => e.id !== id);
+    setEvents(next);
+    setSelected(null);
+    cacheReplaceAll("calendar_events", next).catch(() => {});
+    const { error } = await supabase.from("calendar_events").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      setEvents(prev);
+      cacheReplaceAll("calendar_events", prev).catch(() => {});
+    } else {
       toast.success("Événement supprimé");
-      setSelected(null);
-      load();
     }
   };
 
