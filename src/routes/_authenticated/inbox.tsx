@@ -953,8 +953,14 @@ function InboxPage() {
               return (
               <li
                   key={`h:${item.key}`}
-                  className="sticky top-0 z-10 flex items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur"
+                  onClick={() => toggleTheme(item.key)}
+                  className="sticky top-0 z-10 flex items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur cursor-pointer hover:bg-primary/20"
                 >
+                  {collapsedThemes.has(item.key) ? (
+                    <ChevronRight className="h-3 w-3 text-primary" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3 text-primary" />
+                  )}
                   <Sparkles className="h-3 w-3 text-primary" />
                   <span className="truncate">{item.label}</span>
                   <span className="ml-auto text-[10px] font-normal">{item.count}</span>
