@@ -21,6 +21,7 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
   const [loading, setLoading] = useState(true);
   const [pick, setPick] = useState<DocumentRow | null>(null);
   const [preview, setPreview] = useState<DocumentRow | null>(null);
+  const [download, setDownload] = useState<DocumentRow | null>(null);
 
   async function load() {
     setLoading(true);
