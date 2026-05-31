@@ -109,3 +109,31 @@ Refactorer les pages suivantes pour l'utiliser :
 - L'écriture optimiste peut afficher des données "fantômes" si le serveur refuse (ex : violation RLS). Mitigation : rollback du cache + toast d'erreur.
 - Le service worker peut cacher du code obsolète après un déploiement. Mitigation : `autoUpdate` + reload prompt.
 - Les pièces jointes lourdes (mails avec PDF) ne seront pas cachées (poids IndexedDB). Seul le texte/HTML l'est.
+
+## Contournements des 4 inconvénients (mono-user, 3 devices)
+
+### C1. Conflits multi-devices (last-write-wins agressif, jamais silencieux)
+- Chaque mutation en queue embarque `client_updated_at` (timestamp local au moment de l'édition).
+- Au flush, le wrapper relit le `updated_at` serveur juste avant l'UPDATE :
+  - serveur plus récent → opération **rejetée**, toast cliquable "Modification ignorée (version plus récente ailleurs) — voir / refaire" qui rouvre le formulaire pré-rempli avec la valeur locale.
+  - sinon → UPDATE accepté.
+- Realtime Supabase activé sur `tasks`, `calendar_events`, `contacts`, `op_plan_*` : un device A en ligne propage ses modifs → B et C rafraîchissent le cache en silence. Fenêtre de conflit réduite à quelques secondes.
+- Résultat : pas de merge, zéro perte silencieuse.
+
+### C2. Données fantômes (UI "pending" explicite)
+- Toute entité créée/modifiée offline porte `_pending: true` en cache.
+- Badge "⏳ En attente de sync" affiché sur la ligne/carte concernée.
+- Refus serveur au flush (RLS, validation, conflit C1) → rollback du cache + toast cliquable rouvrant l'item.
+
+### C3. Service worker obsolète (version check propre)
+- `registerType: "autoUpdate"` + hook `onNeedRefresh` → bannière "Nouvelle version disponible — recharger".
+- Endpoint `/version.json` (servi `no-store`) interrogé toutes les 30 min ; build hash différent → bannière.
+- Reload purge l'ancien cache shell.
+
+### C4. Purge iOS 7 j (installation PWA recommandée)
+- Sur iOS Safari, si `navigator.standalone === false`, afficher une fois une carte d'aide "Installer l'app : Partager → Sur l'écran d'accueil" (avec capture).
+- Une fois installée, IndexedDB et SW survivent au-delà de 7 j.
+- Installation à faire sur les 3 devices (tel, tablette, PC Chrome/Edge pour PWA desktop).
+
+### Impact estimation
++5 h sur le plan initial (Realtime + UI pending + bannière update + carte iOS). Total revu : ~2 j ½.
