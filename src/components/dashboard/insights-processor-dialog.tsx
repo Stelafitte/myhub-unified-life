@@ -155,54 +155,162 @@ function ListView({
   onOpen: (it: InsightItem) => void;
   onDismiss: (it: InsightItem) => void;
 }) {
+  const emailMap = useOriginEmails(items);
   return (
     <div className="-mx-6 max-h-[60vh] overflow-y-auto">
       <ul className="divide-y">
-        {items.map((it) => (
-          <li key={itemId(it)}>
-            <SwipeableRow
-              rightActions={[
-                {
-                  key: "del",
-                  label: "Suppr.",
-                  icon: <Trash2 className="h-4 w-4" />,
-                  color: "bg-destructive",
-                  onAction: () => onDismiss(it),
-                },
-              ]}
-            >
-              <button
-                type="button"
-                onClick={() => onOpen(it)}
-                className="flex w-full items-start gap-3 px-6 py-3 text-left hover:bg-accent/40"
+        {items.map((it) => {
+          const email = resolveEmail(it.origin, emailMap);
+          return (
+            <li key={itemId(it)}>
+              <SwipeableRow
+                rightActions={[
+                  {
+                    key: "del",
+                    label: "Suppr.",
+                    icon: <Trash2 className="h-4 w-4" />,
+                    color: "bg-destructive",
+                    onAction: () => onDismiss(it),
+                  },
+                ]}
               >
-                <div className="mt-0.5 shrink-0">
-                  {it.kind === "alert" ? (
-                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 text-primary" />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm leading-snug break-words">{it.text}</p>
-                  {it.origin && it.origin.type !== "none" && (
-                    <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-                      <OriginIcon type={it.origin.type} />
-                      <span className="truncate">{originLabel(it.origin)}</span>
-                    </p>
-                  )}
-                </div>
-                <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
-              </button>
-            </SwipeableRow>
-          </li>
-        ))}
+                <button
+                  type="button"
+                  onClick={() => onOpen(it)}
+                  className="flex w-full items-start gap-3 px-6 py-3 text-left hover:bg-accent/40"
+                >
+                  <div className="mt-0.5 shrink-0">
+                    {it.kind === "alert" ? (
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm leading-snug break-words">{it.text}</p>
+                    {email ? (
+                      <div className="mt-2 rounded-md border bg-muted/40 p-2 text-[11px]">
+                        <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
+                          <Mail className="h-3 w-3" />
+                          <span className="truncate">
+                            {email.from_name || email.from_address || "Expéditeur inconnu"}
+                          </span>
+                        </div>
+                        <div className="mt-0.5 truncate font-medium text-foreground">
+                          {email.subject || "(sans objet)"}
+                        </div>
+                        {(email.ai_summary || email.body_text) && (
+                          <p className="mt-0.5 line-clamp-2 text-muted-foreground">
+                            {email.ai_summary || (email.body_text ?? "").slice(0, 180)}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      it.origin && it.origin.type !== "none" && (
+                        <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                          <OriginIcon type={it.origin.type} />
+                          <span className="truncate">{originLabel(it.origin)}</span>
+                        </p>
+                      )
+                    )}
+                  </div>
+                  <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              </SwipeableRow>
+            </li>
+          );
+        })}
       </ul>
       <p className="px-6 py-2 text-[11px] text-muted-foreground">
         Astuce : glissez une ligne vers la gauche pour la supprimer.
       </p>
     </div>
   );
+}
+
+type OriginEmail = {
+  id: string;
+  subject: string | null;
+  from_name: string | null;
+  from_address: string | null;
+  body_text: string | null;
+  ai_summary: string | null;
+};
+
+function resolveEmail(
+  origin: InsightOrigin | undefined,
+  map: Map<string, OriginEmail>,
+): OriginEmail | null {
+  if (!origin || !origin.refId) return null;
+  // direct email ref OR resolved via task → source_email_id (stored under task refId key)
+  return map.get(origin.refId) ?? null;
+}
+
+function useOriginEmails(items: InsightItem[]): Map<string, OriginEmail> {
+  const [map, setMap] = useState<Map<string, OriginEmail>>(new Map());
+  const keys = items
+    .map((it) => (it.origin && it.origin.refId ? `${it.origin.type}:${it.origin.refId}` : ""))
+    .filter(Boolean)
+    .join("|");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const emailIds = new Set<string>();
+      const taskIds = new Set<string>();
+      for (const it of items) {
+        if (!it.origin?.refId) continue;
+        if (it.origin.type === "email") emailIds.add(it.origin.refId);
+        else if (it.origin.type === "task") taskIds.add(it.origin.refId);
+      }
+      // Resolve task → source_email_id
+      const taskEmail = new Map<string, string>(); // taskId -> emailId
+      if (taskIds.size > 0) {
+        const { data } = await supabase
+          .from("tasks")
+          .select("id, source_email_id")
+          .in("id", Array.from(taskIds));
+        for (const t of data ?? []) {
+          if (t.source_email_id) {
+            taskEmail.set(t.id, t.source_email_id);
+            emailIds.add(t.source_email_id);
+          }
+        }
+      }
+      if (emailIds.size === 0) {
+        if (!cancelled) setMap(new Map());
+        return;
+      }
+      const { data: emails } = await supabase
+        .from("emails")
+        .select("id, subject, from_name, from_address, body_text, ai_summary")
+        .in("id", Array.from(emailIds));
+      const byEmailId = new Map<string, OriginEmail>();
+      for (const e of emails ?? []) byEmailId.set(e.id, e as OriginEmail);
+      // Build the final map keyed by refId (email refId OR task refId)
+      const result = new Map<string, OriginEmail>();
+      for (const it of items) {
+        if (!it.origin?.refId) continue;
+        if (it.origin.type === "email") {
+          const e = byEmailId.get(it.origin.refId);
+          if (e) result.set(it.origin.refId, e);
+        } else if (it.origin.type === "task") {
+          const eid = taskEmail.get(it.origin.refId);
+          if (eid) {
+            const e = byEmailId.get(eid);
+            if (e) result.set(it.origin.refId, e);
+          }
+        }
+      }
+      if (!cancelled) setMap(result);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keys]);
+
+  return map;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
