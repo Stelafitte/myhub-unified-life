@@ -28,7 +28,7 @@ Deno.serve(async (req: Request) => {
     if (!userId) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const body = await req.json();
-    const { account_id, to, cc, bcc, subject, text, html, in_reply_to, references } = body ?? {};
+    const { account_id, to, cc, bcc, subject, text, html, in_reply_to, references, attachments } = body ?? {};
     if (!account_id || !to || !subject) {
       return new Response(JSON.stringify({ error: "missing fields" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -55,6 +55,15 @@ Deno.serve(async (req: Request) => {
       auth: { user: username, pass: password },
     });
 
+    const mailAttachments = Array.isArray(attachments)
+      ? attachments.map((a: any) => ({
+          filename: a.filename,
+          content: a.content_base64,
+          encoding: "base64",
+          contentType: a.mime_type,
+        }))
+      : undefined;
+
     const info = await transporter.sendMail({
       from: `"${account.name}" <${username}>`,
       to,
@@ -65,6 +74,7 @@ Deno.serve(async (req: Request) => {
       html: html || undefined,
       inReplyTo: in_reply_to || undefined,
       references: references || undefined,
+      attachments: mailAttachments,
     });
 
     return new Response(JSON.stringify({ ok: true, messageId: info.messageId }), {
