@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { Plus, Paperclip, Mail, Pencil, Trash2, Clock, MoreHorizontal, ChevronDown, ChevronRight, ArrowRight } from "lucide-react";
+import { Plus, Paperclip, Mail, Pencil, Trash2, Clock, MoreHorizontal, ChevronDown, ChevronRight, ArrowRight, Check, Circle, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,20 +98,53 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
                   "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
                 )}
               >
-                {items.map((t) => (
-                  <Card
-                    key={t.id}
-                    task={t}
-                    dragging={dragId === t.id}
-                    onDragStart={(e) => { e.dataTransfer.setData("text/task-id", t.id); setDragId(t.id); }}
-                    onDragEnd={() => setDragId(null)}
-                    onClick={() => onEdit(t)}
-                    onEdit={() => onEdit(t)}
-                    onDelete={() => onDelete(t)}
-                    onMove={(s) => onMove(t, s)}
-                    onOpenEmail={() => t.source_email_id && onOpenEmail(t.source_email_id)}
-                  />
-                ))}
+                {items.map((t) => {
+                  const leftActions: SwipeAction[] = t.status !== "done" ? [{
+                    key: "done",
+                    label: "Terminé",
+                    icon: <Check className="h-4 w-4" />,
+                    color: "bg-emerald-500",
+                    onAction: () => onMove(t, "done"),
+                  }] : [{
+                    key: "todo",
+                    label: "À faire",
+                    icon: <Circle className="h-4 w-4" />,
+                    color: "bg-slate-500",
+                    onAction: () => onMove(t, "todo"),
+                  }];
+                  const rightActions: SwipeAction[] = [
+                    ...(t.status !== "archived" ? [{
+                      key: "archive",
+                      label: "Archiver",
+                      icon: <Archive className="h-4 w-4" />,
+                      color: "bg-slate-500",
+                      onAction: () => onMove(t, "archived"),
+                    }] : []),
+                    {
+                      key: "delete",
+                      label: "Suppr.",
+                      icon: <Trash2 className="h-4 w-4" />,
+                      color: "bg-destructive",
+                      onAction: () => onDelete(t),
+                    },
+                  ];
+
+                  return (
+                    <SwipeableRow key={t.id} leftActions={leftActions} rightActions={rightActions} className="rounded-md">
+                      <Card
+                        task={t}
+                        dragging={dragId === t.id}
+                        onDragStart={(e) => { e.dataTransfer.setData("text/task-id", t.id); setDragId(t.id); }}
+                        onDragEnd={() => setDragId(null)}
+                        onClick={() => onEdit(t)}
+                        onEdit={() => onEdit(t)}
+                        onDelete={() => onDelete(t)}
+                        onMove={(s) => onMove(t, s)}
+                        onOpenEmail={() => t.source_email_id && onOpenEmail(t.source_email_id)}
+                      />
+                    </SwipeableRow>
+                  );
+                })}
                 {items.length === 0 && (
                   <div className="col-span-full rounded-md border border-dashed py-4 text-center text-xs text-muted-foreground">
                     Aucune tâche
