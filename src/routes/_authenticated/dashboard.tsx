@@ -732,7 +732,10 @@ function AgendaWidget({ userId }: { userId?: string }) {
           <div>
             <div className="mb-1 text-sm text-muted-foreground sm:text-xs">Demain</div>
             {tomorrow.slice(0, 3).map((e) => (
-              <div key={e.id} className="flex min-w-0 items-center gap-2 text-base opacity-60 sm:text-sm">
+              <div
+                key={e.id}
+                className="flex min-w-0 items-center gap-2 text-base opacity-60 sm:text-sm"
+              >
                 <span className="w-12 text-sm tabular-nums sm:text-xs">
                   {new Date(e.start_at).toLocaleTimeString("fr-FR", {
                     hour: "2-digit",

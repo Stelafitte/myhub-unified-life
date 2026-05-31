@@ -1201,7 +1201,9 @@ function InboxPage() {
                     {e.ai_summary ? (
                       <div className="mt-0.5 flex min-w-0 items-start gap-1 text-sm italic text-muted-foreground sm:text-xs">
                         <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" />
-                        <span className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">{e.ai_summary}</span>
+                        <span className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">
+                          {e.ai_summary}
+                        </span>
                       </div>
                     ) : (
                       <div className="truncate text-sm text-muted-foreground sm:text-xs">
@@ -1243,7 +1245,7 @@ function InboxPage() {
 
                 {/* hover actions */}
                 <div className="absolute right-2 top-2 hidden gap-1 rounded-md border bg-background p-0.5 shadow-sm group-hover:flex">
-                    <IconBtn
+                  <IconBtn
                     label={e.is_read ? "Marquer non lu" : "Marquer lu"}
                     onClick={(ev) => {
                       ev.stopPropagation();
@@ -1548,10 +1550,20 @@ function Reader({
           </div>
         </div>
         <div className="mt-3 flex min-w-0 flex-wrap gap-1">
-          <Button size="sm" variant="outline" className="h-8 gap-1 text-sm" onClick={() => doReply(false)}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1 text-sm"
+            onClick={() => doReply(false)}
+          >
             <Reply className="h-3 w-3" /> Répondre
           </Button>
-          <Button size="sm" variant="outline" className="h-8 gap-1 text-sm" onClick={() => doReply(true)}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 gap-1 text-sm"
+            onClick={() => doReply(true)}
+          >
             <ReplyAll className="h-3 w-3" /> Tous
           </Button>
           <Button size="sm" variant="outline" className="h-8 gap-1 text-sm" onClick={doForward}>
@@ -1669,10 +1681,10 @@ function Reader({
         />
       )}
 
-        <div className="min-w-0 max-w-full overflow-x-clip p-3 text-base sm:p-4 sm:text-sm">
+      <div className="min-w-0 max-w-full overflow-x-clip p-3 text-base sm:p-4 sm:text-sm">
         {email.body_html ? (
           <div
-              className="prose prose-sm max-w-none break-words dark:prose-invert [&_*]:max-w-full [&_*]:whitespace-normal [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:table-fixed"
+            className="prose prose-sm max-w-none break-words dark:prose-invert [&_*]:max-w-full [&_*]:whitespace-normal [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:table-fixed"
             style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
             dangerouslySetInnerHTML={{ __html: email.body_html }}
           />

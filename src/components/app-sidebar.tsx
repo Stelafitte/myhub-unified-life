@@ -1,6 +1,19 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { LayoutDashboard, Inbox, CheckSquare, Calendar, Users, ClipboardList, Settings, Lock, CalendarClock, FolderOpen, BarChart3, Shield } from "lucide-react";
+import {
+  LayoutDashboard,
+  Inbox,
+  CheckSquare,
+  Calendar,
+  Users,
+  ClipboardList,
+  Settings,
+  Lock,
+  CalendarClock,
+  FolderOpen,
+  BarChart3,
+  Shield,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -47,7 +60,6 @@ export function AppSidebar() {
     { title: "Paramètres", url: "/settings", icon: Settings } as const,
     ...(isAdmin ? [{ title: "Administration", url: "/admin", icon: Shield } as const] : []),
   ];
-
 
   return (
     <Sidebar collapsible="icon">
