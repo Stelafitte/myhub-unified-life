@@ -28,13 +28,14 @@ export const Route = createFileRoute("/_authenticated/tasks")({
   component: TasksPage,
 });
 
-type View = "kanban" | "gantt";
+type View = "kanban" | "gantt" | "list";
 
 function TasksPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const [view, setView] = useState<View>("kanban");
+  const isMobile = useIsMobile();
+  const [view, setView] = useState<View>(isMobile ? "list" : "kanban");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(navigator.onLine);
