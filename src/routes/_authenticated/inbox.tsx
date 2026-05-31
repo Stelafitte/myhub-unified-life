@@ -215,8 +215,8 @@ function InboxPage() {
       toast.success(
         totalProcessed > 0 ? `${totalProcessed} email(s) reclassé(s)` : "Aucun email à reclasser",
       );
-    } catch (err: any) {
-      toast.error(err?.message ?? "Erreur lors du relancement");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors du relancement");
     } finally {
       setRelaunching(false);
     }
@@ -226,7 +226,8 @@ function InboxPage() {
     ev?.stopPropagation();
     setChecked((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -1671,7 +1672,6 @@ function Reader({
           <div
             className="prose prose-sm max-w-none break-words dark:prose-invert [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:table-fixed"
             style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
-            // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: email.body_html }}
           />
         ) : (

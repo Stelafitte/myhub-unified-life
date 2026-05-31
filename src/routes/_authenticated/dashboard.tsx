@@ -867,7 +867,13 @@ function SyncStatusWidget() {
   const { user } = useAuth();
   const { syncing, syncNow } = useSyncStatus();
   const [accounts, setAccounts] = useState<
-    Array<{ id: string; name: string; last_sync_at: string | null; is_active: boolean }>
+    Array<{
+      id: string;
+      name: string;
+      last_sync_at: string | null;
+      is_active: boolean;
+      credentials?: { calendar_only?: boolean } | null;
+    }>
   >([]);
 
   const load = useCallback(async () => {
@@ -876,7 +882,7 @@ function SyncStatusWidget() {
       .from("accounts")
       .select("id, name, last_sync_at, is_active, credentials")
       .eq("user_id", user.id);
-    setAccounts((data ?? []).filter((a: any) => !(a.credentials?.calendar_only === true)));
+    setAccounts((data ?? []).filter((a) => !(a.credentials?.calendar_only === true)));
   }, [user]);
   useEffect(() => {
     load();
