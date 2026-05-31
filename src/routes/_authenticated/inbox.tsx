@@ -942,9 +942,9 @@ function InboxPage() {
           {displayItems.map((item) => {
             if (item.kind === "header") {
               return (
-                <li
+              <li
                   key={`h:${item.key}`}
-                  className="sticky top-0 z-10 flex items-center gap-2 border-b bg-muted/80 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur"
+                  className="sticky top-0 z-10 flex items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur"
                 >
                   <Sparkles className="h-3 w-3 text-primary" />
                   <span className="truncate">{item.label}</span>
