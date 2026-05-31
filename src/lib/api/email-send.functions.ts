@@ -2,12 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const attachmentSchema = z.object({
-  filename: z.string().min(1).max(255),
-  mime_type: z.string().min(1).max(200),
-  content_base64: z.string().min(1).max(35_000_000), // ~26MB raw
-});
-
 const sendSchema = z.object({
   account_id: z.string().uuid(),
   to: z.string().min(3).max(2000),
@@ -17,10 +11,7 @@ const sendSchema = z.object({
   body: z.string().min(0).max(200000),
   in_reply_to: z.string().max(500).optional(),
   references: z.string().max(2000).optional(),
-  attachments: z.array(attachmentSchema).max(20).optional(),
 });
-
-type Attachment = z.infer<typeof attachmentSchema>;
 
 function b64url(s: string): string {
   // UTF-8 safe base64url
@@ -28,14 +19,6 @@ function b64url(s: string): string {
   let bin = "";
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function b64urlFromB64(b64: string): string {
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-function chunk76(s: string): string {
-  return s.replace(/(.{76})/g, "$1\r\n");
 }
 
 function buildRfc2822(opts: {
@@ -47,53 +30,20 @@ function buildRfc2822(opts: {
   body: string;
   inReplyTo?: string;
   references?: string;
-  attachments?: Attachment[];
 }): string {
-  const subjectEnc = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(opts.subject)))}?=`;
-  const baseHeaders = [
+  const headers: string[] = [
     `From: ${opts.from}`,
     `To: ${opts.to}`,
     opts.cc ? `Cc: ${opts.cc}` : "",
     opts.bcc ? `Bcc: ${opts.bcc}` : "",
-    `Subject: ${subjectEnc}`,
-    "MIME-Version: 1.0",
+    `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(opts.subject)))}?=`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: 8bit",
     opts.inReplyTo ? `In-Reply-To: ${opts.inReplyTo}` : "",
     opts.references ? `References: ${opts.references}` : "",
   ].filter(Boolean);
-
-  if (!opts.attachments || opts.attachments.length === 0) {
-    const headers = [
-      ...baseHeaders,
-      'Content-Type: text/plain; charset="UTF-8"',
-      "Content-Transfer-Encoding: 8bit",
-    ];
-    return headers.join("\r\n") + "\r\n\r\n" + opts.body;
-  }
-
-  const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const lines: string[] = [
-    ...baseHeaders,
-    `Content-Type: multipart/mixed; boundary="${boundary}"`,
-    "",
-    `--${boundary}`,
-    'Content-Type: text/plain; charset="UTF-8"',
-    "Content-Transfer-Encoding: 8bit",
-    "",
-    opts.body,
-  ];
-  for (const a of opts.attachments) {
-    const nameEnc = `=?UTF-8?B?${btoa(unescape(encodeURIComponent(a.filename)))}?=`;
-    lines.push(
-      `--${boundary}`,
-      `Content-Type: ${a.mime_type}; name="${nameEnc}"`,
-      "Content-Transfer-Encoding: base64",
-      `Content-Disposition: attachment; filename="${nameEnc}"`,
-      "",
-      chunk76(a.content_base64),
-    );
-  }
-  lines.push(`--${boundary}--`, "");
-  return lines.join("\r\n");
+  return headers.join("\r\n") + "\r\n\r\n" + opts.body;
 }
 
 export const sendEmail = createServerFn({ method: "POST" })
@@ -109,18 +59,12 @@ export const sendEmail = createServerFn({ method: "POST" })
       .single();
     if (accErr || !account) throw new Error("Compte introuvable");
 
-    // Cap total attachment payload at ~24MB
-    if (data.attachments && data.attachments.length > 0) {
-      const total = data.attachments.reduce((n, a) => n + a.content_base64.length, 0);
-      if (total > 32_000_000) throw new Error("Pièces jointes trop volumineuses (max ~24 Mo au total)");
-    }
-
     const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
 
     if (account.type === "gmail") {
       const GMAIL_KEY = process.env.GOOGLE_MAIL_API_KEY;
       if (!LOVABLE_API_KEY || !GMAIL_KEY) throw new Error("Connecteur Gmail non configuré");
-      const rfc = buildRfc2822({
+      const raw = b64url(buildRfc2822({
         from: account.name,
         to: data.to,
         cc: data.cc,
@@ -129,9 +73,7 @@ export const sendEmail = createServerFn({ method: "POST" })
         body: data.body,
         inReplyTo: data.in_reply_to,
         references: data.references,
-        attachments: data.attachments,
-      });
-      const raw = b64url(rfc);
+      }));
       const res = await fetch("https://connector-gateway.lovable.dev/google_mail/gmail/v1/users/me/messages/send", {
         method: "POST",
         headers: {
@@ -155,12 +97,6 @@ export const sendEmail = createServerFn({ method: "POST" })
       const toList = data.to.split(",").map((s) => s.trim()).filter(Boolean);
       const ccList = data.cc ? data.cc.split(",").map((s) => s.trim()).filter(Boolean) : [];
       const bccList = data.bcc ? data.bcc.split(",").map((s) => s.trim()).filter(Boolean) : [];
-      const attachments = (data.attachments ?? []).map((a) => ({
-        "@odata.type": "#microsoft.graph.fileAttachment",
-        name: a.filename,
-        contentType: a.mime_type,
-        contentBytes: a.content_base64,
-      }));
       const res = await fetch("https://connector-gateway.lovable.dev/microsoft_outlook/me/sendMail", {
         method: "POST",
         headers: {
@@ -175,7 +111,6 @@ export const sendEmail = createServerFn({ method: "POST" })
             toRecipients: toList.map((a) => ({ emailAddress: { address: a } })),
             ccRecipients: ccList.map((a) => ({ emailAddress: { address: a } })),
             bccRecipients: bccList.map((a) => ({ emailAddress: { address: a } })),
-            ...(attachments.length > 0 ? { attachments } : {}),
           },
           saveToSentItems: true,
         }),
@@ -185,8 +120,6 @@ export const sendEmail = createServerFn({ method: "POST" })
         if (res.status === 403) throw new Error("Scope manquant: Mail.Send. Reconnectez Outlook avec la permission d'envoi.");
         throw new Error(`Outlook ${res.status}: ${t.slice(0, 200)}`);
       }
-      // Mark b64urlFromB64 as used (Outlook path doesn't need it)
-      void b64urlFromB64;
       return { ok: true };
     }
 
@@ -211,7 +144,6 @@ export const sendEmail = createServerFn({ method: "POST" })
           text: data.body,
           in_reply_to: data.in_reply_to,
           references: data.references,
-          attachments: data.attachments,
         }),
       });
       const json = await res.json().catch(() => ({}));
