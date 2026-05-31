@@ -58,6 +58,13 @@ export function AppHeader() {
       <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
         {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </Button>
+
+      <Button variant="ghost" size="sm" onClick={() => openCreate()} className="h-8 gap-1 text-xs font-medium" aria-label="Nouvelle tâche">
+        <CheckSquare className="h-4 w-4" />
+        <span className="hidden sm:inline">Nouvelle tâche</span>
+        <span className="sm:hidden">Tâche</span>
+      </Button>
+
       <Button
         variant="ghost"
         size="icon"
