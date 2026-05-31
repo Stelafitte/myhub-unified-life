@@ -864,9 +864,29 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
                 </ul>
               </div>
             )}
+            {(insights.suggestions.length > 0 || insights.alerts.length > 0) && (
+              <Button
+                size="sm"
+                className="w-full mt-2"
+                onClick={() => setProcessorOpen(true)}
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Traiter ({insights.suggestions.length + insights.alerts.length})
+              </Button>
+            )}
           </>
         )}
       </CardContent>
+      <InsightsProcessorDialog
+        open={processorOpen}
+        onOpenChange={setProcessorOpen}
+        userId={userId}
+        items={[
+          ...(insights?.alerts ?? []).map((t) => ({ kind: "alert" as const, text: t })),
+          ...(insights?.suggestions ?? []).map((t) => ({ kind: "suggestion" as const, text: t })),
+        ]}
+        context={ctx}
+      />
     </Card>
   );
 }
