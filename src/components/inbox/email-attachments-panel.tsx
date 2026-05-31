@@ -133,7 +133,7 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
         doc={download}
         open={!!download}
         onOpenChange={(v) => !v && setDownload(null)}
-        context={{ fromAddress, subject }}
+        context={{ fromAddress, subject, emailId }}
       />
     </>
   );
