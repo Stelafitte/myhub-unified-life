@@ -497,6 +497,14 @@ export function PlanOperationSection() {
             <Button variant="outline" onClick={seedFromTemplate} className="gap-1">
               <Sparkles className="h-4 w-4" /> Importer le modèle
             </Button>
+            <Button variant="outline" onClick={toggleSelectAll} className="gap-1" disabled={allSelectableKeys.length === 0}>
+              {allSelected ? <Square className="h-4 w-4" /> : <CheckSquare className="h-4 w-4" />}
+              {allSelected ? "Tout désélectionner" : "Tout sélectionner"}
+            </Button>
+            <Button variant="outline" onClick={allOpen ? collapseAll : expandAll} className="gap-1" disabled={themes.length === 0}>
+              {allOpen ? <ChevronsDownUp className="h-4 w-4" /> : <ChevronsUpDown className="h-4 w-4" />}
+              {allOpen ? "Replier tout" : "Déplier tout"}
+            </Button>
             <Button onClick={addSelection} disabled={selected.size === 0} className="gap-1">
               <Send className="h-4 w-4" /> Ajouter la sélection{selected.size > 0 ? ` (${selected.size})` : ""}
             </Button>
