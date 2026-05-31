@@ -547,6 +547,57 @@ export type Database = {
           },
         ]
       }
+      folder_routing_history: {
+        Row: {
+          ai_score: number | null
+          ai_suggested: boolean
+          created_at: string
+          filename: string | null
+          folder_id: string | null
+          folder_path: string
+          from_address: string | null
+          id: string
+          mime_type: string | null
+          provider: string
+          subject: string | null
+          theme_id: string | null
+          theme_name: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_score?: number | null
+          ai_suggested?: boolean
+          created_at?: string
+          filename?: string | null
+          folder_id?: string | null
+          folder_path: string
+          from_address?: string | null
+          id?: string
+          mime_type?: string | null
+          provider?: string
+          subject?: string | null
+          theme_id?: string | null
+          theme_name?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_score?: number | null
+          ai_suggested?: boolean
+          created_at?: string
+          filename?: string | null
+          folder_id?: string | null
+          folder_path?: string
+          from_address?: string | null
+          id?: string
+          mime_type?: string | null
+          provider?: string
+          subject?: string | null
+          theme_id?: string | null
+          theme_name?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       google_calendar_connections: {
         Row: {
           access_token: string

@@ -14,6 +14,7 @@ import {
   listOneDriveChildren,
   createOneDriveFolder,
   suggestOneDriveFolderAI,
+  recordFolderChoice,
   type OneDriveFolder,
 } from "@/lib/api/onedrive.functions";
 import { uploadFileToOneDrive } from "@/lib/api/onedrive-upload.functions";
@@ -22,8 +23,10 @@ type Props = {
   doc: DocumentRow | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  context?: { fromAddress?: string | null; subject?: string | null };
+  context?: { fromAddress?: string | null; subject?: string | null; emailId?: string | null };
 };
+
+
 
 type Crumb = { id: string; name: string };
 type ChildItem = { id: string; name: string; childCount: number };
@@ -54,6 +57,7 @@ export function DownloadOptionsDialog({ doc, open, onOpenChange, context }: Prop
   const listChildrenFn = useServerFn(listOneDriveChildren);
   const createFolderFn = useServerFn(createOneDriveFolder);
   const aiFn = useServerFn(suggestOneDriveFolderAI);
+  const recordFn = useServerFn(recordFolderChoice);
 
   // Reset on open
   useEffect(() => {
@@ -111,6 +115,7 @@ export function DownloadOptionsDialog({ doc, open, onOpenChange, context }: Prop
             mimeType: doc.mime_type ?? undefined,
             subject: context?.subject ?? undefined,
             fromAddress: context?.fromAddress ?? undefined,
+            emailId: context?.emailId ?? undefined,
             bodyHint: undefined,
             paths,
           },
@@ -179,6 +184,25 @@ export function DownloadOptionsDialog({ doc, open, onOpenChange, context }: Prop
     setBusy("onedrive");
     try {
       await uploadFn({ data: { storagePath: doc.storage_path, folderId: target.id, filename: doc.original_filename } });
+      const aiHit = aiPicks.find((p) => p.path === target.path);
+      // Persist learning signal (theme/sender → folder), regardless of source.
+      try {
+        await recordFn({
+          data: {
+            folderId: target.id,
+            folderPath: target.path,
+            filename: doc.original_filename,
+            mimeType: doc.mime_type ?? undefined,
+            emailId: context?.emailId ?? undefined,
+            fromAddress: context?.fromAddress ?? undefined,
+            subject: context?.subject ?? undefined,
+            aiSuggested: Boolean(aiHit),
+            aiScore: aiHit?.score,
+          },
+        });
+      } catch (e) {
+        console.warn("recordFolderChoice failed", e);
+      }
       toast.success(`Envoyé dans OneDrive › ${target.path}`);
       onOpenChange(false);
     } catch (e) {
