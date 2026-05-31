@@ -209,7 +209,8 @@ export function DownloadOptionsDialog({ doc, open, onOpenChange, context }: Prop
           <DialogDescription>Choisis la destination du fichier.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto bg-background px-6 py-4">
+
           {/* Local */}
           <button
             type="button"
