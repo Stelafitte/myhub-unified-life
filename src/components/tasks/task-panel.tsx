@@ -112,6 +112,15 @@ export function TaskPanel({
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [addToCalendar, setAddToCalendar] = useState(false);
+
+  // Thèmes / sous-thèmes du Plan d'opération
+  type OpTheme = { id: string; name: string; position: number };
+  type OpSubtheme = { id: string; theme_id: string; name: string; position: number };
+  const [opThemes, setOpThemes] = useState<OpTheme[]>([]);
+  const [opSubthemes, setOpSubthemes] = useState<OpSubtheme[]>([]);
+  const [themeId, setThemeId] = useState<string>("");
+  const [subthemeId, setSubthemeId] = useState<string>("");
+
   // Tracks the last initialized panel context to avoid clobbering user input on parent re-renders
   const initKeyRef = useRef<string>("");
 
