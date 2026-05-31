@@ -478,6 +478,23 @@ function PlanOperationPage() {
       ) : grouped.length === 0 ? (
         <div className="rounded-xl border bg-muted/30 p-12 text-center text-sm text-muted-foreground">Aucun élément à afficher</div>
       ) : (
+        <>
+          {/* ----- Vue MOBILE & TABLETTE (<1024px) : mini-carte + détail synchronisés ----- */}
+          <div className="lg:hidden">
+            <MobilePlanView
+              bars={bars as unknown as MobileBar[]}
+              sections={SECTION_DEFS.map((s) => ({ key: s.key, label: s.label, emoji: s.emoji }))}
+              sectionLabels={sectionLabels}
+              onRenameSection={renameSection}
+              onOpenTask={(t) => { setEditing(t); setPanelOpen(true); }}
+              onDeleteTask={(t) => setToDelete(t)}
+              onUpdateRange={(t, s, e) => handleUpdateRange({ id: t.id, type: "task" } as Bar, s, e)}
+              onCreateInSection={createInSection}
+            />
+          </div>
+
+          {/* ----- Vue DESKTOP (≥1024px) : Gantt complet inchangé ----- */}
+          <div className="hidden lg:block">
         <div ref={exportRef} className="rounded-xl border bg-card">
           <div ref={timelineRef} className="flex max-h-[calc(100vh-22rem)] overflow-auto">
             {/* Left labels */}
