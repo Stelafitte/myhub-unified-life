@@ -1575,6 +1575,7 @@ function InboxPage() {
             onStar={() => toggleStar(selected)}
             onArchive={() => archive(selected)}
             onDelete={() => remove(selected)}
+            onRestore={selected.deleted_at ? () => restore(selected) : undefined}
             onCreateTask={() => setTaskOpen(true)}
             onPostpone={() => postponeAsTask(selected)}
             onCompose={openComposer}
