@@ -101,7 +101,12 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
                   </Button>
                 )}
                 {d.storage_path && (
-                  <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => dl(d)} title="Ouvrir avec l'application native / Télécharger">
+                  <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => openNative(d)} title="Ouvrir avec l'application native">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {d.storage_path && (
+                  <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => setDownload(d)} title="Télécharger (local ou OneDrive)">
                     <Download className="h-3.5 w-3.5" />
                   </Button>
                 )}
