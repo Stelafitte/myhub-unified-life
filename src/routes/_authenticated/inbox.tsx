@@ -1362,6 +1362,49 @@ function InboxPage() {
                     <Clock className="h-3.5 w-3.5" />
                   </IconBtn>
                 </div>
+              </div>
+            );
+            const leftActions: SwipeAction[] = [
+              {
+                key: "reply",
+                label: "Répondre",
+                icon: <Reply className="h-4 w-4" />,
+                color: "bg-blue-500",
+                onAction: () => openComposer(buildReplyInit(e, false)),
+              },
+              {
+                key: "forward",
+                label: "Transférer",
+                icon: <Forward className="h-4 w-4" />,
+                color: "bg-indigo-500",
+                onAction: () => openComposer(buildForwardInit(e)),
+              },
+            ];
+            const rightActions: SwipeAction[] = [
+              {
+                key: "spam",
+                label: "Indésirable",
+                icon: <ShieldAlert className="h-4 w-4" />,
+                color: "bg-amber-500",
+                onAction: () => markSpam(e, true),
+              },
+              {
+                key: "delete",
+                label: "Supprimer",
+                icon: <Trash2 className="h-4 w-4" />,
+                color: "bg-red-500",
+                onAction: () => remove(e),
+              },
+            ];
+            return (
+              <li key={e.id} className="list-none">
+                {isMobileInbox ? (
+                  <SwipeableRow leftActions={leftActions} rightActions={rightActions}>
+                    {rowInner}
+                  </SwipeableRow>
+                ) : (
+                  rowInner
+                )}
               </li>
             );
           })}
