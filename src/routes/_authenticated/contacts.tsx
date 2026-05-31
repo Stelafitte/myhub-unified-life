@@ -280,18 +280,18 @@ function ContactsPage() {
       <section className="flex min-w-0 flex-1 flex-col border-r">
         {/* Header */}
         <div className="border-b bg-card">
-          <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-4">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
               <h1 className="text-base font-semibold">Contacts</h1>
               <Badge variant="secondary" className="text-[10px]">{filtered.length}</Badge>
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" onClick={refresh} className="h-8 gap-1">
-                <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+              <Button size="sm" variant="outline" onClick={refresh} className="h-8 gap-1 px-2 sm:px-3">
+                <RefreshCw className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Actualiser</span>
               </Button>
-              <Button size="sm" onClick={createContact} className="h-8 gap-1">
-                <Plus className="h-3.5 w-3.5" /> Nouveau
+              <Button size="sm" onClick={createContact} className="h-8 gap-1 px-2 sm:px-3">
+                <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Nouveau</span>
               </Button>
             </div>
           </div>
