@@ -351,6 +351,44 @@ export function PlanOperationSection() {
     }
   };
 
+  // Intégrer une ligne dans le tableau Plan d'opération (crée une tâche)
+  const integrateInPlan = async (themeName: string, title: string, subName?: string) => {
+    if (!user) return;
+    const tags = [`section:${themeName}`];
+    if (subName && subName !== title) tags.push(`subtheme:${subName}`);
+    const today = new Date();
+    const due = new Date(today); due.setDate(due.getDate() + 14);
+    const { error } = await supabase.from("tasks").insert({
+      user_id: user.id,
+      title,
+      priority: "medium",
+      status: "todo",
+      source_app: "myhubpro",
+      tags,
+      gantt_start: today.toISOString(),
+      gantt_end: due.toISOString(),
+      due_date: due.toISOString(),
+      attachments: [],
+    });
+    if (error) return toast.error(error.message);
+    toast.success(`« ${title} » intégré au Plan d'opération`);
+  };
+
+  const integrateTheme = async (themeName: string) => {
+    const subs = subthemes.filter((s) => themes.find((t) => t.name === themeName)?.id === s.theme_id);
+    if (!subs.length) return integrateInPlan(themeName, themeName);
+    for (const s of subs) {
+      await integrateInPlan(themeName, s.name, s.name);
+      for (const it of s.items) await integrateInPlan(themeName, it, s.name);
+    }
+    toast.success(`Thème « ${themeName} » entièrement intégré`);
+  };
+
+  const integrateSubtheme = async (themeName: string, sub: Subtheme) => {
+    await integrateInPlan(themeName, sub.name, sub.name);
+    for (const it of sub.items) await integrateInPlan(themeName, it, sub.name);
+  };
+
   return (
     <div className="space-y-4">
       <Card>
