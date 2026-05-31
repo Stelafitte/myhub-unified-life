@@ -1,5 +1,19 @@
 import { useMemo, useState } from "react";
-import { Plus, Paperclip, Mail, Pencil, Trash2, Clock, MoreHorizontal, ChevronDown, ChevronRight, ArrowRight, Check, Circle, Archive } from "lucide-react";
+import {
+  Plus,
+  Paperclip,
+  Mail,
+  Pencil,
+  Trash2,
+  Clock,
+  MoreHorizontal,
+  ChevronDown,
+  ChevronRight,
+  ArrowRight,
+  Check,
+  Circle,
+  Archive,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
@@ -59,7 +73,10 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
         return (
           <section
             key={col.id}
-            onDragOver={(e) => { e.preventDefault(); setOverCol(col.id); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setOverCol(col.id);
+            }}
             onDragLeave={() => setOverCol((c) => (c === col.id ? null : c))}
             onDrop={(e) => {
               e.preventDefault();
@@ -79,9 +96,15 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
                 onClick={() => setCollapsed((c) => ({ ...c, [col.id]: !c[col.id] }))}
                 className="flex items-center gap-1.5 text-left"
               >
-                {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                {isCollapsed ? (
+                  <ChevronRight className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
                 <span>{col.icon}</span>
-                <h3 className={cn("font-semibold", isPrimary ? "text-sm sm:text-base" : "text-sm")}>{col.label}</h3>
+                <h3 className={cn("font-semibold", isPrimary ? "text-sm sm:text-base" : "text-sm")}>
+                  {col.label}
+                </h3>
               </button>
               <span className="ml-auto text-xs text-muted-foreground">{items.length}</span>
               <button
@@ -99,27 +122,38 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
                 )}
               >
                 {items.map((t) => {
-                  const leftActions: SwipeAction[] = t.status !== "done" ? [{
-                    key: "done",
-                    label: "Terminé",
-                    icon: <Check className="h-4 w-4" />,
-                    color: "bg-emerald-500",
-                    onAction: () => onMove(t, "done"),
-                  }] : [{
-                    key: "todo",
-                    label: "À faire",
-                    icon: <Circle className="h-4 w-4" />,
-                    color: "bg-slate-500",
-                    onAction: () => onMove(t, "todo"),
-                  }];
+                  const leftActions: SwipeAction[] =
+                    t.status !== "done"
+                      ? [
+                          {
+                            key: "done",
+                            label: "Terminé",
+                            icon: <Check className="h-4 w-4" />,
+                            color: "bg-emerald-500",
+                            onAction: () => onMove(t, "done"),
+                          },
+                        ]
+                      : [
+                          {
+                            key: "todo",
+                            label: "À faire",
+                            icon: <Circle className="h-4 w-4" />,
+                            color: "bg-slate-500",
+                            onAction: () => onMove(t, "todo"),
+                          },
+                        ];
                   const rightActions: SwipeAction[] = [
-                    ...(t.status !== "archived" ? [{
-                      key: "archive",
-                      label: "Archiver",
-                      icon: <Archive className="h-4 w-4" />,
-                      color: "bg-slate-500",
-                      onAction: () => onMove(t, "archived"),
-                    }] : []),
+                    ...(t.status !== "archived"
+                      ? [
+                          {
+                            key: "archive",
+                            label: "Archiver",
+                            icon: <Archive className="h-4 w-4" />,
+                            color: "bg-slate-500",
+                            onAction: () => onMove(t, "archived"),
+                          },
+                        ]
+                      : []),
                     {
                       key: "delete",
                       label: "Suppr.",
@@ -130,11 +164,19 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
                   ];
 
                   return (
-                    <SwipeableRow key={t.id} leftActions={leftActions} rightActions={rightActions} className="rounded-md">
+                    <SwipeableRow
+                      key={t.id}
+                      leftActions={leftActions}
+                      rightActions={rightActions}
+                      className="rounded-md"
+                    >
                       <Card
                         task={t}
                         dragging={dragId === t.id}
-                        onDragStart={(e) => { e.dataTransfer.setData("text/task-id", t.id); setDragId(t.id); }}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/task-id", t.id);
+                          setDragId(t.id);
+                        }}
                         onDragEnd={() => setDragId(null)}
                         onClick={() => onEdit(t)}
                         onEdit={() => onEdit(t)}
@@ -160,7 +202,15 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
 }
 
 function Card({
-  task, dragging, onDragStart, onDragEnd, onClick, onEdit, onDelete, onMove, onOpenEmail,
+  task,
+  dragging,
+  onDragStart,
+  onDragEnd,
+  onClick,
+  onEdit,
+  onDelete,
+  onMove,
+  onOpenEmail,
 }: {
   task: Task;
   dragging: boolean;
@@ -174,7 +224,9 @@ function Card({
 }) {
   const overdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
   const section = getSection(task);
-  const tagsClean = (task.tags ?? []).filter((t) => !t.startsWith("section:") && !t.startsWith("recurrence:"));
+  const tagsClean = (task.tags ?? []).filter(
+    (t) => !t.startsWith("section:") && !t.startsWith("recurrence:"),
+  );
   const meta = PRIORITY_META[task.priority];
   const src = SOURCE_META[task.source_app];
 
@@ -204,9 +256,13 @@ function Card({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuItem onClick={onEdit}><Pencil className="mr-2 h-3.5 w-3.5" /> Éditer</DropdownMenuItem>
+                <DropdownMenuItem onClick={onEdit}>
+                  <Pencil className="mr-2 h-3.5 w-3.5" /> Éditer
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">Déplacer vers</DropdownMenuLabel>
+                <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">
+                  Déplacer vers
+                </DropdownMenuLabel>
                 {STATUS_COLUMNS.filter((c) => c.id !== task.status).map((c) => (
                   <DropdownMenuItem key={c.id} onClick={() => onMove(c.id)}>
                     <ArrowRight className="mr-2 h-3.5 w-3.5" /> {c.icon} {c.label}
@@ -215,7 +271,9 @@ function Card({
                 {task.source_email_id && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={onOpenEmail}><Mail className="mr-2 h-3.5 w-3.5" /> Voir email source</DropdownMenuItem>
+                    <DropdownMenuItem onClick={onOpenEmail}>
+                      <Mail className="mr-2 h-3.5 w-3.5" /> Voir email source
+                    </DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuSeparator />
@@ -242,24 +300,36 @@ function Card({
               </Badge>
             )}
             {task.source_email_id && <Mail className="h-3 w-3 text-muted-foreground" />}
-            {(task.tags ?? []).some((t) => t === "attachment") && <Paperclip className="h-3 w-3 text-muted-foreground" />}
+            {(task.tags ?? []).some((t) => t === "attachment") && (
+              <Paperclip className="h-3 w-3 text-muted-foreground" />
+            )}
           </div>
 
           {tagsClean.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {tagsClean.slice(0, 4).map((t) => (
-                <span key={t} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">#{t}</span>
+                <span
+                  key={t}
+                  className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                >
+                  #{t}
+                </span>
               ))}
             </div>
           )}
 
           {task.due_date && (
-            <div className={cn(
-              "mt-1.5 flex items-center gap-1 text-[11px]",
-              overdue ? "font-medium text-destructive" : "text-muted-foreground",
-            )}>
+            <div
+              className={cn(
+                "mt-1.5 flex items-center gap-1 text-[11px]",
+                overdue ? "font-medium text-destructive" : "text-muted-foreground",
+              )}
+            >
               <Clock className="h-3 w-3" />
-              {new Date(task.due_date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })}
+              {new Date(task.due_date).toLocaleDateString("fr-FR", {
+                day: "2-digit",
+                month: "short",
+              })}
               {overdue && " — en retard"}
             </div>
           )}
