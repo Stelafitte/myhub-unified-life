@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Mail, RefreshCw, Trash2, Pencil, CheckCircle2, AlertCircle, Clock, Loader2, Eye, EyeOff } from "lucide-react";
+import { Plus, Mail, RefreshCw, Trash2, Pencil, CheckCircle2, AlertCircle, Clock, Loader2, Eye, EyeOff, Paperclip } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/lib/auth-context";
@@ -111,6 +111,29 @@ export function AccountsSection() {
       else toast.error(`${acc.name} — ${data.error ?? "échec"}`, { id: tid });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Échec sync", { id: tid });
+    }
+    load();
+  };
+
+  const resyncAttachments = async (acc: Account) => {
+    const tid = `resync-${acc.id}`;
+    toast.loading("Re-sync complète (30j) — récupération des PJ…", { id: tid });
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const fn = acc.type === "gmail" ? "sync-gmail" : acc.type === "outlook" ? "sync-outlook" : "sync-imap";
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${sess.session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ account_id: acc.id, force_full: true }),
+      });
+      const data = await res.json().catch(() => ({ ok: false }));
+      if (data.ok) toast.success(`${acc.name} — ${data.synced ?? 0} mails re-synchronisés (PJ incluses)`, { id: tid });
+      else toast.error(`${acc.name} — ${data.error ?? "échec"}`, { id: tid });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec re-sync", { id: tid });
     }
     load();
   };
