@@ -642,6 +642,47 @@ function AgendaPage() {
         onCreated={() => { setCreatingAt(null); load(); }}
       />
 
+      <Dialog open={catEditorOpen} onOpenChange={setCatEditorOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Couleurs des types d'événements</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {(Object.keys(CATEGORY_LABELS) as EventCategory[]).map((k) => (
+              <div key={k} className="flex items-center justify-between gap-3 rounded-md border p-2">
+                <div className="flex items-center gap-2">
+                  <span className="h-4 w-4 rounded-full" style={{ background: catColors[k] }} />
+                  <span className="text-sm">{CATEGORY_LABELS[k]}</span>
+                </div>
+                <input
+                  type="color"
+                  value={catColors[k]}
+                  onChange={(e) => updateCatColor(k, e.target.value)}
+                  className="h-8 w-12 cursor-pointer rounded border bg-transparent"
+                />
+              </div>
+            ))}
+            <p className="text-[11px] text-muted-foreground">
+              Les couleurs sont enregistrées localement sur cet appareil. La catégorie
+              (pro/perso) se choisit à la création d'un événement ; le caractère récurrent
+              est déduit de la règle de récurrence.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setCatColors({ ...DEFAULT_CATEGORY_COLORS });
+                try { window.localStorage.removeItem(CATEGORY_COLOR_STORAGE_KEY); } catch {}
+              }}
+            >
+              Réinitialiser
+            </Button>
+            <Button onClick={() => setCatEditorOpen(false)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
