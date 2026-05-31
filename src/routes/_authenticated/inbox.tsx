@@ -803,13 +803,30 @@ function InboxPage() {
   const bulkDelete = async () => {
     const ids = bulkIds();
     if (!ids.length) return;
-    if (!confirm(`Supprimer ${ids.length} email(s) ?`)) return;
-    setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
-    if (selectedId && checked.has(selectedId)) setSelectedId(null);
-    clearChecked();
-    const { error } = await supabase.from("emails").delete().in("id", ids);
-    if (error) toast.error(error.message);
-    else toast.success(`${ids.length} email(s) supprimé(s)`);
+    const inTrash = filter === "trash";
+    if (inTrash) {
+      if (!confirm(`Supprimer définitivement ${ids.length} email(s) ?`)) return;
+      setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
+      if (selectedId && checked.has(selectedId)) setSelectedId(null);
+      clearChecked();
+      const { error } = await supabase.from("emails").delete().in("id", ids);
+      if (error) toast.error(error.message);
+      else toast.success(`${ids.length} email(s) supprimé(s) définitivement`);
+    } else {
+      if (!confirm(`Déplacer ${ids.length} email(s) vers la corbeille ?`)) return;
+      const now = new Date().toISOString();
+      setEmails((prev) =>
+        prev.map((x) => (checked.has(x.id) ? { ...x, deleted_at: now } : x)),
+      );
+      if (selectedId && checked.has(selectedId)) setSelectedId(null);
+      clearChecked();
+      const { error } = await supabase
+        .from("emails")
+        .update({ deleted_at: now })
+        .in("id", ids);
+      if (error) toast.error(error.message);
+      else toast.success(`${ids.length} email(s) dans la corbeille`);
+    }
   };
   const bulkMarkRead = async (read: boolean) => {
     const ids = bulkIds();
