@@ -1474,17 +1474,29 @@ function NewEventDialog({
             <Input id="ev-part" value={participants} onChange={(e) => setParticipants(e.target.value)} placeholder="alice@x.com, bob@y.com" />
           </div>
 
-          <div>
-            <Label>Récurrence</Label>
-            <Select value={recurrence} onValueChange={setRecurrence}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Aucune</SelectItem>
-                <SelectItem value="daily">Tous les jours</SelectItem>
-                <SelectItem value="weekly">Toutes les semaines</SelectItem>
-                <SelectItem value="monthly">Tous les mois</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Catégorie</Label>
+              <Select value={category} onValueChange={(v) => setCategory(v as "pro" | "perso")}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pro">💼 Pro</SelectItem>
+                  <SelectItem value="perso">🏡 Perso</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Récurrence</Label>
+              <Select value={recurrence} onValueChange={setRecurrence}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucune (ponctuel)</SelectItem>
+                  <SelectItem value="daily">Tous les jours</SelectItem>
+                  <SelectItem value="weekly">Toutes les semaines</SelectItem>
+                  <SelectItem value="monthly">Tous les mois</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>
