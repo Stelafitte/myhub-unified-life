@@ -76,7 +76,8 @@ export function SwipeableRow({
   const onTouchEnd = () => {
     if (!enabled) return;
     dragging.current = false;
-    if (!decided.current) return;
+    setIsDragging(false);
+    if (decided.current !== "h") return;
     const triggerLeft = leftW * TRIGGER_RATIO;
     const triggerRight = rightW * TRIGGER_RATIO;
     if (dx >= leftW + 40 && leftActions[0]) {
@@ -103,6 +104,9 @@ export function SwipeableRow({
     setDx(0);
     setOpen(0);
   };
+
+  const showLeft = dx > 0;
+  const showRight = dx < 0;
 
   return (
     <div className={cn("relative overflow-hidden", className)}>
