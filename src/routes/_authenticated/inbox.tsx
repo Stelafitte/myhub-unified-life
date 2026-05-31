@@ -1184,9 +1184,8 @@ function InboxPage() {
             const e = item.email;
             const acc = accountById.get(e.account_id);
             const isSel = e.id === selectedId;
-            return (
-              <li
-                key={e.id}
+            const rowInner = (
+              <div
                 onClick={() => openEmail(e)}
                 className={cn(
                   "group relative min-w-0 cursor-pointer px-3 py-2.5 transition-colors",
