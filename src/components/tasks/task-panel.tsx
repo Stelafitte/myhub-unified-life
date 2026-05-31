@@ -152,12 +152,19 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
     setEmailResults([]);
   }, [open, task, defaultStatus]);
 
-  // Load linked email label
+  // Load linked email (label + full content)
   useEffect(() => {
-    if (!emailId) { setEmailLabel(""); return; }
-    supabase.from("emails").select("subject,from_name,from_address").eq("id", emailId).maybeSingle()
+    if (!emailId) { setEmailLabel(""); setEmailFull(null); return; }
+    supabase.from("emails")
+      .select("id,subject,from_name,from_address,body_text,body_html,received_at,ai_summary")
+      .eq("id", emailId).maybeSingle()
       .then(({ data }) => {
-        if (data) setEmailLabel(`${data.subject ?? "(sans objet)"} — ${data.from_name || data.from_address || ""}`);
+        if (data) {
+          setEmailLabel(`${data.subject ?? "(sans objet)"} — ${data.from_name || data.from_address || ""}`);
+          setEmailFull(data as EmailFull);
+        } else {
+          setEmailFull(null);
+        }
       });
   }, [emailId]);
 
