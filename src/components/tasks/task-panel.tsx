@@ -309,6 +309,8 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
         onSaved(optimistic);
         toast.success(editing ? "Modification mise en file (offline)" : "Création mise en file (offline)");
       }
+      // Auto-sync after any create/update so the change propagates immediately.
+      requestAutoSync();
       onOpenChange(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
