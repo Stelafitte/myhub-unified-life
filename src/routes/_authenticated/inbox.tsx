@@ -67,6 +67,7 @@ import {
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
+import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
 
 type Account = {
   id: string;
@@ -189,6 +190,42 @@ function InboxPage() {
   const openComposer = (init: ComposerInitial) => {
     setComposerInitial(init);
     setComposerOpen(true);
+  };
+
+  const buildReplyInit = (e: Email, all = false): ComposerInitial => {
+    const dateStr = e.received_at ? new Date(e.received_at).toLocaleString("fr-FR") : "";
+    const sender = e.from_name ? `${e.from_name} <${e.from_address}>` : (e.from_address ?? "");
+    const quoted =
+      "\n\n\nLe " +
+      dateStr +
+      ", " +
+      sender +
+      " a écrit :\n" +
+      (e.body_text ?? "")
+        .split("\n")
+        .map((l) => "> " + l)
+        .join("\n");
+    const refs = e.message_id ? `<${e.message_id}>` : undefined;
+    const subj = e.subject?.startsWith("Re:") ? e.subject : `Re: ${e.subject ?? ""}`;
+    return {
+      mode: all ? "replyAll" : "reply",
+      defaultAccountId: e.account_id,
+      to: e.from_address ?? "",
+      cc: all ? (e.to_address ?? "") : undefined,
+      subject: subj,
+      body: quoted,
+      inReplyTo: refs,
+      references: refs,
+    };
+  };
+  const buildForwardInit = (e: Email): ComposerInitial => {
+    const subj = e.subject?.startsWith("Fwd:") ? e.subject : `Fwd: ${e.subject ?? ""}`;
+    return {
+      mode: "forward",
+      defaultAccountId: e.account_id,
+      subject: subj,
+      body: `\n\n---------- Message transféré ----------\nDe: ${e.from_name ?? ""} <${e.from_address ?? ""}>\nDate: ${e.received_at ?? ""}\nSujet: ${e.subject ?? ""}\nÀ: ${e.to_address ?? ""}\n\n${e.body_text ?? ""}`,
+    };
   };
 
   const relaunchAi = async () => {
@@ -1147,9 +1184,8 @@ function InboxPage() {
             const e = item.email;
             const acc = accountById.get(e.account_id);
             const isSel = e.id === selectedId;
-            return (
-              <li
-                key={e.id}
+            const rowInner = (
+              <div
                 onClick={() => openEmail(e)}
                 className={cn(
                   "group relative min-w-0 cursor-pointer px-3 py-2.5 transition-colors",
@@ -1326,6 +1362,49 @@ function InboxPage() {
                     <Clock className="h-3.5 w-3.5" />
                   </IconBtn>
                 </div>
+              </div>
+            );
+            const leftActions: SwipeAction[] = [
+              {
+                key: "reply",
+                label: "Répondre",
+                icon: <Reply className="h-4 w-4" />,
+                color: "bg-blue-500",
+                onAction: () => openComposer(buildReplyInit(e, false)),
+              },
+              {
+                key: "forward",
+                label: "Transférer",
+                icon: <Forward className="h-4 w-4" />,
+                color: "bg-indigo-500",
+                onAction: () => openComposer(buildForwardInit(e)),
+              },
+            ];
+            const rightActions: SwipeAction[] = [
+              {
+                key: "spam",
+                label: "Indésirable",
+                icon: <ShieldAlert className="h-4 w-4" />,
+                color: "bg-amber-500",
+                onAction: () => markSpam(e, true),
+              },
+              {
+                key: "delete",
+                label: "Supprimer",
+                icon: <Trash2 className="h-4 w-4" />,
+                color: "bg-red-500",
+                onAction: () => remove(e),
+              },
+            ];
+            return (
+              <li key={e.id} className="list-none">
+                {isMobileInbox ? (
+                  <SwipeableRow leftActions={leftActions} rightActions={rightActions}>
+                    {rowInner}
+                  </SwipeableRow>
+                ) : (
+                  rowInner
+                )}
               </li>
             );
           })}
