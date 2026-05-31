@@ -738,9 +738,56 @@ function WeekOrDayView({
               <div className={cn("flex h-10 items-center justify-center border-b text-xs font-medium", isToday && "bg-primary/10 text-primary")}>
                 {fmtDate(d)}
               </div>
-              <div className="relative" style={{ height: hourCount * ROW_H }}>
+              <div
+                className="relative"
+                style={{ height: hourCount * ROW_H }}
+                onPointerDown={(e) => {
+                  if (!onLongCreate) return;
+                  if (e.target !== e.currentTarget) return; // only on empty slot
+                  const target = e.currentTarget;
+                  const rect = target.getBoundingClientRect();
+                  const startY = e.clientY;
+                  const startX = e.clientX;
+                  const t = setTimeout(() => {
+                    const offsetY = startY - rect.top;
+                    const minutesFromStart = Math.max(0, Math.round((offsetY / ROW_H) * 4) * 15);
+                    const slot = new Date(d);
+                    slot.setHours(startHour, 0, 0, 0);
+                    slot.setMinutes(slot.getMinutes() + minutesFromStart);
+                    onLongCreate(slot);
+                  }, 500);
+                  const cancel = (ev: PointerEvent) => {
+                    if (Math.abs(ev.clientX - startX) > 8 || Math.abs(ev.clientY - startY) > 8) {
+                      clearTimeout(t);
+                      window.removeEventListener("pointermove", cancel);
+                      window.removeEventListener("pointerup", up);
+                      window.removeEventListener("pointercancel", up);
+                    }
+                  };
+                  const up = () => {
+                    clearTimeout(t);
+                    window.removeEventListener("pointermove", cancel);
+                    window.removeEventListener("pointerup", up);
+                    window.removeEventListener("pointercancel", up);
+                  };
+                  window.addEventListener("pointermove", cancel);
+                  window.addEventListener("pointerup", up);
+                  window.addEventListener("pointercancel", up);
+                }}
+                onDoubleClick={(e) => {
+                  if (!onLongCreate) return;
+                  if (e.target !== e.currentTarget) return;
+                  const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                  const offsetY = e.clientY - rect.top;
+                  const minutesFromStart = Math.max(0, Math.round((offsetY / ROW_H) * 4) * 15);
+                  const slot = new Date(d);
+                  slot.setHours(startHour, 0, 0, 0);
+                  slot.setMinutes(slot.getMinutes() + minutesFromStart);
+                  onLongCreate(slot);
+                }}
+              >
                 {hours.map((h, idx) => (
-                  <div key={h} className="absolute left-0 right-0 border-b" style={{ top: idx * ROW_H, height: ROW_H }} />
+                  <div key={h} className="pointer-events-none absolute left-0 right-0 border-b" style={{ top: idx * ROW_H, height: ROW_H }} />
                 ))}
                 {(() => {
                   // Compute side-by-side layout for overlapping events
