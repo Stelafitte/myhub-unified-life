@@ -323,7 +323,7 @@ function AgendaPage() {
         end: new Date(e.end_at),
         location: e.location,
         description: e.description,
-        color: catColors[cat],
+        color: e.color || catColors[cat],
         badge: meta.badge,
         sourceLabel: acc?.name ?? meta.label,
         accountId: e.account_id,
@@ -630,10 +630,12 @@ function AgendaPage() {
         <EventDetail
           event={selected}
           account={selected.accountId ? accById.get(selected.accountId) : undefined}
+          catColors={catColors}
           onClose={() => setSelected(null)}
           onDelete={() => deleteEvent(selected)}
           onCreateTask={() => createTaskFromEvent(selected)}
           onShare={() => shareEvent(selected)}
+          onUpdated={() => { load(); }}
         />
       )}
 
