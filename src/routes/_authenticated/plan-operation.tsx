@@ -286,14 +286,28 @@ function PlanOperationPage() {
     return () => window.removeEventListener("online", onOnline);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+  // Rafraîchit dès qu'une tâche est créée/modifiée/supprimée ailleurs dans l'app
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`plan-op-tasks-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter: `user_id=eq.${user.id}` }, () => {
+        load();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Build bars (tasks only — événements/RDV gérés dans l'Agenda)
+  // Toute tâche avec AU MOINS une date (gantt_start, gantt_end ou due_date) apparaît dans le Plan d'opération.
   const allBars = useMemo<Bar[]>(() => {
     const out: Bar[] = [];
     tasks.forEach((t) => {
-      const s = t.gantt_start ? new Date(t.gantt_start) : (t.due_date ? new Date(t.due_date) : null);
-      const e = t.gantt_end ? new Date(t.gantt_end) : (t.due_date ? new Date(t.due_date) : null);
-      if (!s || !e) return;
+      const anyDate = t.gantt_start || t.gantt_end || t.due_date;
+      if (!anyDate) return;
+      const s = new Date(t.gantt_start ?? t.due_date ?? t.gantt_end!);
+      const e = new Date(t.gantt_end ?? t.due_date ?? t.gantt_start!);
       out.push({
         id: t.id,
         type: "task",
