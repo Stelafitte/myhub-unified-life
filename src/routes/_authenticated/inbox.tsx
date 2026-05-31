@@ -947,7 +947,7 @@ function InboxPage() {
         </div>
         <ul className="flex-1 divide-y overflow-y-auto">
           {filtered.length === 0 && (
-            <li className="p-10 text-center text-sm text-muted-foreground">
+            <li className="p-6 text-center text-sm text-muted-foreground sm:p-10">
               {emails.length === 0 ? "Aucun email — configurez un compte dans Paramètres." : "Aucun résultat."}
             </li>
           )}
@@ -957,7 +957,7 @@ function InboxPage() {
               <li
                   key={`h:${item.key}`}
                   onClick={() => toggleTheme(item.key)}
-                  className="sticky top-0 z-10 flex items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur cursor-pointer hover:bg-primary/20"
+                  className="sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20"
                 >
                   {collapsedThemes.has(item.key) ? (
                     <ChevronRight className="h-3 w-3 text-primary" />
@@ -978,12 +978,12 @@ function InboxPage() {
                 key={e.id}
                 onClick={() => openEmail(e)}
                 className={cn(
-                  "group relative cursor-pointer px-3 py-2.5 transition-colors",
+                  "group relative min-w-0 cursor-pointer px-3 py-2.5 transition-colors",
                   isSel ? "bg-accent" : "hover:bg-accent/50",
                   !e.is_read && "bg-primary/[0.03]",
                 )}
               >
-                <div className="flex items-start gap-2.5">
+                <div className="flex min-w-0 items-start gap-2.5">
                   <input
                     type="checkbox"
                     checked={checked.has(e.id)}
@@ -1000,13 +1000,13 @@ function InboxPage() {
                     style={{ background: acc?.color ?? "#64748b" }}
                     title={acc?.name}
                   />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-2 min-w-0">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex min-w-0 items-baseline gap-2">
                       <span
                         className={cn("h-2 w-2 shrink-0 rounded-full", priorityDotClass(e.ai_priority))}
                         title={e.ai_priority ? `Priorité IA : ${e.ai_priority}` : "Priorité non analysée"}
                       />
-                      <span className={cn("truncate text-sm", !e.is_read && "font-semibold")}>
+                      <span className={cn("min-w-0 flex-1 truncate text-sm", !e.is_read && "font-semibold")}>
                         {e.from_name || e.from_address || "Inconnu"}
                       </span>
                       <div className="ml-auto shrink-0 text-right text-[11px] text-muted-foreground leading-tight">
