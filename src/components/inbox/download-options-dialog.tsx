@@ -14,8 +14,17 @@ import {
   listOneDriveChildren,
   createOneDriveFolder,
   suggestOneDriveFolderAI,
+  recordFolderChoice,
   type OneDriveFolder,
 } from "@/lib/api/onedrive.functions";
+import { uploadFileToOneDrive } from "@/lib/api/onedrive-upload.functions";
+
+type Props = {
+  doc: DocumentRow | null;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  context?: { fromAddress?: string | null; subject?: string | null; emailId?: string | null };
+};
 import { uploadFileToOneDrive } from "@/lib/api/onedrive-upload.functions";
 
 type Props = {
