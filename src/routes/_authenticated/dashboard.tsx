@@ -760,6 +760,12 @@ function AIInsightsWidget({ userId }: { userId?: string }) {
     alerts: string[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [processorOpen, setProcessorOpen] = useState(false);
+  const [ctx, setCtx] = useState<{ unreadCount: number; overdueCount: number; todayEvents: number }>({
+    unreadCount: 0,
+    overdueCount: 0,
+    todayEvents: 0,
+  });
 
   const run = useCallback(async () => {
     if (!userId) return;
