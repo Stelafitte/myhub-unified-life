@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { requestAutoSync } from "@/lib/sync-queue";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
@@ -131,6 +131,28 @@ const fmtDate = (d: Date) =>
 const fmtMonth = (d: Date) =>
   d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
+// Long press detector (works for mouse and touch). Fires `cb` after 500ms hold without significant movement.
+function useLongPress(cb: () => void, ms = 500) {
+  const state = React.useRef<{ t: ReturnType<typeof setTimeout> | null; x: number; y: number; fired: boolean }>({ t: null, x: 0, y: 0, fired: false });
+  const clear = () => { if (state.current.t) { clearTimeout(state.current.t); state.current.t = null; } };
+  return {
+    onPointerDown: (e: React.PointerEvent) => {
+      state.current.x = e.clientX; state.current.y = e.clientY; state.current.fired = false;
+      clear();
+      state.current.t = setTimeout(() => { state.current.fired = true; cb(); }, ms);
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (!state.current.t) return;
+      if (Math.abs(e.clientX - state.current.x) > 8 || Math.abs(e.clientY - state.current.y) > 8) clear();
+    },
+    onPointerUp: () => clear(),
+    onPointerLeave: () => clear(),
+    onPointerCancel: () => clear(),
+  };
+}
+
+
+
 function AgendaPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -141,7 +163,11 @@ function AgendaPage() {
   const [events, setEvents] = useState<DbEvent[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [creatingAt, setCreatingAt] = useState<Date | null>(null);
+  const openCreate = (d?: Date) => {
+    const base = d ? new Date(d) : (() => { const x = new Date(cursor); x.setHours(9, 0, 0, 0); return x; })();
+    setCreatingAt(base);
+  };
   const [connectingGoogle, setConnectingGoogle] = useState(false);
   const [oauthError, setOauthError] = useState<string | null>(null);
   const [syncingGoogle, setSyncingGoogle] = useState(false);
@@ -292,12 +318,20 @@ function AgendaPage() {
   const deleteEvent = async (ev: UnifiedEvent) => {
     if (ev.kind !== "event") return;
     if (!confirm(`Supprimer "${ev.title}" ?`)) return;
-    const { error } = await supabase.from("calendar_events").delete().eq("id", (ev.raw as DbEvent).id);
-    if (error) toast.error(error.message);
-    else {
+    const id = (ev.raw as DbEvent).id;
+    // Optimistic update + cache: avoid the cache rehydrate flash that reintroduced the event.
+    const prev = events;
+    const next = prev.filter((e) => e.id !== id);
+    setEvents(next);
+    setSelected(null);
+    cacheReplaceAll("calendar_events", next).catch(() => {});
+    const { error } = await supabase.from("calendar_events").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      setEvents(prev);
+      cacheReplaceAll("calendar_events", prev).catch(() => {});
+    } else {
       toast.success("Événement supprimé");
-      setSelected(null);
-      load();
     }
   };
 
@@ -355,7 +389,7 @@ function AgendaPage() {
             <CalendarIcon className="h-5 w-5 text-primary" />
             <h1 className="text-sm font-semibold">Agenda unifié</h1>
           </div>
-          <Button className="w-full gap-1.5" onClick={() => setCreating(true)}>
+          <Button className="w-full gap-1.5" onClick={() => openCreate()}>
             <Plus className="h-4 w-4" /> Nouvel événement
           </Button>
         </div>
@@ -501,11 +535,11 @@ function AgendaPage() {
           }}
         >
           {view === "month" ? (
-            <MonthView cursor={cursor} events={unified} onSelect={setSelected} onPick={setCursor} />
+            <MonthView cursor={cursor} events={unified} onSelect={setSelected} onPick={setCursor} onLongCreate={openCreate} />
           ) : view === "week" ? (
-            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} />
+            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} onLongCreate={openCreate} />
           ) : view === "day" ? (
-            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} />
+            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} onLongCreate={openCreate} />
           ) : (
             <ListView events={inRange} onSelect={setSelected} />
           )}
@@ -513,7 +547,7 @@ function AgendaPage() {
 
         {/* Mobile FAB */}
         <Button
-          onClick={() => setCreating(true)}
+          onClick={() => openCreate()}
           className="fixed bottom-20 right-4 z-30 h-14 w-14 rounded-full p-0 shadow-lg md:hidden"
           aria-label="Nouvel événement"
         >
@@ -534,13 +568,14 @@ function AgendaPage() {
       )}
 
       <NewEventDialog
-        open={creating}
-        onOpenChange={setCreating}
+        open={creatingAt !== null}
+        onOpenChange={(v) => !v && setCreatingAt(null)}
         accounts={accounts}
         userId={user?.id ?? ""}
-        defaultDate={cursor}
-        onCreated={() => { setCreating(false); load(); }}
+        defaultDate={creatingAt ?? cursor}
+        onCreated={() => { setCreatingAt(null); load(); }}
       />
+
     </div>
   );
 }
@@ -561,11 +596,13 @@ function MonthView({
   events,
   onSelect,
   onPick,
+  onLongCreate,
 }: {
   cursor: Date;
   events: UnifiedEvent[];
   onSelect: (e: UnifiedEvent) => void;
   onPick: (d: Date) => void;
+  onLongCreate?: (d: Date) => void;
 }) {
   const first = startOfMonth(cursor);
   const gridStart = startOfWeek(first);
@@ -587,6 +624,8 @@ function MonthView({
           <button
             key={d.toISOString()}
             onClick={() => onPick(d)}
+            onContextMenu={(e) => { if (onLongCreate) { e.preventDefault(); onLongCreate(d); } }}
+            {...useLongPress(() => onLongCreate?.(d))}
             className={cn(
               "min-h-[110px] border-b border-r p-1.5 text-left text-xs transition-colors hover:bg-accent/40",
               isOther && "bg-muted/20 text-muted-foreground",
@@ -625,12 +664,14 @@ function WeekOrDayView({
   events,
   onSelect,
   onMove,
+  onLongCreate,
 }: {
   days: number;
   from: Date;
   events: UnifiedEvent[];
   onSelect: (e: UnifiedEvent) => void;
   onMove?: (e: UnifiedEvent, deltaMin: number) => void;
+  onLongCreate?: (d: Date) => void;
 }) {
   const dayCols = Array.from({ length: days }, (_, i) => addDays(from, i));
   const today = new Date();
@@ -697,9 +738,56 @@ function WeekOrDayView({
               <div className={cn("flex h-10 items-center justify-center border-b text-xs font-medium", isToday && "bg-primary/10 text-primary")}>
                 {fmtDate(d)}
               </div>
-              <div className="relative" style={{ height: hourCount * ROW_H }}>
+              <div
+                className="relative"
+                style={{ height: hourCount * ROW_H }}
+                onPointerDown={(e) => {
+                  if (!onLongCreate) return;
+                  if (e.target !== e.currentTarget) return; // only on empty slot
+                  const target = e.currentTarget;
+                  const rect = target.getBoundingClientRect();
+                  const startY = e.clientY;
+                  const startX = e.clientX;
+                  const t = setTimeout(() => {
+                    const offsetY = startY - rect.top;
+                    const minutesFromStart = Math.max(0, Math.round((offsetY / ROW_H) * 4) * 15);
+                    const slot = new Date(d);
+                    slot.setHours(startHour, 0, 0, 0);
+                    slot.setMinutes(slot.getMinutes() + minutesFromStart);
+                    onLongCreate(slot);
+                  }, 500);
+                  const cancel = (ev: PointerEvent) => {
+                    if (Math.abs(ev.clientX - startX) > 8 || Math.abs(ev.clientY - startY) > 8) {
+                      clearTimeout(t);
+                      window.removeEventListener("pointermove", cancel);
+                      window.removeEventListener("pointerup", up);
+                      window.removeEventListener("pointercancel", up);
+                    }
+                  };
+                  const up = () => {
+                    clearTimeout(t);
+                    window.removeEventListener("pointermove", cancel);
+                    window.removeEventListener("pointerup", up);
+                    window.removeEventListener("pointercancel", up);
+                  };
+                  window.addEventListener("pointermove", cancel);
+                  window.addEventListener("pointerup", up);
+                  window.addEventListener("pointercancel", up);
+                }}
+                onDoubleClick={(e) => {
+                  if (!onLongCreate) return;
+                  if (e.target !== e.currentTarget) return;
+                  const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                  const offsetY = e.clientY - rect.top;
+                  const minutesFromStart = Math.max(0, Math.round((offsetY / ROW_H) * 4) * 15);
+                  const slot = new Date(d);
+                  slot.setHours(startHour, 0, 0, 0);
+                  slot.setMinutes(slot.getMinutes() + minutesFromStart);
+                  onLongCreate(slot);
+                }}
+              >
                 {hours.map((h, idx) => (
-                  <div key={h} className="absolute left-0 right-0 border-b" style={{ top: idx * ROW_H, height: ROW_H }} />
+                  <div key={h} className="pointer-events-none absolute left-0 right-0 border-b" style={{ top: idx * ROW_H, height: ROW_H }} />
                 ))}
                 {(() => {
                   // Compute side-by-side layout for overlapping events
@@ -1148,7 +1236,7 @@ function NewEventDialog({
   useEffect(() => {
     if (open) {
       const d = new Date(defaultDate);
-      d.setHours(9, 0, 0, 0);
+      if (d.getHours() === 0 && d.getMinutes() === 0) d.setHours(9, 0, 0, 0);
       const e = new Date(d.getTime() + 60 * 60 * 1000);
       const toLocal = (x: Date) =>
         new Date(x.getTime() - x.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
