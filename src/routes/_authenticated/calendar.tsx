@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar as MiniCal } from "@/components/ui/calendar";
 import { useCalendarHours } from "@/lib/calendar-prefs";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -126,7 +127,8 @@ const fmtMonth = (d: Date) =>
 function AgendaPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [view, setView] = useState<View>("week");
+  const isMobile = useIsMobile();
+  const [view, setView] = useState<View>(isMobile ? "list" : "week");
   const [cursor, setCursor] = useState<Date>(startOfDay(new Date()));
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [events, setEvents] = useState<DbEvent[]>([]);

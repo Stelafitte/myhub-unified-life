@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { CheckSquare, LayoutGrid, GanttChart, Wifi, WifiOff, RefreshCw, Plus } from "lucide-react";
+import { CheckSquare, LayoutGrid, GanttChart, List, Wifi, WifiOff, RefreshCw, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { KanbanView } from "@/components/tasks/kanban-view";
 import { GanttView } from "@/components/tasks/gantt-view";
+import { TaskListView } from "@/components/tasks/task-list-view";
 import { TaskPanel } from "@/components/tasks/task-panel";
 import { enqueue, flushQueue, installOnlineFlusher, listPending } from "@/lib/sync-queue";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
@@ -26,13 +28,14 @@ export const Route = createFileRoute("/_authenticated/tasks")({
   component: TasksPage,
 });
 
-type View = "kanban" | "gantt";
+type View = "kanban" | "gantt" | "list";
 
 function TasksPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const search = Route.useSearch();
-  const [view, setView] = useState<View>("kanban");
+  const isMobile = useIsMobile();
+  const [view, setView] = useState<View>(isMobile ? "list" : "kanban");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(navigator.onLine);
@@ -189,8 +192,15 @@ function TasksPage() {
 
           <div className="inline-flex overflow-hidden rounded-md border">
             <button
+              onClick={() => setView("list")}
+              className={cn("flex items-center gap-1 px-2 py-1.5 text-xs transition-colors sm:gap-1.5 sm:px-3 sm:text-sm", view === "list" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
+            >
+              <List className="h-4 w-4" />
+              <span className="hidden sm:inline">Liste</span>
+            </button>
+            <button
               onClick={() => setView("kanban")}
-              className={cn("flex items-center gap-1 px-2 py-1.5 text-xs transition-colors sm:gap-1.5 sm:px-3 sm:text-sm", view === "kanban" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
+              className={cn("flex items-center gap-1 border-l px-2 py-1.5 text-xs transition-colors sm:gap-1.5 sm:px-3 sm:text-sm", view === "kanban" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
             >
               <LayoutGrid className="h-4 w-4" />
               <span className="hidden sm:inline">Kanban</span>
@@ -221,6 +231,14 @@ function TasksPage() {
           onEdit={openEdit}
           onDelete={removeTask}
           onCreate={openCreate}
+          onOpenEmail={() => navigate({ to: "/inbox" })}
+        />
+      ) : view === "list" ? (
+        <TaskListView
+          tasks={tasks}
+          onMove={moveTask}
+          onEdit={openEdit}
+          onDelete={removeTask}
           onOpenEmail={() => navigate({ to: "/inbox" })}
         />
       ) : (
