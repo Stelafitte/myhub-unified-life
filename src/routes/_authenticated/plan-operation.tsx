@@ -106,6 +106,7 @@ function PlanOperationPage() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
+  const [toDelete, setToDelete] = useState<Task | null>(null);
 
   // Filters
   const [fPriority, setFPriority] = useState<Set<TaskPriority>>(new Set());
