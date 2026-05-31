@@ -1217,9 +1217,22 @@ function InboxPage() {
               <span className="hidden sm:inline">Classement IA</span>
             </Button>
           </div>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {filtered.length} email{filtered.length > 1 ? "s" : ""}
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            {(filter === "trash" || filter === "spam") && filtered.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 gap-1 px-2 text-xs text-destructive hover:text-destructive"
+                onClick={filter === "trash" ? emptyTrash : emptySpam}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Vider
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {filtered.length} email{filtered.length > 1 ? "s" : ""}
+            </span>
+          </div>
         </div>
         <div
           className={cn(
