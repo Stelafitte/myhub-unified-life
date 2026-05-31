@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { CheckSquare, LayoutGrid, GanttChart, Wifi, WifiOff, RefreshCw, Plus } from "lucide-react";
+import { CheckSquare, LayoutGrid, GanttChart, List, Wifi, WifiOff, RefreshCw, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { KanbanView } from "@/components/tasks/kanban-view";
 import { GanttView } from "@/components/tasks/gantt-view";
+import { TaskListView } from "@/components/tasks/task-list-view";
 import { TaskPanel } from "@/components/tasks/task-panel";
 import { enqueue, flushQueue, installOnlineFlusher, listPending } from "@/lib/sync-queue";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
