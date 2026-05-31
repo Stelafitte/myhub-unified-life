@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+  ArrowLeft,
   Inbox as InboxIcon,
   Search,
   Star,
@@ -87,6 +88,7 @@ type Filter =
   | "starred"
   | "spam"
   | "promo"
+  | "trash"
   | `account:${string}`
   | `theme:${string}`
   | "theme:__none__";
@@ -492,14 +494,17 @@ function InboxPage() {
 
   const isSpam = (e: Email) => e.spam_label === "spam" || e.spam_label === "phishing";
   const isPromo = (e: Email) => e.spam_label === "promo";
+  const isTrashed = (e: Email) => !!e.deleted_at;
 
   const counts = useMemo(() => {
-    const inboxEmails = emails.filter((e) => !isSpam(e) && !isPromo(e));
+    const live = emails.filter((e) => !isTrashed(e));
+    const inboxEmails = live.filter((e) => !isSpam(e) && !isPromo(e));
     const unread = inboxEmails.filter((e) => !e.is_read).length;
     const attachments = inboxEmails.filter((e) => e.has_attachment).length;
     const starred = inboxEmails.filter((e) => e.is_starred).length;
-    const spam = emails.filter(isSpam).length;
-    const promo = emails.filter(isPromo).length;
+    const spam = live.filter(isSpam).length;
+    const promo = live.filter(isPromo).length;
+    const trash = emails.filter(isTrashed).length;
     const byAccount = new Map<string, number>();
     inboxEmails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
     const byTheme = new Map<string, number>();
@@ -515,6 +520,7 @@ function InboxPage() {
       starred,
       spam,
       promo,
+      trash,
       byAccount,
       byTheme,
       noTheme,
@@ -523,20 +529,25 @@ function InboxPage() {
 
   const filtered = useMemo(() => {
     let list = emails;
-    if (filter === "spam") list = list.filter(isSpam);
-    else if (filter === "promo") list = list.filter(isPromo);
-    else {
-      list = list.filter((e) => !isSpam(e) && !isPromo(e));
-      if (filter === "unread") list = list.filter((e) => !e.is_read);
-      else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
-      else if (filter === "starred") list = list.filter((e) => e.is_starred);
-      else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
-      else if (filter.startsWith("account:")) {
-        const id = filter.slice(8);
-        list = list.filter((e) => e.account_id === id);
-      } else if (filter.startsWith("theme:")) {
-        const id = filter.slice(6);
-        list = list.filter((e) => e.ai_theme_id === id);
+    if (filter === "trash") {
+      list = list.filter(isTrashed);
+    } else {
+      list = list.filter((e) => !isTrashed(e));
+      if (filter === "spam") list = list.filter(isSpam);
+      else if (filter === "promo") list = list.filter(isPromo);
+      else {
+        list = list.filter((e) => !isSpam(e) && !isPromo(e));
+        if (filter === "unread") list = list.filter((e) => !e.is_read);
+        else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
+        else if (filter === "starred") list = list.filter((e) => e.is_starred);
+        else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
+        else if (filter.startsWith("account:")) {
+          const id = filter.slice(8);
+          list = list.filter((e) => e.account_id === id);
+        } else if (filter.startsWith("theme:")) {
+          const id = filter.slice(6);
+          list = list.filter((e) => e.ai_theme_id === id);
+        }
       }
     }
     if (query.trim()) {
@@ -654,27 +665,86 @@ function InboxPage() {
     else toast.success("Email archivé");
   };
   const remove = async (e: Email) => {
+    // Si déjà dans la corbeille → suppression définitive
+    if (e.deleted_at) {
+      if (!confirm("Supprimer définitivement cet email ?")) return;
+      setEmails((prev) => prev.filter((x) => x.id !== e.id));
+      if (selectedId === e.id) setSelectedId(null);
+      const { error } = await supabase.from("emails").delete().eq("id", e.id);
+      if (error) toast.error(error.message);
+      else toast.success("Email supprimé définitivement");
+      return;
+    }
+    // Sinon → corbeille (soft delete)
     const sender = (e.from_address ?? "").toLowerCase();
     const sameSenderIds = sender
       ? emails
-          .filter((x) => (x.from_address ?? "").toLowerCase() === sender && x.id !== e.id)
+          .filter(
+            (x) =>
+              !x.deleted_at &&
+              (x.from_address ?? "").toLowerCase() === sender &&
+              x.id !== e.id,
+          )
           .map((x) => x.id)
       : [];
     let alsoDeleteSender = false;
     if (sameSenderIds.length > 0) {
       alsoDeleteSender = confirm(
-        `Supprimer aussi les ${sameSenderIds.length} autre(s) email(s) de ${e.from_name || e.from_address} ?`,
+        `Mettre aussi à la corbeille les ${sameSenderIds.length} autre(s) email(s) de ${e.from_name || e.from_address} ?`,
       );
     }
     const idsToDelete = alsoDeleteSender ? [e.id, ...sameSenderIds] : [e.id];
-    setEmails((prev) => prev.filter((x) => !idsToDelete.includes(x.id)));
+    const now = new Date().toISOString();
+    setEmails((prev) =>
+      prev.map((x) => (idsToDelete.includes(x.id) ? { ...x, deleted_at: now } : x)),
+    );
     if (selectedId && idsToDelete.includes(selectedId)) setSelectedId(null);
-    const { error } = await supabase.from("emails").delete().in("id", idsToDelete);
+    const { error } = await supabase
+      .from("emails")
+      .update({ deleted_at: now })
+      .in("id", idsToDelete);
     if (error) toast.error(error.message);
     else
       toast.success(
-        idsToDelete.length > 1 ? `${idsToDelete.length} emails supprimés` : "Email supprimé",
+        idsToDelete.length > 1
+          ? `${idsToDelete.length} emails déplacés vers la corbeille`
+          : "Email déplacé vers la corbeille",
       );
+  };
+
+  const restore = async (e: Email) => {
+    setEmails((prev) => prev.map((x) => (x.id === e.id ? { ...x, deleted_at: null } : x)));
+    if (selectedId === e.id) setSelectedId(null);
+    const { error } = await supabase
+      .from("emails")
+      .update({ deleted_at: null })
+      .eq("id", e.id);
+    if (error) toast.error(error.message);
+    else toast.success("Email restauré");
+  };
+
+  const emptyTrash = async () => {
+    const ids = emails.filter(isTrashed).map((x) => x.id);
+    if (!ids.length) return;
+    if (!confirm(`Vider la corbeille (${ids.length} email${ids.length > 1 ? "s" : ""}) ? Cette action est définitive.`))
+      return;
+    setEmails((prev) => prev.filter((x) => !ids.includes(x.id)));
+    if (selectedId && ids.includes(selectedId)) setSelectedId(null);
+    const { error } = await supabase.from("emails").delete().in("id", ids);
+    if (error) toast.error(error.message);
+    else toast.success("Corbeille vidée");
+  };
+
+  const emptySpam = async () => {
+    const ids = emails.filter((x) => isSpam(x) && !isTrashed(x)).map((x) => x.id);
+    if (!ids.length) return;
+    if (!confirm(`Déplacer ${ids.length} indésirable${ids.length > 1 ? "s" : ""} vers la corbeille ?`))
+      return;
+    const now = new Date().toISOString();
+    setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: now } : x)));
+    const { error } = await supabase.from("emails").update({ deleted_at: now }).in("id", ids);
+    if (error) toast.error(error.message);
+    else toast.success("Indésirables vidés");
   };
 
   const markSpam = async (e: Email, asSpam: boolean) => {
@@ -734,13 +804,30 @@ function InboxPage() {
   const bulkDelete = async () => {
     const ids = bulkIds();
     if (!ids.length) return;
-    if (!confirm(`Supprimer ${ids.length} email(s) ?`)) return;
-    setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
-    if (selectedId && checked.has(selectedId)) setSelectedId(null);
-    clearChecked();
-    const { error } = await supabase.from("emails").delete().in("id", ids);
-    if (error) toast.error(error.message);
-    else toast.success(`${ids.length} email(s) supprimé(s)`);
+    const inTrash = filter === "trash";
+    if (inTrash) {
+      if (!confirm(`Supprimer définitivement ${ids.length} email(s) ?`)) return;
+      setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
+      if (selectedId && checked.has(selectedId)) setSelectedId(null);
+      clearChecked();
+      const { error } = await supabase.from("emails").delete().in("id", ids);
+      if (error) toast.error(error.message);
+      else toast.success(`${ids.length} email(s) supprimé(s) définitivement`);
+    } else {
+      if (!confirm(`Déplacer ${ids.length} email(s) vers la corbeille ?`)) return;
+      const now = new Date().toISOString();
+      setEmails((prev) =>
+        prev.map((x) => (checked.has(x.id) ? { ...x, deleted_at: now } : x)),
+      );
+      if (selectedId && checked.has(selectedId)) setSelectedId(null);
+      clearChecked();
+      const { error } = await supabase
+        .from("emails")
+        .update({ deleted_at: now })
+        .in("id", ids);
+      if (error) toast.error(error.message);
+      else toast.success(`${ids.length} email(s) dans la corbeille`);
+    }
   };
   const bulkMarkRead = async (read: boolean) => {
     const ids = bulkIds();
@@ -831,6 +918,17 @@ function InboxPage() {
             count={counts.spam}
             active={filter === "spam"}
             onClick={() => setFilter("spam")}
+            onAction={counts.spam > 0 ? emptySpam : undefined}
+            actionLabel="Vider les indésirables"
+          />
+          <FilterRow
+            label="Corbeille"
+            icon={<Trash2 className="h-4 w-4" />}
+            count={counts.trash}
+            active={filter === "trash"}
+            onClick={() => setFilter("trash")}
+            onAction={counts.trash > 0 ? emptyTrash : undefined}
+            actionLabel="Vider la corbeille"
           />
 
           {/* Comptes first */}
@@ -1000,8 +1098,24 @@ function InboxPage() {
       <section className="flex min-w-0 max-w-full flex-1 flex-col border-r overflow-hidden">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
+            <Link
+              to="/"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
+              title="Retour à l'accueil"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
             <Select
-              value={filter.startsWith("account:") ? filter : "all"}
+              value={
+                filter.startsWith("account:") ||
+                filter === "unread" ||
+                filter === "starred" ||
+                filter === "attachments" ||
+                filter === "spam" ||
+                filter === "trash"
+                  ? filter
+                  : "all"
+              }
               onValueChange={(v) => {
                 setFilter(v as Filter);
                 // Quand on choisit "Tous les comptes" ou un compte spécifique,
@@ -1054,6 +1168,24 @@ function InboxPage() {
                     </span>
                   </div>
                 </SelectItem>
+                <SelectItem value="spam" className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <ShieldOff className="h-3.5 w-3.5 text-muted-foreground" />
+                    Indésirables
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {counts.spam}
+                    </span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="trash" className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    Corbeille
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {counts.trash}
+                    </span>
+                  </div>
+                </SelectItem>
                 {accounts
                   .filter(
                     (a) => !(a.credentials?.calendar_only === true) && !/calendar/i.test(a.name),
@@ -1085,9 +1217,22 @@ function InboxPage() {
               <span className="hidden sm:inline">Classement IA</span>
             </Button>
           </div>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {filtered.length} email{filtered.length > 1 ? "s" : ""}
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            {(filter === "trash" || filter === "spam") && filtered.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 gap-1 px-2 text-xs text-destructive hover:text-destructive"
+                onClick={filter === "trash" ? emptyTrash : emptySpam}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Vider
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {filtered.length} email{filtered.length > 1 ? "s" : ""}
+            </span>
+          </div>
         </div>
         <div
           className={cn(
@@ -1451,6 +1596,7 @@ function InboxPage() {
             onStar={() => toggleStar(selected)}
             onArchive={() => archive(selected)}
             onDelete={() => remove(selected)}
+            onRestore={selected.deleted_at ? () => restore(selected) : undefined}
             onCreateTask={() => setTaskOpen(true)}
             onPostpone={() => postponeAsTask(selected)}
             onCompose={openComposer}
@@ -1493,25 +1639,42 @@ function FilterRow({
   count,
   active,
   onClick,
+  onAction,
+  actionLabel,
 }: {
   label: string;
   icon: React.ReactNode;
   count: number;
   active: boolean;
   onClick: () => void;
+  onAction?: () => void;
+  actionLabel?: string;
 }) {
   return (
-    <button
-      onClick={onClick}
+    <div
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+        "group flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
         active ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
       )}
     >
-      <span className="text-muted-foreground">{icon}</span>
-      <span className="flex-1 text-sm">{label}</span>
-      <span className="text-[11px] text-muted-foreground">{count}</span>
-    </button>
+      <button onClick={onClick} className="flex flex-1 items-center gap-2 min-w-0">
+        <span className="text-muted-foreground">{icon}</span>
+        <span className="flex-1 truncate text-sm">{label}</span>
+        <span className="text-[11px] text-muted-foreground">{count}</span>
+      </button>
+      {onAction && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onAction();
+          }}
+          title={actionLabel}
+          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-destructive group-hover:opacity-100"
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -1542,6 +1705,7 @@ function Reader({
   onStar,
   onArchive,
   onDelete,
+  onRestore,
   onCreateTask,
   onPostpone,
   onCompose,
@@ -1553,6 +1717,7 @@ function Reader({
   onStar: () => void;
   onArchive: () => void;
   onDelete: () => void;
+  onRestore?: () => void;
   onCreateTask: () => void;
   onPostpone: () => void;
   onCompose: (init: ComposerInitial) => void;
@@ -1661,13 +1826,23 @@ function Reader({
           <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}>
             <Archive className="h-3 w-3" /> Archiver
           </Button>
+          {onRestore && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1"
+              onClick={onRestore}
+            >
+              <RefreshCw className="h-3 w-3" /> Restaurer
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
             className="h-7 gap-1 text-destructive"
             onClick={onDelete}
           >
-            <Trash2 className="h-3 w-3" /> Suppr.
+            <Trash2 className="h-3 w-3" /> {email.deleted_at ? "Suppr. définitive" : "Suppr."}
           </Button>
           <Button size="sm" className="h-7 gap-1" onClick={onCreateTask}>
             <Plus className="h-3 w-3" /> Créer tâche
