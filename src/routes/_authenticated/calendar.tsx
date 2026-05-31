@@ -1243,6 +1243,41 @@ function EventDetail({
           </div>
         )}
 
+        {canEdit && (
+          <div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">Type d'événement</div>
+            <div className="flex items-center gap-2">
+              <Select
+                value={currentCat}
+                onValueChange={(v) => updateType(v as EventCategory, catColors[v as EventCategory])}
+                disabled={savingType}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(CATEGORY_LABELS) as EventCategory[]).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: catColors[k] }} />
+                        {CATEGORY_LABELS[k]}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <input
+                type="color"
+                value={currentColor}
+                disabled={savingType}
+                onChange={(e) => updateType(currentCat, e.target.value)}
+                className="h-9 w-10 cursor-pointer rounded border bg-background"
+                title="Couleur personnalisée"
+              />
+            </div>
+          </div>
+        )}
+
         {event.description && (
           <div>
             <div className="text-xs font-medium text-muted-foreground">Notes</div>
