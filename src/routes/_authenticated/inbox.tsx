@@ -664,27 +664,86 @@ function InboxPage() {
     else toast.success("Email archivé");
   };
   const remove = async (e: Email) => {
+    // Si déjà dans la corbeille → suppression définitive
+    if (e.deleted_at) {
+      if (!confirm("Supprimer définitivement cet email ?")) return;
+      setEmails((prev) => prev.filter((x) => x.id !== e.id));
+      if (selectedId === e.id) setSelectedId(null);
+      const { error } = await supabase.from("emails").delete().eq("id", e.id);
+      if (error) toast.error(error.message);
+      else toast.success("Email supprimé définitivement");
+      return;
+    }
+    // Sinon → corbeille (soft delete)
     const sender = (e.from_address ?? "").toLowerCase();
     const sameSenderIds = sender
       ? emails
-          .filter((x) => (x.from_address ?? "").toLowerCase() === sender && x.id !== e.id)
+          .filter(
+            (x) =>
+              !x.deleted_at &&
+              (x.from_address ?? "").toLowerCase() === sender &&
+              x.id !== e.id,
+          )
           .map((x) => x.id)
       : [];
     let alsoDeleteSender = false;
     if (sameSenderIds.length > 0) {
       alsoDeleteSender = confirm(
-        `Supprimer aussi les ${sameSenderIds.length} autre(s) email(s) de ${e.from_name || e.from_address} ?`,
+        `Mettre aussi à la corbeille les ${sameSenderIds.length} autre(s) email(s) de ${e.from_name || e.from_address} ?`,
       );
     }
     const idsToDelete = alsoDeleteSender ? [e.id, ...sameSenderIds] : [e.id];
-    setEmails((prev) => prev.filter((x) => !idsToDelete.includes(x.id)));
+    const now = new Date().toISOString();
+    setEmails((prev) =>
+      prev.map((x) => (idsToDelete.includes(x.id) ? { ...x, deleted_at: now } : x)),
+    );
     if (selectedId && idsToDelete.includes(selectedId)) setSelectedId(null);
-    const { error } = await supabase.from("emails").delete().in("id", idsToDelete);
+    const { error } = await supabase
+      .from("emails")
+      .update({ deleted_at: now })
+      .in("id", idsToDelete);
     if (error) toast.error(error.message);
     else
       toast.success(
-        idsToDelete.length > 1 ? `${idsToDelete.length} emails supprimés` : "Email supprimé",
+        idsToDelete.length > 1
+          ? `${idsToDelete.length} emails déplacés vers la corbeille`
+          : "Email déplacé vers la corbeille",
       );
+  };
+
+  const restore = async (e: Email) => {
+    setEmails((prev) => prev.map((x) => (x.id === e.id ? { ...x, deleted_at: null } : x)));
+    if (selectedId === e.id) setSelectedId(null);
+    const { error } = await supabase
+      .from("emails")
+      .update({ deleted_at: null })
+      .eq("id", e.id);
+    if (error) toast.error(error.message);
+    else toast.success("Email restauré");
+  };
+
+  const emptyTrash = async () => {
+    const ids = emails.filter(isTrashed).map((x) => x.id);
+    if (!ids.length) return;
+    if (!confirm(`Vider la corbeille (${ids.length} email${ids.length > 1 ? "s" : ""}) ? Cette action est définitive.`))
+      return;
+    setEmails((prev) => prev.filter((x) => !ids.includes(x.id)));
+    if (selectedId && ids.includes(selectedId)) setSelectedId(null);
+    const { error } = await supabase.from("emails").delete().in("id", ids);
+    if (error) toast.error(error.message);
+    else toast.success("Corbeille vidée");
+  };
+
+  const emptySpam = async () => {
+    const ids = emails.filter((x) => isSpam(x) && !isTrashed(x)).map((x) => x.id);
+    if (!ids.length) return;
+    if (!confirm(`Déplacer ${ids.length} indésirable${ids.length > 1 ? "s" : ""} vers la corbeille ?`))
+      return;
+    const now = new Date().toISOString();
+    setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: now } : x)));
+    const { error } = await supabase.from("emails").update({ deleted_at: now }).in("id", ids);
+    if (error) toast.error(error.message);
+    else toast.success("Indésirables vidés");
   };
 
   const markSpam = async (e: Email, asSpam: boolean) => {
