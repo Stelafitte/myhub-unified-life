@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode, type PointerEvent } from "react";
+import { useRef, useState, type ReactNode, type PointerEvent, type MouseEvent } from "react";
 import { cn } from "@/lib/utils";
 
 export type SwipeAction = {
@@ -35,6 +35,7 @@ export function SwipeableRow({
   const pointerId = useRef<number | null>(null);
   const decided = useRef<"h" | "v" | null>(null);
   const dxRef = useRef(0);
+  const suppressClick = useRef(false);
 
   const leftW = leftActions.length * ACTION_W;
   const rightW = rightActions.length * ACTION_W;
@@ -52,6 +53,7 @@ export function SwipeableRow({
     startY.current = e.clientY;
     pointerId.current = e.pointerId;
     decided.current = null;
+    suppressClick.current = false;
   };
 
   const onPointerMove = (e: PointerEvent) => {
@@ -66,10 +68,13 @@ export function SwipeableRow({
         return;
       }
       decided.current = "h";
+      suppressClick.current = true;
       setIsDragging(true);
       try {
         (e.currentTarget as Element).setPointerCapture(e.pointerId);
-      } catch {}
+      } catch {
+        return;
+      }
     }
     if (decided.current !== "h") return;
     e.preventDefault();
@@ -112,8 +117,17 @@ export function SwipeableRow({
   const onPointerUp = (e: PointerEvent) => {
     try {
       (e.currentTarget as Element).releasePointerCapture(e.pointerId);
-    } catch {}
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
     finish();
+  };
+
+  const onClickCapture = (e: MouseEvent) => {
+    if (!suppressClick.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    suppressClick.current = false;
   };
 
   const close = () => {
@@ -181,6 +195,7 @@ export function SwipeableRow({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onClickCapture={onClickCapture}
         style={{
           transform: `translate3d(${dx}px,0,0)`,
           transition: isDragging ? "none" : "transform 180ms ease-out",
