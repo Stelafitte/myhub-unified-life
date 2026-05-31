@@ -724,19 +724,28 @@ function PlanOperationPage() {
 
             {/* Timeline */}
             <div className="relative" style={{ width: totalWidth, minWidth: "100%" }}>
-              <div className="sticky top-0 z-10 h-10 border-b bg-card">
-                {ticks.map((t, i) => (
-                  <div key={i}
-                    className={cn("absolute top-0 h-full border-l text-[10px]", t.major ? "border-foreground/30 font-semibold" : "border-border")}
-                    style={{ left: t.x }}>
-                    <span className="ml-1 mt-1 inline-block whitespace-nowrap text-muted-foreground">{t.label}</span>
-                  </div>
-                ))}
+              <div className="sticky top-0 z-10 h-14 border-b bg-card">
+                {/* Ligne du haut : repères majeurs */}
+                <div className="relative h-7 border-b">
+                  {majorTicks.map((t, i) => (
+                    <div key={`M${i}`} className="absolute top-0 h-full border-l border-foreground/30" style={{ left: t.x }}>
+                      <span className="ml-1 mt-0.5 inline-block whitespace-nowrap text-[11px] font-semibold text-foreground">{t.label}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Ligne du bas : repères fins (jours / semaines / mois / trimestres selon le zoom) */}
+                <div className="relative h-7">
+                  {minorTicks.map((t, i) => (
+                    <div key={`m${i}`} className="absolute top-0 h-full border-l border-border" style={{ left: t.x }}>
+                      <span className="ml-0.5 mt-0.5 inline-block whitespace-nowrap text-[9px] text-muted-foreground">{t.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Today line */}
               {todayX >= 0 && todayX <= totalWidth && (
-                <div className="pointer-events-none absolute top-10 z-20 bottom-0 border-l-2 border-red-500" style={{ left: todayX }}>
+                <div className="pointer-events-none absolute top-14 z-20 bottom-0 border-l-2 border-red-500" style={{ left: todayX }}>
                   <span className="absolute -left-5 -top-3 rounded bg-red-500 px-1 text-[9px] font-bold text-white">AUJ.</span>
                 </div>
               )}
