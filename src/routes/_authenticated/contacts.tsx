@@ -15,6 +15,7 @@ import {
   Upload,
   X,
   Check,
+  Inbox as InboxIcon,
 } from "lucide-react";
 import { parseVCard, type ParsedContact } from "@/lib/vcard";
 import { supabase } from "@/integrations/supabase/client";
