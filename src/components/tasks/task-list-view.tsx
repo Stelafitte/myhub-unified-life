@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Pencil, Trash2, Mail, Clock, CheckCircle2, Circle, PlayCircle, AlertCircle } from "lucide-react";
+import { Pencil, Trash2, Mail, Clock, CheckCircle2, Circle, PlayCircle, Archive } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,9 +22,9 @@ type Props = {
 
 const STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
   todo: <Circle className="h-4 w-4 text-muted-foreground" />,
-  "in-progress": <PlayCircle className="h-4 w-4 text-blue-500" />,
-  review: <AlertCircle className="h-4 w-4 text-amber-500" />,
+  in_progress: <PlayCircle className="h-4 w-4 text-blue-500" />,
   done: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
+  archived: <Archive className="h-4 w-4 text-slate-400" />,
 };
 
 export function TaskListView({ tasks, onEdit, onDelete, onMove, onOpenEmail }: Props) {
