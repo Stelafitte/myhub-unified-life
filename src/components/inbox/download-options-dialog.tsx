@@ -385,7 +385,7 @@ export function DownloadOptionsDialog({ doc, open, onOpenChange, context }: Prop
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 border-t bg-background px-6 py-3">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy !== null}>Annuler</Button>
           <Button onClick={uploadToOneDrive} disabled={!targetLabel || busy !== null}>
             {busy === "onedrive" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
