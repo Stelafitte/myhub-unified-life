@@ -59,6 +59,7 @@ type Props = {
 };
 
 type EmailLite = { id: string; subject: string | null; from_name: string | null; from_address: string | null };
+type EmailFull = EmailLite & { body_text: string | null; body_html: string | null; received_at: string | null; ai_summary: string | null };
 
 export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, onSaved, draft }: Props) {
   const { user } = useAuth();
