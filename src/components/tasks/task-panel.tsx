@@ -80,6 +80,7 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
   const [recurrence, setRecurrence] = useState<"none" | "daily" | "weekly" | "monthly">("none");
   const [emailId, setEmailId] = useState<string | null>(null);
   const [emailLabel, setEmailLabel] = useState<string>("");
+  const [emailFull, setEmailFull] = useState<EmailFull | null>(null);
   const [emailSearch, setEmailSearch] = useState("");
   const [emailResults, setEmailResults] = useState<EmailLite[]>([]);
   const [saving, setSaving] = useState(false);
