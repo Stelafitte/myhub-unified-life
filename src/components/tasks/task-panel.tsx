@@ -4,7 +4,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { enqueue } from "@/lib/sync-queue";
+import { enqueue, requestAutoSync } from "@/lib/sync-queue";
 import { analyzeTaskText } from "@/lib/api/task-analysis.functions";
 import {
   Sheet,
