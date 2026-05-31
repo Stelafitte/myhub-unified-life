@@ -1151,6 +1151,24 @@ function InboxPage() {
                     </span>
                   </div>
                 </SelectItem>
+                <SelectItem value="spam" className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <ShieldOff className="h-3.5 w-3.5 text-muted-foreground" />
+                    Indésirables
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {counts.spam}
+                    </span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="trash" className="text-xs">
+                  <div className="flex items-center gap-2">
+                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+                    Corbeille
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {counts.trash}
+                    </span>
+                  </div>
+                </SelectItem>
                 {accounts
                   .filter(
                     (a) => !(a.credentials?.calendar_only === true) && !/calendar/i.test(a.name),
