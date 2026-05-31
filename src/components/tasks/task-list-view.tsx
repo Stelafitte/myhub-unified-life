@@ -1,8 +1,16 @@
 import { useMemo } from "react";
-import { Pencil, Trash2, Mail, Clock, CheckCircle2, Circle, PlayCircle, Archive } from "lucide-react";
+import { Pencil, Trash2, Mail, Clock, CheckCircle2, Circle, PlayCircle, Archive, MoreHorizontal, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   type Task,
   type TaskStatus,
