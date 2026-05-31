@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode, type TouchEvent } from "react";
+import { useRef, useState, type ReactNode, type PointerEvent } from "react";
 import { cn } from "@/lib/utils";
 
 export type SwipeAction = {
@@ -18,7 +18,7 @@ type Props = {
 };
 
 const ACTION_W = 72; // px per action button
-const TRIGGER_RATIO = 0.5; // swipe past 50% of total actions width to auto-trigger first action
+const TRIGGER_RATIO = 0.5;
 
 export function SwipeableRow({
   leftActions = [],
@@ -32,76 +32,92 @@ export function SwipeableRow({
   const [isDragging, setIsDragging] = useState(false);
   const startX = useRef(0);
   const startY = useRef(0);
-  const dragging = useRef(false);
+  const pointerId = useRef<number | null>(null);
   const decided = useRef<"h" | "v" | null>(null);
+  const dxRef = useRef(0);
 
   const leftW = leftActions.length * ACTION_W;
   const rightW = rightActions.length * ACTION_W;
 
-  const onTouchStart = (e: TouchEvent) => {
+  const setTranslate = (v: number) => {
+    dxRef.current = v;
+    setDx(v);
+  };
+
+  const onPointerDown = (e: PointerEvent) => {
     if (!enabled) return;
-    const t = e.touches[0];
-    startX.current = t.clientX;
-    startY.current = t.clientY;
-    dragging.current = true;
+    // Ignore secondary buttons (mouse right click etc.)
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    startX.current = e.clientX;
+    startY.current = e.clientY;
+    pointerId.current = e.pointerId;
     decided.current = null;
   };
-  const onTouchMove = (e: TouchEvent) => {
-    if (!enabled || !dragging.current) return;
-    const t = e.touches[0];
-    const dX = t.clientX - startX.current;
-    const dY = t.clientY - startY.current;
+
+  const onPointerMove = (e: PointerEvent) => {
+    if (!enabled || pointerId.current !== e.pointerId) return;
+    const dX = e.clientX - startX.current;
+    const dY = e.clientY - startY.current;
     if (decided.current === null) {
-      // Wait for a clear gesture before committing
       if (Math.abs(dX) < 12 && Math.abs(dY) < 12) return;
       if (Math.abs(dX) < Math.abs(dY) * 1.2) {
-        // vertical scroll wins; abort and do not translate
         decided.current = "v";
-        dragging.current = false;
+        pointerId.current = null;
         return;
       }
       decided.current = "h";
       setIsDragging(true);
+      try {
+        (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      } catch {}
     }
     if (decided.current !== "h") return;
+    e.preventDefault();
     const base = open === "left" ? leftW : open === "right" ? -rightW : 0;
     let next = base + dX;
-    // clamp
     if (next > leftW) next = leftW + (next - leftW) * 0.2;
     if (next < -rightW) next = -rightW + (next + rightW) * 0.2;
     if (leftActions.length === 0 && next > 0) next = next * 0.2;
     if (rightActions.length === 0 && next < 0) next = next * 0.2;
-    setDx(next);
+    setTranslate(next);
   };
-  const onTouchEnd = () => {
-    if (!enabled) return;
-    dragging.current = false;
+
+  const finish = () => {
+    pointerId.current = null;
     setIsDragging(false);
     if (decided.current !== "h") return;
     const triggerLeft = leftW * TRIGGER_RATIO;
     const triggerRight = rightW * TRIGGER_RATIO;
-    if (dx >= leftW + 40 && leftActions[0]) {
+    const cur = dxRef.current;
+    if (cur >= leftW + 40 && leftActions[0]) {
       leftActions[0].onAction();
-      setDx(0);
+      setTranslate(0);
       setOpen(0);
-    } else if (dx <= -(rightW + 40) && rightActions[0]) {
+    } else if (cur <= -(rightW + 40) && rightActions[0]) {
       rightActions[0].onAction();
-      setDx(0);
+      setTranslate(0);
       setOpen(0);
-    } else if (dx > triggerLeft && leftActions.length) {
-      setDx(leftW);
+    } else if (cur > triggerLeft && leftActions.length) {
+      setTranslate(leftW);
       setOpen("left");
-    } else if (dx < -triggerRight && rightActions.length) {
-      setDx(-rightW);
+    } else if (cur < -triggerRight && rightActions.length) {
+      setTranslate(-rightW);
       setOpen("right");
     } else {
-      setDx(0);
+      setTranslate(0);
       setOpen(0);
     }
   };
 
+  const onPointerUp = (e: PointerEvent) => {
+    try {
+      (e.currentTarget as Element).releasePointerCapture(e.pointerId);
+    } catch {}
+    finish();
+  };
+
   const close = () => {
-    setDx(0);
+    setTranslate(0);
     setOpen(0);
   };
 
@@ -110,7 +126,6 @@ export function SwipeableRow({
 
   return (
     <div className={cn("relative overflow-hidden", className)}>
-      {/* Left actions (revealed when swiping right) */}
       {leftActions.length > 0 && (
         <div
           className="absolute inset-y-0 left-0 flex"
@@ -136,7 +151,6 @@ export function SwipeableRow({
           ))}
         </div>
       )}
-      {/* Right actions (revealed when swiping left) */}
       {rightActions.length > 0 && (
         <div
           className="absolute inset-y-0 right-0 flex"
@@ -163,13 +177,14 @@ export function SwipeableRow({
         </div>
       )}
       <div
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchEnd}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
         style={{
           transform: `translate3d(${dx}px,0,0)`,
           transition: isDragging ? "none" : "transform 180ms ease-out",
+          touchAction: "pan-y",
         }}
         className="relative bg-background"
       >
