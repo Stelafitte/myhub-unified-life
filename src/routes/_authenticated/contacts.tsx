@@ -539,6 +539,16 @@ function ContactsPage() {
               >
                 <Upload className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{importing ? "Import…" : "Importer"}</span>
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={importFromInbox}
+                disabled={importingInbox}
+                className="h-8 gap-1 px-2 sm:px-3"
+                title="Extraire les adresses email des messages reçus et les ajouter aux contacts"
+              >
+                <InboxIcon className="h-3.5 w-3.5" /> <span className="hidden sm:inline">{importingInbox ? "Extraction…" : "Depuis Inbox"}</span>
+              </Button>
               <Button size="sm" variant="outline" onClick={refresh} className="h-8 gap-1 px-2 sm:px-3">
                 <RefreshCw className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Actualiser</span>
               </Button>
