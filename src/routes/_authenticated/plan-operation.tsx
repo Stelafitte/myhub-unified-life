@@ -11,10 +11,14 @@ import {
   AlertTriangle,
   Target,
   CheckCircle2,
+  Trash2,
+  Pencil,
+  ExternalLink,
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import { supabase } from "@/integrations/supabase/client";
+import { enqueue, requestAutoSync } from "@/lib/sync-queue";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -29,6 +33,24 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   type Task,
   type TaskPriority,
@@ -84,6 +106,7 @@ function PlanOperationPage() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [panelOpen, setPanelOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
+  const [toDelete, setToDelete] = useState<Task | null>(null);
 
   // Filters
   const [fPriority, setFPriority] = useState<Set<TaskPriority>>(new Set());
@@ -250,8 +273,29 @@ function PlanOperationPage() {
     if (b.type !== "task") return;
     const payload = { gantt_start: s.toISOString(), gantt_end: e.toISOString(), due_date: e.toISOString() };
     setTasks((prev) => prev.map((t) => (t.id === b.id ? { ...t, ...payload } : t)));
-    const { error } = await supabase.from("tasks").update(payload).eq("id", b.id);
-    if (error) toast.error(error.message);
+    if (navigator.onLine) {
+      const { error } = await supabase.from("tasks").update(payload).eq("id", b.id);
+      if (error) toast.error(error.message);
+      else requestAutoSync();
+    } else {
+      await enqueue({ entity_type: "task", entity_id: b.id, action: "update", payload });
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    const id = toDelete.id;
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+    setToDelete(null);
+    if (navigator.onLine) {
+      const { error } = await supabase.from("tasks").delete().eq("id", id);
+      if (error) { toast.error(error.message); load(); return; }
+      toast.success("Tâche supprimée");
+      requestAutoSync();
+    } else {
+      await enqueue({ entity_type: "task", entity_id: id, action: "delete" });
+      toast.success("Suppression mise en file (offline)");
+    }
   };
 
   const toggleSet = <T,>(set: Set<T>, value: T): Set<T> => {
@@ -407,10 +451,40 @@ function PlanOperationPage() {
                       <Badge variant="secondary" className="ml-auto h-4 px-1.5 text-[10px]">{items.length}</Badge>
                     </button>
                     {!isCollapsed && items.map((b) => (
-                      <div key={b.id} className="flex items-center gap-2 border-b px-3 text-xs" style={{ height: ROW_H }}>
-                        <span className={cn("h-2 w-2 rounded-full", b.priority ? PRIORITY_META[b.priority].dot : "bg-muted-foreground")} />
-                        <span className="truncate">{b.title}</span>
-                      </div>
+                      <ContextMenu key={b.id}>
+                        <ContextMenuTrigger asChild>
+                          <div
+                            onClick={() => handleBarClick(b)}
+                            className="group flex cursor-pointer items-center gap-2 border-b px-3 text-xs hover:bg-accent/50"
+                            style={{ height: ROW_H }}
+                            title={b.title}
+                          >
+                            <span className={cn("h-2 w-2 shrink-0 rounded-full", b.priority ? PRIORITY_META[b.priority].dot : "bg-muted-foreground")} />
+                            <span className="flex-1 truncate">{b.title}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setToDelete(b.raw as Task); }}
+                              className="opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-red-500"
+                              aria-label="Supprimer"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem onClick={() => handleBarClick(b)}>
+                            <Pencil className="mr-2 h-3.5 w-3.5" /> Ouvrir / Modifier
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem
+                            className="text-red-600 focus:text-red-600"
+                            onClick={() => setToDelete(b.raw as Task)}
+                          >
+                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Supprimer
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))}
                   </div>
                 );
@@ -446,6 +520,7 @@ function PlanOperationPage() {
                       {!isCollapsed && items.map((b) => (
                         <BarRow key={b.id} bar={b} rowHeight={ROW_H} dayPx={dayPx} start={start} today={today}
                           onClick={() => handleBarClick(b)}
+                          onDelete={() => setToDelete(b.raw as Task)}
                           onUpdateRange={(s, e) => handleUpdateRange(b, s, e)} />
                       ))}
                     </div>
@@ -464,12 +539,29 @@ function PlanOperationPage() {
         sections={[]}
         onSaved={(saved) => { setTasks((prev) => { const i = prev.findIndex((t) => t.id === saved.id); if (i >= 0) { const n = [...prev]; n[i] = saved; return n; } return [saved, ...prev]; }); }}
       />
+
+      <AlertDialog open={!!toDelete} onOpenChange={(o) => { if (!o) setToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette tâche ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              « {toDelete?.title} » sera définitivement supprimée. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600">
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
 function BarRow({
-  bar, rowHeight, dayPx, start, today, onClick, onUpdateRange,
+  bar, rowHeight, dayPx, start, today, onClick, onDelete, onUpdateRange,
 }: {
   bar: Bar;
   rowHeight: number;
@@ -477,6 +569,7 @@ function BarRow({
   start: Date;
   today: Date;
   onClick: () => void;
+  onDelete: () => void;
   onUpdateRange: (s: Date, e: Date) => void;
 }) {
   const [drag, setDrag] = useState<null | { mode: "move" | "resize-l" | "resize-r"; startX: number; origStart: Date; origEnd: Date }>(null);
@@ -522,24 +615,74 @@ function BarRow({
       {overdueWidth > 0 && (
         <div className="pointer-events-none absolute top-0 h-full bg-red-500/15" style={{ left: overdueLeft, width: overdueWidth }} />
       )}
-      <div
-        title={`${bar.title} — ${cur.s.toLocaleDateString()} → ${cur.e.toLocaleDateString()}`}
-        onClick={(ev) => { if (!drag) { ev.stopPropagation(); onClick(); } }}
-        onPointerDown={onPointerDown("move")}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        className={cn(
-          "group absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium text-white shadow-sm cursor-grab active:cursor-grabbing",
-          barColor,
-          isDone && "opacity-60",
-          isOverdue && "ring-1 ring-red-600",
-        )}
-        style={{ left, width }}
-      >
-        <span onPointerDown={onPointerDown("resize-l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
-        <span className="truncate">{bar.title}</span>
-        <span onPointerDown={onPointerDown("resize-r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
-      </div>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <HoverCard openDelay={250} closeDelay={100}>
+            <HoverCardTrigger asChild>
+              <div
+                onClick={(ev) => { if (!drag) { ev.stopPropagation(); onClick(); } }}
+                onPointerDown={onPointerDown("move")}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                className={cn(
+                  "group absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium text-white shadow-sm cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md hover:ring-2 hover:ring-foreground/20",
+                  barColor,
+                  isDone && "opacity-60",
+                  isOverdue && "ring-1 ring-red-600",
+                )}
+                style={{ left, width }}
+              >
+                <span onPointerDown={onPointerDown("resize-l")} className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize" />
+                <span className="truncate">{bar.title}</span>
+                <span onPointerDown={onPointerDown("resize-r")} className="absolute right-0 top-0 h-full w-1.5 cursor-ew-resize" />
+              </div>
+            </HoverCardTrigger>
+            <HoverCardContent className="w-80 p-3" side="top" align="start">
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", bar.priority ? PRIORITY_META[bar.priority].dot : "bg-muted-foreground")} />
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold leading-snug">{bar.title}</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      {cur.s.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })} → {cur.e.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {bar.priority && (
+                    <Badge variant="secondary" className="text-[10px]">{PRIORITY_META[bar.priority].emoji} {PRIORITY_META[bar.priority].label}</Badge>
+                  )}
+                  {bar.status && <Badge variant="outline" className="text-[10px]">{bar.status}</Badge>}
+                  {isOverdue && <Badge variant="destructive" className="text-[10px]">En retard</Badge>}
+                  {(bar.tags ?? []).filter((t) => !t.startsWith("section:")).slice(0, 4).map((t) => (
+                    <Badge key={t} variant="outline" className="text-[10px]">#{t}</Badge>
+                  ))}
+                </div>
+                {bar.raw.description && (
+                  <p className="line-clamp-3 text-xs text-muted-foreground">{bar.raw.description}</p>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <Button size="sm" variant="default" className="h-7 flex-1 gap-1 text-xs" onClick={onClick}>
+                    <ExternalLink className="h-3 w-3" /> Ouvrir
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-7 gap-1 text-xs text-red-600 hover:text-red-700" onClick={onDelete}>
+                    <Trash2 className="h-3 w-3" /> Supprimer
+                  </Button>
+                </div>
+              </div>
+            </HoverCardContent>
+          </HoverCard>
+        </ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem onClick={onClick}>
+            <Pencil className="mr-2 h-3.5 w-3.5" /> Ouvrir / Modifier
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem className="text-red-600 focus:text-red-600" onClick={onDelete}>
+            <Trash2 className="mr-2 h-3.5 w-3.5" /> Supprimer
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
     </div>
   );
 }
