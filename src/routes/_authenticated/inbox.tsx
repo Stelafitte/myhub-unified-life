@@ -642,7 +642,7 @@ function InboxPage() {
   };
 
   return (
-    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
+    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT — filters */}
       <aside style={{ width: leftW }} className="hidden shrink-0 flex-col border-r bg-card md:flex">
         <div className="border-b p-4">
@@ -835,14 +835,14 @@ function InboxPage() {
       />
 
       {/* CENTER — list */}
-      <section className="flex min-w-0 flex-1 flex-col border-r">
-        <div className="flex items-center justify-between border-b px-4 py-2">
-          <div className="flex items-center gap-3">
+      <section className="flex min-w-0 max-w-full flex-1 flex-col border-r overflow-hidden">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
             <Select
               value={filter.startsWith("account:") ? filter : "all"}
               onValueChange={(v) => setFilter(v as Filter)}
             >
-              <SelectTrigger className="h-7 w-auto gap-1 border-0 bg-transparent px-1 text-xs font-medium text-foreground hover:bg-accent/50 focus:ring-0 [&>svg]:hidden">
+              <SelectTrigger className="h-7 w-auto max-w-[150px] gap-1 border-0 bg-transparent px-1 text-xs font-medium text-foreground hover:bg-accent/50 focus:ring-0 sm:max-w-none [&>svg]:hidden">
                 <SelectValue placeholder="Tous les comptes" />
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </SelectTrigger>
@@ -894,15 +894,15 @@ function InboxPage() {
             <Button
               size="sm"
               variant={aiRanking ? "default" : "ghost"}
-              className="h-7 gap-1 px-2 text-xs font-medium"
+              className="h-7 shrink-0 gap-1 px-2 text-xs font-medium"
               onClick={() => setAiRanking((v) => !v)}
               title="Trier la liste par thème IA (mails les plus récents en tête)"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              Classement IA
+              <span className="hidden xs:inline">Classement IA</span>
             </Button>
           </div>
-          <span className="text-xs text-muted-foreground">{filtered.length} email{filtered.length > 1 ? "s" : ""}</span>
+          <span className="shrink-0 text-xs text-muted-foreground">{filtered.length} email{filtered.length > 1 ? "s" : ""}</span>
         </div>
         <div className={cn(
           "flex flex-wrap items-center gap-2 border-b px-4 py-1.5 text-xs",
