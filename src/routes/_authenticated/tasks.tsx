@@ -192,8 +192,15 @@ function TasksPage() {
 
           <div className="inline-flex overflow-hidden rounded-md border">
             <button
+              onClick={() => setView("list")}
+              className={cn("flex items-center gap-1 px-2 py-1.5 text-xs transition-colors sm:gap-1.5 sm:px-3 sm:text-sm", view === "list" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
+            >
+              <List className="h-4 w-4" />
+              <span className="hidden sm:inline">Liste</span>
+            </button>
+            <button
               onClick={() => setView("kanban")}
-              className={cn("flex items-center gap-1 px-2 py-1.5 text-xs transition-colors sm:gap-1.5 sm:px-3 sm:text-sm", view === "kanban" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
+              className={cn("flex items-center gap-1 border-l px-2 py-1.5 text-xs transition-colors sm:gap-1.5 sm:px-3 sm:text-sm", view === "kanban" ? "bg-primary text-primary-foreground" : "hover:bg-accent")}
             >
               <LayoutGrid className="h-4 w-4" />
               <span className="hidden sm:inline">Kanban</span>
