@@ -478,19 +478,19 @@ function AgendaWidget({ userId }: { userId?: string }) {
       <CardHeader className="pb-3"><CardTitle className="flex items-center gap-2 text-base"><CalIcon className="h-4 w-4" /> Agenda</CardTitle></CardHeader>
       <CardContent className="space-y-3">
         {next && (
-          <div className="rounded-md bg-primary/10 p-2 text-sm border border-primary/20">
+          <div className="min-w-0 rounded-md border border-primary/20 bg-primary/10 p-2 text-sm">
             <div className="text-xs text-primary font-medium">Prochain · {relativeTime(next.start_at)}</div>
-            <div className="font-medium truncate flex items-center gap-1">{next.title} {hasVideo(next) && <Video className="h-3 w-3" />}</div>
+            <div className="flex min-w-0 items-center gap-1 break-words font-medium">{next.title} {hasVideo(next) && <Video className="h-3 w-3 shrink-0" />}</div>
           </div>
         )}
         <div>
           <div className="text-xs text-muted-foreground mb-1">Aujourd'hui</div>
           {today.length === 0 && <p className="text-xs text-muted-foreground">Aucun événement</p>}
           {today.map((e) => (
-            <div key={e.id} className="flex items-center gap-2 text-sm">
+            <div key={e.id} className="flex min-w-0 items-center gap-2 text-sm">
               <span className="text-xs tabular-nums text-muted-foreground w-12">{new Date(e.start_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
-              <span className="truncate flex-1">{e.title}</span>
-              {hasVideo(e) && <Video className="h-3 w-3 text-primary" />}
+              <span className="min-w-0 flex-1 break-words">{e.title}</span>
+              {hasVideo(e) && <Video className="h-3 w-3 shrink-0 text-primary" />}
             </div>
           ))}
         </div>
@@ -498,9 +498,9 @@ function AgendaWidget({ userId }: { userId?: string }) {
           <div>
             <div className="text-xs text-muted-foreground mb-1">Demain</div>
             {tomorrow.slice(0, 3).map((e) => (
-              <div key={e.id} className="flex items-center gap-2 text-sm opacity-60">
+              <div key={e.id} className="flex min-w-0 items-center gap-2 text-sm opacity-60">
                 <span className="text-xs tabular-nums w-12">{new Date(e.start_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
-                <span className="truncate flex-1">{e.title}</span>
+                <span className="min-w-0 flex-1 break-words">{e.title}</span>
               </div>
             ))}
           </div>
