@@ -434,7 +434,7 @@ function EditActionForm({
             <Select
               value={action.priority}
               onValueChange={(v) =>
-                onChange({ ...action, priority: v as ProposedAction["type"] extends "create_task" ? "low" | "medium" | "high" | "urgent" : never })
+                onChange({ ...action, priority: v as "low" | "medium" | "high" | "urgent" })
               }
             >
               <SelectTrigger className="h-8 text-sm">
