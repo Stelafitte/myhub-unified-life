@@ -439,7 +439,7 @@ export function PlanOperationSection() {
             <ClipboardList className="h-4 w-4 text-primary" /> Configuration du Plan d'opération
           </CardTitle>
           <p className="text-xs text-muted-foreground">
-            Définissez les thèmes et sous-thèmes (et leurs items) qui structureront votre plan d'opération.
+            Définissez les thèmes et sous-thèmes (et leurs items). Cochez les lignes à ajouter au tableau Plan d'opération, puis cliquez sur « Ajouter la sélection ».
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
