@@ -1256,9 +1256,9 @@ function Reader({
     body: `\n\n---------- Message transféré ----------\nDe: ${email.from_name ?? ""} <${email.from_address ?? ""}>\nDate: ${email.received_at ?? ""}\nSujet: ${email.subject ?? ""}\nÀ: ${email.to_address ?? ""}\n\n${email.body_text ?? ""}`,
   });
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-auto">
-      <header className="border-b p-4">
-        <div className="mb-2 flex items-center gap-2">
+    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-x-hidden overflow-y-auto">
+      <header className="min-w-0 border-b p-3 sm:p-4">
+        <div className="mb-2 flex min-w-0 items-center gap-2">
           {account && (
             <Badge style={{ background: account.color ?? "#64748b", color: "#fff" }} className="border-0">
               {account.icon} {account.name}
@@ -1268,13 +1268,13 @@ function Reader({
             <Star className={cn("h-4 w-4", email.is_starred && "fill-amber-400 text-amber-400")} />
           </button>
         </div>
-        <h2 className="text-base font-semibold">{email.subject || "(sans objet)"}</h2>
-        <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-          <div><span className="font-medium text-foreground">De :</span> {email.from_name ? `${email.from_name} <${email.from_address}>` : email.from_address}</div>
-          <div><span className="font-medium text-foreground">À :</span> {email.to_address}</div>
+        <h2 className="break-words text-base font-semibold">{email.subject || "(sans objet)"}</h2>
+        <div className="mt-2 space-y-0.5 break-words text-xs text-muted-foreground">
+          <div><span className="font-medium text-foreground">De :</span> <span className="break-all">{email.from_name ? `${email.from_name} <${email.from_address}>` : email.from_address}</span></div>
+          <div><span className="font-medium text-foreground">À :</span> <span className="break-all">{email.to_address}</span></div>
           <div><span className="font-medium text-foreground">Date :</span> {email.received_at ? new Date(email.received_at).toLocaleString("fr-FR") : ""}</div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-1">
+        <div className="mt-3 flex min-w-0 flex-wrap gap-1">
           <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(false)}><Reply className="h-3 w-3" /> Répondre</Button>
           <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => doReply(true)}><ReplyAll className="h-3 w-3" /> Tous</Button>
           <Button size="sm" variant="outline" className="h-7 gap-1" onClick={doForward}><Forward className="h-3 w-3" /> Transférer</Button>
@@ -1363,15 +1363,16 @@ function Reader({
         />
       )}
 
-      <div className="min-w-0 p-4 text-sm">
+      <div className="min-w-0 max-w-full p-3 text-sm sm:p-4">
         {email.body_html ? (
           <div
-            className="prose prose-sm max-w-none break-words dark:prose-invert [&_img]:max-w-full [&_table]:max-w-full"
+            className="prose prose-sm max-w-none break-words dark:prose-invert [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:table-fixed"
+            style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
             // eslint-disable-next-line react/no-danger
             dangerouslySetInnerHTML={{ __html: email.body_html }}
           />
         ) : (
-          <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed">{email.body_text ?? "(vide)"}</pre>
+          <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed [overflow-wrap:anywhere]">{email.body_text ?? "(vide)"}</pre>
         )}
       </div>
 
