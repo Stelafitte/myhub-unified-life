@@ -939,7 +939,20 @@ function InboxPage() {
               {emails.length === 0 ? "Aucun email — configurez un compte dans Paramètres." : "Aucun résultat."}
             </li>
           )}
-          {filtered.map((e) => {
+          {displayItems.map((item) => {
+            if (item.kind === "header") {
+              return (
+                <li
+                  key={`h:${item.key}`}
+                  className="sticky top-0 z-10 flex items-center gap-2 border-b bg-muted/80 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground backdrop-blur"
+                >
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <span className="truncate">{item.label}</span>
+                  <span className="ml-auto text-[10px] font-normal">{item.count}</span>
+                </li>
+              );
+            }
+            const e = item.email;
             const acc = accountById.get(e.account_id);
             const isSel = e.id === selectedId;
             return (
