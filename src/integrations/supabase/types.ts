@@ -891,6 +891,7 @@ export type Database = {
           items: string[]
           name: string
           position: number
+          show_in_plan: boolean
           theme_id: string
           updated_at: string
           user_id: string
@@ -901,6 +902,7 @@ export type Database = {
           items?: string[]
           name: string
           position?: number
+          show_in_plan?: boolean
           theme_id: string
           updated_at?: string
           user_id: string
@@ -911,6 +913,7 @@ export type Database = {
           items?: string[]
           name?: string
           position?: number
+          show_in_plan?: boolean
           theme_id?: string
           updated_at?: string
           user_id?: string
@@ -931,6 +934,7 @@ export type Database = {
           id: string
           name: string
           position: number
+          show_in_plan: boolean
           updated_at: string
           user_id: string
         }
@@ -939,6 +943,7 @@ export type Database = {
           id?: string
           name: string
           position?: number
+          show_in_plan?: boolean
           updated_at?: string
           user_id: string
         }
@@ -947,6 +952,7 @@ export type Database = {
           id?: string
           name?: string
           position?: number
+          show_in_plan?: boolean
           updated_at?: string
           user_id?: string
         }

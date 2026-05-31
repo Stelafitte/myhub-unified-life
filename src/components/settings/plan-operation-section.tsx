@@ -32,6 +32,7 @@ type Theme = {
   user_id: string;
   name: string;
   position: number;
+  show_in_plan?: boolean;
 };
 
 type Subtheme = {
@@ -41,6 +42,7 @@ type Subtheme = {
   name: string;
   position: number;
   items: string[];
+  show_in_plan?: boolean;
 };
 
 // Modèle inspiré du fichier Excel "Plan opérationnel"
@@ -407,32 +409,41 @@ export function PlanOperationSection() {
   const addSelection = async () => {
     if (!user) return;
     if (selected.size === 0) return toast.error("Aucune ligne sélectionnée");
-    let count = 0;
+    const themeIds = new Set<string>();
+    const subIds = new Set<string>();
+    let itemCount = 0;
     for (const t of themes) {
-      const themeKey = `theme:${t.id}`;
-      const themeChecked = selected.has(themeKey);
+      if (selected.has(`theme:${t.id}`)) themeIds.add(t.id);
       const subs = subthemes.filter((s) => s.theme_id === t.id);
-      // If theme itself is checked (without any sub/item), create a generic task
-      if (themeChecked && !subs.some((s) => selected.has(`sub:${s.id}`) || s.items.some((_, i) => selected.has(`item:${s.id}:${i}`)))) {
-        await integrateInPlan(t.name, t.name);
-        count++;
-      }
       for (const s of subs) {
-        const subKey = `sub:${s.id}`;
-        if (selected.has(subKey)) {
-          await integrateInPlan(t.name, s.name, s.name);
-          count++;
-        }
+        if (selected.has(`sub:${s.id}`)) subIds.add(s.id);
         for (let i = 0; i < s.items.length; i++) {
-          if (selected.has(`item:${s.id}:${i}`)) {
-            await integrateInPlan(t.name, s.items[i], s.name);
-            count++;
-          }
+          if (selected.has(`item:${s.id}:${i}`)) itemCount++;
         }
       }
     }
+    if (itemCount > 0) {
+      toast.info("Les items individuels seront à créer comme tâches depuis le tableau du Plan d'opération.");
+    }
+    try {
+      if (themeIds.size > 0) {
+        const { error } = await supabase.from("op_plan_themes")
+          .update({ show_in_plan: true }).in("id", Array.from(themeIds));
+        if (error) throw error;
+        setThemes((p) => p.map((t) => themeIds.has(t.id) ? { ...t, show_in_plan: true } as Theme : t));
+      }
+      if (subIds.size > 0) {
+        const { error } = await supabase.from("op_plan_subthemes")
+          .update({ show_in_plan: true }).in("id", Array.from(subIds));
+        if (error) throw error;
+        setSubthemes((p) => p.map((s) => subIds.has(s.id) ? { ...s, show_in_plan: true } as Subtheme : s));
+      }
+    } catch (e) {
+      return toast.error(e instanceof Error ? e.message : "Échec de l'ajout");
+    }
+    const total = themeIds.size + subIds.size;
     setSelected(new Set());
-    toast.success(`${count} ligne${count > 1 ? "s" : ""} ajoutée${count > 1 ? "s" : ""} au Plan d'opération`);
+    toast.success(`${total} section${total > 1 ? "s" : ""} ajoutée${total > 1 ? "s" : ""} au Plan d'opération (sans tâches)`);
   };
 
   // Récupère toutes les clés sélectionnables (thèmes, sous-thèmes, items)

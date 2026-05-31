@@ -1,0 +1,2 @@
+ALTER TABLE public.op_plan_themes ADD COLUMN IF NOT EXISTS show_in_plan boolean NOT NULL DEFAULT false;
+ALTER TABLE public.op_plan_subthemes ADD COLUMN IF NOT EXISTS show_in_plan boolean NOT NULL DEFAULT false;

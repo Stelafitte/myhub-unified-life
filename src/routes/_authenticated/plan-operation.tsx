@@ -118,14 +118,21 @@ function PlanOperationPage() {
   const [toDelete, setToDelete] = useState<Task | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
-  const [opThemes, setOpThemes] = useState<{ id: string; name: string; position: number }[]>([]);
-  const [opSubthemes, setOpSubthemes] = useState<{ id: string; name: string; theme_id: string; position: number }[]>([]);
+  const [opThemes, setOpThemes] = useState<{ id: string; name: string; position: number; show_in_plan?: boolean }[]>([]);
+  const [opSubthemes, setOpSubthemes] = useState<{ id: string; name: string; theme_id: string; position: number; show_in_plan?: boolean }[]>([]);
 
-  // Sections dynamiques : thèmes utilisateurs (toujours visibles) + sections legacy (visibles si elles contiennent des tâches)
+  // Sections dynamiques : un thème est visible s'il est marqué show_in_plan
+  // OU si l'un de ses sous-thèmes est marqué show_in_plan.
   const SECTION_DEFS = useMemo<SectionDef[]>(() => {
-    const themeSecs: SectionDef[] = opThemes.map((t) => ({ key: t.name, label: t.name, emoji: "📋", alwaysShow: false }));
+    const visibleThemeIds = new Set<string>();
+    opThemes.forEach((t) => { if (t.show_in_plan) visibleThemeIds.add(t.id); });
+    opSubthemes.forEach((s) => { if (s.show_in_plan) visibleThemeIds.add(s.theme_id); });
+    const themeSecs: SectionDef[] = opThemes.map((t) => ({
+      key: t.name, label: t.name, emoji: "📋",
+      alwaysShow: visibleThemeIds.has(t.id),
+    }));
     return [...themeSecs, ...LEGACY_SECTIONS];
-  }, [opThemes]);
+  }, [opThemes, opSubthemes]);
   const sectionOf = useMemo(() => buildSectionOf(SECTION_DEFS), [SECTION_DEFS]);
 
   // Déplacer une tâche dans une autre section (drag & drop)
@@ -260,8 +267,8 @@ function PlanOperationPage() {
     if (!navigator.onLine) { setLoading(false); return; }
     const [t, th, sub] = await Promise.all([
       supabase.from("tasks").select("*").neq("status", "archived"),
-      supabase.from("op_plan_themes").select("id,name,position").order("position"),
-      supabase.from("op_plan_subthemes").select("id,name,theme_id,position").order("position"),
+      supabase.from("op_plan_themes").select("id,name,position,show_in_plan").order("position"),
+      supabase.from("op_plan_subthemes").select("id,name,theme_id,position,show_in_plan").order("position"),
     ]);
     if (t.error && !cTasks.length) toast.error(t.error.message);
     if (t.data) {
