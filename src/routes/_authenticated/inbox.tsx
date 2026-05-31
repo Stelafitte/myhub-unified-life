@@ -620,6 +620,9 @@ function InboxPage() {
     [emails, selectedId],
   );
 
+  // Touche Suppr : supprime l'email sélectionné
+  useDeleteKey(!!selected, () => { if (selected) remove(selected); });
+
   // Quand le filtre change, sur mobile on revient à la liste ; sur desktop on garde le panneau de lecture rempli.
   useEffect(() => {
     if (isMobileInbox) {
