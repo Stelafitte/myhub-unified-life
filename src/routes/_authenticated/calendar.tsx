@@ -225,6 +225,7 @@ function AgendaPage() {
   const [syncingGoogle, setSyncingGoogle] = useState(false);
   const startGcalOAuth = useServerFn(startGoogleCalendarOAuth);
   const syncGcal = useServerFn(syncGoogleCalendarEvents);
+  const deleteEventFn = useServerFn(deleteCalendarEvent);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
