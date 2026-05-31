@@ -1337,6 +1337,7 @@ function NewEventDialog({
   const [location, setLocation] = useState("");
   const [participants, setParticipants] = useState("");
   const [recurrence, setRecurrence] = useState<string>("none");
+  const [category, setCategory] = useState<"pro" | "perso">("pro");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
