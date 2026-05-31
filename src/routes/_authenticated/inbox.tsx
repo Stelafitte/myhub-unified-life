@@ -463,6 +463,14 @@ function InboxPage() {
   type RenderItem =
     | { kind: "header"; key: string; label: string; count: number }
     | { kind: "email"; email: Email };
+  const [collapsedThemes, setCollapsedThemes] = useState<Set<string>>(new Set());
+  const toggleTheme = (key: string) =>
+    setCollapsedThemes((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   const displayItems = useMemo<RenderItem[]>(() => {
     if (!aiRanking) return filtered.map((e) => ({ kind: "email" as const, email: e }));
     const groups = new Map<string, { ts: number; emails: Email[] }>();
@@ -489,16 +497,17 @@ function InboxPage() {
           (a.received_at ? new Date(a.received_at).getTime() : 0),
       );
       const t = key === NO_THEME ? null : themeById.get(key);
+      const collapsed = collapsedThemes.has(key);
       out.push({
         kind: "header",
         key,
         label: t?.name ?? "Sans thème",
         count: g.emails.length,
       });
-      for (const e of g.emails) out.push({ kind: "email", email: e });
+      if (!collapsed) for (const e of g.emails) out.push({ kind: "email", email: e });
     }
     return out;
-  }, [filtered, aiRanking, themeById]);
+  }, [filtered, aiRanking, themeById, collapsedThemes]);
 
   const selected = useMemo(
     () => emails.find((e) => e.id === selectedId) ?? null,
