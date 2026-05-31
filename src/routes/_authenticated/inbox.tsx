@@ -60,6 +60,7 @@ import { listThemes, classifyPendingThemes, discoverThemes, seedThemesFromFolder
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 type Account = {
   id: string;
