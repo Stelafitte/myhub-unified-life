@@ -174,6 +174,50 @@ export function TaskPanel({ open, onOpenChange, task, defaultStatus, sections, o
       });
   }, [emailId]);
 
+  useEffect(() => {
+    if (!open || !emailId) {
+      setAttachmentDocs([]);
+      return;
+    }
+
+    let cancelled = false;
+    setAttachmentsLoading(true);
+    supabase
+      .from("documents")
+      .select("*")
+      .eq("source_type", "email")
+      .eq("source_id", emailId)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => {
+        if (!cancelled) setAttachmentDocs((data as DocumentRow[]) ?? []);
+      })
+      .finally(() => {
+        if (!cancelled) setAttachmentsLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [open, emailId]);
+
+  const taskAttachments = ((task as Task & { attachments?: TaskAttachment[] } | null)?.attachments ?? []).filter(Boolean);
+  const attachmentsByDocumentId = new Set(taskAttachments.map((a) => a.document_id).filter(Boolean));
+  const fallbackAttachments = taskAttachments.filter((a) => !a.document_id || !attachmentDocs.some((d) => d.id === a.document_id));
+
+  const openLegacyAttachment = async (attachment: TaskAttachment) => {
+    try {
+      let href = attachment.url ?? null;
+      if (attachment.storage_path) {
+        href = await getSignedUrl(attachment.storage_path);
+      }
+      if (!href) {
+        toast.error("Pièce jointe indisponible");
+        return;
+      }
+      window.open(href, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Impossible d'ouvrir la pièce jointe");
+    }
+  };
+
   // Email search
   useEffect(() => {
     if (!emailSearch.trim()) { setEmailResults([]); return; }
