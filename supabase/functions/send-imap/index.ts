@@ -28,7 +28,7 @@ Deno.serve(async (req: Request) => {
     if (!userId) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const body = await req.json();
-    const { account_id, to, cc, bcc, subject, text, html, in_reply_to, references } = body ?? {};
+    const { account_id, to, cc, bcc, subject, text, html, in_reply_to, references, attachments } = body ?? {};
     if (!account_id || !to || !subject) {
       return new Response(JSON.stringify({ error: "missing fields" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
