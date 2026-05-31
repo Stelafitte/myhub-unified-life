@@ -664,12 +664,14 @@ function WeekOrDayView({
   events,
   onSelect,
   onMove,
+  onLongCreate,
 }: {
   days: number;
   from: Date;
   events: UnifiedEvent[];
   onSelect: (e: UnifiedEvent) => void;
   onMove?: (e: UnifiedEvent, deltaMin: number) => void;
+  onLongCreate?: (d: Date) => void;
 }) {
   const dayCols = Array.from({ length: days }, (_, i) => addDays(from, i));
   const today = new Date();
