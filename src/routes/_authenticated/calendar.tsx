@@ -1395,6 +1395,7 @@ function NewEventDialog({
         end_at: new Date(endStr || startStr).toISOString(),
         is_all_day: allDay,
         recurrence_rule: rrule,
+        category,
         color: acc?.color || "#6366f1",
         source: acc ? (acc.type as never) : null,
         sync_direction: acc?.sync_direction ?? "bidirectional",
