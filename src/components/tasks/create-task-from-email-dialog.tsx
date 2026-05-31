@@ -178,6 +178,7 @@ export function CreateTaskFromEmailDialog({
       await supabase.from("emails").update({ labels }).eq("id", email.id);
 
       toast.success(calendarEventId ? "Tâche + événement créés" : "Tâche créée");
+      requestAutoSync();
       onOpenChange(false);
       onCreated?.();
     } catch (e) {
