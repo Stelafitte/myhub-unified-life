@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { Calendar as MiniCal } from "@/components/ui/calendar";
 import { useCalendarHours } from "@/lib/calendar-prefs";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
