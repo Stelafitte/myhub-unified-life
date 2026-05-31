@@ -246,6 +246,8 @@ function InboxPage() {
     typeof window !== "undefined" ? window.innerWidth : 1280,
   );
   useEffect(() => {
+    // Sync immédiatement après hydratation (SSR peut renvoyer 1280 par défaut)
+    setWinW(window.innerWidth);
     const onResize = () => setWinW(window.innerWidth);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
