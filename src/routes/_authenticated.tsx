@@ -26,21 +26,24 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthenticatedLayout() {
   return (
     <SecureVaultProvider>
-      <SidebarProvider>
-        <div className="flex min-h-screen w-full bg-background">
-          <AppSidebar />
-          <div className="flex flex-1 flex-col">
-            <AppHeader />
-            <SessionExpiredBanner />
-            <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
-              <div className="mx-auto w-full max-w-[1400px]">
-                <Outlet />
-              </div>
-            </main>
-            <HdsNoticeDialog />
+      <TaskPanelProvider>
+        <SidebarProvider>
+          <div className="flex min-h-screen w-full bg-background">
+            <AppSidebar />
+            <div className="flex flex-1 flex-col">
+              <AppHeader />
+              <SessionExpiredBanner />
+              <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
+                <div className="mx-auto w-full max-w-[1400px]">
+                  <Outlet />
+                </div>
+              </main>
+              <HdsNoticeDialog />
+            </div>
           </div>
-        </div>
-      </SidebarProvider>
+          <GlobalTaskPanel />
+        </SidebarProvider>
+      </TaskPanelProvider>
     </SecureVaultProvider>
   );
 }
