@@ -1355,6 +1355,7 @@ function NewEventDialog({
       setLocation("");
       setParticipants("");
       setRecurrence("none");
+      setCategory("pro");
       setNotes("");
       setAccountId(writable[0]?.id ?? "local");
     }
