@@ -39,6 +39,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { generateDashboardInsights } from "@/lib/api/dashboard-insights.functions";
+import { InsightsProcessorDialog } from "@/components/dashboard/insights-processor-dialog";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useSyncStatus } from "@/hooks/use-sync-status";
 import { relativeTime } from "@/lib/relative-time";
