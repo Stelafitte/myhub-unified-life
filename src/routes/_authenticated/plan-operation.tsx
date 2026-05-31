@@ -58,6 +58,7 @@ import {
   type TaskSource,
   PRIORITY_META,
   getSection,
+  withoutSection,
 } from "@/lib/tasks-model";
 import { TaskPanel } from "@/components/tasks/task-panel";
 import { MobilePlanView, type MobileBar } from "@/components/plan/mobile-plan-view";
