@@ -463,6 +463,14 @@ function InboxPage() {
   type RenderItem =
     | { kind: "header"; key: string; label: string; count: number }
     | { kind: "email"; email: Email };
+  const [collapsedThemes, setCollapsedThemes] = useState<Set<string>>(new Set());
+  const toggleTheme = (key: string) =>
+    setCollapsedThemes((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   const displayItems = useMemo<RenderItem[]>(() => {
     if (!aiRanking) return filtered.map((e) => ({ kind: "email" as const, email: e }));
     const groups = new Map<string, { ts: number; emails: Email[] }>();
@@ -489,16 +497,17 @@ function InboxPage() {
           (a.received_at ? new Date(a.received_at).getTime() : 0),
       );
       const t = key === NO_THEME ? null : themeById.get(key);
+      const collapsed = collapsedThemes.has(key);
       out.push({
         kind: "header",
         key,
         label: t?.name ?? "Sans thème",
         count: g.emails.length,
       });
-      for (const e of g.emails) out.push({ kind: "email", email: e });
+      if (!collapsed) for (const e of g.emails) out.push({ kind: "email", email: e });
     }
     return out;
-  }, [filtered, aiRanking, themeById]);
+  }, [filtered, aiRanking, themeById, collapsedThemes]);
 
   const selected = useMemo(
     () => emails.find((e) => e.id === selectedId) ?? null,
@@ -944,8 +953,14 @@ function InboxPage() {
               return (
               <li
                   key={`h:${item.key}`}
-                  className="sticky top-0 z-10 flex items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur"
+                  onClick={() => toggleTheme(item.key)}
+                  className="sticky top-0 z-10 flex items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur cursor-pointer hover:bg-primary/20"
                 >
+                  {collapsedThemes.has(item.key) ? (
+                    <ChevronRight className="h-3 w-3 text-primary" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3 text-primary" />
+                  )}
                   <Sparkles className="h-3 w-3 text-primary" />
                   <span className="truncate">{item.label}</span>
                   <span className="ml-auto text-[10px] font-normal">{item.count}</span>
