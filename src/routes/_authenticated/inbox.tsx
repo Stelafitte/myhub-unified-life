@@ -1346,12 +1346,15 @@ function InboxPage() {
         }}
         className={cn(
           "min-w-0 shrink-0 flex-col bg-card lg:flex lg:relative lg:inset-auto lg:z-auto",
-          selected ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
+                  selected && (!isMobileInbox || readerOpen) ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
         )}
       >
         {selected && (
           <button
-            onClick={() => setSelectedId(null)}
+            onClick={() => {
+              setReaderOpen(false);
+              setSelectedId(null);
+            }}
             className="flex items-center gap-1 border-b px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent lg:hidden"
           >
             <ChevronDown className="h-3.5 w-3.5 rotate-90" /> Retour à la liste
