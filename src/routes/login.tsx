@@ -93,6 +93,10 @@ function LoginPage() {
   const [confirm, setConfirm] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [remember, setRemember] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem(REMEMBER_KEY) !== "0";
+  });
 
   useEffect(() => {
     if (user) navigate({ to: "/dashboard", replace: true });
@@ -104,7 +108,10 @@ function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) toast.error(error.message);
-    else navigate({ to: "/dashboard" });
+    else {
+      applyRememberPreference(remember);
+      navigate({ to: "/dashboard" });
+    }
   };
 
   const signUp = async (e: React.FormEvent) => {
