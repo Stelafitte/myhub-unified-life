@@ -478,6 +478,12 @@ export function PlanOperationSection() {
                 return (
                   <div key={theme.id} className="rounded-md border bg-card">
                     <div className="flex items-center gap-1 border-b bg-muted/30 px-2 py-1.5">
+                      <Checkbox
+                        checked={isSel(`theme:${theme.id}`)}
+                        onCheckedChange={() => toggleSel(`theme:${theme.id}`)}
+                        className="shrink-0"
+                        aria-label="Sélectionner le thème"
+                      />
                       <button
                         onClick={() => toggleOpen(theme.id)}
                         className="rounded p-1 hover:bg-accent shrink-0"
