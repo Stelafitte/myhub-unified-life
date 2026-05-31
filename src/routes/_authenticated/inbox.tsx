@@ -964,6 +964,10 @@ function InboxPage() {
                 // chronologique plate (évite que la vue groupée par thème
                 // reste affichée, notamment sur mobile).
                 if (v === "all" || v.startsWith("account:")) setAiRanking(false);
+                // Sur mobile, fermer le lecteur plein écran pour afficher la liste
+                if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                  setSelectedId(null);
+                }
               }}
             >
               <SelectTrigger className="h-7 w-auto max-w-[150px] gap-1 border-0 bg-transparent px-1 text-xs font-medium text-foreground hover:bg-accent/50 focus:ring-0 sm:max-w-none [&>svg]:hidden">
