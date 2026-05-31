@@ -28,13 +28,13 @@ function AuthenticatedLayout() {
     <SecureVaultProvider>
       <TaskPanelProvider>
         <SidebarProvider>
-          <div className="flex min-h-screen w-full bg-background">
+          <div className="flex min-h-screen w-full overflow-x-hidden bg-background">
             <AppSidebar />
-            <div className="flex flex-1 flex-col">
+            <div className="flex min-w-0 flex-1 flex-col">
               <AppHeader />
               <SessionExpiredBanner />
-              <main className="flex-1 overflow-auto p-3 sm:p-4 md:p-6">
-                <div className="mx-auto w-full max-w-[1400px]">
+              <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6">
+                <div className="mx-auto w-full max-w-[1400px] min-w-0">
                   <Outlet />
                 </div>
               </main>
