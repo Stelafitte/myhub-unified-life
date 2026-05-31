@@ -195,7 +195,10 @@ function LoginPage() {
     const { data, error } = await supabase.auth.getUser();
     setBusy(false);
     if (error) toast.error(error.message);
-    else if (data.user) navigate({ to: "/dashboard", replace: true });
+    else if (data.user) {
+      applyRememberPreference(remember);
+      navigate({ to: "/dashboard", replace: true });
+    }
   };
 
   const mismatch = confirm.length > 0 && confirm !== password;
