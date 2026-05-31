@@ -287,6 +287,16 @@ function LoginPage() {
                     autoComplete="current-password"
                   />
                 </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="remember-me"
+                    checked={remember}
+                    onCheckedChange={(v) => setRemember(v === true)}
+                  />
+                  <Label htmlFor="remember-me" className="cursor-pointer text-sm font-normal text-muted-foreground">
+                    Rester connecté sur cet appareil
+                  </Label>
+                </div>
                 <Button type="submit" disabled={busy} className="w-full">
                   {busy ? "Connexion…" : "Se connecter"}
                 </Button>
