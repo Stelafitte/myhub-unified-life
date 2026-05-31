@@ -1569,30 +1569,45 @@ function NewEventDialog({
             <Input id="ev-part" value={participants} onChange={(e) => setParticipants(e.target.value)} placeholder="alice@x.com, bob@y.com" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Catégorie</Label>
-              <Select value={category} onValueChange={(v) => setCategory(v as "pro" | "perso")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+          <div>
+            <Label>Type d'événement</Label>
+            <div className="flex items-center gap-2">
+              <Select value={derivedCat} onValueChange={(v) => applyType(v as EventCategory)}>
+                <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pro">💼 Pro</SelectItem>
-                  <SelectItem value="perso">🏡 Perso</SelectItem>
+                  {(Object.keys(CATEGORY_LABELS) as EventCategory[]).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      <span className="inline-flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full" style={{ background: catColors[k] }} />
+                        {CATEGORY_LABELS[k]}
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-9 w-10 cursor-pointer rounded border bg-background"
+                title="Couleur personnalisée"
+              />
             </div>
+          </div>
+
+          {recurrence !== "none" && (
             <div>
-              <Label>Récurrence</Label>
+              <Label>Fréquence</Label>
               <Select value={recurrence} onValueChange={setRecurrence}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">Aucune (ponctuel)</SelectItem>
                   <SelectItem value="daily">Tous les jours</SelectItem>
                   <SelectItem value="weekly">Toutes les semaines</SelectItem>
                   <SelectItem value="monthly">Tous les mois</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          )}
 
           <div>
             <Label htmlFor="ev-notes">Notes</Label>
