@@ -60,6 +60,7 @@ import {
   getSection,
 } from "@/lib/tasks-model";
 import { TaskPanel } from "@/components/tasks/task-panel";
+import { MobilePlanView, type MobileBar } from "@/components/plan/mobile-plan-view";
 export const Route = createFileRoute("/_authenticated/plan-operation")({
   component: PlanOperationPage,
 });
