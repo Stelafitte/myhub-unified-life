@@ -169,3 +169,18 @@ export function installOnlineFlusher(cb?: () => void) {
 export function notifyQueueChanged() {
   window.dispatchEvent(new CustomEvent("sync-queue-changed"));
 }
+
+/**
+ * Request an automatic sync run. The header listens for this and triggers
+ * syncNow() (debounced) so newly created tasks / events / meetings propagate
+ * immediately without the user having to click "Synchroniser".
+ */
+let _autoSyncTimer: ReturnType<typeof setTimeout> | null = null;
+export function requestAutoSync(delayMs = 600) {
+  if (typeof window === "undefined") return;
+  if (_autoSyncTimer) clearTimeout(_autoSyncTimer);
+  _autoSyncTimer = setTimeout(() => {
+    _autoSyncTimer = null;
+    window.dispatchEvent(new CustomEvent("auto-sync-request"));
+  }, delayMs);
+}
