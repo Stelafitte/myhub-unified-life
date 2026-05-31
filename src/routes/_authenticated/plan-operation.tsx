@@ -118,6 +118,15 @@ function PlanOperationPage() {
   const [toDelete, setToDelete] = useState<Task | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
+  const [opThemes, setOpThemes] = useState<{ id: string; name: string; position: number }[]>([]);
+  const [opSubthemes, setOpSubthemes] = useState<{ id: string; name: string; theme_id: string; position: number }[]>([]);
+
+  // Sections dynamiques : thèmes utilisateurs (toujours visibles) + sections legacy (visibles si elles contiennent des tâches)
+  const SECTION_DEFS = useMemo<SectionDef[]>(() => {
+    const themeSecs: SectionDef[] = opThemes.map((t) => ({ key: t.name, label: t.name, emoji: "📋", alwaysShow: true }));
+    return [...themeSecs, ...LEGACY_SECTIONS];
+  }, [opThemes]);
+  const sectionOf = useMemo(() => buildSectionOf(SECTION_DEFS), [SECTION_DEFS]);
 
   // Déplacer une tâche dans une autre section (drag & drop)
   const moveToSection = async (taskId: string, sectionKey: string) => {
