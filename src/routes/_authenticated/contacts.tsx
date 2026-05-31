@@ -296,8 +296,8 @@ function ContactsPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 border-t px-4 py-2">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="flex flex-col gap-2 border-t px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:px-4">
+            <div className="relative flex-1 min-w-0">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Nom, email, organisation…"
@@ -306,38 +306,40 @@ function ContactsPage() {
                 className="h-8 pl-8"
               />
             </div>
-            <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as typeof sourceFilter)}>
-              <SelectTrigger className="h-8 w-[120px] text-xs"><SelectValue placeholder="Source" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes sources</SelectItem>
-                <SelectItem value="google">Google</SelectItem>
-                <SelectItem value="icloud">iCloud</SelectItem>
-                <SelectItem value="outlook">Outlook</SelectItem>
-                <SelectItem value="other">Autre</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={tagFilter} onValueChange={setTagFilter}>
-              <SelectTrigger className="h-8 w-[120px] text-xs"><SelectValue placeholder="Tag" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les tags</SelectItem>
-                {allTags.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={orgFilter} onValueChange={setOrgFilter}>
-              <SelectTrigger className="h-8 w-[140px] text-xs"><SelectValue placeholder="Organisation" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes orgs</SelectItem>
-                {allOrgs.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
-              <SelectTrigger className="h-8 w-[140px] text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Tri : nom</SelectItem>
-                <SelectItem value="org">Tri : organisation</SelectItem>
-                <SelectItem value="recent">Tri : récemment contacté</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+              <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as typeof sourceFilter)}>
+                <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs"><SelectValue placeholder="Source" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes sources</SelectItem>
+                  <SelectItem value="google">Google</SelectItem>
+                  <SelectItem value="icloud">iCloud</SelectItem>
+                  <SelectItem value="outlook">Outlook</SelectItem>
+                  <SelectItem value="other">Autre</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={tagFilter} onValueChange={setTagFilter}>
+                <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs"><SelectValue placeholder="Tag" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous les tags</SelectItem>
+                  {allTags.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={orgFilter} onValueChange={setOrgFilter}>
+                <SelectTrigger className="h-8 w-[120px] shrink-0 text-xs"><SelectValue placeholder="Organisation" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Toutes orgs</SelectItem>
+                  {allOrgs.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
+                <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="name">Tri : nom</SelectItem>
+                  <SelectItem value="org">Tri : organisation</SelectItem>
+                  <SelectItem value="recent">Tri : récemment contacté</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Sync indicators */}
