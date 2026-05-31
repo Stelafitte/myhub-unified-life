@@ -185,8 +185,20 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
         const body = (await res.json()) as { items?: GEvent[]; nextPageToken?: string };
         const items = body.items ?? [];
 
+        // Filter out events the user has locally tombstoned
+        const candidateIds = items.map((ev) => ev.id).filter(Boolean);
+        let tombstoned = new Set<string>();
+        if (candidateIds.length > 0) {
+          const { data: dele } = await supabaseAdmin
+            .from("deleted_calendar_events")
+            .select("google_event_id")
+            .eq("gcal_connection_id", conn.id)
+            .in("google_event_id", candidateIds);
+          tombstoned = new Set((dele ?? []).map((r: { google_event_id: string }) => r.google_event_id));
+        }
+
         const rows = items
-          .filter((ev) => ev.status !== "cancelled")
+          .filter((ev) => ev.status !== "cancelled" && !tombstoned.has(ev.id))
           .map((ev) => {
             const startStr = ev.start?.dateTime ?? (ev.start?.date ? `${ev.start.date}T00:00:00Z` : null);
             const endStr = ev.end?.dateTime ?? (ev.end?.date ? `${ev.end.date}T00:00:00Z` : null);
@@ -221,6 +233,7 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
           for (const r of rows) fetchedIds.push(r.google_event_id);
           totalSynced += rows.length;
         }
+
 
 
         pageToken = body.nextPageToken;
