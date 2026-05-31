@@ -1804,13 +1804,23 @@ function Reader({
           <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}>
             <Archive className="h-3 w-3" /> Archiver
           </Button>
+          {onRestore && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1"
+              onClick={onRestore}
+            >
+              <RefreshCw className="h-3 w-3" /> Restaurer
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"
             className="h-7 gap-1 text-destructive"
             onClick={onDelete}
           >
-            <Trash2 className="h-3 w-3" /> Suppr.
+            <Trash2 className="h-3 w-3" /> {email.deleted_at ? "Suppr. définitive" : "Suppr."}
           </Button>
           <Button size="sm" className="h-7 gap-1" onClick={onCreateTask}>
             <Plus className="h-3 w-3" /> Créer tâche
