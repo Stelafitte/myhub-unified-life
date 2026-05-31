@@ -23,6 +23,21 @@ export function AppHeader() {
     toast.success(`Sync : ${res.flushed} action(s) envoyée(s), ${res.imap} email(s) reçu(s)`);
   };
 
+  // Auto-sync trigger: fired by sync-queue.requestAutoSync() after a task /
+  // meeting / calendar event is created. Silent (no toast) to avoid noise.
+  const autoBusy = useRef(false);
+  useEffect(() => {
+    const onAuto = async () => {
+      if (autoBusy.current || syncing || !navigator.onLine) return;
+      autoBusy.current = true;
+      try { await syncNow(); } catch { /* ignore */ }
+      finally { autoBusy.current = false; }
+    };
+    window.addEventListener("auto-sync-request", onAuto);
+    return () => window.removeEventListener("auto-sync-request", onAuto);
+  }, [syncNow, syncing]);
+
+
   const badgeClass =
     state === "offline"
       ? "bg-red-500/10 text-red-600 dark:text-red-400"
