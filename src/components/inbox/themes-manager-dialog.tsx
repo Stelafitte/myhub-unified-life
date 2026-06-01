@@ -273,6 +273,15 @@ export function ThemesManagerDialog({
         )}
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as "pro" | "perso")} className="min-w-0 px-6 pb-6">
+          <div className="mb-2 flex items-center gap-2">
+            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un thème…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-7 text-xs"
+            />
+          </div>
           <TabsList className="grid w-full min-w-0 grid-cols-2">
             <TabsTrigger value="pro" className="gap-1.5">
               <Briefcase className="h-3.5 w-3.5" /> Pro
