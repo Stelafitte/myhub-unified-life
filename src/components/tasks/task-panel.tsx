@@ -772,6 +772,57 @@ export function TaskPanel({
               </div>
             )}
 
+            <div>
+              <Label className="mb-1.5 flex items-center gap-1.5">
+                <Upload className="h-3.5 w-3.5" /> Ajouter des fichiers
+              </Label>
+              <label
+                className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed p-3 text-xs text-muted-foreground transition-colors hover:border-primary hover:bg-accent/30"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const list = e.dataTransfer.files;
+                  if (list) setPendingFiles((prev) => [...prev, ...Array.from(list)]);
+                }}
+              >
+                <Upload className="h-4 w-4 opacity-60" />
+                <span>Glisser-déposer ou cliquer pour sélectionner</span>
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const list = e.target.files;
+                    if (list) setPendingFiles((prev) => [...prev, ...Array.from(list)]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {pendingFiles.length > 0 && (
+                <ul className="mt-2 space-y-1 rounded-md border bg-muted/20 p-2 text-xs">
+                  {pendingFiles.map((f, i) => (
+                    <li key={`${f.name}-${i}`} className="flex items-center gap-2">
+                      <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="flex-1 truncate">{f.name}</span>
+                      <span className="text-muted-foreground">{formatBytes(f.size)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {uploadingFiles && (
+                <p className="mt-1 text-xs text-muted-foreground">Upload en cours…</p>
+              )}
+            </div>
+
+
+
             {task && (task as Task & { calendar_event_id?: string | null }).calendar_event_id && (
               <div className="rounded-md border bg-muted/30 p-2 text-xs">
                 📅 Lié à un événement de l'agenda
