@@ -149,6 +149,24 @@ Deno.serve(async (req: Request) => {
     let result: { ok: boolean; count: number; error?: string };
     if (account.type === "gmail") result = await fetchGmail(admin, email, account);
     else if (account.type === "outlook") result = await fetchOutlook(admin, email, account);
+    else if (account.type === "imap") {
+      // IMAP: re-sync the account in full to re-fetch RFC822 + attachments.
+      const before = await admin.from("documents").select("id", { count: "exact", head: true })
+        .eq("source_type", "email").eq("source_id", email.id);
+      const beforeCount = before.count ?? 0;
+      const invokeRes = await fetch(`${SUPABASE_URL}/functions/v1/sync-imap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}`, apikey: SERVICE_ROLE },
+        body: JSON.stringify({ account_id: account.id, force_full: true }),
+      });
+      if (!invokeRes.ok) {
+        result = { ok: false, count: 0, error: `sync-imap ${invokeRes.status}` };
+      } else {
+        const after = await admin.from("documents").select("id", { count: "exact", head: true })
+          .eq("source_type", "email").eq("source_id", email.id);
+        result = { ok: true, count: Math.max(0, (after.count ?? 0) - beforeCount) };
+      }
+    }
     else result = { ok: false, count: 0, error: `Type non supporté: ${account.type}` };
 
     return new Response(JSON.stringify(result), {
