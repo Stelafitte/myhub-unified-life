@@ -19,6 +19,7 @@ type Props = {
 export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) {
   const [docs, setDocs] = useState<DocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recovering, setRecovering] = useState(false);
   const [pick, setPick] = useState<DocumentRow | null>(null);
   const [preview, setPreview] = useState<DocumentRow | null>(null);
   const [download, setDownload] = useState<DocumentRow | null>(null);
