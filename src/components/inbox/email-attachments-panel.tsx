@@ -48,6 +48,24 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
     }
   }
 
+  async function recoverAttachments() {
+    setRecovering(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-email-attachments", {
+        body: { email_id: emailId },
+      });
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Échec de la récupération");
+      if (data.count > 0) toast.success(`${data.count} pièce${data.count > 1 ? "s" : ""} jointe${data.count > 1 ? "s" : ""} récupérée${data.count > 1 ? "s" : ""}`);
+      else toast.info("Aucune nouvelle pièce jointe trouvée");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de la récupération");
+    } finally {
+      setRecovering(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 border-b bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
@@ -58,8 +76,14 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
 
   if (docs.length === 0) {
     return (
-      <div className="border-b bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-        <Paperclip className="mr-1 inline h-3 w-3" /> Cet email contient des pièces jointes (relance une synchronisation complète pour les récupérer).
+      <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+        <span>
+          <Paperclip className="mr-1 inline h-3 w-3" /> Cet email contient des pièces jointes non chargées.
+        </span>
+        <Button size="sm" variant="outline" className="h-7 gap-1.5" onClick={recoverAttachments} disabled={recovering}>
+          {recovering ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          Récupérer les PJ
+        </Button>
       </div>
     );
   }
