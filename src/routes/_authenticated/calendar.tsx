@@ -1197,6 +1197,44 @@ function EventDetail({
     }
   };
 
+  const openFullDetails = async () => {
+    if (event.kind !== "event") return;
+    if (linkedMeetingId) {
+      setMeetingDialogOpen(true);
+      return;
+    }
+    if (!user) {
+      toast.error("Connexion requise");
+      return;
+    }
+    try {
+      const evId = (event.raw as DbEvent).id;
+      const { data: newMtg, error } = await supabase
+        .from("meetings")
+        .insert({
+          user_id: user.id,
+          title: event.title,
+          description: dbEv.description ?? null,
+          start_at: event.start.toISOString(),
+          end_at: event.end.toISOString(),
+          location: event.location ?? null,
+          is_online: !!event.hasVideo,
+          calendar_event_id: evId,
+          status: "scheduled",
+          importance: "normal",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      setLinkedMeetingId(newMtg.id);
+      setMeetingDialogOpen(true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Impossible d'ouvrir les détails");
+    }
+  };
+
+
+
 
   return (
     <aside className="fixed inset-0 z-40 flex shrink-0 flex-col border-l bg-card lg:relative lg:inset-auto lg:z-auto lg:w-[380px]">
