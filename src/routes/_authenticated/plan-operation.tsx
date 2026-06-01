@@ -790,7 +790,7 @@ function PlanOperationPage() {
                   const isCollapsed = collapsed[sectionKey];
                   return (
                     <div key={sectionKey}>
-                      <div className="border-b bg-muted/20" style={{ height: SECTION_H }} />
+                      <div className="border-b border-border bg-muted" style={{ height: SECTION_H }} />
                       {!isCollapsed && items.map((b) => (
                         <BarRow key={b.id} bar={b} rowHeight={ROW_H} dayPx={dayPx} start={start} today={today}
                           onClick={() => handleBarClick(b)}
