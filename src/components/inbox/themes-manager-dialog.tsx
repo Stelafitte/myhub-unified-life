@@ -250,9 +250,9 @@ export function ThemesManagerDialog({
               )}
               <ul className="divide-y">
                 {visible.map((t) => (
-                  <li key={t.id} className="flex flex-wrap items-center gap-2 py-2">
+                  <li key={t.id} className="py-2">
                     {editing === t.id ? (
-                      <>
+                      <div className="flex flex-wrap items-center gap-2">
                         <Input
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
@@ -262,57 +262,61 @@ export function ThemesManagerDialog({
                         />
                         <Button size="sm" className="h-7" onClick={() => handleRename(t.id)}>OK</Button>
                         <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditing(null)}>Annuler</Button>
-                      </>
+                      </div>
                     ) : (
-                      <>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate text-sm font-medium">{t.name}</span>
-                            <Badge variant="secondary" className="text-[10px]">{t.email_count}</Badge>
-                            <Badge variant="outline" className="text-[10px]">{t.source}</Badge>
-                          </div>
-                          {t.description && (
-                            <div className="truncate text-xs text-muted-foreground">{t.description}</div>
-                          )}
+                      <div className="flex flex-col gap-1.5">
+                        {/* Ligne 1 : nom + meta */}
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-sm font-medium">{t.name}</span>
+                          <Badge variant="secondary" className="shrink-0 text-[10px]">{t.email_count}</Badge>
+                          <Badge variant="outline" className="shrink-0 text-[10px]">{t.source}</Badge>
                         </div>
-                        <UtilitySelector
-                          value={t.utility_level}
-                          onChange={(lvl) => handleSetUtility(t.id, lvl)}
-                        />
-                        <Select value={t.scope} onValueChange={(v) => handleSetScope(t.id, v as ThemeScope)}>
-                          <SelectTrigger className="h-7 w-[90px] text-[11px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pro" className="text-xs">Pro</SelectItem>
-                            <SelectItem value="perso" className="text-xs">Perso</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {mergeFrom && mergeFrom !== t.id ? (
-                          <Button size="sm" variant="default" className="h-7" onClick={() => handleMerge(t.id)}>
-                            Fusionner ici
-                          </Button>
-                        ) : (
-                          <>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Renommer"
-                              onClick={() => { setEditing(t.id); setEditName(t.name); }}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Fusionner avec…"
-                              onClick={() => setMergeFrom(t.id)}>
-                              <GitMerge className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" title="Archiver"
-                              onClick={() => handleArchive(t)}>
-                              <Archive className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Supprimer"
-                              onClick={() => handleDelete(t)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </>
+                        {t.description && (
+                          <div className="truncate text-xs text-muted-foreground">{t.description}</div>
                         )}
-                      </>
+                        {/* Ligne 2 : contrôles */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <UtilitySelector
+                            value={t.utility_level}
+                            onChange={(lvl) => handleSetUtility(t.id, lvl)}
+                          />
+                          <Select value={t.scope} onValueChange={(v) => handleSetScope(t.id, v as ThemeScope)}>
+                            <SelectTrigger className="h-7 w-[100px] text-[11px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pro" className="text-xs">Pro</SelectItem>
+                              <SelectItem value="perso" className="text-xs">Perso</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <div className="ml-auto flex items-center gap-0.5">
+                            {mergeFrom && mergeFrom !== t.id ? (
+                              <Button size="sm" variant="default" className="h-7" onClick={() => handleMerge(t.id)}>
+                                Fusionner ici
+                              </Button>
+                            ) : (
+                              <>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" title="Renommer"
+                                  onClick={() => { setEditing(t.id); setEditName(t.name); }}>
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" title="Fusionner avec…"
+                                  onClick={() => setMergeFrom(t.id)}>
+                                  <GitMerge className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" title="Archiver"
+                                  onClick={() => handleArchive(t)}>
+                                  <Archive className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Supprimer"
+                                  onClick={() => handleDelete(t)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </li>
                 ))}
