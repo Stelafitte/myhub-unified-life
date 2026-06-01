@@ -82,10 +82,11 @@ export function AiSuggestionsPanel({
 
 
   const openMailto = (text: string) => {
-    const to = fromAddress ?? "";
-    const subj = subject?.startsWith("Re:") ? subject : `Re: ${subject ?? ""}`;
-    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(text)}`;
+    onUseReply(text);
   };
+  // Suppress unused-var warnings: fromAddress/subject are kept for API stability.
+  void fromAddress; void subject;
+
 
   return (
     <div className="shrink-0 border-b bg-primary/5 px-4 py-3">
