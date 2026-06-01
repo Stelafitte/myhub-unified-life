@@ -285,8 +285,9 @@ function InboxPage() {
     return v >= 320 ? v : 600;
   });
   const [winW, setWinW] = useState<number>(() =>
-    typeof window !== "undefined" ? window.innerWidth : 1280,
+    typeof window !== "undefined" ? window.innerWidth : 600,
   );
+
   const isMobileInbox = winW < 1024;
   const [readerOpen, setReaderOpen] = useState(false);
   useEffect(() => {
