@@ -1624,7 +1624,7 @@ function InboxPage() {
                     <div
                       className={cn(
                         "break-words text-sm",
-                        !e.is_read ? "font-semibold" : "text-foreground/80",
+                        !e.is_read ? "font-semibold text-foreground" : "text-muted-foreground",
                       )}
                     >
                       {e.subject || "(sans objet)"}
