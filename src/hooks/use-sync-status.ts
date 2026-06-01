@@ -101,6 +101,11 @@ export function useSyncStatus() {
     }
   }, [refreshPending]);
 
+  // Keep ref in sync so the interval always calls the latest function
+  useEffect(() => {
+    syncNowRef.current = syncNow;
+  }, [syncNow]);
+
 
   const state: SyncState = !online ? "offline" : syncing ? "syncing" : "online";
   return { state, online, syncing, pending, syncNow, refreshPending };
