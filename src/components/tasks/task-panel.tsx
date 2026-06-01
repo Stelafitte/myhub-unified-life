@@ -141,6 +141,9 @@ export function TaskPanel({
       initKeyRef.current = "";
       return;
     }
+    // Toujours réinitialiser l'état de sauvegarde à l'ouverture (sécurité anti-blocage)
+    setSaving(false);
+    setAnalyzing(false);
     // Only reset when the panel is opened or the target task changes — not on every parent re-render
     const key = task ? `edit:${task.id}` : `new:${defaultStatus ?? "todo"}`;
     if (initKeyRef.current === key) return;
