@@ -18,7 +18,9 @@ type Props = {
   userId: string;
   onCreateTask: (title: string) => void;
   onArchive: () => void;
+  onUseReply: (text: string) => void;
 };
+
 
 export function AiSuggestionsPanel({
   emailId,
@@ -27,7 +29,9 @@ export function AiSuggestionsPanel({
   userId,
   onCreateTask,
   onArchive,
+  onUseReply,
 }: Props) {
+
   const fn = useServerFn(getEmailSuggestions);
   const [data, setData] = useState<EmailSuggestions | null>(null);
   const [loading, setLoading] = useState(false);
@@ -78,10 +82,11 @@ export function AiSuggestionsPanel({
 
 
   const openMailto = (text: string) => {
-    const to = fromAddress ?? "";
-    const subj = subject?.startsWith("Re:") ? subject : `Re: ${subject ?? ""}`;
-    window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(text)}`;
+    onUseReply(text);
   };
+  // Suppress unused-var warnings: fromAddress/subject are kept for API stability.
+  void fromAddress; void subject;
+
 
   return (
     <div className="shrink-0 border-b bg-primary/5 px-4 py-3">
@@ -192,8 +197,9 @@ export function AiSuggestionsPanel({
                           className="h-6 gap-1 text-[11px]"
                           onClick={() => openMailto(draft)}
                         >
-                          <Mail className="h-3 w-3" /> Ouvrir mail
+                          <Mail className="h-3 w-3" /> Utiliser
                         </Button>
+
                         <Button
                           size="sm"
                           variant="ghost"
