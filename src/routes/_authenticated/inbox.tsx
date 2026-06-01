@@ -1012,8 +1012,78 @@ function InboxPage() {
             </div>
           </div>
           {(() => {
-            const { grouped, standalone } = groupThemes(themes, counts.byTheme);
-            if (grouped.length === 0 && standalone.length === 0) {
+            const renderThemesBlock = (scopeThemes: Theme[]) => {
+              const { grouped, standalone } = groupThemes(scopeThemes, counts.byTheme);
+              if (grouped.length === 0 && standalone.length === 0) return null;
+              return (
+                <>
+                  {grouped.map((g) => (
+                    <details key={g.name} open className="group/theme">
+                      <summary className="flex w-full cursor-pointer list-none items-center gap-1.5 rounded-md px-2 py-1 text-left hover:bg-accent/40 [&::-webkit-details-marker]:hidden">
+                        <ChevronRight className="h-3 w-3 text-muted-foreground transition-transform group-open/theme:rotate-90" />
+                        <span className="flex-1 truncate text-xs font-medium">{g.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{g.total}</span>
+                      </summary>
+                      <div className="ml-3 border-l border-border/50 pl-1">
+                        {g.items.map(({ theme: t, label }) => {
+                          const n = counts.byTheme.get(t.id) ?? 0;
+                          const active = filter === `theme:${t.id}`;
+                          return (
+                            <button
+                              key={t.id}
+                              onClick={() => setFilter(`theme:${t.id}`)}
+                              className={cn(
+                                "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors",
+                                active ? "bg-accent" : "hover:bg-accent/50",
+                              )}
+                              title={t.description ?? t.name}
+                            >
+                              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-primary/10 text-[10px]">
+                                {t.icon ?? "🏷️"}
+                              </span>
+                              <span className="flex-1 truncate text-xs">{label}</span>
+                              <span className="text-[10px] text-muted-foreground">{n}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </details>
+                  ))}
+                  {standalone
+                    .map((t) => ({ t, n: counts.byTheme.get(t.id) ?? 0 }))
+                    .sort((a, b) => b.n - a.n)
+                    .map(({ t, n }) => {
+                      const active = filter === `theme:${t.id}`;
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => setFilter(`theme:${t.id}`)}
+                          className={cn(
+                            "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                            active ? "bg-accent" : "hover:bg-accent/50",
+                          )}
+                          title={t.description ?? t.name}
+                        >
+                          <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs">
+                            {t.icon ?? "🏷️"}
+                          </span>
+                          <span className="flex-1 truncate text-sm">{t.name}</span>
+                          <span className="text-[11px] text-muted-foreground">{n}</span>
+                        </button>
+                      );
+                    })}
+                </>
+              );
+            };
+
+            const proThemes = themes.filter((t) => t.scope === "pro");
+            const persoThemes = themes.filter((t) => t.scope !== "pro");
+            const proTotal = proThemes.reduce((s, t) => s + (counts.byTheme.get(t.id) ?? 0), 0);
+            const persoTotal = persoThemes.reduce((s, t) => s + (counts.byTheme.get(t.id) ?? 0), 0);
+            const proContent = renderThemesBlock(proThemes);
+            const persoContent = renderThemesBlock(persoThemes);
+
+            if (!proContent && !persoContent) {
               return (
                 <div className="px-3 py-2 text-xs text-muted-foreground">
                   Analyse en cours… ou cliquez sur ↻ pour lancer.
@@ -1022,61 +1092,30 @@ function InboxPage() {
             }
             return (
               <>
-                {grouped.map((g) => (
-                  <details key={g.name} open className="group/theme">
-                    <summary className="flex w-full cursor-pointer list-none items-center gap-1.5 rounded-md px-2 py-1 text-left hover:bg-accent/40 [&::-webkit-details-marker]:hidden">
-                      <ChevronRight className="h-3 w-3 text-muted-foreground transition-transform group-open/theme:rotate-90" />
-                      <span className="flex-1 truncate text-xs font-medium">{g.name}</span>
-                      <span className="text-[10px] text-muted-foreground">{g.total}</span>
-                    </summary>
-                    <div className="ml-3 border-l border-border/50 pl-1">
-                      {g.items.map(({ theme: t, label }) => {
-                        const n = counts.byTheme.get(t.id) ?? 0;
-                        const active = filter === `theme:${t.id}`;
-                        return (
-                          <button
-                            key={t.id}
-                            onClick={() => setFilter(`theme:${t.id}`)}
-                            className={cn(
-                              "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors",
-                              active ? "bg-accent" : "hover:bg-accent/50",
-                            )}
-                            title={t.description ?? t.name}
-                          >
-                            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-primary/10 text-[10px]">
-                              {t.icon ?? "🏷️"}
-                            </span>
-                            <span className="flex-1 truncate text-xs">{label}</span>
-                            <span className="text-[10px] text-muted-foreground">{n}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </details>
-                ))}
-                {standalone
-                  .map((t) => ({ t, n: counts.byTheme.get(t.id) ?? 0 }))
-                  .sort((a, b) => b.n - a.n)
-                  .map(({ t, n }) => {
-                    const active = filter === `theme:${t.id}`;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => setFilter(`theme:${t.id}`)}
-                        className={cn(
-                          "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
-                          active ? "bg-accent" : "hover:bg-accent/50",
-                        )}
-                        title={t.description ?? t.name}
-                      >
-                        <span className="flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs">
-                          {t.icon ?? "🏷️"}
-                        </span>
-                        <span className="flex-1 truncate text-sm">{t.name}</span>
-                        <span className="text-[11px] text-muted-foreground">{n}</span>
-                      </button>
-                    );
-                  })}
+                <details open className="group/scope mt-1">
+                  <summary className="flex w-full cursor-pointer list-none items-center gap-1.5 rounded-md bg-blue-500/10 px-2 py-1 text-left hover:bg-blue-500/15 [&::-webkit-details-marker]:hidden">
+                    <ChevronRight className="h-3 w-3 text-blue-700 transition-transform group-open/scope:rotate-90 dark:text-blue-300" />
+                    <span className="flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-blue-700 dark:text-blue-300">💼 Pro</span>
+                    <span className="text-[10px] font-medium text-blue-700/70 dark:text-blue-300/70">{proTotal}</span>
+                  </summary>
+                  <div className="mt-1">
+                    {proContent ?? (
+                      <div className="px-3 py-1.5 text-[11px] italic text-muted-foreground">Aucun thème pro</div>
+                    )}
+                  </div>
+                </details>
+                <details open className="group/scope mt-2">
+                  <summary className="flex w-full cursor-pointer list-none items-center gap-1.5 rounded-md bg-pink-500/10 px-2 py-1 text-left hover:bg-pink-500/15 [&::-webkit-details-marker]:hidden">
+                    <ChevronRight className="h-3 w-3 text-pink-700 transition-transform group-open/scope:rotate-90 dark:text-pink-300" />
+                    <span className="flex-1 truncate text-[11px] font-semibold uppercase tracking-wider text-pink-700 dark:text-pink-300">❤️ Personnel</span>
+                    <span className="text-[10px] font-medium text-pink-700/70 dark:text-pink-300/70">{persoTotal}</span>
+                  </summary>
+                  <div className="mt-1">
+                    {persoContent ?? (
+                      <div className="px-3 py-1.5 text-[11px] italic text-muted-foreground">Aucun thème perso</div>
+                    )}
+                  </div>
+                </details>
               </>
             );
           })()}

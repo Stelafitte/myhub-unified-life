@@ -578,11 +578,36 @@ export const autoDetectThemeScopes = createServerFn({ method: "POST" })
 
     if (!themes || themes.length === 0) return { updated: 0 };
 
-    const list = (themes as { id: string; name: string; description: string | null; keywords: string[] }[])
-      .map((t) => `- "${t.name}"${t.description ? `: ${t.description}` : ""}${t.keywords?.length ? ` [${t.keywords.join(", ")}]` : ""}`)
+    // For each theme, fetch sample senders/subjects to give the AI real context.
+    const themesWithSamples = await Promise.all(
+      (themes as { id: string; name: string; description: string | null; keywords: string[] }[]).map(async (t) => {
+        const { data: samples } = await supabase
+          .from("emails")
+          .select("from_address,subject")
+          .eq("user_id", userId)
+          .eq("ai_theme_id", t.id)
+          .order("received_at", { ascending: false })
+          .limit(5);
+        return { ...t, samples: (samples ?? []) as { from_address: string | null; subject: string | null }[] };
+      }),
+    );
+
+    const list = themesWithSamples
+      .map((t) => {
+        const senders = [...new Set(t.samples.map((s) => s.from_address).filter(Boolean))].slice(0, 5).join(", ");
+        const subjects = t.samples.map((s) => s.subject).filter(Boolean).slice(0, 3).join(" | ");
+        return `- "${t.name}"${t.description ? `: ${t.description}` : ""}${t.keywords?.length ? ` [mots-clés: ${t.keywords.join(", ")}]` : ""}${senders ? `\n   expéditeurs: ${senders}` : ""}${subjects ? `\n   sujets: ${subjects}` : ""}`;
+      })
       .join("\n");
 
-    const sys = `Tu classes des thèmes d'email en deux catégories: "pro" (professionnel, métier, travail, clients, projets, fournisseurs) ou "perso" (famille, loisirs, achats personnels, santé, vie privée, abonnements perso).
+    const sys = `Tu classes des thèmes d'email en deux catégories.
+
+PRO (professionnel) : tout ce qui relève du travail/métier de l'utilisateur. Inclut : clients, fournisseurs, projets, collègues, hôpital/CHU, cabinet, entreprise, congrès scientifiques, formations pro, comptabilité d'entreprise, juridique pro (SCI, sociétés, In Extenso), marketing/publicité B2B reçue au travail, outils logiciels pro, recrutement, instances et associations professionnelles, emprunts/garanties bancaires d'entreprise.
+
+PERSO (personnel) : vie privée uniquement. Famille, amis, loisirs perso, voyages perso, achats perso (Amazon, vêtements), santé perso (mutuelle, médecin de famille), banque personnelle, assurance habitation, abonnements perso (Netflix, Spotify), newsletters loisirs, sport, école des enfants.
+
+RÈGLE IMPORTANTE : en cas de doute → PRO. Les expéditeurs en @chu-*, @entreprise-*, @cabinet-*, ou les sujets contenant projet/réunion/dossier/client/patient/congrès/laboratoire/SCI → toujours PRO. Seules les newsletters et achats clairement perso (Amazon, Fnac, Netflix, etc. vers @gmail/@yahoo/@hotmail) sont PERSO.
+
 Réponds UNIQUEMENT en JSON: {"assignments":[{"name":"...","scope":"pro"|"perso"}]}`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
