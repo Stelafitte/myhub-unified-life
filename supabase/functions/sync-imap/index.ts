@@ -629,16 +629,31 @@ Deno.serve(async (req: Request) => {
       for (const acc of accounts) acc.last_sync_at = null;
     }
 
-    const results: any[] = [];
-    for (const acc of accounts ?? []) {
-      const timeoutP = new Promise<{ ok: false; count: 0; error: string }>((resolve) =>
-        setTimeout(() => resolve({ ok: false, count: 0, error: "account sync timeout (60s)" }), 60000)
+    // Run sync in background to avoid CPU/wall-time limits on the request path.
+    const runAll = async () => {
+      const results: any[] = [];
+      for (const acc of accounts ?? []) {
+        const timeoutP = new Promise<{ ok: false; count: 0; error: string }>((resolve) =>
+          setTimeout(() => resolve({ ok: false, count: 0, error: "account sync timeout (60s)" }), 60000)
+        );
+        const r = await Promise.race([syncOne(acc, admin), timeoutP]);
+        console.log(`[sync-imap] account=${acc.name} result=`, r);
+        results.push({ account_id: acc.id, name: acc.name, ...r });
+      }
+      return results;
+    };
+
+    // @ts-ignore EdgeRuntime is provided by Supabase Edge Runtime
+    if (typeof EdgeRuntime !== "undefined" && (EdgeRuntime as any).waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(runAll().catch((e) => console.error("[sync-imap] bg error", e)));
+      return new Response(
+        JSON.stringify({ ok: true, accounts: (accounts ?? []).length, queued: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
-      const r = await Promise.race([syncOne(acc, admin), timeoutP]);
-      console.log(`[sync-imap] account=${acc.name} result=`, r);
-      results.push({ account_id: acc.id, name: acc.name, ...r });
     }
 
+    const results = await runAll();
     const totalSynced = results.reduce((s, r) => s + (r.count ?? 0), 0);
     return new Response(
       JSON.stringify({ ok: true, accounts: results.length, synced: totalSynced, results }),
