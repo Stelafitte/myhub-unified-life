@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Pencil, Archive, ArchiveRestore, Trash2, GitMerge, Plus, Loader2, Wand2, Briefcase, Heart } from "lucide-react";
+import { Sparkles, Pencil, Archive, ArchiveRestore, Trash2, GitMerge, Plus, Loader2, Wand2, Briefcase, Heart, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -132,6 +132,7 @@ export function ThemesManagerDialog({
   const [newName, setNewName] = useState("");
   const [mergeFrom, setMergeFrom] = useState<string | null>(null);
   const [tab, setTab] = useState<"pro" | "perso">("pro");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const refresh = async () => {
     setLoading(true);
@@ -223,7 +224,11 @@ export function ThemesManagerDialog({
   const archived = themes.filter((t) => t.archived_at);
   const proCount = active.filter((t) => t.scope === "pro").length;
   const persoCount = active.filter((t) => t.scope === "perso").length;
-  const visible = active.filter((t) => t.scope === tab);
+  const visible = active.filter(
+    (t) =>
+      t.scope === tab &&
+      (!searchQuery.trim() || t.name.toLowerCase().includes(searchQuery.trim().toLowerCase())),
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -268,6 +273,15 @@ export function ThemesManagerDialog({
         )}
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as "pro" | "perso")} className="min-w-0 px-6 pb-6">
+          <div className="mb-2 flex items-center gap-2">
+            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un thème…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-7 text-xs"
+            />
+          </div>
           <TabsList className="grid w-full min-w-0 grid-cols-2">
             <TabsTrigger value="pro" className="gap-1.5">
               <Briefcase className="h-3.5 w-3.5" /> Pro
