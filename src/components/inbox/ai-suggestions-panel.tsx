@@ -197,8 +197,9 @@ export function AiSuggestionsPanel({
                           className="h-6 gap-1 text-[11px]"
                           onClick={() => openMailto(draft)}
                         >
-                          <Mail className="h-3 w-3" /> Ouvrir mail
+                          <Mail className="h-3 w-3" /> Utiliser
                         </Button>
+
                         <Button
                           size="sm"
                           variant="ghost"
