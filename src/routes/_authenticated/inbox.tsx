@@ -430,6 +430,12 @@ function InboxPage() {
     };
   }, [user, reloadKey]);
 
+  useEffect(() => {
+    const onSynced = () => setReloadKey((k) => k + 1);
+    window.addEventListener("emails-synced", onSynced);
+    return () => window.removeEventListener("emails-synced", onSynced);
+  }, []);
+
   // Load themes from DB + bootstrap (discover + seed from OneDrive) on first run
   const refreshThemes = async () => {
     const r = await listThemesFn().catch(() => ({ themes: [] as Theme[] }));
@@ -507,7 +513,7 @@ function InboxPage() {
     const promo = live.filter(isPromo).length;
     const trash = emails.filter(isTrashed).length;
     const byAccount = new Map<string, number>();
-    inboxEmails.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
+    live.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
     const byTheme = new Map<string, number>();
     let noTheme = 0;
     inboxEmails.forEach((e) => {
@@ -534,7 +540,10 @@ function InboxPage() {
       list = list.filter(isTrashed);
     } else {
       list = list.filter((e) => !isTrashed(e));
-      if (filter === "spam") list = list.filter(isSpam);
+      if (filter.startsWith("account:")) {
+        const id = filter.slice(8);
+        list = list.filter((e) => e.account_id === id);
+      } else if (filter === "spam") list = list.filter(isSpam);
       else if (filter === "promo") list = list.filter(isPromo);
       else {
         list = list.filter((e) => !isSpam(e) && !isPromo(e));
@@ -542,10 +551,7 @@ function InboxPage() {
         else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
         else if (filter === "starred") list = list.filter((e) => e.is_starred);
         else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
-        else if (filter.startsWith("account:")) {
-          const id = filter.slice(8);
-          list = list.filter((e) => e.account_id === id);
-        } else if (filter.startsWith("theme:")) {
+        else if (filter.startsWith("theme:")) {
           const id = filter.slice(6);
           list = list.filter((e) => e.ai_theme_id === id);
         }

@@ -26,6 +26,7 @@ export function QuickAddOvh({ onAdded }: { onAdded: () => void }) {
       icon: "🏥",
       is_active: true,
       credentials: {
+        email: OVH_EMAIL,
         server: "imap.mail.ovh.net",
         port: 993,
         ssl: true,

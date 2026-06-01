@@ -23,6 +23,7 @@ function detectOrigin(toAddress: string | null, accountEmail?: string | null): E
   const to = (toAddress ?? "").toLowerCase();
   const acc = (accountEmail ?? "").toLowerCase();
   if (to.includes("@myhub-pro.fr") && to.startsWith("chu@")) return "chu";
+  if (to.includes("@chu-bordeaux.fr")) return "chu";
   if (to.includes("univ") || to.includes("@etu.") || to.includes("@u-")) return "univ";
   if (to.includes("@gmail.")) return "gmail";
   if (to.includes("@outlook.") || to.includes("@hotmail.") || to.includes("@live.")) return "outlook";
@@ -488,7 +489,7 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
       return { ok: true, count: 0 };
     }
 
-    const toFetch = !account.last_sync_at ? uids.slice(-200) : uids;
+    const toFetch = !account.last_sync_at ? uids.slice(-500) : uids;
 
     // Tombstones: message_ids the user already deleted — never resurrect them.
     const { data: tombstones } = await admin
@@ -547,7 +548,7 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
             received_at: receivedAt,
             is_read: msg.flags.includes("\\Seen"),
             is_starred: msg.flags.includes("\\Flagged"),
-            origin_tag: detectOrigin(to.address, (account.credentials as any)?.email),
+            origin_tag: detectOrigin(to.address, (account.credentials as any)?.email ?? (account.credentials as any)?.username),
             thread_id: headers["in-reply-to"] || null,
             is_sensitive: sens.isSensitive,
             sensitive_reason: sens.isSensitive ? sens.reasons.join(" · ") : null,
