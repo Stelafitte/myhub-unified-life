@@ -414,9 +414,11 @@ export type Database = {
           keywords: string[]
           last_email_at: string | null
           name: string
+          scope: string
           source: string
           updated_at: string
           user_id: string
+          utility_level: string
         }
         Insert: {
           archived_at?: string | null
@@ -428,9 +430,11 @@ export type Database = {
           keywords?: string[]
           last_email_at?: string | null
           name: string
+          scope?: string
           source?: string
           updated_at?: string
           user_id: string
+          utility_level?: string
         }
         Update: {
           archived_at?: string | null
@@ -442,9 +446,11 @@ export type Database = {
           keywords?: string[]
           last_email_at?: string | null
           name?: string
+          scope?: string
           source?: string
           updated_at?: string
           user_id?: string
+          utility_level?: string
         }
         Relationships: []
       }
