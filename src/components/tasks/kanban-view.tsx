@@ -168,7 +168,7 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
                       key={t.id}
                       leftActions={leftActions}
                       rightActions={rightActions}
-                      className="rounded-md"
+                      className="rounded-md h-full"
                     >
                       <Card
                         task={t}
