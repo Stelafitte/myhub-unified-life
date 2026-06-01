@@ -29,11 +29,12 @@ export function useSyncStatus() {
     };
   }, [refreshPending]);
 
-  const syncNow = useCallback(async (): Promise<{ flushed: number; imap: number }> => {
+  const syncNow = useCallback(async (opts?: { forceFull?: boolean }): Promise<{ flushed: number; imap: number }> => {
     setSyncing(true);
     try {
       const flushRes = await flushQueue();
       await refreshPending();
+      const body = opts?.forceFull ? { force_full: true } : {};
 
       // Determine which providers the user actually has active accounts for
       let providers: Array<"imap" | "gmail" | "outlook"> = ["imap"];
