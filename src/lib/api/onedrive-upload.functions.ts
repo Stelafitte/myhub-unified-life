@@ -11,7 +11,10 @@ const Input = z.object({
   storagePath: z.string().min(1).max(512),
   folderId: z.string().min(1).max(256),
   filename: z.string().min(1).max(255),
+  documentId: z.string().uuid().optional(),
+  folderPath: z.string().min(1).max(500).optional(),
 });
+
 
 function safeName(name: string): string {
   // OneDrive forbids: " * : < > ? / \ |
