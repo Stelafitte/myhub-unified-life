@@ -489,7 +489,10 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
       return { ok: true, count: 0 };
     }
 
-    const toFetch = !account.last_sync_at ? uids.slice(-500) : uids;
+    // CPU budget tight (~2s) → process at most 20 newest UIDs per invocation.
+    // Next cron tick (or manual sync) picks up the rest from last_sync_at.
+    const MAX_PER_RUN = 20;
+    const toFetch = (!account.last_sync_at ? uids.slice(-500) : uids).slice(-MAX_PER_RUN);
 
     // Tombstones: message_ids the user already deleted — never resurrect them.
     const { data: tombstones } = await admin
