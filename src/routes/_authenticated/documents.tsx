@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter, X, CheckCircle2, Cloud, Sparkles } from "lucide-react";
+import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter, X, CheckCircle2, Cloud, Sparkles, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,10 @@ import { DocumentPreviewSheet } from "@/components/documents/document-preview-sh
 import { DownloadOptionsDialog } from "@/components/inbox/download-options-dialog";
 import { type DocumentRow, getSignedUrl, removeFromStorage } from "@/lib/documents";
 import { deleteSecureBlob } from "@/lib/secure-documents";
+import { useServerFn } from "@tanstack/react-start";
+import { classifyPendingDocuments } from "@/lib/api/document-classify.functions";
+import { useAuth } from "@/hooks/use-auth";
+
 
 
 export const Route = createFileRoute("/_authenticated/documents")({
