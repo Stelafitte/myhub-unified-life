@@ -733,11 +733,21 @@ function InboxPage() {
   const toggleRead = (e: Email) => patch(e.id, { is_read: !e.is_read });
   const toggleStar = (e: Email) => patch(e.id, { is_starred: !e.is_starred });
   const archive = async (e: Email) => {
+    const snapshot = e;
     setEmails((prev) => prev.filter((x) => x.id !== e.id));
     if (selectedId === e.id) setSelectedId(null);
     const { error } = await supabase.from("emails").update({ is_archived: true }).eq("id", e.id);
-    if (error) toast.error(error.message);
-    else toast.success("Email archivé");
+    if (error) { toast.error(error.message); return; }
+    toast.success("Email archivé");
+    pushUndo({
+      label: "Archivage",
+      run: async () => {
+        const { error: err } = await supabase.from("emails").update({ is_archived: false }).eq("id", snapshot.id);
+        if (err) throw new Error(err.message);
+        setEmails((prev) => (prev.some((x) => x.id === snapshot.id) ? prev : [snapshot, ...prev]));
+        toast.success("Archivage annulé");
+      },
+    });
   };
   const remove = async (e: Email) => {
     // Si déjà dans la corbeille → suppression définitive
