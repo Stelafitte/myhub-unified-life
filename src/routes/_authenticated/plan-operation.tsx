@@ -300,14 +300,21 @@ function PlanOperationPage() {
   }, [user]);
 
   // Build bars (tasks only — événements/RDV gérés dans l'Agenda)
-  // Toute tâche avec AU MOINS une date (gantt_start, gantt_end ou due_date) apparaît dans le Plan d'opération.
+  // Propagation automatique : toute tâche apparaît dans le Plan d'opération
+  // dès sa création. Si aucune date n'est définie, la tâche est positionnée
+  // à la date du jour pour que l'utilisateur la retrouve immédiatement.
   const allBars = useMemo<Bar[]>(() => {
     const out: Bar[] = [];
+    const today9 = new Date();
+    today9.setHours(9, 0, 0, 0);
     tasks.forEach((t) => {
       const anyDate = t.gantt_start || t.gantt_end || t.due_date;
-      if (!anyDate) return;
-      const s = new Date(t.gantt_start ?? t.due_date ?? t.gantt_end!);
-      const e = new Date(t.gantt_end ?? t.due_date ?? t.gantt_start!);
+      const s = anyDate
+        ? new Date(t.gantt_start ?? t.due_date ?? t.gantt_end!)
+        : today9;
+      const e = anyDate
+        ? new Date(t.gantt_end ?? t.due_date ?? t.gantt_start!)
+        : today9;
       out.push({
         id: t.id,
         type: "task",
