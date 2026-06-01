@@ -1103,7 +1103,7 @@ function InboxPage() {
               <Sparkles className="mr-1 inline h-3 w-3" />
               Thèmes IA
             </span>
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5" data-no-mobile-switch>
               <button
                 onClick={relaunchAi}
                 disabled={relaunching}
