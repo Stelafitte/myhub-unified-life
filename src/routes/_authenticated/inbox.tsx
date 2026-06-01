@@ -1241,19 +1241,6 @@ function InboxPage() {
               <Sparkles className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Classement IA</span>
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-7 shrink-0 gap-1 px-2 text-xs font-medium"
-              onClick={handleRefineThemes}
-              disabled={refining}
-              title="Demander à l'IA de refaire un tri complet (max 15 sections). Archive les thèmes actuels et reclasse tous les mails."
-            >
-              <Wand2 className={cn("h-3.5 w-3.5", refining && "animate-pulse")} />
-              <span className="hidden sm:inline">
-                {refining ? "Re-tri…" : "Affiner (15)"}
-              </span>
-            </Button>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
