@@ -889,9 +889,10 @@ function BarRow({
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
                 className={cn(
-                  "group absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium text-white shadow-sm cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md hover:ring-2 hover:ring-foreground/20",
-                  barColor,
-                  isDone && "opacity-60",
+                  "group absolute top-1/2 flex h-5 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium shadow-sm cursor-grab active:cursor-grabbing transition-shadow hover:shadow-md hover:ring-2",
+                  isDone
+                    ? "bg-emerald-200 text-emerald-900 hover:ring-emerald-400/50"
+                    : `${barColor} text-white hover:ring-foreground/20`,
                   isOverdue && "ring-1 ring-red-600",
                 )}
                 style={{ left, width }}
