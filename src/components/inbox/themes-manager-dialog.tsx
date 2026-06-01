@@ -212,8 +212,10 @@ export function ThemesManagerDialog({
   };
 
   const handleSetScope = async (id: string, scope: ThemeScope) => {
+    const theme = themes.find((t) => t.id === id);
     setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, scope } : t)));
     await setScopeFn({ data: { id, scope } });
+    toast.success(`« ${theme?.name ?? "Thème"} » déplacé dans ${scope === "pro" ? "Pro" : "Perso"}`);
     onChanged?.();
   };
 
