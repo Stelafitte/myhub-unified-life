@@ -18,8 +18,10 @@ export function AppHeader() {
   const navigate = useNavigate();
   const initials = (user?.email ?? "?").slice(0, 2).toUpperCase();
 
-  const handleSync = async () => {
-    const res = await syncNow();
+  const handleSync = async (e?: React.MouseEvent) => {
+    const forceFull = !!(e && (e.shiftKey || e.altKey));
+    if (forceFull) toast.info("Resynchronisation complète (30 derniers jours)…");
+    const res = await syncNow(forceFull ? { forceFull: true } : undefined);
     toast.success(`Sync : ${res.flushed} action(s) envoyée(s), ${res.imap} email(s) reçu(s)`);
   };
 
