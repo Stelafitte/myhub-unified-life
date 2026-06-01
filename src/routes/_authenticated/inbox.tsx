@@ -907,12 +907,26 @@ function InboxPage() {
   const bulkArchive = async () => {
     const ids = bulkIds();
     if (!ids.length) return;
+    const snapshots = emails.filter((x) => checked.has(x.id));
     setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
     if (selectedId && checked.has(selectedId)) setSelectedId(null);
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_archived: true }).in("id", ids);
-    if (error) toast.error(error.message);
-    else toast.success(`${ids.length} email(s) archivé(s)`);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${ids.length} email(s) archivé(s)`);
+    pushUndo({
+      label: "Archivage groupé",
+      run: async () => {
+        const { error: err } = await supabase.from("emails").update({ is_archived: false }).in("id", ids);
+        if (err) throw new Error(err.message);
+        setEmails((prev) => {
+          const known = new Set(prev.map((x) => x.id));
+          const missing = snapshots.filter((s) => !known.has(s.id));
+          return [...missing, ...prev];
+        });
+        toast.success("Archivage annulé");
+      },
+    });
   };
   const bulkDelete = async () => {
     const ids = bulkIds();
@@ -938,8 +952,17 @@ function InboxPage() {
         .from("emails")
         .update({ deleted_at: now })
         .in("id", ids);
-      if (error) toast.error(error.message);
-      else toast.success(`${ids.length} email(s) dans la corbeille`);
+      if (error) { toast.error(error.message); return; }
+      toast.success(`${ids.length} email(s) dans la corbeille`);
+      pushUndo({
+        label: "Mise à la corbeille (groupée)",
+        run: async () => {
+          const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
+          if (err) throw new Error(err.message);
+          setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: null } : x)));
+          toast.success("Suppression annulée");
+        },
+      });
     }
   };
   const bulkMarkRead = async (read: boolean) => {
