@@ -260,9 +260,8 @@ export function MobilePlanView({
                         "absolute top-1 h-2 rounded-sm opacity-80",
                         b.status === "done"
                           ? "bg-emerald-300"
-                          : b.priority
-                            ? PRIORITY_META[b.priority].bar
-                            : "bg-muted-foreground",
+                          : urgencyBarClass(b.end, today) ??
+                              (b.priority ? PRIORITY_META[b.priority].bar : "bg-muted-foreground"),
                       )}
                       style={{ left: x, width: w }}
                     />
