@@ -247,7 +247,11 @@ export function MobilePlanView({
                       key={b.id}
                       className={cn(
                         "absolute top-1 h-2 rounded-sm opacity-80",
-                        b.priority ? PRIORITY_META[b.priority].bar : "bg-muted-foreground",
+                        b.status === "done"
+                          ? "bg-emerald-300"
+                          : b.priority
+                            ? PRIORITY_META[b.priority].bar
+                            : "bg-muted-foreground",
                       )}
                       style={{ left: x, width: w }}
                     />
