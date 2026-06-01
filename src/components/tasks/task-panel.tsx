@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download, Upload } from "lucide-react";
+import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download, Upload, Link, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -116,6 +116,10 @@ export function TaskPanel({
   const [analyzing, setAnalyzing] = useState(false);
   const [addToCalendar, setAddToCalendar] = useState(false);
 
+  const [sharedLinks, setSharedLinks] = useState<{ name: string; url: string }[]>([]);
+  const [newLinkName, setNewLinkName] = useState("");
+  const [newLinkUrl, setNewLinkUrl] = useState("");
+
 
 
   // Thèmes / sous-thèmes du Plan d'opération
@@ -198,6 +202,15 @@ export function TaskPanel({
     setEmailSearch("");
     setEmailResults([]);
     setPendingFiles([]);
+
+    const existingLinks = task
+      ? (((task as Task & { attachments?: TaskAttachment[] }).attachments ?? [])
+          .filter((a) => a.url && !a.document_id && !a.storage_path)
+          .map((a) => ({ name: a.name || a.url || "Lien", url: a.url! })))
+      : [];
+    setSharedLinks(existingLinks);
+    setNewLinkName("");
+    setNewLinkUrl("");
   }, [open, task, defaultStatus]);
 
 
@@ -336,7 +349,9 @@ export function TaskPanel({
     (task as (Task & { attachments?: TaskAttachment[] }) | null)?.attachments ?? []
   ).filter(Boolean);
   const fallbackAttachments = taskAttachments.filter(
-    (a) => !a.document_id || !attachmentDocs.some((d) => d.id === a.document_id),
+    (a) =>
+      (!a.document_id || !attachmentDocs.some((d) => d.id === a.document_id)) &&
+      !(a.url && !a.document_id && !a.storage_path),
   );
 
   const openLegacyAttachment = async (attachment: TaskAttachment) => {
@@ -444,6 +459,10 @@ export function TaskPanel({
       ...(recurrence !== "none" ? [`recurrence:${recurrence}`] : []),
     ];
 
+    const fileAttachmentsOnly = editing
+      ? taskAttachments.filter((a) => a.document_id || a.storage_path)
+      : [];
+
     const payload = {
       user_id: user.id,
       title: title.trim(),
@@ -459,6 +478,10 @@ export function TaskPanel({
       source_email_id: emailId,
       tags,
       kanban_column: status,
+      attachments: [
+        ...fileAttachmentsOnly,
+        ...sharedLinks.map((l) => ({ name: l.name, url: l.url })),
+      ] as TaskAttachment[],
       ...(!editing && draft?.calendarEventId ? { calendar_event_id: draft.calendarEventId } : {}),
     };
 
@@ -821,7 +844,71 @@ export function TaskPanel({
               )}
             </div>
 
-
+            <div>
+              <Label className="mb-1.5 flex items-center gap-1.5">
+                <Link className="h-3.5 w-3.5" /> Liens partagés
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Nom (optionnel)"
+                  value={newLinkName}
+                  onChange={(e) => setNewLinkName(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  placeholder="https://..."
+                  value={newLinkUrl}
+                  onChange={(e) => setNewLinkUrl(e.target.value)}
+                  className="flex-[2]"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (!newLinkUrl.trim()) return;
+                    try {
+                      new URL(newLinkUrl.trim());
+                    } catch {
+                      toast.error("URL invalide");
+                      return;
+                    }
+                    setSharedLinks((prev) => [
+                      ...prev,
+                      { name: newLinkName.trim() || newLinkUrl.trim(), url: newLinkUrl.trim() },
+                    ]);
+                    setNewLinkName("");
+                    setNewLinkUrl("");
+                  }}
+                >
+                  Ajouter
+                </Button>
+              </div>
+              {sharedLinks.length > 0 && (
+                <ul className="mt-2 space-y-1 rounded-md border bg-muted/20 p-2 text-xs">
+                  {sharedLinks.map((l, i) => (
+                    <li key={`${l.url}-${i}`} className="flex items-center gap-2">
+                      <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 text-left hover:text-primary"
+                        onClick={() => window.open(l.url, "_blank", "noopener,noreferrer")}
+                      >
+                        <span className="block truncate font-medium">{l.name}</span>
+                        <span className="block truncate text-muted-foreground">{l.url}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSharedLinks((prev) => prev.filter((_, j) => j !== i))}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
             {task && (task as Task & { calendar_event_id?: string | null }).calendar_event_id && (
               <div className="rounded-md border bg-muted/30 p-2 text-xs">
