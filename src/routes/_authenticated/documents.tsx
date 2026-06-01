@@ -49,7 +49,9 @@ function DocumentsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [preview, setPreview] = useState<DocumentRow | null>(null);
+  const [saveTarget, setSaveTarget] = useState<DocumentRow | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
 
   async function load() {
     setLoading(true);
