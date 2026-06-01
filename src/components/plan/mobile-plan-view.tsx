@@ -363,7 +363,7 @@ export function MobilePlanView({
               return (
                 <div key={sectionKey}>
                   <div
-                    className="sticky left-0 z-10 flex items-center gap-1 border-b bg-muted/60 px-2 backdrop-blur"
+                    className="sticky left-0 z-10 flex items-center gap-1 border-b border-border bg-muted px-2 shadow-sm backdrop-blur"
                     style={{ height: SECTION_H, width: "100vw", maxWidth: "100%" }}
                   >
                     <button
