@@ -290,6 +290,43 @@ function InboxPage() {
 
   const isMobileInbox = winW < 1024;
   const [readerOpen, setReaderOpen] = useState(false);
+  // Mobile navigation: 'sidebar' (boîtes / thèmes IA) ↔ 'list' (liste des mails)
+  const [mobileView, setMobileView] = useState<"sidebar" | "list">("sidebar");
+  const mobileViewInitRef = useRef(true);
+
+  // Quand l'utilisateur change de filtre / boîte / thème depuis la sidebar mobile,
+  // on bascule sur la liste et on empile une entrée d'historique pour que la
+  // flèche « retour » revienne à la sidebar plutôt que de quitter la page.
+  useEffect(() => {
+    if (mobileViewInitRef.current) {
+      mobileViewInitRef.current = false;
+      return;
+    }
+    if (!isMobileInbox) return;
+    if (mobileView === "list") return;
+    setMobileView("list");
+    try {
+      window.history.pushState({ inboxList: true }, "");
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  // Bouton « retour » natif depuis la liste mobile → revenir à la sidebar.
+  useEffect(() => {
+    if (!isMobileInbox) return;
+    if (mobileView !== "list") return;
+    if (readerOpen) return; // le popstate du lecteur a la priorité
+    const onPop = () => setMobileView("sidebar");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [isMobileInbox, mobileView, readerOpen]);
+
+  // Si on repasse en desktop, on s'assure que tout est visible.
+  useEffect(() => {
+    if (!isMobileInbox) setMobileView("list");
+  }, [isMobileInbox]);
   useEffect(() => {
     // Sync immédiatement après hydratation (SSR peut renvoyer 1280 par défaut)
     setWinW(window.innerWidth);
