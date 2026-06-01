@@ -739,7 +739,19 @@ export function TaskPanel({
                         type="button"
                         className="min-w-0 flex-1 text-left hover:text-primary disabled:opacity-50"
                         disabled={!doc.storage_path || doc.local_only}
-                        onClick={() => setPreviewAttachment(doc)}
+                        onClick={async () => {
+                          if (!doc.storage_path) return;
+                          try {
+                            const href = await getSignedUrl(doc.storage_path);
+                            window.open(href, "_blank", "noopener,noreferrer");
+                          } catch (err) {
+                            toast.error(
+                              err instanceof Error
+                                ? err.message
+                                : "Impossible d'ouvrir la pièce jointe",
+                            );
+                          }
+                        }}
                       >
                         <span className="block truncate font-medium">{doc.original_filename}</span>
                         <span className="block text-muted-foreground">
