@@ -1470,6 +1470,18 @@ function InboxPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            {undoStack.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 px-2 text-xs"
+                onClick={runUndo}
+                title={`Annuler : ${undoStack[undoStack.length - 1].label}`}
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+                Annuler
+              </Button>
+            )}
             {(filter === "trash" || filter === "spam") && filtered.length > 0 && (
               <Button
                 size="sm"
