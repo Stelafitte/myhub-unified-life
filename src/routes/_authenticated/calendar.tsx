@@ -1131,6 +1131,9 @@ function EventDetail({
   const [linkedEmail, setLinkedEmail] = useState<EmailLite | null>(null);
   const [linkedDocs, setLinkedDocs] = useState<DocumentRow[]>([]);
   const [previewDoc, setPreviewDoc] = useState<DocumentRow | null>(null);
+  const [linkedMeetingId, setLinkedMeetingId] = useState<string | null>(null);
+  const [meetingDialogOpen, setMeetingDialogOpen] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     setLinkedEmail(null);
