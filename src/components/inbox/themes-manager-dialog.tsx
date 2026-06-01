@@ -28,7 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Pencil, Archive, ArchiveRestore, Trash2, GitMerge, Plus, Loader2, Wand2, Briefcase, Heart } from "lucide-react";
+import { Sparkles, Pencil, Archive, ArchiveRestore, Trash2, GitMerge, Plus, Loader2, Wand2, Briefcase, Heart, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
