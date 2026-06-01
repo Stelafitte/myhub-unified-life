@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download } from "lucide-react";
+import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download, Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { enqueue, requestAutoSync } from "@/lib/sync-queue";
 import { analyzeTaskText } from "@/lib/api/task-analysis.functions";
-import { getSignedUrl, type DocumentRow } from "@/lib/documents";
+import { getSignedUrl, sha256, storagePath, uploadToStorage, type DocumentRow } from "@/lib/documents";
 import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
 import { formatBytes } from "@/lib/file-icons";
+
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
