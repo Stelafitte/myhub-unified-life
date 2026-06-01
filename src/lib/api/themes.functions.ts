@@ -255,7 +255,7 @@ export const classifyPendingThemes = createServerFn({ method: "POST" })
     if (!rows || rows.length === 0) return { processed: 0 };
 
     const themeList = themes
-      .map((t) => `- "${t.name}"${t.description ? `: ${t.description}` : ""}${t.keywords.length ? ` [mots-clés: ${t.keywords.join(", ")}]` : ""}`)
+      .map((t) => `- "${t.name}" [${t.scope ?? "perso"}/${t.utility_level ?? "modere"}]${t.description ? `: ${t.description}` : ""}${t.keywords.length ? ` [mots-clés: ${t.keywords.join(", ")}]` : ""}`)
       .join("\n");
 
     let processed = 0;
