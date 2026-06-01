@@ -192,44 +192,48 @@ export function ThemesManagerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+      <DialogContent className="max-h-[85vh] w-[calc(100vw-2rem)] max-w-4xl overflow-hidden p-0">
+        <DialogHeader className="px-6 pb-0 pt-6 pr-12">
           <DialogTitle>Gérer les thèmes</DialogTitle>
           <DialogDescription>
             Niveau d'utilité (faible / modéré / fort) et portée (pro / perso) permettent à l'IA de mieux pondérer le classement et les suggestions.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-wrap items-center gap-2 border-b pb-3">
-          <Input
-            placeholder="Nouveau thème…"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            className="h-8 max-w-xs"
-          />
-          <Button size="sm" onClick={handleCreate} disabled={!newName.trim()}>
-            <Plus className="h-3.5 w-3.5" /> Ajouter
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleAutoDetect} disabled={detecting} className="ml-auto">
-            {detecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-            Détecter Pro/Perso
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleDiscover} disabled={discovering}>
-            {discovering ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            Découverte IA
-          </Button>
+        <div className="grid gap-3 border-b px-6 pb-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <div className="flex min-w-0 items-center gap-2">
+            <Input
+              placeholder="Nouveau thème…"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              className="h-8 min-w-0 flex-1"
+            />
+            <Button size="sm" onClick={handleCreate} disabled={!newName.trim()} className="shrink-0">
+              <Plus className="h-3.5 w-3.5" /> Ajouter
+            </Button>
+          </div>
+          <div className="flex min-w-0 flex-wrap justify-start gap-2 sm:justify-end">
+            <Button size="sm" variant="outline" onClick={handleAutoDetect} disabled={detecting} className="shrink-0">
+              {detecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+              Détecter Pro/Perso
+            </Button>
+            <Button size="sm" variant="outline" onClick={handleDiscover} disabled={discovering} className="shrink-0">
+              {discovering ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              Découverte IA
+            </Button>
+          </div>
         </div>
 
         {mergeFrom && (
-          <div className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          <div className="mx-6 rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
             Fusion : sélectionnez le thème de destination dans la liste ci-dessous.{" "}
             <button onClick={() => setMergeFrom(null)} className="underline">Annuler</button>
           </div>
         )}
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "pro" | "perso")}>
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "pro" | "perso")} className="min-w-0 px-6 pb-6">
+          <TabsList className="grid w-full min-w-0 grid-cols-2">
             <TabsTrigger value="pro" className="gap-1.5">
               <Briefcase className="h-3.5 w-3.5" /> Pro
               <Badge variant="secondary" className="ml-1 text-[10px]">{proCount}</Badge>
@@ -240,8 +244,8 @@ export function ThemesManagerDialog({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value={tab} className="mt-2">
-            <div className="max-h-[400px] overflow-y-auto">
+          <TabsContent value={tab} className="mt-2 min-w-0">
+            <div className="max-h-[48vh] overflow-y-auto pr-1">
               {loading && <div className="py-4 text-center text-sm text-muted-foreground">Chargement…</div>}
               {!loading && visible.length === 0 && (
                 <div className="py-6 text-center text-sm text-muted-foreground">
