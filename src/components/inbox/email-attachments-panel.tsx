@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Paperclip, Folder, Download, Loader2, FolderPlus, Eye, ExternalLink } from "lucide-react";
+import { Paperclip, Folder, Download, Loader2, FolderPlus, Eye, ExternalLink, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
