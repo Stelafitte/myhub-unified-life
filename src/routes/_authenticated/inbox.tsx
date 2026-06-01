@@ -275,10 +275,12 @@ function InboxPage() {
 
   // Resizable column widths (persisted)
   const [leftW, setLeftW] = useState<number>(() => {
+    if (typeof window === "undefined") return 280;
     const v = Number(localStorage.getItem("inbox:leftW"));
     return v >= 200 && v <= 500 ? v : 280;
   });
   const [rightW, setRightW] = useState<number>(() => {
+    if (typeof window === "undefined") return 600;
     const v = Number(localStorage.getItem("inbox:rightW"));
     return v >= 320 ? v : 600;
   });
