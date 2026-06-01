@@ -1559,9 +1559,9 @@ function InboxPage() {
               <div
                 onClick={() => openEmail(e)}
                 className={cn(
-                  "group relative min-w-0 cursor-pointer px-3 py-2.5 transition-colors",
+                  "group relative min-w-0 cursor-pointer border-l-2 px-3 py-2.5 transition-colors",
                   isSel ? "bg-accent" : "hover:bg-accent/50",
-                  !e.is_read && "bg-primary/[0.03]",
+                  !e.is_read ? "border-l-primary bg-primary/[0.06]" : "border-l-transparent",
                 )}
               >
                 <div className="flex min-w-0 items-start gap-2.5">
@@ -1592,10 +1592,13 @@ function InboxPage() {
                           e.ai_priority ? `Priorité IA : ${e.ai_priority}` : "Priorité non analysée"
                         }
                       />
+                      {!e.is_read && (
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-primary" title="Non lu" />
+                      )}
                       <span
                         className={cn(
                           "min-w-0 flex-1 truncate text-sm",
-                          !e.is_read && "font-semibold",
+                          !e.is_read ? "font-semibold text-foreground" : "text-muted-foreground",
                         )}
                       >
                         {e.from_name || e.from_address || "Inconnu"}
