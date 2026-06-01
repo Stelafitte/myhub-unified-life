@@ -224,7 +224,11 @@ export function ThemesManagerDialog({
   const archived = themes.filter((t) => t.archived_at);
   const proCount = active.filter((t) => t.scope === "pro").length;
   const persoCount = active.filter((t) => t.scope === "perso").length;
-  const visible = active.filter((t) => t.scope === tab);
+  const visible = active.filter(
+    (t) =>
+      t.scope === tab &&
+      (!searchQuery.trim() || t.name.toLowerCase().includes(searchQuery.trim().toLowerCase())),
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
