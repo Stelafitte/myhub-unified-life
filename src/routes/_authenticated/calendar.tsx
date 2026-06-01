@@ -1149,6 +1149,7 @@ function EventDetail({
         .eq("calendar_event_id", evId);
       const emailId = mtgs?.find((m) => m.source_email_id)?.source_email_id ?? null;
       const meetingIds = (mtgs ?? []).map((m) => m.id);
+      setLinkedMeetingId(meetingIds[0] ?? null);
 
       // 2) Fetch the linked email
       let email: EmailLite | null = null;
