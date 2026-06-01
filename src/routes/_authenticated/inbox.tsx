@@ -1246,16 +1246,31 @@ function InboxPage() {
       />
 
       {/* CENTER — list */}
-      <section className="flex min-w-0 max-w-full flex-1 flex-col border-r overflow-hidden">
+      <section
+        className={cn(
+          "min-w-0 max-w-full flex-1 flex-col border-r overflow-hidden",
+          isMobileInbox && mobileView === "sidebar" ? "hidden" : "flex",
+        )}
+      >
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
-            <Link
-              to="/"
+            <button
+              type="button"
+              onClick={() => {
+                // Sur mobile : revenir à la sidebar (boîtes + thèmes IA).
+                // Si une entrée d'historique a été empilée pour la liste, on
+                // la dépile pour rester cohérent avec le bouton retour natif.
+                if (typeof window !== "undefined" && window.history.state?.inboxList) {
+                  window.history.back();
+                } else {
+                  setMobileView("sidebar");
+                }
+              }}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
-              title="Retour à l'accueil"
+              title="Retour aux boîtes mail"
             >
               <ArrowLeft className="h-4 w-4" />
-            </Link>
+            </button>
             <Button
               size="sm"
               variant={filter === "all" && !aiRanking ? "secondary" : "ghost"}
