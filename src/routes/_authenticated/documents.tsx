@@ -19,7 +19,7 @@ import { type DocumentRow, getSignedUrl, removeFromStorage } from "@/lib/documen
 import { deleteSecureBlob } from "@/lib/secure-documents";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingDocuments } from "@/lib/api/document-classify.functions";
-import { useAuth } from "@/hooks/use-auth";
+
 
 
 
