@@ -988,7 +988,27 @@ function InboxPage() {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-2 text-sm">
+        <nav
+          className="flex-1 overflow-y-auto p-2 text-sm"
+          onClick={(e) => {
+            // Sur mobile, n'importe quel clic sur une boîte / un thème dans la
+            // sidebar bascule vers la liste des mails (et empile l'historique
+            // pour que le bouton retour ramène à cette sidebar). On ignore les
+            // clics sur les boutons d'action (vider corbeille / spam, gérer
+            // thèmes, relancer IA…) repérés par data-no-mobile-switch.
+            if (!isMobileInbox) return;
+            const target = e.target as HTMLElement;
+            if (target.closest("[data-no-mobile-switch]")) return;
+            if (!target.closest("button,summary,[role='button']")) return;
+            if (mobileView === "list") return;
+            setMobileView("list");
+            try {
+              window.history.pushState({ inboxList: true }, "");
+            } catch {
+              /* ignore */
+            }
+          }}
+        >
           <FilterRow
             label="Tous les mails"
             icon={<Mail className="h-4 w-4" />}
