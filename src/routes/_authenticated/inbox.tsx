@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Inbox as InboxIcon,
@@ -290,6 +290,43 @@ function InboxPage() {
 
   const isMobileInbox = winW < 1024;
   const [readerOpen, setReaderOpen] = useState(false);
+  // Mobile navigation: 'sidebar' (boîtes / thèmes IA) ↔ 'list' (liste des mails)
+  const [mobileView, setMobileView] = useState<"sidebar" | "list">("sidebar");
+  const mobileViewInitRef = useRef(true);
+
+  // Quand l'utilisateur change de filtre / boîte / thème depuis la sidebar mobile,
+  // on bascule sur la liste et on empile une entrée d'historique pour que la
+  // flèche « retour » revienne à la sidebar plutôt que de quitter la page.
+  useEffect(() => {
+    if (mobileViewInitRef.current) {
+      mobileViewInitRef.current = false;
+      return;
+    }
+    if (!isMobileInbox) return;
+    if (mobileView === "list") return;
+    setMobileView("list");
+    try {
+      window.history.pushState({ inboxList: true }, "");
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
+  // Bouton « retour » natif depuis la liste mobile → revenir à la sidebar.
+  useEffect(() => {
+    if (!isMobileInbox) return;
+    if (mobileView !== "list") return;
+    if (readerOpen) return; // le popstate du lecteur a la priorité
+    const onPop = () => setMobileView("sidebar");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [isMobileInbox, mobileView, readerOpen]);
+
+  // Si on repasse en desktop, on s'assure que tout est visible.
+  useEffect(() => {
+    if (!isMobileInbox) setMobileView("list");
+  }, [isMobileInbox]);
   useEffect(() => {
     // Sync immédiatement après hydratation (SSR peut renvoyer 1280 par défaut)
     setWinW(window.innerWidth);
@@ -912,7 +949,17 @@ function InboxPage() {
   return (
     <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT — filters */}
-      <aside style={{ width: leftW }} className="hidden shrink-0 flex-col border-r bg-card md:flex">
+      <aside
+        style={isMobileInbox ? undefined : { width: leftW }}
+        className={cn(
+          "shrink-0 flex-col border-r bg-card",
+          isMobileInbox
+            ? mobileView === "sidebar"
+              ? "flex w-full"
+              : "hidden"
+            : "hidden md:flex",
+        )}
+      >
         <div className="border-b p-4">
           <div className="mb-3 flex items-center gap-2">
             <InboxIcon className="h-5 w-5 text-primary" />
@@ -941,7 +988,27 @@ function InboxPage() {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-2 text-sm">
+        <nav
+          className="flex-1 overflow-y-auto p-2 text-sm"
+          onClick={(e) => {
+            // Sur mobile, n'importe quel clic sur une boîte / un thème dans la
+            // sidebar bascule vers la liste des mails (et empile l'historique
+            // pour que le bouton retour ramène à cette sidebar). On ignore les
+            // clics sur les boutons d'action (vider corbeille / spam, gérer
+            // thèmes, relancer IA…) repérés par data-no-mobile-switch.
+            if (!isMobileInbox) return;
+            const target = e.target as HTMLElement;
+            if (target.closest("[data-no-mobile-switch]")) return;
+            if (!target.closest("button,summary,[role='button']")) return;
+            if (mobileView === "list") return;
+            setMobileView("list");
+            try {
+              window.history.pushState({ inboxList: true }, "");
+            } catch {
+              /* ignore */
+            }
+          }}
+        >
           <FilterRow
             label="Tous les mails"
             icon={<Mail className="h-4 w-4" />}
@@ -1027,7 +1094,9 @@ function InboxPage() {
               </button>
             ))}
           {!accounts.some((a) => a.name === "CHU" || a.type === "imap") && (
-            <QuickAddOvh onAdded={() => setReloadKey((k) => k + 1)} />
+            <div data-no-mobile-switch>
+              <QuickAddOvh onAdded={() => setReloadKey((k) => k + 1)} />
+            </div>
           )}
 
           {/* Thèmes IA below Comptes, with relaunch + management */}
@@ -1036,7 +1105,7 @@ function InboxPage() {
               <Sparkles className="mr-1 inline h-3 w-3" />
               Thèmes IA
             </span>
-            <div className="flex items-center gap-0.5">
+            <div className="flex items-center gap-0.5" data-no-mobile-switch>
               <button
                 onClick={relaunchAi}
                 disabled={relaunching}
@@ -1199,16 +1268,31 @@ function InboxPage() {
       />
 
       {/* CENTER — list */}
-      <section className="flex min-w-0 max-w-full flex-1 flex-col border-r overflow-hidden">
+      <section
+        className={cn(
+          "min-w-0 max-w-full flex-1 flex-col border-r overflow-hidden",
+          isMobileInbox && mobileView === "sidebar" ? "hidden" : "flex",
+        )}
+      >
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
-            <Link
-              to="/"
+            <button
+              type="button"
+              onClick={() => {
+                // Sur mobile : revenir à la sidebar (boîtes + thèmes IA).
+                // Si une entrée d'historique a été empilée pour la liste, on
+                // la dépile pour rester cohérent avec le bouton retour natif.
+                if (typeof window !== "undefined" && window.history.state?.inboxList) {
+                  window.history.back();
+                } else {
+                  setMobileView("sidebar");
+                }
+              }}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground md:hidden"
-              title="Retour à l'accueil"
+              title="Retour aux boîtes mail"
             >
               <ArrowLeft className="h-4 w-4" />
-            </Link>
+            </button>
             <Button
               size="sm"
               variant={filter === "all" && !aiRanking ? "secondary" : "ghost"}
