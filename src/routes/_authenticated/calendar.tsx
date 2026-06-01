@@ -1138,6 +1138,7 @@ function EventDetail({
   useEffect(() => {
     setLinkedEmail(null);
     setLinkedDocs([]);
+    setLinkedMeetingId(null);
     if (event.kind !== "event") return;
     const evId = (event.raw as DbEvent).id;
     let cancelled = false;
