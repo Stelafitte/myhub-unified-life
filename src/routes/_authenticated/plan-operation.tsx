@@ -701,6 +701,7 @@ function PlanOperationPage() {
                             className={cn(
                               "group flex cursor-grab items-center gap-2 border-b px-3 text-xs hover:bg-accent/50 active:cursor-grabbing",
                               dragTaskId === b.id && "opacity-40",
+                              b.status === "done" && "bg-emerald-50/60",
                             )}
                             style={{ height: ROW_H }}
                             title={`${b.title} — glisser pour changer de section`}
