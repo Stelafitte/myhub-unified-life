@@ -110,9 +110,11 @@ export function TaskPanel({
   const [attachmentDocs, setAttachmentDocs] = useState<DocumentRow[]>([]);
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<DocumentRow | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [addToCalendar, setAddToCalendar] = useState(false);
+
 
   // Thèmes / sous-thèmes du Plan d'opération
   type OpTheme = { id: string; name: string; position: number };
