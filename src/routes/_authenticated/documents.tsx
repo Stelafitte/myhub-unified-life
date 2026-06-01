@@ -298,7 +298,30 @@ function DocumentsPage() {
                 <FilterChip active={sizeF === "all"} onClick={() => setSizeF("all")}>Toutes</FilterChip>
                 <FilterChip active={sizeF === "heavy"} onClick={() => setSizeF("heavy")}>{`> 5 Mo`}</FilterChip>
               </FilterGroup>
+              <FilterGroup label="Catégorie IA">
+                <FilterChip active={aiF === "all"} onClick={() => setAiF("all")}>Toutes</FilterChip>
+                <FilterChip active={aiF === "unclassified"} onClick={() => setAiF("unclassified")}>Non classés</FilterChip>
+                {(["facture","contrat","rapport","presentation","courrier","rh","technique","image","signature","autre"] as const).map((k) => (
+                  <FilterChip key={k} active={aiF === k} onClick={() => setAiF(k)}>{AI_CATEGORY_META[k]?.label ?? k}</FilterChip>
+                ))}
+              </FilterGroup>
+              <div className="mt-2 px-1">
+                <label className="text-[10px] uppercase text-muted-foreground block mb-1">Ignorer images &lt;</label>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={minSizeKb}
+                    onChange={(e) => setMinSizeKb(Number(e.target.value))}
+                    onBlur={(e) => saveMinSize(Number(e.target.value))}
+                    className="h-7 text-xs"
+                  />
+                  <span className="text-xs text-muted-foreground">Ko</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Filtre les signatures et logos des emails.</p>
+              </div>
             </div>
+
           </div>
         </ScrollArea>
       </aside>
