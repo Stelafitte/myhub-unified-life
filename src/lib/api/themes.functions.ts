@@ -4,6 +4,9 @@ import { z } from "zod";
 
 // ---------- Types ----------
 
+export type ThemeUtility = "faible" | "modere" | "fort";
+export type ThemeScope = "pro" | "perso";
+
 export type Theme = {
   id: string;
   name: string;
@@ -14,6 +17,8 @@ export type Theme = {
   archived_at: string | null;
   email_count: number;
   last_email_at: string | null;
+  utility_level: ThemeUtility;
+  scope: ThemeScope;
 };
 
 // ---------- List ----------
