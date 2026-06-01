@@ -69,6 +69,39 @@ function UtilitySelector({
   );
 }
 
+function ScopeToggle({
+  value,
+  onChange,
+}: {
+  value: ThemeScope;
+  onChange: (v: ThemeScope) => void;
+}) {
+  return (
+    <div className="inline-flex h-7 items-center rounded-md border bg-background p-0.5" title="Portée du thème (Pro ou Perso)">
+      <button
+        data-active={value === "pro"}
+        onClick={() => onChange("pro")}
+        className={cn(
+          "inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+          "data-[active=true]:bg-blue-500/15 data-[active=true]:text-blue-700 dark:data-[active=true]:text-blue-300",
+        )}
+      >
+        <Briefcase className="h-3 w-3" /> Pro
+      </button>
+      <button
+        data-active={value === "perso"}
+        onClick={() => onChange("perso")}
+        className={cn(
+          "inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+          "data-[active=true]:bg-rose-500/15 data-[active=true]:text-rose-700 dark:data-[active=true]:text-rose-300",
+        )}
+      >
+        <Heart className="h-3 w-3" /> Perso
+      </button>
+    </div>
+  );
+}
+
 export function ThemesManagerDialog({
   open,
   onOpenChange,
@@ -179,8 +212,10 @@ export function ThemesManagerDialog({
   };
 
   const handleSetScope = async (id: string, scope: ThemeScope) => {
+    const theme = themes.find((t) => t.id === id);
     setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, scope } : t)));
     await setScopeFn({ data: { id, scope } });
+    toast.success(`« ${theme?.name ?? "Thème"} » déplacé dans ${scope === "pro" ? "Pro" : "Perso"}`);
     onChanged?.();
   };
 
@@ -284,15 +319,10 @@ export function ThemesManagerDialog({
                             value={t.utility_level}
                             onChange={(lvl) => handleSetUtility(t.id, lvl)}
                           />
-                          <Select value={t.scope} onValueChange={(v) => handleSetScope(t.id, v as ThemeScope)}>
-                            <SelectTrigger className="h-7 w-[100px] text-[11px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pro" className="text-xs">Pro</SelectItem>
-                              <SelectItem value="perso" className="text-xs">Perso</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <ScopeToggle
+                            value={t.scope}
+                            onChange={(s) => handleSetScope(t.id, s)}
+                          />
                           <div className="ml-auto flex items-center gap-0.5">
                             {mergeFrom && mergeFrom !== t.id ? (
                               <Button size="sm" variant="default" className="h-7" onClick={() => handleMerge(t.id)}>
