@@ -349,7 +349,9 @@ export function TaskPanel({
     (task as (Task & { attachments?: TaskAttachment[] }) | null)?.attachments ?? []
   ).filter(Boolean);
   const fallbackAttachments = taskAttachments.filter(
-    (a) => !a.document_id || !attachmentDocs.some((d) => d.id === a.document_id),
+    (a) =>
+      (!a.document_id || !attachmentDocs.some((d) => d.id === a.document_id)) &&
+      !(a.url && !a.document_id && !a.storage_path),
   );
 
   const openLegacyAttachment = async (attachment: TaskAttachment) => {
