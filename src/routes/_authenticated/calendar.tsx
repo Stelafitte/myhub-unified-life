@@ -1403,7 +1403,13 @@ function EventDetail({
 
 
       <footer className="space-y-2 border-t p-3">
-        <Button className="w-full gap-1.5" onClick={onCreateTask}>
+        {event.kind === "event" && (
+          <Button className="w-full gap-1.5" onClick={openFullDetails}>
+            <Sparkles className="h-4 w-4" />
+            {linkedMeetingId ? "Détails complets" : "Ouvrir comme réunion"}
+          </Button>
+        )}
+        <Button variant="outline" className="w-full gap-1.5" onClick={onCreateTask}>
           <CheckSquare className="h-4 w-4" /> Créer une tâche liée
         </Button>
         {onShare && (
@@ -1422,6 +1428,16 @@ function EventDetail({
           </p>
         )}
       </footer>
+
+      <MeetingDialog
+        open={meetingDialogOpen}
+        onOpenChange={setMeetingDialogOpen}
+        meetingId={linkedMeetingId}
+        onSaved={() => {
+          setMeetingDialogOpen(false);
+          onUpdated?.();
+        }}
+      />
     </aside>
   );
 }
