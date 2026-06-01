@@ -104,6 +104,18 @@ type Bar = {
   raw: Task;
 };
 
+// Couleur basée sur la proximité de la date d'échéance.
+// Retourne null pour conserver la couleur par défaut (priorité).
+function urgencyBarClass(end: Date, today: Date): string | null {
+  const days = Math.ceil((end.getTime() - today.getTime()) / 86400000);
+  if (days < 0) return "bg-red-700";   // en retard
+  if (days <= 1) return "bg-red-600";  // aujourd'hui / demain
+  if (days <= 3) return "bg-red-500";
+  if (days <= 7) return "bg-orange-500";
+  if (days <= 14) return "bg-amber-500";
+  return null;
+}
+
 function PlanOperationPage() {
   const { user } = useAuth();
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -679,7 +691,7 @@ function PlanOperationPage() {
                   >
                     <button
                       onClick={() => setCollapsed((p) => ({ ...p, [sectionKey]: !p[sectionKey] }))}
-                      className="flex w-full items-center gap-1 border-b bg-muted/50 px-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted"
+                      className="flex w-full items-center gap-1 border-b border-border bg-muted px-3 text-left text-[11px] font-bold uppercase tracking-wider text-foreground shadow-sm hover:bg-muted/80"
                       style={{ height: SECTION_H }}
                     >
                       {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -778,7 +790,7 @@ function PlanOperationPage() {
                   const isCollapsed = collapsed[sectionKey];
                   return (
                     <div key={sectionKey}>
-                      <div className="border-b bg-muted/20" style={{ height: SECTION_H }} />
+                      <div className="border-b border-border bg-muted" style={{ height: SECTION_H }} />
                       {!isCollapsed && items.map((b) => (
                         <BarRow key={b.id} bar={b} rowHeight={ROW_H} dayPx={dayPx} start={start} today={today}
                           onClick={() => handleBarClick(b)}
@@ -847,7 +859,8 @@ function BarRow({
   const isOverdue = bar.end < today && bar.status !== "done";
   const isDone = bar.status === "done";
 
-  const barColor = bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground";
+  const urgencyColor = !isDone ? urgencyBarClass(bar.end, today) : null;
+  const barColor = urgencyColor ?? (bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground");
 
   const onPointerDown = (mode: "move" | "resize-l" | "resize-r") => (ev: React.PointerEvent) => {
     ev.preventDefault(); ev.stopPropagation();

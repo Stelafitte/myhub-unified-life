@@ -23,6 +23,17 @@ export type MobileBar = {
   raw: Task;
 };
 
+// Couleur basée sur la proximité de la date d'échéance.
+function urgencyBarClass(end: Date, today: Date): string | null {
+  const days = Math.ceil((end.getTime() - today.getTime()) / 86400000);
+  if (days < 0) return "bg-red-700";
+  if (days <= 1) return "bg-red-600";
+  if (days <= 3) return "bg-red-500";
+  if (days <= 7) return "bg-orange-500";
+  if (days <= 14) return "bg-amber-500";
+  return null;
+}
+
 type Props = {
   bars: MobileBar[];
   sections: { key: string; label: string; emoji: string }[];
@@ -249,9 +260,8 @@ export function MobilePlanView({
                         "absolute top-1 h-2 rounded-sm opacity-80",
                         b.status === "done"
                           ? "bg-emerald-300"
-                          : b.priority
-                            ? PRIORITY_META[b.priority].bar
-                            : "bg-muted-foreground",
+                          : urgencyBarClass(b.end, today) ??
+                              (b.priority ? PRIORITY_META[b.priority].bar : "bg-muted-foreground"),
                       )}
                       style={{ left: x, width: w }}
                     />
@@ -352,7 +362,7 @@ export function MobilePlanView({
               return (
                 <div key={sectionKey}>
                   <div
-                    className="sticky left-0 z-10 flex items-center gap-1 border-b bg-muted/60 px-2 backdrop-blur"
+                    className="sticky left-0 z-10 flex items-center gap-1 border-b border-border bg-muted px-2 shadow-sm backdrop-blur"
                     style={{ height: SECTION_H, width: "100vw", maxWidth: "100%" }}
                   >
                     <button
@@ -394,7 +404,7 @@ export function MobilePlanView({
                     ) : (
                       <>
                         <span
-                          className="flex-1 truncate text-xs font-semibold uppercase tracking-wider text-foreground/80"
+                          className="flex-1 truncate text-xs font-bold uppercase tracking-wider text-foreground"
                           onPointerDown={(e) => {
                             // long-press = renommer
                             const timer = setTimeout(() => {
@@ -531,7 +541,10 @@ function DetailRow({
 
   const isOverdue = bar.end < today && bar.status !== "done";
   const isDone = bar.status === "done";
-  const barColor = isDone ? "bg-emerald-200" : bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground";
+  const urgencyColor = !isDone ? urgencyBarClass(bar.end, today) : null;
+  const barColor = isDone
+    ? "bg-emerald-200"
+    : urgencyColor ?? (bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground");
 
   const startDrag = (mode: "move" | "resize-l" | "resize-r") => (ev: React.PointerEvent) => {
     ev.stopPropagation();
