@@ -1159,7 +1159,7 @@ function InboxPage() {
               }}
             >
               <SelectTrigger className="h-7 w-auto max-w-[150px] gap-1 border-0 bg-transparent px-1 text-xs font-medium text-foreground hover:bg-accent/50 focus:ring-0 sm:max-w-none [&>svg]:hidden">
-                <SelectValue placeholder="Tous les comptes" />
+                <SelectValue placeholder="Filtres" />
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </SelectTrigger>
               <SelectContent align="start">
