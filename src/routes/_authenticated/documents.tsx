@@ -180,6 +180,22 @@ function DocumentsPage() {
     });
   }, [docs, source, typeF, dateF, sizeF, aiF, search]);
 
+  const grouped = useMemo(() => {
+    const order = ["facture","contrat","rapport","presentation","courrier","rh","technique","image","autre","signature","__unclassified"] as const;
+    const map = new Map<string, DocumentRow[]>();
+    for (const d of filtered) {
+      const key = d.ai_processed_at ? (d.ai_category ?? "autre") : "__unclassified";
+      const arr = map.get(key) ?? [];
+      arr.push(d);
+      map.set(key, arr);
+    }
+    return order
+      .filter((k) => map.has(k))
+      .map((k) => ({ key: k as string, docs: map.get(k as string)! }));
+  }, [filtered]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (k: string) => setCollapsedGroups((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+
   const selectionMode = selected.size > 0;
   const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selected.has(d.id));
 
