@@ -56,6 +56,26 @@ export const getEmailSuggestions = createServerFn({ method: "POST" })
       bodyHtml.match(linkRegex)?.[0] ??
       null;
 
+    // Récupère les événements de l'agenda sur 14 jours pour vérifier la disponibilité
+    const horizonStart = new Date();
+    const horizonEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    const { data: busyEvents } = await supabase
+      .from("calendar_events")
+      .select("title,start_at,end_at,is_all_day")
+      .eq("user_id", userId)
+      .gte("end_at", horizonStart.toISOString())
+      .lte("start_at", horizonEnd.toISOString())
+      .order("start_at", { ascending: true })
+      .limit(200);
+
+    const busySlots = (busyEvents ?? [])
+      .map((ev) => {
+        const s = new Date(ev.start_at).toLocaleString("fr-FR", { timeZone: tz, dateStyle: "short", timeStyle: "short" });
+        const en = new Date(ev.end_at).toLocaleString("fr-FR", { timeZone: tz, dateStyle: "short", timeStyle: "short" });
+        return `- ${s} → ${en}${ev.is_all_day ? " (journée)" : ""} : ${ev.title ?? ""}`;
+      })
+      .join("\n");
+
     const sys = `Tu analyses un email pour proposer des actions. Réponds UNIQUEMENT en JSON valide:
 {
   "replies": [
@@ -74,6 +94,19 @@ N'utilise JAMAIS le suffixe "Z" ni un offset différent de ${offsetStr}, sauf si
 Détecte une date/heure de réunion explicite pour "event".
 Si l'email contient un lien Zoom/Teams/Meet/Webex, inclus-le dans "online_link".
 "archive_suggested" = true si newsletter, notif auto, publicité.
+
+DISPONIBILITÉ AGENDA (CRUCIAL pour toute proposition de réunion) :
+Créneaux DÉJÀ OCCUPÉS de l'utilisateur dans les 14 prochains jours (heure locale ${tz}) :
+${busySlots || "(aucun événement, agenda libre)"}
+
+Règles strictes pour toute proposition de créneau dans "replies" :
+1. NE JAMAIS proposer un créneau qui chevauche un événement ci-dessus.
+2. Respecter les heures ouvrées par défaut (lun-ven, 9h-19h) sauf indication contraire dans l'email.
+3. Si l'expéditeur propose un créneau précis, vérifier la disponibilité :
+   - Si LIBRE : confirmer (ex. "Je suis disponible jeudi à 18h30, c'est noté.").
+   - Si OCCUPÉ : décliner poliment et proposer 2 alternatives libres proches.
+4. Si tu proposes un créneau de ta propre initiative, ajouter "(créneau vérifié libre dans mon agenda)".
+
 Les réponses doivent être en français, signées avec "Cordialement".`;
 
     const user = `Sujet: ${e.subject ?? ""}
