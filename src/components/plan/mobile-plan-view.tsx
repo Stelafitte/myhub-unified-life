@@ -531,7 +531,7 @@ function DetailRow({
 
   const isOverdue = bar.end < today && bar.status !== "done";
   const isDone = bar.status === "done";
-  const barColor = bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground";
+  const barColor = isDone ? "bg-emerald-200" : bar.priority ? PRIORITY_META[b.priority].bar : "bg-muted-foreground";
 
   const startDrag = (mode: "move" | "resize-l" | "resize-r") => (ev: React.PointerEvent) => {
     ev.stopPropagation();
