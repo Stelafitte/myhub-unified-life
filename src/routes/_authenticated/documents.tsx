@@ -178,7 +178,7 @@ function DocumentsPage() {
       }
       return true;
     });
-  }, [docs, source, typeF, dateF, sizeF, search]);
+  }, [docs, source, typeF, dateF, sizeF, aiF, search]);
 
   const selectionMode = selected.size > 0;
   const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selected.has(d.id));
