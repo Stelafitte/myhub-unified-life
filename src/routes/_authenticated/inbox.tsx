@@ -1118,6 +1118,22 @@ function InboxPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
+            <Button
+              size="sm"
+              variant={filter === "all" && !aiRanking ? "secondary" : "ghost"}
+              className="h-7 shrink-0 gap-1 px-2 text-xs font-medium"
+              onClick={() => {
+                setFilter("all");
+                setAiRanking(false);
+                if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                  setSelectedId(null);
+                }
+              }}
+              title="Afficher tous les mails sans classement IA"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Tous les mails</span>
+            </Button>
             <Select
               value={
                 filter.startsWith("account:") ||
