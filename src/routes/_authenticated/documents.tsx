@@ -339,11 +339,18 @@ function DocumentsPage() {
             <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" className="pl-9" />
           </div>
+          {!selectionMode && (
+            <Button variant="outline" size="sm" onClick={classifyNow} disabled={classifying} className="gap-1.5">
+              {classifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">Classer IA</span>
+            </Button>
+          )}
           {!selectionMode && filtered.length > 0 && (
             <Button variant="outline" size="sm" onClick={selectAllFiltered} className="hidden sm:inline-flex">
               Sélectionner
             </Button>
           )}
+
         </div>
 
         {/* Selection toolbar */}
