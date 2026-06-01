@@ -19,9 +19,16 @@ import {
   Mail,
 } from "lucide-react";
 import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
-import { MeetingDialog } from "@/components/meetings/meeting-dialog";
-import { Sparkles } from "lucide-react";
-import { getSignedUrl, type DocumentRow } from "@/lib/documents";
+import { Sparkles, Upload, FileText, ListTodo, Send } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import {
+  getSignedUrl,
+  uploadToStorage,
+  removeFromStorage,
+  storagePath,
+  sha256,
+  type DocumentRow,
+} from "@/lib/documents";
 import { formatBytes } from "@/lib/file-icons";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useServerFn } from "@tanstack/react-start";
