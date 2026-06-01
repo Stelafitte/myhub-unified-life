@@ -78,6 +78,9 @@ export function useSyncStatus() {
         ),
       );
       const imapCount = results.reduce((a, b) => a + b, 0);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("emails-synced", { detail: { synced: imapCount } }));
+      }
 
       return { flushed: flushRes.ok, imap: imapCount };
     } finally {
