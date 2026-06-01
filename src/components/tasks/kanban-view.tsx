@@ -117,7 +117,7 @@ export function KanbanView({ tasks, onMove, onEdit, onDelete, onCreate, onOpenEm
             {!isCollapsed && (
               <div
                 className={cn(
-                  "grid gap-2 p-2",
+                  "grid gap-2 p-2 auto-rows-fr",
                   "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
                 )}
               >
