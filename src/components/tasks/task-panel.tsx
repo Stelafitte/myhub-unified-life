@@ -114,6 +114,8 @@ export function TaskPanel({
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [addToCalendar, setAddToCalendar] = useState(false);
+
 
 
   // Thèmes / sous-thèmes du Plan d'opération
