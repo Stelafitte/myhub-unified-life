@@ -949,7 +949,17 @@ function InboxPage() {
   return (
     <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
       {/* LEFT — filters */}
-      <aside style={{ width: leftW }} className="hidden shrink-0 flex-col border-r bg-card md:flex">
+      <aside
+        style={isMobileInbox ? undefined : { width: leftW }}
+        className={cn(
+          "shrink-0 flex-col border-r bg-card",
+          isMobileInbox
+            ? mobileView === "sidebar"
+              ? "flex w-full"
+              : "hidden"
+            : "hidden md:flex",
+        )}
+      >
         <div className="border-b p-4">
           <div className="mb-3 flex items-center gap-2">
             <InboxIcon className="h-5 w-5 text-primary" />
