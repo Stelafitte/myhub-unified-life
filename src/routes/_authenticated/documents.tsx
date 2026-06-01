@@ -180,6 +180,22 @@ function DocumentsPage() {
     });
   }, [docs, source, typeF, dateF, sizeF, aiF, search]);
 
+  const grouped = useMemo(() => {
+    const order = ["facture","contrat","rapport","presentation","courrier","rh","technique","image","autre","signature","__unclassified"] as const;
+    const map = new Map<string, DocumentRow[]>();
+    for (const d of filtered) {
+      const key = d.ai_processed_at ? (d.ai_category ?? "autre") : "__unclassified";
+      const arr = map.get(key) ?? [];
+      arr.push(d);
+      map.set(key, arr);
+    }
+    return order
+      .filter((k) => map.has(k))
+      .map((k) => ({ key: k as string, docs: map.get(k as string)! }));
+  }, [filtered]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const toggleGroup = (k: string) => setCollapsedGroups((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+
   const selectionMode = selected.size > 0;
   const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selected.has(d.id));
 
@@ -306,7 +322,7 @@ function DocumentsPage() {
                 ))}
               </FilterGroup>
               <div className="mt-2 px-1">
-                <label className="text-[10px] uppercase text-muted-foreground block mb-1">Ignorer images &lt;</label>
+                <label className="text-[10px] uppercase text-muted-foreground block mb-1">Ignorer fichiers &lt;</label>
                 <div className="flex items-center gap-1.5">
                   <Input
                     type="number"
@@ -318,7 +334,7 @@ function DocumentsPage() {
                   />
                   <span className="text-xs text-muted-foreground">Ko</span>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">Filtre les signatures et logos des emails.</p>
+                <p className="text-[10px] text-muted-foreground mt-1">S'applique à tous les fichiers (signatures, logos, fragments…).</p>
               </div>
             </div>
 
@@ -392,20 +408,43 @@ function DocumentsPage() {
                 Aucun document.
               </Card>
             ) : (
-              <div className="space-y-1">
-                {filtered.map((d) => (
-                  <DocRow
-                    key={d.id}
-                    doc={d}
-                    selectionMode={selectionMode}
-                    selected={selected.has(d.id)}
-                    onToggleSelect={() => toggleSelect(d.id)}
-                    onPreview={() => selectionMode ? toggleSelect(d.id) : setPreview(d)}
-                    onDelete={() => deleteDoc(d)}
-                    onCopy={() => copyLink(d)}
-                    onSaveToOneDrive={() => setSaveTarget(d)}
-                  />
-                ))}
+              <div className="space-y-4">
+                {grouped.map(({ key, docs: groupDocs }) => {
+                  const meta = key === "__unclassified"
+                    ? { label: "Non classés", cls: "bg-muted text-muted-foreground" }
+                    : (AI_CATEGORY_META[key] ?? { label: key, cls: "bg-muted text-muted-foreground" });
+                  const collapsed = collapsedGroups.has(key);
+                  return (
+                    <div key={key}>
+                      <button
+                        onClick={() => toggleGroup(key)}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 mb-1 rounded hover:bg-muted/50 transition-colors text-left"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full", meta.cls)}>{meta.label}</span>
+                        <span className="text-xs text-muted-foreground">{groupDocs.length}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">{collapsed ? "▸" : "▾"}</span>
+                      </button>
+                      {!collapsed && (
+                        <div className="space-y-1">
+                          {groupDocs.map((d) => (
+                            <DocRow
+                              key={d.id}
+                              doc={d}
+                              selectionMode={selectionMode}
+                              selected={selected.has(d.id)}
+                              onToggleSelect={() => toggleSelect(d.id)}
+                              onPreview={() => selectionMode ? toggleSelect(d.id) : setPreview(d)}
+                              onDelete={() => deleteDoc(d)}
+                              onCopy={() => copyLink(d)}
+                              onSaveToOneDrive={() => setSaveTarget(d)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

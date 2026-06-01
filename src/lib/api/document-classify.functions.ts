@@ -109,15 +109,15 @@ export const classifyPendingDocuments = createServerFn({ method: "POST" })
     const now = new Date().toISOString();
 
     for (const r of rows as DocRow[]) {
-      // Auto-skip small images (likely email signatures/logos)
-      const isImage = (r.mime_type ?? "").startsWith("image/");
-      if (isImage && r.file_size < minSizeBytes) {
+      // Auto-skip any small file (signatures, logos, icônes, fragments…)
+      if (r.file_size < minSizeBytes) {
+        const isImage = (r.mime_type ?? "").startsWith("image/");
         await supabase.from("documents").update({
           ai_processed_at: now,
-          ai_category: "signature",
+          ai_category: isImage ? "signature" : "autre",
           ai_priority: "low",
-          ai_summary: `Image < ${minSizeKb} Ko — probablement signature/logo`,
-          ai_skipped_reason: "small_image",
+          ai_summary: `Fichier < ${minSizeKb} Ko — ignoré (probablement sans intérêt)`,
+          ai_skipped_reason: "small_file",
         }).eq("id", r.id);
         skipped++;
         continue;
