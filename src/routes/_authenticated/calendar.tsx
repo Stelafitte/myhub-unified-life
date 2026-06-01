@@ -1124,7 +1124,7 @@ function EventDetail({
     }
   };
 
-  const participants = extractEmails((event.raw as DbEvent).description ?? "");
+  const descParticipants = extractEmails((event.raw as DbEvent).description ?? "");
 
   type EmailLite = {
     id: string;
@@ -1135,31 +1135,133 @@ function EventDetail({
     body_text: string | null;
     body_html: string | null;
   };
+  type MeetingState = {
+    id: string;
+    importance: "low" | "normal" | "high" | "critical";
+    notes: string;
+    is_online: boolean;
+    online_link: string;
+    online_provider: "" | "jitsi" | "google_meet" | "zoom" | "teams" | "other";
+    zoom_password: string;
+  };
+  type PartRow = { id: string; email: string; name: string | null; role: string };
+
   const [linkedEmail, setLinkedEmail] = useState<EmailLite | null>(null);
   const [linkedDocs, setLinkedDocs] = useState<DocumentRow[]>([]);
   const [previewDoc, setPreviewDoc] = useState<DocumentRow | null>(null);
-  const [linkedMeetingId, setLinkedMeetingId] = useState<string | null>(null);
-  const [meetingDialogOpen, setMeetingDialogOpen] = useState(false);
+  const [meeting, setMeeting] = useState<MeetingState | null>(null);
+  const [participants, setParticipants] = useState<PartRow[]>([]);
+  const [newPartEmail, setNewPartEmail] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+
+  const IMPORTANCE_META = {
+    low: { label: "Faible", cls: "bg-muted text-muted-foreground" },
+    normal: { label: "Normal", cls: "bg-secondary text-secondary-foreground" },
+    high: { label: "Élevé", cls: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200" },
+    critical: { label: "Critique", cls: "bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200" },
+  } as const;
+  const PROVIDER_LABEL = {
+    jitsi: "Jitsi (lien auto)",
+    google_meet: "Google Meet",
+    zoom: "Zoom",
+    teams: "Microsoft Teams",
+    other: "Autre lien",
+  } as const;
+  const generateJitsiLink = () =>
+    `https://meet.jit.si/MyHub-${Math.random().toString(36).slice(2, 8)}${Math.random().toString(36).slice(2, 8)}`;
+
+  async function loadMeetingData(mtgId: string) {
+    const [{ data: m }, { data: ps }, { data: docs }] = await Promise.all([
+      supabase.from("meetings").select("*").eq("id", mtgId).maybeSingle(),
+      supabase.from("meeting_participants").select("id, email, name, role").eq("meeting_id", mtgId),
+      supabase.from("documents").select("*").eq("source_type", "meeting").eq("source_id", mtgId),
+    ]);
+    if (m) {
+      setMeeting({
+        id: m.id,
+        importance: (m.importance as MeetingState["importance"]) ?? "normal",
+        notes: m.notes ?? "",
+        is_online: !!m.is_online,
+        online_link: m.online_link ?? "",
+        online_provider: (m.online_provider as MeetingState["online_provider"]) ?? "",
+        zoom_password: m.zoom_password ?? "",
+      });
+    }
+    setParticipants((ps ?? []) as PartRow[]);
+    return docs ?? [];
+  }
+
+  async function ensureMeeting(): Promise<MeetingState | null> {
+    if (meeting) return meeting;
+    if (!user || event.kind !== "event") return null;
+    try {
+      const evId = (event.raw as DbEvent).id;
+      const { data: newMtg, error } = await supabase
+        .from("meetings")
+        .insert({
+          user_id: user.id,
+          title: event.title,
+          description: dbEv.description ?? null,
+          start_at: event.start.toISOString(),
+          end_at: event.end.toISOString(),
+          location: event.location ?? null,
+          is_online: !!event.hasVideo,
+          calendar_event_id: evId,
+          status: "scheduled",
+          importance: "normal",
+        })
+        .select("*")
+        .single();
+      if (error) throw error;
+      const next: MeetingState = {
+        id: newMtg.id,
+        importance: "normal",
+        notes: "",
+        is_online: !!newMtg.is_online,
+        online_link: newMtg.online_link ?? "",
+        online_provider: "",
+        zoom_password: "",
+      };
+      setMeeting(next);
+      return next;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur création réunion");
+      return null;
+    }
+  }
+
+  async function patchMeeting(patch: Partial<Omit<MeetingState, "id">>) {
+    const m = await ensureMeeting();
+    if (!m) return;
+    setMeeting({ ...m, ...patch });
+    const { error } = await supabase.from("meetings").update(patch).eq("id", m.id);
+    if (error) toast.error(error.message);
+    else requestAutoSync();
+  }
 
   useEffect(() => {
     setLinkedEmail(null);
     setLinkedDocs([]);
-    setLinkedMeetingId(null);
+    setMeeting(null);
+    setParticipants([]);
     if (event.kind !== "event") return;
     const evId = (event.raw as DbEvent).id;
     let cancelled = false;
     (async () => {
-      // 1) Via meetings linked to this calendar_event
       const { data: mtgs } = await supabase
         .from("meetings")
         .select("id, source_email_id")
         .eq("calendar_event_id", evId);
       const emailId = mtgs?.find((m) => m.source_email_id)?.source_email_id ?? null;
       const meetingIds = (mtgs ?? []).map((m) => m.id);
-      setLinkedMeetingId(meetingIds[0] ?? null);
 
-      // 2) Fetch the linked email
+      let mDocs: DocumentRow[] = [];
+      if (meetingIds[0]) {
+        mDocs = (await loadMeetingData(meetingIds[0])) as DocumentRow[];
+      }
+
       let email: EmailLite | null = null;
       if (emailId) {
         const { data } = await supabase
@@ -1170,22 +1272,15 @@ function EventDetail({
         email = (data as EmailLite | null) ?? null;
       }
 
-      // 3) Documents: source_email_id OR source_id in meetingIds
-      const docPromises: Promise<{ data: DocumentRow[] | null }>[] = [];
-      if (emailId) {
-        docPromises.push(
-          supabase.from("documents").select("*").eq("source_id", emailId).eq("source_type", "email") as any,
-        );
-      }
-      if (meetingIds.length > 0) {
-        docPromises.push(
-          supabase.from("documents").select("*").in("source_id", meetingIds).eq("source_type", "meeting") as any,
-        );
-      }
-      const docResults = await Promise.all(docPromises);
       const docMap = new Map<string, DocumentRow>();
-      for (const r of docResults) {
-        for (const d of r.data ?? []) docMap.set(d.id, d);
+      for (const d of mDocs) docMap.set(d.id, d);
+      if (emailId) {
+        const { data: emailDocs } = await supabase
+          .from("documents")
+          .select("*")
+          .eq("source_id", emailId)
+          .eq("source_type", "email");
+        for (const d of (emailDocs ?? []) as DocumentRow[]) docMap.set(d.id, d);
       }
       if (cancelled) return;
       setLinkedEmail(email);
@@ -1204,47 +1299,135 @@ function EventDetail({
     }
   };
 
-  const openFullDetails = async () => {
-    if (event.kind !== "event") return;
-    if (linkedMeetingId) {
-      setMeetingDialogOpen(true);
-      return;
-    }
-    if (!user) {
-      toast.error("Connexion requise");
-      return;
-    }
+  async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!user || files.length === 0) return;
+    const m = await ensureMeeting();
+    if (!m) return;
+    setUploading(true);
     try {
-      const evId = (event.raw as DbEvent).id;
-      const { data: newMtg, error } = await supabase
-        .from("meetings")
+      for (const file of files) {
+        const docId = crypto.randomUUID();
+        const path = storagePath(user.id, "meeting", docId, file.name);
+        await uploadToStorage(path, file);
+        const checksum = await sha256(file);
+        const { error } = await supabase.from("documents").insert({
+          id: docId,
+          user_id: user.id,
+          filename: file.name,
+          original_filename: file.name,
+          file_size: file.size,
+          mime_type: file.type || null,
+          storage_path: path,
+          source_type: "meeting",
+          source_id: m.id,
+          tags: [],
+          checksum,
+        });
+        if (error) throw error;
+      }
+      const refreshed = await loadMeetingData(m.id);
+      // merge: keep email-linked docs from current list
+      setLinkedDocs((prev) => {
+        const emailDocs = prev.filter((d) => d.source_type !== "meeting");
+        return [...emailDocs, ...(refreshed as DocumentRow[])];
+      });
+      toast.success("Fichier(s) ajouté(s)");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur upload");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function deleteAttachment(doc: DocumentRow) {
+    if (!confirm(`Supprimer "${doc.filename}" ?`)) return;
+    try {
+      if (doc.storage_path) await removeFromStorage(doc.storage_path);
+      await supabase.from("documents").delete().eq("id", doc.id);
+      setLinkedDocs((a) => a.filter((d) => d.id !== doc.id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur suppression");
+    }
+  }
+
+  async function addParticipant() {
+    const email = newPartEmail.trim();
+    if (!email || !user) return;
+    const m = await ensureMeeting();
+    if (!m) return;
+    if (participants.some((p) => p.email.toLowerCase() === email.toLowerCase())) {
+      toast.error("Déjà ajouté");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("meeting_participants")
+      .insert({ meeting_id: m.id, user_id: user.id, email, role: "required", rsvp_status: "pending" })
+      .select("id, email, name, role")
+      .single();
+    if (error) { toast.error(error.message); return; }
+    setParticipants((ps) => [...ps, data as PartRow]);
+    setNewPartEmail("");
+  }
+
+  async function removeParticipant(id: string) {
+    await supabase.from("meeting_participants").delete().eq("id", id);
+    setParticipants((ps) => ps.filter((p) => p.id !== id));
+  }
+
+  function sendMailToParticipants() {
+    const recipients = [
+      ...participants.map((p) => p.email),
+      ...descParticipants,
+    ].filter((v, i, a) => v && a.indexOf(v) === i);
+    if (recipients.length === 0) { toast.error("Aucun participant"); return; }
+    const dateStr = event.start.toLocaleString("fr-FR");
+    const body = [
+      "Bonjour,",
+      "",
+      "Concernant la réunion :",
+      `• ${event.title}`,
+      `• Date : ${dateStr}`,
+      event.location ? `• Lieu : ${event.location}` : "",
+      meeting?.is_online && meeting.online_link ? `• Visio : ${meeting.online_link}` : "",
+      "",
+      "Cordialement,",
+    ].filter(Boolean).join("\n");
+    window.location.href = `mailto:${recipients.join(",")}?subject=${encodeURIComponent(event.title)}&body=${encodeURIComponent(body)}`;
+  }
+
+  async function createLinkedTask() {
+    if (!user) return;
+    const m = await ensureMeeting();
+    if (!m) return;
+    try {
+      const { data: task, error } = await supabase
+        .from("tasks")
         .insert({
           user_id: user.id,
-          title: event.title,
-          description: dbEv.description ?? null,
-          start_at: event.start.toISOString(),
-          end_at: event.end.toISOString(),
-          location: event.location ?? null,
-          is_online: !!event.hasVideo,
-          calendar_event_id: evId,
-          status: "scheduled",
-          importance: "normal",
+          title: `Préparer : ${event.title}`,
+          description: meeting?.notes || dbEv.description || null,
+          status: "todo",
+          priority: meeting?.importance === "critical" || meeting?.importance === "high" ? "high" : "medium",
+          due_date: event.start.toISOString(),
+          source_app: "myhubpro",
         })
         .select("id")
         .single();
       if (error) throw error;
-      setLinkedMeetingId(newMtg.id);
-      setMeetingDialogOpen(true);
+      await supabase.from("meeting_tasks").insert({ meeting_id: m.id, task_id: task.id, user_id: user.id });
+      toast.success("Tâche associée créée");
+      requestAutoSync();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Impossible d'ouvrir les détails");
+      toast.error(e instanceof Error ? e.message : "Erreur");
     }
-  };
+  }
 
-
-
+  const importance = meeting?.importance ?? "normal";
 
   return (
-    <aside className="fixed inset-0 z-40 flex shrink-0 flex-col border-l bg-card lg:relative lg:inset-auto lg:z-auto lg:w-[380px]">
+    <aside className="fixed inset-0 z-40 flex shrink-0 flex-col border-l bg-card lg:relative lg:inset-auto lg:z-auto lg:w-[420px]">
       <header className="flex items-start gap-2 border-b p-4">
         <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: event.color }} />
         <div className="min-w-0 flex-1">
@@ -1252,6 +1435,11 @@ function EventDetail({
             <span>{event.badge}</span>
             <span>{event.sourceLabel}</span>
             {event.kind === "task" && <Badge variant="outline" className="h-4 px-1 text-[9px]">Tâche</Badge>}
+            {event.kind === "event" && (
+              <Badge className={cn("h-4 px-1 text-[9px]", IMPORTANCE_META[importance].cls)}>
+                {IMPORTANCE_META[importance].label}
+              </Badge>
+            )}
           </div>
           <h2 className="mt-1 text-base font-semibold leading-tight">{event.title}</h2>
         </div>
@@ -1274,28 +1462,6 @@ function EventDetail({
           </div>
         )}
 
-        {event.hasVideo && (
-          <div className="rounded-md border border-indigo-500/30 bg-indigo-500/5 p-2 text-xs">
-            <Video className="mr-1 inline h-3.5 w-3.5 text-indigo-500" />
-            Lien de visioconférence détecté dans la description
-          </div>
-        )}
-
-        {participants.length > 0 && (
-          <div>
-            <div className="mb-1 text-xs font-medium text-muted-foreground">
-              <Users className="mr-1 inline h-3 w-3" /> Participants
-            </div>
-            <ul className="space-y-1">
-              {participants.map((p) => (
-                <li key={p}>
-                  <a className="text-primary hover:underline" href={`mailto:${p}`}>{p}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
         {canEdit && (
           <div>
             <div className="mb-1 text-xs font-medium text-muted-foreground">Type d'événement</div>
@@ -1305,9 +1471,7 @@ function EventDetail({
                 onValueChange={(v) => updateType(v as EventCategory, catColors[v as EventCategory])}
                 disabled={savingType}
               >
-                <SelectTrigger className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(Object.keys(CATEGORY_LABELS) as EventCategory[]).map((k) => (
                     <SelectItem key={k} value={k}>
@@ -1331,48 +1495,187 @@ function EventDetail({
           </div>
         )}
 
+        {event.kind === "event" && (
+          <div>
+            <div className="mb-1 text-xs font-medium text-muted-foreground">Importance</div>
+            <Select
+              value={importance}
+              onValueChange={(v) => patchMeeting({ importance: v as MeetingState["importance"] })}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(Object.keys(IMPORTANCE_META) as Array<keyof typeof IMPORTANCE_META>).map((k) => (
+                  <SelectItem key={k} value={k}>{IMPORTANCE_META[k].label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
         {event.description && (
           <div>
-            <div className="text-xs font-medium text-muted-foreground">Notes</div>
+            <div className="text-xs font-medium text-muted-foreground">Description</div>
             <p className="whitespace-pre-wrap text-foreground/90">{event.description}</p>
           </div>
         )}
 
-        {linkedDocs.length > 0 && (
+        {event.kind === "event" && (
           <div>
-            <div className="mb-1 text-xs font-medium text-muted-foreground">
-              <Paperclip className="mr-1 inline h-3 w-3" /> Pièces jointes ({linkedDocs.length})
+            <Label className="text-xs font-medium text-muted-foreground">Notes de préparation</Label>
+            <Textarea
+              rows={4}
+              placeholder="Points à aborder, questions, éléments à vérifier…"
+              value={meeting?.notes ?? ""}
+              onChange={(e) => setMeeting((m) => (m ? { ...m, notes: e.target.value } : m))}
+              onBlur={(e) => patchMeeting({ notes: e.target.value })}
+              onFocus={() => { void ensureMeeting(); }}
+            />
+          </div>
+        )}
+
+        {event.kind === "event" && (
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5 cursor-pointer">
+                <Video className="h-4 w-4" /> Visioconférence
+              </Label>
+              <Switch
+                checked={!!meeting?.is_online}
+                onCheckedChange={(v) => {
+                  const nextProv = v ? (meeting?.online_provider || "jitsi") : "";
+                  const nextLink = v && nextProv === "jitsi" && !meeting?.online_link ? generateJitsiLink() : (meeting?.online_link ?? "");
+                  patchMeeting({ is_online: v, online_provider: nextProv as MeetingState["online_provider"], online_link: nextLink });
+                }}
+              />
             </div>
-            <ul className="space-y-1">
-              {linkedDocs.map((d) => (
-                <li
-                  key={d.id}
-                  className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 text-xs"
+            {meeting?.is_online && (
+              <div className="space-y-2">
+                <Select
+                  value={meeting.online_provider || "jitsi"}
+                  onValueChange={(v) => {
+                    const prov = v as MeetingState["online_provider"];
+                    const link = prov === "jitsi" ? generateJitsiLink() : "";
+                    patchMeeting({ online_provider: prov, online_link: link, zoom_password: prov === "zoom" ? meeting.zoom_password : "" });
+                  }}
                 >
-                  <button
-                    type="button"
-                    onClick={() => setPreviewDoc(d)}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                  >
-                    <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{d.original_filename || d.filename}</div>
-                      <div className="text-[10px] text-muted-foreground">{formatBytes(d.file_size || 0)}</div>
-                    </div>
-                  </button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 shrink-0"
-                    onClick={() => openDoc(d)}
-                    disabled={!d.storage_path}
-                    aria-label="Télécharger"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(PROVIDER_LABEL) as Array<keyof typeof PROVIDER_LABEL>).map((p) => (
+                      <SelectItem key={p} value={p}>{PROVIDER_LABEL[p]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-1">
+                  <Input
+                    placeholder="https://…"
+                    value={meeting.online_link}
+                    onChange={(e) => setMeeting((m) => (m ? { ...m, online_link: e.target.value } : m))}
+                    onBlur={(e) => patchMeeting({ online_link: e.target.value })}
+                  />
+                  {meeting.online_provider === "jitsi" && (
+                    <Button type="button" variant="outline" size="icon" onClick={() => patchMeeting({ online_link: generateJitsiLink() })}>
+                      <Sparkles className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {meeting.online_link && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => window.open(meeting.online_link, "_blank")}>
+                      Ouvrir
+                    </Button>
+                  )}
+                </div>
+                {meeting.online_provider === "zoom" && (
+                  <Input
+                    placeholder="Mot de passe Zoom"
+                    value={meeting.zoom_password}
+                    onChange={(e) => setMeeting((m) => (m ? { ...m, zoom_password: e.target.value } : m))}
+                    onBlur={(e) => patchMeeting({ zoom_password: e.target.value })}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {event.kind === "event" && (
+          <div>
+            <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              <Users className="h-3 w-3" /> Participants
+            </div>
+            <div className="mb-2 flex gap-1">
+              <Input
+                placeholder="email@exemple.com"
+                value={newPartEmail}
+                onChange={(e) => setNewPartEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addParticipant())}
+                className="h-8 text-sm"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={addParticipant}>Ajouter</Button>
+            </div>
+            {(participants.length > 0 || descParticipants.length > 0) && (
+              <ul className="space-y-1">
+                {participants.map((p) => (
+                  <li key={p.id} className="flex items-center gap-2 text-xs">
+                    <a className="flex-1 truncate text-primary hover:underline" href={`mailto:${p.email}`}>
+                      {p.name ? `${p.name} <${p.email}>` : p.email}
+                    </a>
+                    <button onClick={() => removeParticipant(p.id)} className="rounded p-0.5 text-muted-foreground hover:bg-accent">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </li>
+                ))}
+                {descParticipants
+                  .filter((e) => !participants.some((p) => p.email.toLowerCase() === e.toLowerCase()))
+                  .map((p) => (
+                    <li key={`d-${p}`} className="text-xs">
+                      <a className="text-muted-foreground hover:underline" href={`mailto:${p}`}>{p}</a>
+                      <span className="ml-1 text-[10px] text-muted-foreground">(extrait)</span>
+                    </li>
+                  ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {event.kind === "event" && (
+          <div className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5 text-xs font-medium">
+                <Paperclip className="h-3.5 w-3.5" /> Pièces jointes
+              </Label>
+              <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+                <Upload className="h-3.5 w-3.5 mr-1" /> {uploading ? "Envoi…" : "Ajouter"}
+              </Button>
+              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onPickFiles} />
+            </div>
+            {linkedDocs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Aucun fichier.</p>
+            ) : (
+              <ul className="space-y-1">
+                {linkedDocs.map((d) => (
+                  <li key={d.id} className="flex items-center gap-2 rounded-md border bg-muted/30 p-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewDoc(d)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                    >
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{d.original_filename || d.filename}</div>
+                        <div className="text-[10px] text-muted-foreground">{formatBytes(d.file_size || 0)}</div>
+                      </div>
+                    </button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => openDoc(d)} disabled={!d.storage_path} aria-label="Télécharger">
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    {d.source_type === "meeting" && (
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0 text-destructive" onClick={() => deleteAttachment(d)} aria-label="Supprimer">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
@@ -1384,16 +1687,11 @@ function EventDetail({
             <div className="text-sm font-semibold">{linkedEmail.subject || "(sans objet)"}</div>
             <div className="mt-0.5 text-[11px] text-muted-foreground">
               {linkedEmail.from_name || linkedEmail.from_address}
-              {linkedEmail.received_at && (
-                <> · {new Date(linkedEmail.received_at).toLocaleString("fr-FR")}</>
-              )}
+              {linkedEmail.received_at && (<> · {new Date(linkedEmail.received_at).toLocaleString("fr-FR")}</>)}
             </div>
             <div className="mt-2 max-h-64 overflow-y-auto rounded border bg-background p-2 text-xs">
               {linkedEmail.body_html ? (
-                <div
-                  className="prose prose-sm max-w-none dark:prose-invert"
-                  dangerouslySetInnerHTML={{ __html: linkedEmail.body_html }}
-                />
+                <div className="prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: linkedEmail.body_html }} />
               ) : (
                 <pre className="whitespace-pre-wrap font-sans">{linkedEmail.body_text || "(vide)"}</pre>
               )}
@@ -1408,16 +1706,19 @@ function EventDetail({
         onOpenChange={(o) => !o && setPreviewDoc(null)}
       />
 
-
       <footer className="space-y-2 border-t p-3">
         {event.kind === "event" && (
-          <Button className="w-full gap-1.5" onClick={openFullDetails}>
-            <Sparkles className="h-4 w-4" />
-            {linkedMeetingId ? "Détails complets" : "Ouvrir comme réunion"}
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={sendMailToParticipants}>
+              <Send className="h-3.5 w-3.5" /> Mail
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={createLinkedTask}>
+              <ListTodo className="h-3.5 w-3.5" /> Tâche liée
+            </Button>
+          </div>
         )}
         <Button variant="outline" className="w-full gap-1.5" onClick={onCreateTask}>
-          <CheckSquare className="h-4 w-4" /> Créer une tâche liée
+          <CheckSquare className="h-4 w-4" /> Créer une tâche (agenda)
         </Button>
         {onShare && (
           <Button variant="outline" className="w-full gap-1.5" onClick={onShare}>
@@ -1435,16 +1736,6 @@ function EventDetail({
           </p>
         )}
       </footer>
-
-      <MeetingDialog
-        open={meetingDialogOpen}
-        onOpenChange={setMeetingDialogOpen}
-        meetingId={linkedMeetingId}
-        onSaved={() => {
-          setMeetingDialogOpen(false);
-          onUpdated?.();
-        }}
-      />
     </aside>
   );
 }
