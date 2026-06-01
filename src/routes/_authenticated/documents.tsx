@@ -166,6 +166,12 @@ function DocumentsPage() {
         if (age > lim) return false;
       }
       if (sizeF === "heavy" && d.file_size < 5 * 1024 * 1024) return false;
+      if (aiF !== "all") {
+        if (aiF === "unclassified") {
+          if (d.ai_processed_at) return false;
+        } else if ((d.ai_category ?? "") !== aiF) return false;
+      }
+
       if (search) {
         const q = search.toLowerCase();
         if (!d.filename.toLowerCase().includes(q) && !(d.description ?? "").toLowerCase().includes(q)) return false;
