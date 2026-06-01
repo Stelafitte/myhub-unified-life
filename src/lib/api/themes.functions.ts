@@ -297,7 +297,7 @@ ${(r.body_text ?? "").slice(0, 1500)}`;
             const raw = json?.choices?.[0]?.message?.content ?? "{}";
             const parsed = JSON.parse(raw) as {
               theme?: string | null;
-              new_theme?: { name: string; description?: string; keywords?: string[] } | null;
+              new_theme?: { name: string; description?: string; keywords?: string[]; scope?: string } | null;
             };
             if (parsed.theme) {
               const match = themeByName.get(parsed.theme.toLowerCase());
@@ -305,6 +305,7 @@ ${(r.body_text ?? "").slice(0, 1500)}`;
             }
             if (!themeId && parsed.new_theme?.name) {
               const nt = parsed.new_theme;
+              const scope = nt.scope === "pro" ? "pro" : "perso";
               const { data: inserted } = await supabase
                 .from("email_themes")
                 .upsert(
@@ -314,6 +315,7 @@ ${(r.body_text ?? "").slice(0, 1500)}`;
                     description: (nt.description ?? "").slice(0, 280),
                     keywords: (nt.keywords ?? []).slice(0, 10),
                     source: "ai",
+                    scope,
                   },
                   { onConflict: "user_id,name" },
                 )
