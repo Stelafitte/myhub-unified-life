@@ -201,7 +201,7 @@ export function SwipeableRow({
           transition: isDragging ? "none" : "transform 180ms ease-out",
           touchAction: "pan-y",
         }}
-        className="relative bg-background"
+        className="relative bg-background flex-1 flex flex-col"
       >
         {children}
       </div>
