@@ -1094,7 +1094,9 @@ function InboxPage() {
               </button>
             ))}
           {!accounts.some((a) => a.name === "CHU" || a.type === "imap") && (
-            <QuickAddOvh onAdded={() => setReloadKey((k) => k + 1)} />
+            <div data-no-mobile-switch>
+              <QuickAddOvh onAdded={() => setReloadKey((k) => k + 1)} />
+            </div>
           )}
 
           {/* Thèmes IA below Comptes, with relaunch + management */}
