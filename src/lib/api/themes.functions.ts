@@ -562,13 +562,64 @@ export const setThemeScope = createServerFn({ method: "POST" })
     return { ok: !error, error: error?.message };
   });
 
-// Auto-detect scope (pro/perso) for all active themes using AI.
+// Normalize for fuzzy matching (lowercase + strip diacritics + collapse spaces).
+function normalizeName(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Strong heuristics: catch obvious pro/perso themes without AI.
+function heuristicScope(name: string, description: string | null, keywords: string[], senders: string[]): "pro" | "perso" | null {
+  const hay = normalizeName(
+    [name, description ?? "", keywords.join(" "), senders.join(" ")].join(" "),
+  );
+
+  // Pro signals (strong)
+  const proPatterns = [
+    "chu", "hopital", "hospitalier", "clinique", "cabinet", "cabinet bodin",
+    "projet", "projets", "patient", "patients", "laboratoire", "labo ",
+    "congres", "congress", "scientifique", "publication", "publications",
+    "sci ", " sci", "in extenso", "comptab", "juridique", "emprunt", "garantie bancaire",
+    "polytechnique", "echo cardio", "echocardiograph", "ideal", "cardiorisq",
+    "agrement", "pedagogie", "veille scientifique", "rex-ia", "rex ia",
+    "marketing", "publicite", "b2b", "fournisseur", "client", "facturation",
+    "anthropic", "elevenlabs", "lovable", "openai", "outil", "outils ia",
+    "abonnement service", "abonnements et outils", "informatique",
+    "liberale", "liberal", "dr lafitte", "activite liberale",
+  ];
+  const persoPatterns = [
+    "famille", "amis ", "loisir", "voyage perso", "vacances",
+    "netflix", "spotify", "deezer", "amazon perso", "fnac perso",
+    "mutuelle", "assurance habitation", "ecole des enfants", "scolarite",
+    "achats personnels", "commandes personnelles",
+  ];
+
+  let proScore = 0;
+  let persoScore = 0;
+  for (const p of proPatterns) if (hay.includes(p)) proScore += 2;
+  for (const p of persoPatterns) if (hay.includes(p)) persoScore += 2;
+
+  // Email domain signals
+  for (const s of senders) {
+    const dom = s.toLowerCase();
+    if (/@chu-|@aphp|@aphm|@inserm|@cnrs|@univ-|@polytechnique|@inextenso|@in-extenso/.test(dom)) proScore += 3;
+    if (/@(gmail|yahoo|hotmail|outlook|live|free|orange|wanadoo|laposte|sfr)\./.test(dom)) persoScore += 1;
+  }
+
+  if (proScore >= 2 && proScore > persoScore) return "pro";
+  if (persoScore >= 4 && persoScore > proScore) return "perso";
+  return null;
+}
+
+// Auto-detect scope (pro/perso) for all active themes — heuristics first, AI for the rest.
 export const autoDetectThemeScopes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) return { updated: 0, error: "LOVABLE_API_KEY manquant" };
 
     const { data: themes } = await supabase
       .from("email_themes")
@@ -578,7 +629,7 @@ export const autoDetectThemeScopes = createServerFn({ method: "POST" })
 
     if (!themes || themes.length === 0) return { updated: 0 };
 
-    // For each theme, fetch sample senders/subjects to give the AI real context.
+    // Fetch sample senders/subjects per theme.
     const themesWithSamples = await Promise.all(
       (themes as { id: string; name: string; description: string | null; keywords: string[] }[]).map(async (t) => {
         const { data: samples } = await supabase
@@ -587,12 +638,37 @@ export const autoDetectThemeScopes = createServerFn({ method: "POST" })
           .eq("user_id", userId)
           .eq("ai_theme_id", t.id)
           .order("received_at", { ascending: false })
-          .limit(5);
+          .limit(8);
         return { ...t, samples: (samples ?? []) as { from_address: string | null; subject: string | null }[] };
       }),
     );
 
-    const list = themesWithSamples
+    let updated = 0;
+    const ambiguous: typeof themesWithSamples = [];
+
+    // Pass 1 : heuristics
+    for (const t of themesWithSamples) {
+      const senders = [...new Set(t.samples.map((s) => s.from_address ?? "").filter(Boolean))];
+      const scope = heuristicScope(t.name, t.description, t.keywords ?? [], senders);
+      if (scope) {
+        const { error } = await supabase
+          .from("email_themes")
+          .update({ scope })
+          .eq("id", t.id)
+          .eq("user_id", userId);
+        if (!error) updated++;
+      } else {
+        ambiguous.push(t);
+      }
+    }
+
+    console.log(`[autoDetectThemeScopes] heuristics: ${updated}/${themesWithSamples.length} classified, ${ambiguous.length} ambiguous`);
+
+    // Pass 2 : AI for the ambiguous ones
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key || ambiguous.length === 0) return { updated };
+
+    const list = ambiguous
       .map((t) => {
         const senders = [...new Set(t.samples.map((s) => s.from_address).filter(Boolean))].slice(0, 5).join(", ");
         const subjects = t.samples.map((s) => s.subject).filter(Boolean).slice(0, 3).join(" | ");
@@ -600,15 +676,13 @@ export const autoDetectThemeScopes = createServerFn({ method: "POST" })
       })
       .join("\n");
 
-    const sys = `Tu classes des thèmes d'email en deux catégories.
+    const sys = `Tu classes des thèmes d'email d'un médecin/professionnel libéral en deux catégories.
 
-PRO (professionnel) : tout ce qui relève du travail/métier de l'utilisateur. Inclut : clients, fournisseurs, projets, collègues, hôpital/CHU, cabinet, entreprise, congrès scientifiques, formations pro, comptabilité d'entreprise, juridique pro (SCI, sociétés, In Extenso), marketing/publicité B2B reçue au travail, outils logiciels pro, recrutement, instances et associations professionnelles, emprunts/garanties bancaires d'entreprise.
+PRO (professionnel) : travail, métier, CHU, hôpital, cabinet, clients, patients, projets, congrès scientifiques, formations pro, comptabilité d'entreprise, juridique pro (SCI, sociétés), publicité B2B reçue au travail, outils logiciels pro, recrutement, instances/associations professionnelles, emprunts/garanties bancaires d'entreprise, activité libérale.
 
-PERSO (personnel) : vie privée uniquement. Famille, amis, loisirs perso, voyages perso, achats perso (Amazon, vêtements), santé perso (mutuelle, médecin de famille), banque personnelle, assurance habitation, abonnements perso (Netflix, Spotify), newsletters loisirs, sport, école des enfants.
+PERSO (personnel) : vie privée uniquement. Famille, loisirs, achats perso (Amazon, Fnac, Netflix), santé perso, banque personnelle, assurance habitation, abonnements perso.
 
-RÈGLE IMPORTANTE : en cas de doute → PRO. Les expéditeurs en @chu-*, @entreprise-*, @cabinet-*, ou les sujets contenant projet/réunion/dossier/client/patient/congrès/laboratoire/SCI → toujours PRO. Seules les newsletters et achats clairement perso (Amazon, Fnac, Netflix, etc. vers @gmail/@yahoo/@hotmail) sont PERSO.
-
-Réponds UNIQUEMENT en JSON: {"assignments":[{"name":"...","scope":"pro"|"perso"}]}`;
+RÈGLE : en cas de doute → PRO. Réponds UNIQUEMENT en JSON: {"assignments":[{"name":"...","scope":"pro"|"perso"}]}`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -622,15 +696,25 @@ Réponds UNIQUEMENT en JSON: {"assignments":[{"name":"...","scope":"pro"|"perso"
         response_format: { type: "json_object" },
       }),
     });
-    if (!resp.ok) return { updated: 0, error: `AI ${resp.status}` };
+    if (!resp.ok) {
+      console.error(`[autoDetectThemeScopes] AI ${resp.status}`);
+      return { updated };
+    }
     const json = await resp.json();
     let parsed: { assignments?: { name: string; scope: string }[] } = {};
-    try { parsed = JSON.parse(json?.choices?.[0]?.message?.content ?? "{}"); } catch { return { updated: 0, error: "Réponse IA invalide" }; }
+    try { parsed = JSON.parse(json?.choices?.[0]?.message?.content ?? "{}"); } catch { return { updated }; }
 
-    const byName = new Map((themes as { id: string; name: string }[]).map((t) => [t.name.toLowerCase(), t.id]));
-    let updated = 0;
+    // Fuzzy name matching
+    const byNorm = new Map(ambiguous.map((t) => [normalizeName(t.name), t.id]));
     for (const a of parsed.assignments ?? []) {
-      const id = byName.get((a.name ?? "").toLowerCase());
+      const norm = normalizeName(a.name ?? "");
+      let id = byNorm.get(norm);
+      if (!id) {
+        // try substring match
+        for (const [n, tid] of byNorm) {
+          if (n.includes(norm) || norm.includes(n)) { id = tid; break; }
+        }
+      }
       const scope = a.scope === "pro" ? "pro" : a.scope === "perso" ? "perso" : null;
       if (!id || !scope) continue;
       const { error } = await supabase
@@ -640,5 +724,6 @@ Réponds UNIQUEMENT en JSON: {"assignments":[{"name":"...","scope":"pro"|"perso"
         .eq("user_id", userId);
       if (!error) updated++;
     }
+    console.log(`[autoDetectThemeScopes] final: ${updated}/${themesWithSamples.length}`);
     return { updated };
   });
