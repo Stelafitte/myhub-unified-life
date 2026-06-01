@@ -69,6 +69,39 @@ function UtilitySelector({
   );
 }
 
+function ScopeToggle({
+  value,
+  onChange,
+}: {
+  value: ThemeScope;
+  onChange: (v: ThemeScope) => void;
+}) {
+  return (
+    <div className="inline-flex h-7 items-center rounded-md border bg-background p-0.5" title="Portée du thème (Pro ou Perso)">
+      <button
+        data-active={value === "pro"}
+        onClick={() => onChange("pro")}
+        className={cn(
+          "inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+          "data-[active=true]:bg-blue-500/15 data-[active=true]:text-blue-700 dark:data-[active=true]:text-blue-300",
+        )}
+      >
+        <Briefcase className="h-3 w-3" /> Pro
+      </button>
+      <button
+        data-active={value === "perso"}
+        onClick={() => onChange("perso")}
+        className={cn(
+          "inline-flex h-6 items-center gap-1 rounded px-2 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+          "data-[active=true]:bg-rose-500/15 data-[active=true]:text-rose-700 dark:data-[active=true]:text-rose-300",
+        )}
+      >
+        <Heart className="h-3 w-3" /> Perso
+      </button>
+    </div>
+  );
+}
+
 export function ThemesManagerDialog({
   open,
   onOpenChange,
