@@ -1293,6 +1293,18 @@ export function TaskPanel({
               </Badge>
             )}
 
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={sendByEmail}
+              disabled={preparingEmail || composerAccounts.length === 0}
+              title={composerAccounts.length === 0 ? "Aucun compte mail configuré" : "Préparer un email avec PJ et brouillon IA"}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              {preparingEmail ? "Préparation de l'email…" : "Envoyer par email (PJ + brouillon IA)"}
+            </Button>
+
             <div className="sticky bottom-0 -mx-6 flex gap-2 border-t bg-background px-6 py-3">
               <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
                 Annuler
@@ -1309,6 +1321,14 @@ export function TaskPanel({
         open={!!previewAttachment}
         onOpenChange={(v) => !v && setPreviewAttachment(null)}
       />
+      <EmailComposer
+        open={composerOpen}
+        onOpenChange={setComposerOpen}
+        accounts={composerAccounts}
+        initial={composerInitial}
+        initialAttachments={composerAttachments}
+      />
     </>
   );
+
 }
