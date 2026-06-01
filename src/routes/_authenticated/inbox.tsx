@@ -30,6 +30,7 @@ import {
   Settings2,
   RefreshCw,
   Loader2,
+  Undo2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
@@ -189,6 +190,15 @@ function InboxPage() {
   const [aiRanking, setAiRanking] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+  const [undoStack, setUndoStack] = useState<{ label: string; run: () => Promise<void> | void }[]>([]);
+  const pushUndo = (entry: { label: string; run: () => Promise<void> | void }) =>
+    setUndoStack((s) => [...s.slice(-9), entry]);
+  const runUndo = async () => {
+    const last = undoStack[undoStack.length - 1];
+    if (!last) return;
+    setUndoStack((s) => s.slice(0, -1));
+    try { await last.run(); } catch (e) { toast.error(e instanceof Error ? e.message : "Annulation impossible"); }
+  };
 
   const openComposer = (init: ComposerInitial) => {
     setComposerInitial(init);
@@ -723,11 +733,21 @@ function InboxPage() {
   const toggleRead = (e: Email) => patch(e.id, { is_read: !e.is_read });
   const toggleStar = (e: Email) => patch(e.id, { is_starred: !e.is_starred });
   const archive = async (e: Email) => {
+    const snapshot = e;
     setEmails((prev) => prev.filter((x) => x.id !== e.id));
     if (selectedId === e.id) setSelectedId(null);
     const { error } = await supabase.from("emails").update({ is_archived: true }).eq("id", e.id);
-    if (error) toast.error(error.message);
-    else toast.success("Email archivé");
+    if (error) { toast.error(error.message); return; }
+    toast.success("Email archivé");
+    pushUndo({
+      label: "Archivage",
+      run: async () => {
+        const { error: err } = await supabase.from("emails").update({ is_archived: false }).eq("id", snapshot.id);
+        if (err) throw new Error(err.message);
+        setEmails((prev) => (prev.some((x) => x.id === snapshot.id) ? prev : [snapshot, ...prev]));
+        toast.success("Archivage annulé");
+      },
+    });
   };
   const remove = async (e: Email) => {
     // Si déjà dans la corbeille → suppression définitive
@@ -768,13 +788,24 @@ function InboxPage() {
       .from("emails")
       .update({ deleted_at: now })
       .in("id", idsToDelete);
-    if (error) toast.error(error.message);
-    else
-      toast.success(
-        idsToDelete.length > 1
-          ? `${idsToDelete.length} emails déplacés vers la corbeille`
-          : "Email déplacé vers la corbeille",
-      );
+    if (error) { toast.error(error.message); return; }
+    toast.success(
+      idsToDelete.length > 1
+        ? `${idsToDelete.length} emails déplacés vers la corbeille`
+        : "Email déplacé vers la corbeille",
+    );
+    pushUndo({
+      label: "Mise à la corbeille",
+      run: async () => {
+        const { error: err } = await supabase
+          .from("emails")
+          .update({ deleted_at: null })
+          .in("id", idsToDelete);
+        if (err) throw new Error(err.message);
+        setEmails((prev) => prev.map((x) => (idsToDelete.includes(x.id) ? { ...x, deleted_at: null } : x)));
+        toast.success("Suppression annulée");
+      },
+    });
   };
 
   const restore = async (e: Email) => {
@@ -876,12 +907,26 @@ function InboxPage() {
   const bulkArchive = async () => {
     const ids = bulkIds();
     if (!ids.length) return;
+    const snapshots = emails.filter((x) => checked.has(x.id));
     setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
     if (selectedId && checked.has(selectedId)) setSelectedId(null);
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_archived: true }).in("id", ids);
-    if (error) toast.error(error.message);
-    else toast.success(`${ids.length} email(s) archivé(s)`);
+    if (error) { toast.error(error.message); return; }
+    toast.success(`${ids.length} email(s) archivé(s)`);
+    pushUndo({
+      label: "Archivage groupé",
+      run: async () => {
+        const { error: err } = await supabase.from("emails").update({ is_archived: false }).in("id", ids);
+        if (err) throw new Error(err.message);
+        setEmails((prev) => {
+          const known = new Set(prev.map((x) => x.id));
+          const missing = snapshots.filter((s) => !known.has(s.id));
+          return [...missing, ...prev];
+        });
+        toast.success("Archivage annulé");
+      },
+    });
   };
   const bulkDelete = async () => {
     const ids = bulkIds();
@@ -907,8 +952,17 @@ function InboxPage() {
         .from("emails")
         .update({ deleted_at: now })
         .in("id", ids);
-      if (error) toast.error(error.message);
-      else toast.success(`${ids.length} email(s) dans la corbeille`);
+      if (error) { toast.error(error.message); return; }
+      toast.success(`${ids.length} email(s) dans la corbeille`);
+      pushUndo({
+        label: "Mise à la corbeille (groupée)",
+        run: async () => {
+          const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
+          if (err) throw new Error(err.message);
+          setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: null } : x)));
+          toast.success("Suppression annulée");
+        },
+      });
     }
   };
   const bulkMarkRead = async (read: boolean) => {
@@ -1416,6 +1470,18 @@ function InboxPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            {undoStack.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 gap-1 px-2 text-xs"
+                onClick={runUndo}
+                title={`Annuler : ${undoStack[undoStack.length - 1].label}`}
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+                Annuler
+              </Button>
+            )}
             {(filter === "trash" || filter === "spam") && filtered.length > 0 && (
               <Button
                 size="sm"
@@ -1687,8 +1753,19 @@ function InboxPage() {
                       <MailOpen className="h-3.5 w-3.5" />
                     )}
                   </IconBtn>
+                  {e.deleted_at && (
+                    <IconBtn
+                      label="Restaurer"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        restore(e);
+                      }}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-emerald-600" />
+                    </IconBtn>
+                  )}
                   <IconBtn
-                    label="Supprimer"
+                    label={e.deleted_at ? "Supprimer définitivement" : "Supprimer"}
                     onClick={(ev) => {
                       ev.stopPropagation();
                       remove(e);
