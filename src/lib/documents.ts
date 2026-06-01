@@ -24,7 +24,13 @@ export type DocumentRow = {
   saved_at: string | null;
   created_at: string;
   updated_at: string;
+  ai_category: string | null;
+  ai_priority: string | null;
+  ai_summary: string | null;
+  ai_processed_at: string | null;
+  ai_skipped_reason: string | null;
 };
+
 
 
 const BUCKET = "documents";

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter, X, CheckCircle2, Cloud, Sparkles } from "lucide-react";
+import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter, X, CheckCircle2, Cloud, Sparkles, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,10 @@ import { DocumentPreviewSheet } from "@/components/documents/document-preview-sh
 import { DownloadOptionsDialog } from "@/components/inbox/download-options-dialog";
 import { type DocumentRow, getSignedUrl, removeFromStorage } from "@/lib/documents";
 import { deleteSecureBlob } from "@/lib/secure-documents";
+import { useServerFn } from "@tanstack/react-start";
+import { classifyPendingDocuments } from "@/lib/api/document-classify.functions";
+
+
 
 
 export const Route = createFileRoute("/_authenticated/documents")({
@@ -39,6 +43,20 @@ type SourceFilter =
 type TypeFilter = "all" | FileCategory;
 type DateFilter = "all" | "today" | "week" | "month";
 type SizeFilter = "all" | "heavy";
+type AiFilter = "all" | "unclassified" | "signature" | "facture" | "contrat" | "rapport" | "presentation" | "courrier" | "rh" | "technique" | "image" | "autre";
+
+const AI_CATEGORY_META: Record<string, { label: string; cls: string }> = {
+  facture: { label: "Facture", cls: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" },
+  contrat: { label: "Contrat", cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" },
+  rapport: { label: "Rapport", cls: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300" },
+  presentation: { label: "Présentation", cls: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300" },
+  courrier: { label: "Courrier", cls: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300" },
+  rh: { label: "RH", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" },
+  technique: { label: "Technique", cls: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200" },
+  image: { label: "Image", cls: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:text-fuchsia-300" },
+  signature: { label: "Signature", cls: "bg-muted text-muted-foreground" },
+  autre: { label: "Autre", cls: "bg-muted text-muted-foreground" },
+};
 
 function DocumentsPage() {
   const [docs, setDocs] = useState<DocumentRow[]>([]);
@@ -49,25 +67,65 @@ function DocumentsPage() {
   const [typeF, setTypeF] = useState<TypeFilter>("all");
   const [dateF, setDateF] = useState<DateFilter>("all");
   const [sizeF, setSizeF] = useState<SizeFilter>("all");
+  const [aiF, setAiF] = useState<AiFilter>("all");
+  const [minSizeKb, setMinSizeKb] = useState<number>(30);
+  const [classifying, setClassifying] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [preview, setPreview] = useState<DocumentRow | null>(null);
   const [saveTarget, setSaveTarget] = useState<DocumentRow | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const runClassify = useServerFn(classifyPendingDocuments);
+
 
 
   async function load() {
     setLoading(true);
-    const [d, a] = await Promise.all([
+    const [d, a, s] = await Promise.all([
       supabase.from("documents").select("*").order("created_at", { ascending: false }),
       supabase.from("accounts").select("id,name").order("name"),
+      supabase.from("document_retention_settings").select("ai_min_size_kb").maybeSingle(),
     ]);
     setDocs((d.data as DocumentRow[]) ?? []);
     setAccounts((a.data as Account[]) ?? []);
+    if (s.data?.ai_min_size_kb != null) setMinSizeKb(s.data.ai_min_size_kb);
     setLoading(false);
   }
 
   useEffect(() => { load(); }, []);
+
+  async function saveMinSize(v: number) {
+    const clamped = Math.max(0, Math.min(10000, Math.round(v)));
+    setMinSizeKb(clamped);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("document_retention_settings").upsert(
+      { user_id: user.id, ai_min_size_kb: clamped },
+      { onConflict: "user_id" },
+    );
+  }
+
+  async function classifyNow() {
+    if (classifying) return;
+    setClassifying(true);
+    try {
+      const res = await runClassify();
+      if ("error" in res && res.error) {
+        toast.error(res.error);
+      } else {
+        const p = (res as { processed?: number }).processed ?? 0;
+        const sk = (res as { skipped?: number }).skipped ?? 0;
+        if (p === 0 && sk === 0) toast.info("Aucun document à classer");
+        else toast.success(`${p} classé(s) par IA, ${sk} ignoré(s)`);
+        await load();
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec classification");
+    } finally {
+      setClassifying(false);
+    }
+  }
+
 
   const counts = useMemo(() => {
     const c = { all: docs.length, email: 0, task: 0, meeting: 0, manual: 0, sensitive: 0, saved: 0, unsaved: 0 } as Record<string, number>;
@@ -108,13 +166,19 @@ function DocumentsPage() {
         if (age > lim) return false;
       }
       if (sizeF === "heavy" && d.file_size < 5 * 1024 * 1024) return false;
+      if (aiF !== "all") {
+        if (aiF === "unclassified") {
+          if (d.ai_processed_at) return false;
+        } else if ((d.ai_category ?? "") !== aiF) return false;
+      }
+
       if (search) {
         const q = search.toLowerCase();
         if (!d.filename.toLowerCase().includes(q) && !(d.description ?? "").toLowerCase().includes(q)) return false;
       }
       return true;
     });
-  }, [docs, source, typeF, dateF, sizeF, search]);
+  }, [docs, source, typeF, dateF, sizeF, aiF, search]);
 
   const selectionMode = selected.size > 0;
   const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selected.has(d.id));
@@ -234,7 +298,30 @@ function DocumentsPage() {
                 <FilterChip active={sizeF === "all"} onClick={() => setSizeF("all")}>Toutes</FilterChip>
                 <FilterChip active={sizeF === "heavy"} onClick={() => setSizeF("heavy")}>{`> 5 Mo`}</FilterChip>
               </FilterGroup>
+              <FilterGroup label="Catégorie IA">
+                <FilterChip active={aiF === "all"} onClick={() => setAiF("all")}>Toutes</FilterChip>
+                <FilterChip active={aiF === "unclassified"} onClick={() => setAiF("unclassified")}>Non classés</FilterChip>
+                {(["facture","contrat","rapport","presentation","courrier","rh","technique","image","signature","autre"] as const).map((k) => (
+                  <FilterChip key={k} active={aiF === k} onClick={() => setAiF(k)}>{AI_CATEGORY_META[k]?.label ?? k}</FilterChip>
+                ))}
+              </FilterGroup>
+              <div className="mt-2 px-1">
+                <label className="text-[10px] uppercase text-muted-foreground block mb-1">Ignorer images &lt;</label>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={minSizeKb}
+                    onChange={(e) => setMinSizeKb(Number(e.target.value))}
+                    onBlur={(e) => saveMinSize(Number(e.target.value))}
+                    className="h-7 text-xs"
+                  />
+                  <span className="text-xs text-muted-foreground">Ko</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">Filtre les signatures et logos des emails.</p>
+              </div>
             </div>
+
           </div>
         </ScrollArea>
       </aside>
@@ -252,11 +339,18 @@ function DocumentsPage() {
             <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" className="pl-9" />
           </div>
+          {!selectionMode && (
+            <Button variant="outline" size="sm" onClick={classifyNow} disabled={classifying} className="gap-1.5">
+              {classifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">Classer IA</span>
+            </Button>
+          )}
           {!selectionMode && filtered.length > 0 && (
             <Button variant="outline" size="sm" onClick={selectAllFiltered} className="hidden sm:inline-flex">
               Sélectionner
             </Button>
           )}
+
         </div>
 
         {/* Selection toolbar */}
@@ -512,10 +606,17 @@ function DocRow({
           <div className="flex-1 min-w-0 text-left">
             <p className="text-sm font-medium truncate">{doc.filename}</p>
             <p className="text-xs text-muted-foreground">{formatBytes(doc.file_size)} · {format(new Date(doc.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
+            {doc.ai_summary && <p className="text-xs text-muted-foreground/80 truncate italic mt-0.5">{doc.ai_summary}</p>}
           </div>
+
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full", src.cls)}>{src.label}</span>
+          {doc.ai_category && AI_CATEGORY_META[doc.ai_category] && (
+            <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full gap-0.5 inline-flex items-center", AI_CATEGORY_META[doc.ai_category].cls)}>
+              <Sparkles className="h-2.5 w-2.5" />{AI_CATEGORY_META[doc.ai_category].label}
+            </span>
+          )}
           {doc.is_sensitive && <Badge variant="destructive" className="text-[10px] gap-0.5"><Lock className="h-2.5 w-2.5" />Sensible</Badge>}
           {doc.onedrive_item_id ? (
             doc.onedrive_web_url ? (

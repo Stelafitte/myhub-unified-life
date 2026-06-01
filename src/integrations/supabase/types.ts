@@ -306,6 +306,7 @@ export type Database = {
       }
       document_retention_settings: {
         Row: {
+          ai_min_size_kb: number
           created_at: string
           email_retention_days: number
           manual_retention_days: number
@@ -316,6 +317,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_min_size_kb?: number
           created_at?: string
           email_retention_days?: number
           manual_retention_days?: number
@@ -326,6 +328,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_min_size_kb?: number
           created_at?: string
           email_retention_days?: number
           manual_retention_days?: number
@@ -340,6 +343,11 @@ export type Database = {
       documents: {
         Row: {
           account_id: string | null
+          ai_category: string | null
+          ai_priority: string | null
+          ai_processed_at: string | null
+          ai_skipped_reason: string | null
+          ai_summary: string | null
           checksum: string | null
           created_at: string
           description: string | null
@@ -365,6 +373,11 @@ export type Database = {
         }
         Insert: {
           account_id?: string | null
+          ai_category?: string | null
+          ai_priority?: string | null
+          ai_processed_at?: string | null
+          ai_skipped_reason?: string | null
+          ai_summary?: string | null
           checksum?: string | null
           created_at?: string
           description?: string | null
@@ -390,6 +403,11 @@ export type Database = {
         }
         Update: {
           account_id?: string | null
+          ai_category?: string | null
+          ai_priority?: string | null
+          ai_processed_at?: string | null
+          ai_skipped_reason?: string | null
+          ai_summary?: string | null
           checksum?: string | null
           created_at?: string
           description?: string | null
