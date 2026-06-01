@@ -754,14 +754,31 @@ function InboxPage() {
   const emptyTrash = async () => {
     const ids = emails.filter(isTrashed).map((x) => x.id);
     if (!ids.length) return;
-    if (!confirm(`Vider la corbeille (${ids.length} email${ids.length > 1 ? "s" : ""}) ? Cette action est définitive.`))
+    if (!confirm(`Vider la corbeille (${ids.length} email${ids.length > 1 ? "s" : ""}) ? Les messages seront aussi supprimés sur le serveur (Gmail/Outlook/IMAP).`))
       return;
     setEmails((prev) => prev.filter((x) => !ids.includes(x.id)));
     if (selectedId && ids.includes(selectedId)) setSelectedId(null);
+    // 1) Supprime localement → le trigger DB crée automatiquement les tombstones.
     const { error } = await supabase.from("emails").delete().in("id", ids);
-    if (error) toast.error(error.message);
-    else toast.success("Corbeille vidée");
+    if (error) { toast.error(error.message); return; }
+    toast.success("Corbeille vidée");
+    // 2) Purge côté serveur (best-effort, parallèle).
+    toast.message("Suppression à la source…");
+    const calls = await Promise.allSettled([
+      supabase.functions.invoke("purge-gmail-source", { body: {} }),
+      supabase.functions.invoke("purge-outlook-source", { body: {} }),
+      supabase.functions.invoke("purge-imap-source", { body: {} }),
+    ]);
+    let purged = 0;
+    for (const c of calls) {
+      if (c.status === "fulfilled") {
+        const d = (c.value as { data?: { purged?: number } }).data;
+        purged += d?.purged ?? 0;
+      }
+    }
+    toast.success(`${purged} message${purged > 1 ? "s" : ""} supprimé${purged > 1 ? "s" : ""} à la source`);
   };
+
 
   const emptySpam = async () => {
     const ids = emails.filter((x) => isSpam(x) && !isTrashed(x)).map((x) => x.id);
