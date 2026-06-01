@@ -29,7 +29,9 @@ export function AiSuggestionsPanel({
   userId,
   onCreateTask,
   onArchive,
+  onUseReply,
 }: Props) {
+
   const fn = useServerFn(getEmailSuggestions);
   const [data, setData] = useState<EmailSuggestions | null>(null);
   const [loading, setLoading] = useState(false);
