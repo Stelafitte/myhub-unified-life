@@ -123,6 +123,16 @@ export function TaskPanel({
   const [newLinkName, setNewLinkName] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
 
+  // Envoi par email depuis la tâche
+  type ComposerAccount = { id: string; name: string; type: string; color: string | null; icon: string | null; credentials: Record<string, unknown> | null };
+  const [composerAccounts, setComposerAccounts] = useState<ComposerAccount[]>([]);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
+  const [preparingEmail, setPreparingEmail] = useState(false);
+  const draftEmail = useServerFn(generateTaskEmail);
+
+
 
 
   // Thèmes / sous-thèmes du Plan d'opération
