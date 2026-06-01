@@ -306,7 +306,7 @@ function DocumentsPage() {
                 ))}
               </FilterGroup>
               <div className="mt-2 px-1">
-                <label className="text-[10px] uppercase text-muted-foreground block mb-1">Ignorer images &lt;</label>
+                <label className="text-[10px] uppercase text-muted-foreground block mb-1">Ignorer fichiers &lt;</label>
                 <div className="flex items-center gap-1.5">
                   <Input
                     type="number"
@@ -318,7 +318,7 @@ function DocumentsPage() {
                   />
                   <span className="text-xs text-muted-foreground">Ko</span>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">Filtre les signatures et logos des emails.</p>
+                <p className="text-[10px] text-muted-foreground mt-1">S'applique à tous les fichiers (signatures, logos, fragments…).</p>
               </div>
             </div>
 
