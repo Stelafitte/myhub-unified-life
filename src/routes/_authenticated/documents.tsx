@@ -309,6 +309,7 @@ function DocumentsPage() {
                     onPreview={() => selectionMode ? toggleSelect(d.id) : setPreview(d)}
                     onDelete={() => deleteDoc(d)}
                     onCopy={() => copyLink(d)}
+                    onSaveToOneDrive={() => setSaveTarget(d)}
                   />
                 ))}
               </div>
@@ -319,6 +320,12 @@ function DocumentsPage() {
 
       <UploadDocumentDialog open={uploadOpen} onOpenChange={setUploadOpen} onUploaded={load} />
       <DocumentPreviewSheet doc={preview} onOpenChange={(o) => !o && setPreview(null)} />
+      <DownloadOptionsDialog
+        doc={saveTarget}
+        open={!!saveTarget}
+        onOpenChange={(o) => { if (!o) { setSaveTarget(null); load(); } }}
+      />
+
     </div>
   );
 }
