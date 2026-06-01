@@ -29,6 +29,17 @@ export function useSyncStatus() {
     };
   }, [refreshPending]);
 
+  // Auto-sync every 2 minutes when online
+  useEffect(() => {
+    if (!online) return;
+    const interval = setInterval(() => {
+      if (!syncing && navigator.onLine) {
+        syncNowRef.current?.().catch((e) => console.warn("[auto-sync] failed", e));
+      }
+    }, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [online, syncing]);
+
   const syncNow = useCallback(async (opts?: { forceFull?: boolean }): Promise<{ flushed: number; imap: number }> => {
     setSyncing(true);
     try {
