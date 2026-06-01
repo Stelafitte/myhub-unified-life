@@ -132,6 +132,7 @@ export function ThemesManagerDialog({
   const [newName, setNewName] = useState("");
   const [mergeFrom, setMergeFrom] = useState<string | null>(null);
   const [tab, setTab] = useState<"pro" | "perso">("pro");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const refresh = async () => {
     setLoading(true);
