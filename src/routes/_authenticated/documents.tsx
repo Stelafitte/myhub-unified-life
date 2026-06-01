@@ -81,16 +81,51 @@ function DocumentsPage() {
 
   async function load() {
     setLoading(true);
-    const [d, a] = await Promise.all([
+    const [d, a, s] = await Promise.all([
       supabase.from("documents").select("*").order("created_at", { ascending: false }),
       supabase.from("accounts").select("id,name").order("name"),
+      supabase.from("document_retention_settings").select("ai_min_size_kb").maybeSingle(),
     ]);
     setDocs((d.data as DocumentRow[]) ?? []);
     setAccounts((a.data as Account[]) ?? []);
+    if (s.data?.ai_min_size_kb != null) setMinSizeKb(s.data.ai_min_size_kb);
     setLoading(false);
   }
 
   useEffect(() => { load(); }, []);
+
+  async function saveMinSize(v: number) {
+    const clamped = Math.max(0, Math.min(10000, Math.round(v)));
+    setMinSizeKb(clamped);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("document_retention_settings").upsert(
+      { user_id: user.id, ai_min_size_kb: clamped },
+      { onConflict: "user_id" },
+    );
+  }
+
+  async function classifyNow() {
+    if (classifying) return;
+    setClassifying(true);
+    try {
+      const res = await runClassify();
+      if ("error" in res && res.error) {
+        toast.error(res.error);
+      } else {
+        const p = (res as { processed?: number }).processed ?? 0;
+        const sk = (res as { skipped?: number }).skipped ?? 0;
+        if (p === 0 && sk === 0) toast.info("Aucun document à classer");
+        else toast.success(`${p} classé(s) par IA, ${sk} ignoré(s)`);
+        await load();
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec classification");
+    } finally {
+      setClassifying(false);
+    }
+  }
+
 
   const counts = useMemo(() => {
     const c = { all: docs.length, email: 0, task: 0, meeting: 0, manual: 0, sensitive: 0, saved: 0, unsaved: 0 } as Record<string, number>;
