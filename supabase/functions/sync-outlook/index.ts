@@ -39,9 +39,11 @@ function stripHtml(html: string): string {
 
 async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; count: number; error?: string }> {
   try {
-    // Premier sync : 30 jours d'historique, ensuite incrémental.
+    // Premier sync : 30 jours d'historique. Sinon incrémental avec recouvrement de 24h
+    // pour rattraper les mails arrivés en retard / clock skew.
+    const OVERLAP_MS = 24 * 3600 * 1000;
     const sinceIso = account.last_sync_at
-      ? account.last_sync_at
+      ? new Date(new Date(account.last_sync_at).getTime() - OVERLAP_MS).toISOString()
       : new Date(Date.now() - 30 * 86400000).toISOString();
     const filter = encodeURIComponent(`receivedDateTime ge ${new Date(sinceIso).toISOString()}`);
     const select = encodeURIComponent("id,internetMessageId,subject,from,toRecipients,receivedDateTime,bodyPreview,body,isRead,hasAttachments,conversationId,flag");
