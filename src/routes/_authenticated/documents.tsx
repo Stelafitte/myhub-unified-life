@@ -31,7 +31,10 @@ type SourceFilter =
   | { kind: "task" }
   | { kind: "meeting" }
   | { kind: "manual" }
-  | { kind: "sensitive" };
+  | { kind: "sensitive" }
+  | { kind: "saved" }
+  | { kind: "unsaved" };
+
 
 type TypeFilter = "all" | FileCategory;
 type DateFilter = "all" | "today" | "week" | "month";
