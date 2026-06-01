@@ -56,17 +56,16 @@ export const getEmailSuggestions = createServerFn({ method: "POST" })
       bodyHtml.match(linkRegex)?.[0] ??
       null;
 
-    // Récupère les événements de l'agenda sur 14 jours pour vérifier la disponibilité
+    // Récupère tous les événements futurs de l'agenda (pas de fenêtre fixe) pour
+    // vérifier la disponibilité aux dates effectivement proposées dans l'email.
     const horizonStart = new Date();
-    const horizonEnd = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
     const { data: busyEvents } = await supabase
       .from("calendar_events")
       .select("title,start_at,end_at,is_all_day")
       .eq("user_id", userId)
       .gte("end_at", horizonStart.toISOString())
-      .lte("start_at", horizonEnd.toISOString())
       .order("start_at", { ascending: true })
-      .limit(200);
+      .limit(500);
 
     const busySlots = (busyEvents ?? [])
       .map((ev) => {
@@ -95,17 +94,18 @@ Détecte une date/heure de réunion explicite pour "event".
 Si l'email contient un lien Zoom/Teams/Meet/Webex, inclus-le dans "online_link".
 "archive_suggested" = true si newsletter, notif auto, publicité.
 
-DISPONIBILITÉ AGENDA (CRUCIAL pour toute proposition de réunion) :
-Créneaux DÉJÀ OCCUPÉS de l'utilisateur dans les 14 prochains jours (heure locale ${tz}) :
+VÉRIFICATION DISPONIBILITÉ AGENDA (CRUCIAL) :
+Liste complète des créneaux OCCUPÉS à venir de l'utilisateur (heure locale ${tz}) :
 ${busySlots || "(aucun événement, agenda libre)"}
 
-Règles strictes pour toute proposition de créneau dans "replies" :
-1. NE JAMAIS proposer un créneau qui chevauche un événement ci-dessus.
-2. Respecter les heures ouvrées par défaut (lun-ven, 9h-19h) sauf indication contraire dans l'email.
-3. Si l'expéditeur propose un créneau précis, vérifier la disponibilité :
-   - Si LIBRE : confirmer (ex. "Je suis disponible jeudi à 18h30, c'est noté.").
-   - Si OCCUPÉ : décliner poliment et proposer 2 alternatives libres proches.
-4. Si tu proposes un créneau de ta propre initiative, ajouter "(créneau vérifié libre dans mon agenda)".
+Procédure obligatoire avant toute proposition de créneau :
+1. Identifier dans l'email TOUTES les dates/heures proposées par l'expéditeur, quelle que soit l'échéance.
+2. Pour CHAQUE date proposée, vérifier le chevauchement avec la liste ci-dessus.
+   - Si LIBRE : confirmer (ex. "Je suis disponible jeudi 5 juin à 18h30, c'est noté.").
+   - Si OCCUPÉ : décliner poliment en indiquant le conflit, et proposer 2 alternatives libres proches de la date demandée.
+3. NE JAMAIS proposer ni accepter un créneau qui chevauche un événement de la liste.
+4. Respecter les heures ouvrées par défaut (lun-ven, 9h-19h) sauf indication contraire dans l'email.
+5. Si tu proposes un créneau de ta propre initiative, ajouter "(créneau vérifié libre dans mon agenda)".
 
 Les réponses doivent être en français, signées avec "Cordialement".`;
 
