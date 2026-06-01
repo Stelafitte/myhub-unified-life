@@ -19,6 +19,8 @@ import {
   Mail,
 } from "lucide-react";
 import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
+import { MeetingDialog } from "@/components/meetings/meeting-dialog";
+import { Sparkles } from "lucide-react";
 import { getSignedUrl, type DocumentRow } from "@/lib/documents";
 import { formatBytes } from "@/lib/file-icons";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
@@ -1129,10 +1131,14 @@ function EventDetail({
   const [linkedEmail, setLinkedEmail] = useState<EmailLite | null>(null);
   const [linkedDocs, setLinkedDocs] = useState<DocumentRow[]>([]);
   const [previewDoc, setPreviewDoc] = useState<DocumentRow | null>(null);
+  const [linkedMeetingId, setLinkedMeetingId] = useState<string | null>(null);
+  const [meetingDialogOpen, setMeetingDialogOpen] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     setLinkedEmail(null);
     setLinkedDocs([]);
+    setLinkedMeetingId(null);
     if (event.kind !== "event") return;
     const evId = (event.raw as DbEvent).id;
     let cancelled = false;
@@ -1144,6 +1150,7 @@ function EventDetail({
         .eq("calendar_event_id", evId);
       const emailId = mtgs?.find((m) => m.source_email_id)?.source_email_id ?? null;
       const meetingIds = (mtgs ?? []).map((m) => m.id);
+      setLinkedMeetingId(meetingIds[0] ?? null);
 
       // 2) Fetch the linked email
       let email: EmailLite | null = null;
@@ -1189,6 +1196,44 @@ function EventDetail({
       toast.error(e instanceof Error ? e.message : "Pièce jointe indisponible");
     }
   };
+
+  const openFullDetails = async () => {
+    if (event.kind !== "event") return;
+    if (linkedMeetingId) {
+      setMeetingDialogOpen(true);
+      return;
+    }
+    if (!user) {
+      toast.error("Connexion requise");
+      return;
+    }
+    try {
+      const evId = (event.raw as DbEvent).id;
+      const { data: newMtg, error } = await supabase
+        .from("meetings")
+        .insert({
+          user_id: user.id,
+          title: event.title,
+          description: dbEv.description ?? null,
+          start_at: event.start.toISOString(),
+          end_at: event.end.toISOString(),
+          location: event.location ?? null,
+          is_online: !!event.hasVideo,
+          calendar_event_id: evId,
+          status: "scheduled",
+          importance: "normal",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      setLinkedMeetingId(newMtg.id);
+      setMeetingDialogOpen(true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Impossible d'ouvrir les détails");
+    }
+  };
+
+
 
 
   return (
@@ -1358,7 +1403,13 @@ function EventDetail({
 
 
       <footer className="space-y-2 border-t p-3">
-        <Button className="w-full gap-1.5" onClick={onCreateTask}>
+        {event.kind === "event" && (
+          <Button className="w-full gap-1.5" onClick={openFullDetails}>
+            <Sparkles className="h-4 w-4" />
+            {linkedMeetingId ? "Détails complets" : "Ouvrir comme réunion"}
+          </Button>
+        )}
+        <Button variant="outline" className="w-full gap-1.5" onClick={onCreateTask}>
           <CheckSquare className="h-4 w-4" /> Créer une tâche liée
         </Button>
         {onShare && (
@@ -1377,6 +1428,16 @@ function EventDetail({
           </p>
         )}
       </footer>
+
+      <MeetingDialog
+        open={meetingDialogOpen}
+        onOpenChange={setMeetingDialogOpen}
+        meetingId={linkedMeetingId}
+        onSaved={() => {
+          setMeetingDialogOpen(false);
+          onUpdated?.();
+        }}
+      />
     </aside>
   );
 }
