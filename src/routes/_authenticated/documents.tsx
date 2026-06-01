@@ -408,20 +408,43 @@ function DocumentsPage() {
                 Aucun document.
               </Card>
             ) : (
-              <div className="space-y-1">
-                {filtered.map((d) => (
-                  <DocRow
-                    key={d.id}
-                    doc={d}
-                    selectionMode={selectionMode}
-                    selected={selected.has(d.id)}
-                    onToggleSelect={() => toggleSelect(d.id)}
-                    onPreview={() => selectionMode ? toggleSelect(d.id) : setPreview(d)}
-                    onDelete={() => deleteDoc(d)}
-                    onCopy={() => copyLink(d)}
-                    onSaveToOneDrive={() => setSaveTarget(d)}
-                  />
-                ))}
+              <div className="space-y-4">
+                {grouped.map(({ key, docs: groupDocs }) => {
+                  const meta = key === "__unclassified"
+                    ? { label: "Non classés", cls: "bg-muted text-muted-foreground" }
+                    : (AI_CATEGORY_META[key] ?? { label: key, cls: "bg-muted text-muted-foreground" });
+                  const collapsed = collapsedGroups.has(key);
+                  return (
+                    <div key={key}>
+                      <button
+                        onClick={() => toggleGroup(key)}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 mb-1 rounded hover:bg-muted/50 transition-colors text-left"
+                      >
+                        <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full", meta.cls)}>{meta.label}</span>
+                        <span className="text-xs text-muted-foreground">{groupDocs.length}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">{collapsed ? "▸" : "▾"}</span>
+                      </button>
+                      {!collapsed && (
+                        <div className="space-y-1">
+                          {groupDocs.map((d) => (
+                            <DocRow
+                              key={d.id}
+                              doc={d}
+                              selectionMode={selectionMode}
+                              selected={selected.has(d.id)}
+                              onToggleSelect={() => toggleSelect(d.id)}
+                              onPreview={() => selectionMode ? toggleSelect(d.id) : setPreview(d)}
+                              onDelete={() => deleteDoc(d)}
+                              onCopy={() => copyLink(d)}
+                              onSaveToOneDrive={() => setSaveTarget(d)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
