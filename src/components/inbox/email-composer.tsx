@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { sendEmail } from "@/lib/api/email-send.functions";
+import { RecipientInput } from "@/components/inbox/recipient-input";
+import { applySignature, getSignatureForAccount } from "@/lib/email-signatures";
 
 type ComposerAccount = {
   id: string;
@@ -15,6 +17,7 @@ type ComposerAccount = {
   type: string;
   color: string | null;
   icon: string | null;
+  credentials?: Record<string, unknown> | null;
 };
 
 export type ComposerInitial = {
@@ -28,7 +31,7 @@ export type ComposerInitial = {
   references?: string;
 };
 
-type Attachment = {
+export type ComposerAttachment = {
   name: string;
   type: string;
   size: number;
@@ -62,11 +65,13 @@ export function EmailComposer({
   onOpenChange,
   accounts,
   initial,
+  initialAttachments,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   accounts: ComposerAccount[];
   initial: ComposerInitial;
+  initialAttachments?: ComposerAttachment[];
 }) {
   const sendable = accounts.filter((a) => SENDABLE_TYPES.has(a.type));
   const [accountId, setAccountId] = useState<string>(initial.defaultAccountId ?? sendable[0]?.id ?? "");
@@ -76,24 +81,36 @@ export function EmailComposer({
   const [subject, setSubject] = useState(initial.subject ?? "");
   const [body, setBody] = useState(initial.body ?? "");
   const [showCc, setShowCc] = useState(!!initial.cc);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachments, setAttachments] = useState<ComposerAttachment[]>(initialAttachments ?? []);
   const [busy, setBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const send = useServerFn(sendEmail);
 
+  // Réinitialiser à l'ouverture, en appliquant la signature du compte choisi.
   useEffect(() => {
-    if (open) {
-      setAccountId(initial.defaultAccountId ?? sendable[0]?.id ?? "");
-      setTo(initial.to ?? "");
-      setCc(initial.cc ?? "");
-      setBcc("");
-      setSubject(initial.subject ?? "");
-      setBody(initial.body ?? "");
-      setShowCc(!!initial.cc);
-      setAttachments([]);
-    }
+    if (!open) return;
+    const nextAccountId = initial.defaultAccountId ?? sendable[0]?.id ?? "";
+    setAccountId(nextAccountId);
+    setTo(initial.to ?? "");
+    setCc(initial.cc ?? "");
+    setBcc("");
+    setSubject(initial.subject ?? "");
+    setShowCc(!!initial.cc);
+    setAttachments(initialAttachments ?? []);
+    const acct = sendable.find((a) => a.id === nextAccountId) ?? null;
+    const sig = getSignatureForAccount(acct);
+    setBody(applySignature(initial.body ?? "", sig));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Re-appliquer la signature quand l'utilisateur change le compte expéditeur.
+  useEffect(() => {
+    if (!open) return;
+    const acct = sendable.find((a) => a.id === accountId) ?? null;
+    const sig = getSignatureForAccount(acct);
+    setBody((prev) => applySignature(prev, sig));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
 
   const onPickFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -101,7 +118,7 @@ export function EmailComposer({
     if (files.length === 0) return;
     const currentTotal = attachments.reduce((a, b) => a + b.size, 0);
     let runningTotal = currentTotal;
-    const next: Attachment[] = [];
+    const next: ComposerAttachment[] = [];
     for (const f of files) {
       if (runningTotal + f.size > MAX_TOTAL_BYTES) {
         toast.error(`"${f.name}" ignoré — limite totale 20 Mo`);
@@ -129,9 +146,9 @@ export function EmailComposer({
       await send({
         data: {
           account_id: accountId,
-          to: to.trim(),
-          cc: cc.trim() || undefined,
-          bcc: bcc.trim() || undefined,
+          to: to.trim().replace(/,\s*$/, ""),
+          cc: cc.trim().replace(/,\s*$/, "") || undefined,
+          bcc: bcc.trim().replace(/,\s*$/, "") || undefined,
           subject: subject.trim(),
           body,
           in_reply_to: initial.inReplyTo,
@@ -181,7 +198,7 @@ export function EmailComposer({
           </div>
           <div className="flex items-center gap-2">
             <label className="w-16 text-xs text-muted-foreground">À</label>
-            <Input value={to} onChange={(e) => setTo(e.target.value)} placeholder="alice@exemple.com, bob@…" className="h-9 flex-1" />
+            <RecipientInput value={to} onChange={setTo} placeholder="alice@exemple.com, bob@…" />
             {!showCc && (
               <button type="button" onClick={() => setShowCc(true)} className="text-xs text-muted-foreground hover:text-foreground">Cc/Bcc</button>
             )}
@@ -190,11 +207,11 @@ export function EmailComposer({
             <>
               <div className="flex items-center gap-2">
                 <label className="w-16 text-xs text-muted-foreground">Cc</label>
-                <Input value={cc} onChange={(e) => setCc(e.target.value)} className="h-9 flex-1" />
+                <RecipientInput value={cc} onChange={setCc} />
               </div>
               <div className="flex items-center gap-2">
                 <label className="w-16 text-xs text-muted-foreground">Bcc</label>
-                <Input value={bcc} onChange={(e) => setBcc(e.target.value)} className="h-9 flex-1" />
+                <RecipientInput value={bcc} onChange={setBcc} />
               </div>
             </>
           )}
@@ -205,7 +222,7 @@ export function EmailComposer({
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            rows={12}
+            rows={14}
             placeholder="Votre message…"
             className="resize-none"
           />

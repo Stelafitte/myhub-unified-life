@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download, Upload, Link, ExternalLink } from "lucide-react";
+import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download, Upload, Link, ExternalLink, Send } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
+import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { enqueue, requestAutoSync } from "@/lib/sync-queue";
 import { analyzeTaskText } from "@/lib/api/task-analysis.functions";
-import { getSignedUrl, sha256, storagePath, uploadToStorage, type DocumentRow } from "@/lib/documents";
+import { generateTaskEmail } from "@/lib/api/task-email-draft.functions";
+import { downloadAsBlob, getSignedUrl, sha256, storagePath, uploadToStorage, type DocumentRow } from "@/lib/documents";
 import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
+import { EmailComposer, type ComposerAttachment, type ComposerInitial } from "@/components/inbox/email-composer";
 import { formatBytes } from "@/lib/file-icons";
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -120,6 +123,16 @@ export function TaskPanel({
   const [newLinkName, setNewLinkName] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
 
+  // Envoi par email depuis la tâche
+  type ComposerAccount = { id: string; name: string; type: string; color: string | null; icon: string | null; credentials: Record<string, unknown> | null };
+  const [composerAccounts, setComposerAccounts] = useState<ComposerAccount[]>([]);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
+  const [preparingEmail, setPreparingEmail] = useState(false);
+  const draftEmail = useServerFn(generateTaskEmail);
+
+
 
 
   // Thèmes / sous-thèmes du Plan d'opération
@@ -225,6 +238,87 @@ export function TaskPanel({
     setOpSubthemes(((s.data ?? []) as OpSubtheme[]));
   };
   useEffect(() => { if (open && user) void loadOpThemes(); /* eslint-disable-next-line */ }, [open, user]);
+
+  // Charger les comptes mail actifs (pour l'envoi depuis la tâche).
+  useEffect(() => {
+    if (!open || !user) return;
+    let cancel = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("accounts")
+        .select("id,name,type,color,icon,credentials")
+        .eq("user_id", user.id)
+        .eq("is_active", true);
+      if (!cancel) setComposerAccounts((data ?? []) as ComposerAccount[]);
+    })();
+    return () => { cancel = true; };
+  }, [open, user]);
+
+  const blobToBase64 = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onerror = () => reject(fr.error ?? new Error("read error"));
+      fr.onload = () => {
+        const res = fr.result as string;
+        const idx = res.indexOf(",");
+        resolve(idx >= 0 ? res.slice(idx + 1) : res);
+      };
+      fr.readAsDataURL(blob);
+    });
+
+  const sendByEmail = async () => {
+    if (!title.trim()) { toast.error("La tâche doit avoir un titre."); return; }
+    setPreparingEmail(true);
+    try {
+      // 1) Préparer les pièces jointes (depuis le stockage)
+      const collected: ComposerAttachment[] = [];
+      const MAX = 18 * 1024 * 1024;
+      let total = 0;
+      const tryAdd = async (name: string, mime: string | null | undefined, path: string) => {
+        try {
+          const blob = await downloadAsBlob(path);
+          if (total + blob.size > MAX) { toast.warning(`"${name}" ignoré — limite 18 Mo`); return; }
+          const contentBase64 = await blobToBase64(blob);
+          collected.push({ name, type: mime || blob.type || "application/octet-stream", size: blob.size, contentBase64 });
+          total += blob.size;
+        } catch {
+          toast.warning(`"${name}" ignoré — téléchargement impossible`);
+        }
+      };
+      for (const doc of attachmentDocs) {
+        if (doc.storage_path && !doc.local_only) await tryAdd(doc.original_filename, doc.mime_type, doc.storage_path);
+      }
+      for (const a of fallbackAttachments) {
+        if (a.storage_path) await tryAdd(a.name ?? "fichier", a.mime ?? null, a.storage_path);
+      }
+
+      // 2) Générer le corps via IA
+      let subjectAi = title.trim();
+      let bodyAi = "";
+      try {
+        const draft = await draftEmail({
+          data: {
+            title: title.trim(),
+            description: description || null,
+            comments: comments || null,
+            attachments: collected.map((c) => c.name),
+          },
+        });
+        subjectAi = draft.subject || subjectAi;
+        bodyAi = draft.body || "";
+      } catch (e) {
+        toast.warning(e instanceof Error ? e.message : "IA indisponible — corps vide");
+      }
+
+      // 3) Ouvrir le composer
+      setComposerAttachments(collected);
+      setComposerInitial({ mode: "new", subject: subjectAi, body: bodyAi });
+      setComposerOpen(true);
+    } finally {
+      setPreparingEmail(false);
+    }
+  };
+
 
   // Initialiser theme/subtheme à partir des tags de la tâche
   useEffect(() => {
@@ -1199,6 +1293,18 @@ export function TaskPanel({
               </Badge>
             )}
 
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={sendByEmail}
+              disabled={preparingEmail || composerAccounts.length === 0}
+              title={composerAccounts.length === 0 ? "Aucun compte mail configuré" : "Préparer un email avec PJ et brouillon IA"}
+            >
+              <Send className="mr-2 h-4 w-4" />
+              {preparingEmail ? "Préparation de l'email…" : "Envoyer par email (PJ + brouillon IA)"}
+            </Button>
+
             <div className="sticky bottom-0 -mx-6 flex gap-2 border-t bg-background px-6 py-3">
               <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
                 Annuler
@@ -1215,6 +1321,14 @@ export function TaskPanel({
         open={!!previewAttachment}
         onOpenChange={(v) => !v && setPreviewAttachment(null)}
       />
+      <EmailComposer
+        open={composerOpen}
+        onOpenChange={setComposerOpen}
+        accounts={composerAccounts}
+        initial={composerInitial}
+        initialAttachments={composerAttachments}
+      />
     </>
   );
+
 }
