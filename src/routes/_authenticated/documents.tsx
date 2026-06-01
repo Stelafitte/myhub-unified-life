@@ -94,10 +94,13 @@ function DocumentsPage() {
     const dayMs = 86400000;
     return docs.filter((d) => {
       if (source.kind === "sensitive" && !d.is_sensitive) return false;
-      if (source.kind !== "all" && source.kind !== "sensitive") {
+      if (source.kind === "saved" && !d.onedrive_item_id) return false;
+      if (source.kind === "unsaved" && d.onedrive_item_id) return false;
+      if (source.kind !== "all" && source.kind !== "sensitive" && source.kind !== "saved" && source.kind !== "unsaved") {
         if (d.source_type !== source.kind) return false;
         if (source.kind === "email" && source.accountId && d.account_id !== source.accountId) return false;
       }
+
       if (typeF !== "all" && categorize(d.mime_type, d.filename) !== typeF) return false;
       if (dateF !== "all") {
         const age = now - new Date(d.created_at).getTime();
