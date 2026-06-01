@@ -29,12 +29,14 @@ export function useSyncStatus() {
     };
   }, [refreshPending]);
 
+  const syncNowRef = useRef<((opts?: { forceFull?: boolean }) => Promise<{ flushed: number; imap: number }>) | null>(null);
+
   // Auto-sync every 2 minutes when online
   useEffect(() => {
     if (!online) return;
     const interval = setInterval(() => {
       if (!syncing && navigator.onLine) {
-        syncNowRef.current?.().catch((e) => console.warn("[auto-sync] failed", e));
+        syncNowRef.current?.().catch((e: unknown) => console.warn("[auto-sync] failed", e));
       }
     }, 2 * 60 * 1000);
     return () => clearInterval(interval);
