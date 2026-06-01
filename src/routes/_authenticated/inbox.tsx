@@ -1753,8 +1753,19 @@ function InboxPage() {
                       <MailOpen className="h-3.5 w-3.5" />
                     )}
                   </IconBtn>
+                  {e.deleted_at && (
+                    <IconBtn
+                      label="Restaurer"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        restore(e);
+                      }}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-emerald-600" />
+                    </IconBtn>
+                  )}
                   <IconBtn
-                    label="Supprimer"
+                    label={e.deleted_at ? "Supprimer définitivement" : "Supprimer"}
                     onClick={(ev) => {
                       ev.stopPropagation();
                       remove(e);
