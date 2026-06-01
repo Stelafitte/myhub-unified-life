@@ -229,10 +229,10 @@ export const classifyPendingThemes = createServerFn({ method: "POST" })
     // Load themes
     const { data: themesRows } = await supabase
       .from("email_themes")
-      .select("id,name,description,keywords")
+      .select("id,name,description,keywords,utility_level,scope")
       .eq("user_id", userId)
       .is("archived_at", null);
-    const themes = (themesRows ?? []) as { id: string; name: string; description: string | null; keywords: string[] }[];
+    const themes = (themesRows ?? []) as { id: string; name: string; description: string | null; keywords: string[]; utility_level?: string; scope?: string }[];
     const themeByName = new Map(themes.map((t) => [t.name.toLowerCase(), t]));
 
     // Load sender memory
