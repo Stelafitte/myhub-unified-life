@@ -1691,14 +1691,21 @@ function InboxPage() {
         {selected && (
           <button
             onClick={() => {
-              setReaderOpen(false);
-              setSelectedId(null);
+              // Si une entrée d'historique a été empilée pour le lecteur,
+              // on la dépile pour rester cohérent avec le bouton retour natif.
+              if (typeof window !== "undefined" && window.history.state?.inboxReader) {
+                window.history.back();
+              } else {
+                setReaderOpen(false);
+                setSelectedId(null);
+              }
             }}
             className="flex items-center gap-1 border-b px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent lg:hidden"
           >
             <ChevronDown className="h-3.5 w-3.5 rotate-90" /> Retour à la liste
           </button>
         )}
+
         {!selected ? (
           <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
             Sélectionnez un email pour le lire
