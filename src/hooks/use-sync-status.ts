@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { listPending, flushQueue } from "@/lib/sync-queue";
 
@@ -28,6 +28,19 @@ export function useSyncStatus() {
       window.removeEventListener("sync-queue-changed", ch);
     };
   }, [refreshPending]);
+
+  const syncNowRef = useRef<((opts?: { forceFull?: boolean }) => Promise<{ flushed: number; imap: number }>) | null>(null);
+
+  // Auto-sync every 2 minutes when online
+  useEffect(() => {
+    if (!online) return;
+    const interval = setInterval(() => {
+      if (!syncing && navigator.onLine) {
+        syncNowRef.current?.().catch((e: unknown) => console.warn("[auto-sync] failed", e));
+      }
+    }, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [online, syncing]);
 
   const syncNow = useCallback(async (opts?: { forceFull?: boolean }): Promise<{ flushed: number; imap: number }> => {
     setSyncing(true);
@@ -87,6 +100,11 @@ export function useSyncStatus() {
       setSyncing(false);
     }
   }, [refreshPending]);
+
+  // Keep ref in sync so the interval always calls the latest function
+  useEffect(() => {
+    syncNowRef.current = syncNow;
+  }, [syncNow]);
 
 
   const state: SyncState = !online ? "offline" : syncing ? "syncing" : "online";
