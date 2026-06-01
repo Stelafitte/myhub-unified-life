@@ -612,6 +612,11 @@ function DocRow({
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full", src.cls)}>{src.label}</span>
+          {doc.ai_category && AI_CATEGORY_META[doc.ai_category] && (
+            <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full gap-0.5 inline-flex items-center", AI_CATEGORY_META[doc.ai_category].cls)}>
+              <Sparkles className="h-2.5 w-2.5" />{AI_CATEGORY_META[doc.ai_category].label}
+            </span>
+          )}
           {doc.is_sensitive && <Badge variant="destructive" className="text-[10px] gap-0.5"><Lock className="h-2.5 w-2.5" />Sensible</Badge>}
           {doc.onedrive_item_id ? (
             doc.onedrive_web_url ? (
