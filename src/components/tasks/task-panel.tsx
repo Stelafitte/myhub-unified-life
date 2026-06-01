@@ -197,7 +197,9 @@ export function TaskPanel({
     setNewSection("");
     setEmailSearch("");
     setEmailResults([]);
+    setPendingFiles([]);
   }, [open, task, defaultStatus]);
+
 
   // Charger thèmes / sous-thèmes du plan d'opération
   const loadOpThemes = async () => {
