@@ -517,17 +517,49 @@ function DocRow({
         <div className="flex items-center gap-2 flex-wrap">
           <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full", src.cls)}>{src.label}</span>
           {doc.is_sensitive && <Badge variant="destructive" className="text-[10px] gap-0.5"><Lock className="h-2.5 w-2.5" />Sensible</Badge>}
+          {doc.onedrive_item_id ? (
+            doc.onedrive_web_url ? (
+              <a
+                href={doc.onedrive_web_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300"
+                title={doc.onedrive_folder_path ?? "Enregistré sur OneDrive"}
+              >
+                <Cloud className="h-2.5 w-2.5" /> Enregistré
+              </a>
+            ) : (
+              <Badge variant="secondary" className="text-[10px] gap-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                <Cloud className="h-2.5 w-2.5" /> Enregistré
+              </Badge>
+            )
+          ) : null}
           {doc.tags.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {doc.tags.slice(0, 3).map((t) => <span key={t} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{t}</span>)}
             </div>
           )}
           <div className="hidden sm:flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button size="icon" variant="ghost" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onPreview(); }}><Eye className="h-3.5 w-3.5" /></Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onCopy(); }}><LinkIcon className="h-3.5 w-3.5" /></Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDelete(); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onPreview(); }} title="Aperçu"><Eye className="h-3.5 w-3.5" /></Button>
+            {doc.storage_path && !doc.local_only && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className={cn("h-7 w-7", doc.onedrive_item_id ? "text-emerald-600" : "text-sky-600")}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onSaveToOneDrive(); }}
+                title={doc.onedrive_item_id ? "Re-enregistrer sur OneDrive (IA)" : "Classer avec IA → OneDrive"}
+              >
+                <Cloud className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <Button size="icon" variant="ghost" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onCopy(); }} title="Copier le lien"><LinkIcon className="h-3.5 w-3.5" /></Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Supprimer"><Trash2 className="h-3.5 w-3.5" /></Button>
           </div>
         </div>
+
       </div>
     </div>
   );
