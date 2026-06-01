@@ -459,6 +459,10 @@ export function TaskPanel({
       ...(recurrence !== "none" ? [`recurrence:${recurrence}`] : []),
     ];
 
+    const fileAttachmentsOnly = editing
+      ? taskAttachments.filter((a) => a.document_id || a.storage_path)
+      : [];
+
     const payload = {
       user_id: user.id,
       title: title.trim(),
@@ -474,6 +478,10 @@ export function TaskPanel({
       source_email_id: emailId,
       tags,
       kanban_column: status,
+      attachments: [
+        ...fileAttachmentsOnly,
+        ...sharedLinks.map((l) => ({ name: l.name, url: l.url })),
+      ] as TaskAttachment[],
       ...(!editing && draft?.calendarEventId ? { calendar_event_id: draft.calendarEventId } : {}),
     };
 
