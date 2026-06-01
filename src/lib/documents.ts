@@ -18,9 +18,14 @@ export type DocumentRow = {
   sensitive_reason: string | null;
   local_only: boolean;
   checksum: string | null;
+  onedrive_item_id: string | null;
+  onedrive_web_url: string | null;
+  onedrive_folder_path: string | null;
+  saved_at: string | null;
   created_at: string;
   updated_at: string;
 };
+
 
 const BUCKET = "documents";
 

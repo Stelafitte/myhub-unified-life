@@ -183,7 +183,7 @@ export function DownloadOptionsDialog({ doc, open, onOpenChange, context }: Prop
     if (!target) { toast.error("Choisis un dossier de destination"); return; }
     setBusy("onedrive");
     try {
-      await uploadFn({ data: { storagePath: doc.storage_path, folderId: target.id, filename: doc.original_filename } });
+      await uploadFn({ data: { storagePath: doc.storage_path, folderId: target.id, filename: doc.original_filename, documentId: doc.id, folderPath: target.path } });
       const aiHit = aiPicks.find((p) => p.path === target.path);
       // Persist learning signal (theme/sender → folder), regardless of source.
       try {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter, X, CheckCircle2 } from "lucide-react";
+import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter, X, CheckCircle2, Cloud, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +14,10 @@ import { toast } from "sonner";
 import { categorize, iconFor, colorFor, formatBytes, sourceLabel, type FileCategory } from "@/lib/file-icons";
 import { UploadDocumentDialog } from "@/components/documents/upload-document-dialog";
 import { DocumentPreviewSheet } from "@/components/documents/document-preview-sheet";
+import { DownloadOptionsDialog } from "@/components/inbox/download-options-dialog";
 import { type DocumentRow, getSignedUrl, removeFromStorage } from "@/lib/documents";
 import { deleteSecureBlob } from "@/lib/secure-documents";
+
 
 export const Route = createFileRoute("/_authenticated/documents")({
   component: DocumentsPage,
@@ -29,7 +31,10 @@ type SourceFilter =
   | { kind: "task" }
   | { kind: "meeting" }
   | { kind: "manual" }
-  | { kind: "sensitive" };
+  | { kind: "sensitive" }
+  | { kind: "saved" }
+  | { kind: "unsaved" };
+
 
 type TypeFilter = "all" | FileCategory;
 type DateFilter = "all" | "today" | "week" | "month";
@@ -47,7 +52,9 @@ function DocumentsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [preview, setPreview] = useState<DocumentRow | null>(null);
+  const [saveTarget, setSaveTarget] = useState<DocumentRow | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
 
   async function load() {
     setLoading(true);
@@ -63,13 +70,15 @@ function DocumentsPage() {
   useEffect(() => { load(); }, []);
 
   const counts = useMemo(() => {
-    const c = { all: docs.length, email: 0, task: 0, meeting: 0, manual: 0, sensitive: 0 } as Record<string, number>;
+    const c = { all: docs.length, email: 0, task: 0, meeting: 0, manual: 0, sensitive: 0, saved: 0, unsaved: 0 } as Record<string, number>;
     for (const d of docs) {
       c[d.source_type] = (c[d.source_type] ?? 0) + 1;
       if (d.is_sensitive) c.sensitive += 1;
+      if (d.onedrive_item_id) c.saved += 1; else c.unsaved += 1;
     }
     return c;
   }, [docs]);
+
 
   const emailsByAccount = useMemo(() => {
     const m = new Map<string | "none", number>();
@@ -85,10 +94,13 @@ function DocumentsPage() {
     const dayMs = 86400000;
     return docs.filter((d) => {
       if (source.kind === "sensitive" && !d.is_sensitive) return false;
-      if (source.kind !== "all" && source.kind !== "sensitive") {
+      if (source.kind === "saved" && !d.onedrive_item_id) return false;
+      if (source.kind === "unsaved" && d.onedrive_item_id) return false;
+      if (source.kind !== "all" && source.kind !== "sensitive" && source.kind !== "saved" && source.kind !== "unsaved") {
         if (d.source_type !== source.kind) return false;
         if (source.kind === "email" && source.accountId && d.account_id !== source.accountId) return false;
       }
+
       if (typeF !== "all" && categorize(d.mime_type, d.filename) !== typeF) return false;
       if (dateF !== "all") {
         const age = now - new Date(d.created_at).getTime();
@@ -202,6 +214,9 @@ function DocumentsPage() {
             <TreeItem icon={CalendarClock} label="Réunions" count={counts.meeting} active={source.kind === "meeting"} onClick={() => { setSource({ kind: "meeting" }); setSidebarOpen(false); }} />
             <TreeItem icon={FolderOpen} label="Manuel" count={counts.manual} active={source.kind === "manual"} onClick={() => { setSource({ kind: "manual" }); setSidebarOpen(false); }} />
             <TreeItem icon={Lock} label="Sensibles" count={counts.sensitive} active={source.kind === "sensitive"} onClick={() => { setSource({ kind: "sensitive" }); setSidebarOpen(false); }} className="text-red-600" />
+            <TreeItem icon={Cloud} label="Enregistrés OneDrive" count={counts.saved} active={source.kind === "saved"} onClick={() => { setSource({ kind: "saved" }); setSidebarOpen(false); }} className="text-emerald-600" />
+            <TreeItem icon={Sparkles} label="À classer" count={counts.unsaved} active={source.kind === "unsaved"} onClick={() => { setSource({ kind: "unsaved" }); setSidebarOpen(false); }} className="text-amber-600" />
+
 
             <div className="pt-3 mt-3 border-t">
               <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1"><Filter className="h-3 w-3" /> Filtres</p>
@@ -294,6 +309,7 @@ function DocumentsPage() {
                     onPreview={() => selectionMode ? toggleSelect(d.id) : setPreview(d)}
                     onDelete={() => deleteDoc(d)}
                     onCopy={() => copyLink(d)}
+                    onSaveToOneDrive={() => setSaveTarget(d)}
                   />
                 ))}
               </div>
@@ -304,6 +320,12 @@ function DocumentsPage() {
 
       <UploadDocumentDialog open={uploadOpen} onOpenChange={setUploadOpen} onUploaded={load} />
       <DocumentPreviewSheet doc={preview} onOpenChange={(o) => !o && setPreview(null)} />
+      <DownloadOptionsDialog
+        doc={saveTarget}
+        open={!!saveTarget}
+        onOpenChange={(o) => { if (!o) { setSaveTarget(null); load(); } }}
+      />
+
     </div>
   );
 }
@@ -346,6 +368,7 @@ function DocRow({
   onPreview,
   onDelete,
   onCopy,
+  onSaveToOneDrive,
 }: {
   doc: DocumentRow;
   selectionMode: boolean;
@@ -354,7 +377,9 @@ function DocRow({
   onPreview: () => void;
   onDelete: () => void;
   onCopy: () => void;
+  onSaveToOneDrive: () => void;
 }) {
+
   const cat = categorize(doc.mime_type, doc.filename);
   const Icon = iconFor(cat);
   const src = sourceLabel(doc.source_type);
@@ -492,17 +517,49 @@ function DocRow({
         <div className="flex items-center gap-2 flex-wrap">
           <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full", src.cls)}>{src.label}</span>
           {doc.is_sensitive && <Badge variant="destructive" className="text-[10px] gap-0.5"><Lock className="h-2.5 w-2.5" />Sensible</Badge>}
+          {doc.onedrive_item_id ? (
+            doc.onedrive_web_url ? (
+              <a
+                href={doc.onedrive_web_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300"
+                title={doc.onedrive_folder_path ?? "Enregistré sur OneDrive"}
+              >
+                <Cloud className="h-2.5 w-2.5" /> Enregistré
+              </a>
+            ) : (
+              <Badge variant="secondary" className="text-[10px] gap-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
+                <Cloud className="h-2.5 w-2.5" /> Enregistré
+              </Badge>
+            )
+          ) : null}
           {doc.tags.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {doc.tags.slice(0, 3).map((t) => <span key={t} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{t}</span>)}
             </div>
           )}
           <div className="hidden sm:flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button size="icon" variant="ghost" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onPreview(); }}><Eye className="h-3.5 w-3.5" /></Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onCopy(); }}><LinkIcon className="h-3.5 w-3.5" /></Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDelete(); }}><Trash2 className="h-3.5 w-3.5" /></Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onPreview(); }} title="Aperçu"><Eye className="h-3.5 w-3.5" /></Button>
+            {doc.storage_path && !doc.local_only && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className={cn("h-7 w-7", doc.onedrive_item_id ? "text-emerald-600" : "text-sky-600")}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onSaveToOneDrive(); }}
+                title={doc.onedrive_item_id ? "Re-enregistrer sur OneDrive (IA)" : "Classer avec IA → OneDrive"}
+              >
+                <Cloud className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <Button size="icon" variant="ghost" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onCopy(); }} title="Copier le lien"><LinkIcon className="h-3.5 w-3.5" /></Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-red-600" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Supprimer"><Trash2 className="h-3.5 w-3.5" /></Button>
           </div>
         </div>
+
       </div>
     </div>
   );

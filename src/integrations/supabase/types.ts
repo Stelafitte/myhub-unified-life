@@ -349,7 +349,11 @@ export type Database = {
           is_sensitive: boolean
           local_only: boolean
           mime_type: string | null
+          onedrive_folder_path: string | null
+          onedrive_item_id: string | null
+          onedrive_web_url: string | null
           original_filename: string
+          saved_at: string | null
           sensitive_reason: string | null
           sensitive_score: number | null
           source_id: string | null
@@ -370,7 +374,11 @@ export type Database = {
           is_sensitive?: boolean
           local_only?: boolean
           mime_type?: string | null
+          onedrive_folder_path?: string | null
+          onedrive_item_id?: string | null
+          onedrive_web_url?: string | null
           original_filename: string
+          saved_at?: string | null
           sensitive_reason?: string | null
           sensitive_score?: number | null
           source_id?: string | null
@@ -391,7 +399,11 @@ export type Database = {
           is_sensitive?: boolean
           local_only?: boolean
           mime_type?: string | null
+          onedrive_folder_path?: string | null
+          onedrive_item_id?: string | null
+          onedrive_web_url?: string | null
           original_filename?: string
+          saved_at?: string | null
           sensitive_reason?: string | null
           sensitive_score?: number | null
           source_id?: string | null
