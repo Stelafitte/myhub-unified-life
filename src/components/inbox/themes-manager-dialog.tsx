@@ -166,8 +166,8 @@ export function ThemesManagerDialog({
     setDetecting(true);
     const r = await autoDetectFn();
     setDetecting(false);
-    if (r.error) toast.error(r.error);
-    else toast.success(`${r.updated} thème(s) classé(s) Pro/Perso par l'IA`);
+    if ("error" in r && r.error) toast.error(r.error as string);
+    else toast.success(`${r.updated} thème(s) classé(s) Pro/Perso`);
     await refresh();
     onChanged?.();
   };
