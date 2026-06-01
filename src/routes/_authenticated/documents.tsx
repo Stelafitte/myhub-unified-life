@@ -606,7 +606,9 @@ function DocRow({
           <div className="flex-1 min-w-0 text-left">
             <p className="text-sm font-medium truncate">{doc.filename}</p>
             <p className="text-xs text-muted-foreground">{formatBytes(doc.file_size)} · {format(new Date(doc.created_at), "d MMM yyyy HH:mm", { locale: fr })}</p>
+            {doc.ai_summary && <p className="text-xs text-muted-foreground/80 truncate italic mt-0.5">{doc.ai_summary}</p>}
           </div>
+
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full", src.cls)}>{src.label}</span>
