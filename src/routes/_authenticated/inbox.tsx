@@ -788,13 +788,24 @@ function InboxPage() {
       .from("emails")
       .update({ deleted_at: now })
       .in("id", idsToDelete);
-    if (error) toast.error(error.message);
-    else
-      toast.success(
-        idsToDelete.length > 1
-          ? `${idsToDelete.length} emails déplacés vers la corbeille`
-          : "Email déplacé vers la corbeille",
-      );
+    if (error) { toast.error(error.message); return; }
+    toast.success(
+      idsToDelete.length > 1
+        ? `${idsToDelete.length} emails déplacés vers la corbeille`
+        : "Email déplacé vers la corbeille",
+    );
+    pushUndo({
+      label: "Mise à la corbeille",
+      run: async () => {
+        const { error: err } = await supabase
+          .from("emails")
+          .update({ deleted_at: null })
+          .in("id", idsToDelete);
+        if (err) throw new Error(err.message);
+        setEmails((prev) => prev.map((x) => (idsToDelete.includes(x.id) ? { ...x, deleted_at: null } : x)));
+        toast.success("Suppression annulée");
+      },
+    });
   };
 
   const restore = async (e: Email) => {
