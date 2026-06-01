@@ -521,7 +521,63 @@ export function TaskPanel({
           savedTask = { ...savedTask, calendar_event_id: null } as Task;
         }
 
+        // Upload pending file attachments
+        if (pendingFiles.length > 0 && savedTask) {
+          setUploadingFiles(true);
+          try {
+            const existingAttachments =
+              ((savedTask as Task & { attachments?: TaskAttachment[] }).attachments ?? []) as TaskAttachment[];
+            const newAttachments: TaskAttachment[] = [];
+            for (const file of pendingFiles) {
+              const docId = crypto.randomUUID();
+              const path = storagePath(user.id, "task", docId, file.name);
+              const checksum = await sha256(file);
+              await uploadToStorage(path, file);
+              const { error: docErr } = await supabase.from("documents").insert({
+                id: docId,
+                user_id: user.id,
+                filename: file.name,
+                original_filename: file.name,
+                file_size: file.size,
+                mime_type: file.type || null,
+                storage_path: path,
+                source_type: "task",
+                source_id: savedTask.id,
+                tags: [],
+                description: null,
+                is_sensitive: false,
+                local_only: false,
+                checksum,
+              });
+              if (docErr) throw docErr;
+              newAttachments.push({
+                name: file.name,
+                mime: file.type || null,
+                size: file.size,
+                url: null,
+                document_id: docId,
+                storage_path: path,
+              });
+            }
+            const mergedAttachments = [...existingAttachments, ...newAttachments];
+            const { data: updated, error: upErr } = await supabase
+              .from("tasks")
+              .update({ attachments: mergedAttachments })
+              .eq("id", savedTask.id)
+              .select()
+              .single();
+            if (upErr) throw upErr;
+            savedTask = updated as Task;
+            toast.success(`${pendingFiles.length} fichier${pendingFiles.length > 1 ? "s" : ""} attaché${pendingFiles.length > 1 ? "s" : ""}`);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Échec de l'upload des fichiers");
+          } finally {
+            setUploadingFiles(false);
+          }
+        }
+
         onSaved(savedTask);
+
       } else {
         // Offline: queue and create optimistic record
         const optimistic: Task = {
