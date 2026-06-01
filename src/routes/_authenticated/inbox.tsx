@@ -860,7 +860,27 @@ function InboxPage() {
     setSelectedId(e.id);
     setReaderOpen(true);
     if (!e.is_read) patch(e.id, { is_read: true });
+    // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
+    // « Retour » du téléphone ferme l'email et revienne à la liste.
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      try {
+        window.history.pushState({ inboxReader: true }, "");
+      } catch { /* ignore */ }
+    }
   };
+
+  // Bouton « Retour » du navigateur/téléphone → fermer le lecteur d'email
+  // sur mobile au lieu de quitter la page Inbox.
+  useEffect(() => {
+    if (!readerOpen) return;
+    const onPop = () => {
+      setReaderOpen(false);
+      setSelectedId(null);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [readerOpen]);
+
 
   return (
     <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
