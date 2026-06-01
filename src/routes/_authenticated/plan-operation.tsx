@@ -104,6 +104,18 @@ type Bar = {
   raw: Task;
 };
 
+// Couleur basée sur la proximité de la date d'échéance.
+// Retourne null pour conserver la couleur par défaut (priorité).
+function urgencyBarClass(end: Date, today: Date): string | null {
+  const days = Math.ceil((end.getTime() - today.getTime()) / 86400000);
+  if (days < 0) return "bg-red-700";   // en retard
+  if (days <= 1) return "bg-red-600";  // aujourd'hui / demain
+  if (days <= 3) return "bg-red-500";
+  if (days <= 7) return "bg-orange-500";
+  if (days <= 14) return "bg-amber-500";
+  return null;
+}
+
 function PlanOperationPage() {
   const { user } = useAuth();
   const timelineRef = useRef<HTMLDivElement>(null);
