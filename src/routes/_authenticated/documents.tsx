@@ -43,6 +43,20 @@ type SourceFilter =
 type TypeFilter = "all" | FileCategory;
 type DateFilter = "all" | "today" | "week" | "month";
 type SizeFilter = "all" | "heavy";
+type AiFilter = "all" | "unclassified" | "signature" | "facture" | "contrat" | "rapport" | "presentation" | "courrier" | "rh" | "technique" | "image" | "autre";
+
+const AI_CATEGORY_META: Record<string, { label: string; cls: string }> = {
+  facture: { label: "Facture", cls: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" },
+  contrat: { label: "Contrat", cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" },
+  rapport: { label: "Rapport", cls: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300" },
+  presentation: { label: "Présentation", cls: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300" },
+  courrier: { label: "Courrier", cls: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300" },
+  rh: { label: "RH", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" },
+  technique: { label: "Technique", cls: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200" },
+  image: { label: "Image", cls: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:text-fuchsia-300" },
+  signature: { label: "Signature", cls: "bg-muted text-muted-foreground" },
+  autre: { label: "Autre", cls: "bg-muted text-muted-foreground" },
+};
 
 function DocumentsPage() {
   const [docs, setDocs] = useState<DocumentRow[]>([]);
@@ -53,11 +67,16 @@ function DocumentsPage() {
   const [typeF, setTypeF] = useState<TypeFilter>("all");
   const [dateF, setDateF] = useState<DateFilter>("all");
   const [sizeF, setSizeF] = useState<SizeFilter>("all");
+  const [aiF, setAiF] = useState<AiFilter>("all");
+  const [minSizeKb, setMinSizeKb] = useState<number>(30);
+  const [classifying, setClassifying] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [preview, setPreview] = useState<DocumentRow | null>(null);
   const [saveTarget, setSaveTarget] = useState<DocumentRow | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const runClassify = useServerFn(classifyPendingDocuments);
+
 
 
   async function load() {
