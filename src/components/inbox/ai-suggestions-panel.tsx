@@ -18,7 +18,9 @@ type Props = {
   userId: string;
   onCreateTask: (title: string) => void;
   onArchive: () => void;
+  onUseReply: (text: string) => void;
 };
+
 
 export function AiSuggestionsPanel({
   emailId,
