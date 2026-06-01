@@ -1279,6 +1279,34 @@ function InboxPage() {
             title="Tout sélectionner"
             disabled={filtered.length === 0}
           />
+          {aiRanking && (() => {
+            const headerKeys = displayItems
+              .filter((it) => it.kind === "header")
+              .map((it) => (it as { key: string }).key);
+            const allCollapsed =
+              headerKeys.length > 0 && headerKeys.every((k) => collapsedThemes.has(k));
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  if (allCollapsed) setCollapsedThemes(new Set());
+                  else setCollapsedThemes(new Set(headerKeys));
+                }}
+                disabled={headerKeys.length === 0}
+                className="inline-flex h-6 items-center gap-1 rounded px-1.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
+                title={allCollapsed ? "Tout déplier" : "Tout replier"}
+              >
+                {allCollapsed ? (
+                  <ChevronRight className="h-3.5 w-3.5" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">
+                  {allCollapsed ? "Déplier" : "Replier"}
+                </span>
+              </button>
+            );
+          })()}
           {checked.size > 0 ? (
             <>
               <span className="font-medium">
