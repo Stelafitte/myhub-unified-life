@@ -59,12 +59,21 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
     const msgs: any[] = list.value ?? [];
     let count = 0;
 
+    // Tombstones — never resurrect emails the user already deleted.
+    const { data: tombstones } = await admin
+      .from("deleted_emails")
+      .select("message_id")
+      .eq("account_id", account.id);
+    const deletedSet = new Set<string>((tombstones ?? []).map((r: any) => r.message_id));
+
     for (const m of msgs) {
       try {
         const fromAddr = m.from?.emailAddress?.address ?? null;
         const fromName = m.from?.emailAddress?.name ?? null;
         const toAddr = m.toRecipients?.[0]?.emailAddress?.address ?? null;
         const messageId = m.internetMessageId || m.id;
+        if (deletedSet.has(messageId)) continue;
+
         const receivedAt = m.receivedDateTime ? new Date(m.receivedDateTime).toISOString() : new Date().toISOString();
         const isHtml = (m.body?.contentType || "").toLowerCase() === "html";
         const html = isHtml ? (m.body?.content ?? "") : "";

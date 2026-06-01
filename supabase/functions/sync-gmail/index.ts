@@ -112,6 +112,13 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
     const msgs: Array<{ id: string }> = list.messages ?? [];
     let count = 0;
 
+    // Tombstones — never resurrect emails the user already deleted.
+    const { data: tombstones } = await admin
+      .from("deleted_emails")
+      .select("message_id")
+      .eq("account_id", account.id);
+    const deletedSet = new Set<string>((tombstones ?? []).map((r: any) => r.message_id));
+
     for (const { id } of msgs) {
       try {
         const mRes = await fetch(`${GATEWAY}/users/me/messages/${id}?format=full`, { headers: gh() });
@@ -122,6 +129,8 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
         const to = parseAddr(header(headers, "To"));
         const subject = header(headers, "Subject") || null;
         const messageId = header(headers, "Message-ID") || m.id;
+        if (deletedSet.has(messageId)) continue;
+
         const dateStr = header(headers, "Date");
         const receivedAt = dateStr ? new Date(dateStr).toISOString() : new Date(Number(m.internalDate || Date.now())).toISOString();
         const { text, html, hasAttach, attachments } = extractParts(m.payload);
