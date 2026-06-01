@@ -247,7 +247,11 @@ export function MobilePlanView({
                       key={b.id}
                       className={cn(
                         "absolute top-1 h-2 rounded-sm opacity-80",
-                        b.priority ? PRIORITY_META[b.priority].bar : "bg-muted-foreground",
+                        b.status === "done"
+                          ? "bg-emerald-300"
+                          : b.priority
+                            ? PRIORITY_META[b.priority].bar
+                            : "bg-muted-foreground",
                       )}
                       style={{ left: x, width: w }}
                     />
@@ -527,7 +531,7 @@ function DetailRow({
 
   const isOverdue = bar.end < today && bar.status !== "done";
   const isDone = bar.status === "done";
-  const barColor = bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground";
+  const barColor = isDone ? "bg-emerald-200" : bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground";
 
   const startDrag = (mode: "move" | "resize-l" | "resize-r") => (ev: React.PointerEvent) => {
     ev.stopPropagation();
@@ -604,9 +608,8 @@ function DetailRow({
         onPointerUp={onUp}
         onPointerCancel={onCancel}
         className={cn(
-          "absolute top-1/2 flex h-6 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium text-white shadow-sm",
-          barColor,
-          isDone && "opacity-60",
+          "absolute top-1/2 flex h-6 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium shadow-sm",
+          isDone ? "bg-emerald-200 text-emerald-900" : `${barColor} text-white`,
           isOverdue && "ring-1 ring-red-600",
         )}
         style={{ left, width, touchAction: "none" }}
