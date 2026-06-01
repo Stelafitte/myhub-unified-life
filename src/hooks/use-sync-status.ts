@@ -54,7 +54,7 @@ export function useSyncStatus() {
 
       const callOne = async (fn: "sync-imap" | "sync-gmail" | "sync-outlook") => {
         try {
-          const invoke = supabase.functions.invoke(fn, { body: {} });
+          const invoke = supabase.functions.invoke(fn, { body });
           const timeout = new Promise((resolve) =>
             setTimeout(() => resolve({ data: null, error: new Error("timeout") }), 20000),
           );
