@@ -34,10 +34,11 @@ export const listThemes = createServerFn({ method: "GET" })
 // ---------- Discover ----------
 // Analyses recent emails + optional folder hints via AI to propose a starter list of themes.
 
-const DISCOVER_SYS = `Tu es un assistant qui analyse les emails d'un professionnel pour en extraire les principaux THÈMES MÉTIER (projets, dossiers, sujets récurrents).
+function discoverSystemPrompt(maxThemes: number) {
+  return `Tu es un assistant qui analyse les emails d'un professionnel pour en extraire les principaux THÈMES MÉTIER (projets, dossiers, sujets récurrents).
 
 Règles:
-- Propose entre 5 et 12 thèmes maximum, distincts et non redondants.
+- Propose entre 5 et ${maxThemes} thèmes maximum, distincts et non redondants.
 - Un thème = un sujet métier précis (ex: "Congrès Bordeaux 2026", "Cabinet Bodin - Divorce", "Prestataires IT", "SFC", "ODP2C").
 - IGNORE les catégories génériques type "Newsletters", "Notifications", "Personnel".
 - Pour chaque thème, donne 3 à 6 mots-clés discriminants (noms propres, sigles, adresses email partielles, projets).
