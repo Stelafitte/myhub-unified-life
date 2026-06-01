@@ -30,7 +30,6 @@ import {
   Settings2,
   RefreshCw,
   Loader2,
-  Wand2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
@@ -62,7 +61,6 @@ import {
   listThemes,
   classifyPendingThemes,
   discoverThemes,
-  refineThemesFromScratch,
   seedThemesFromFolders,
   setEmailTheme,
   type Theme,
