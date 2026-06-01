@@ -70,13 +70,15 @@ function DocumentsPage() {
   useEffect(() => { load(); }, []);
 
   const counts = useMemo(() => {
-    const c = { all: docs.length, email: 0, task: 0, meeting: 0, manual: 0, sensitive: 0 } as Record<string, number>;
+    const c = { all: docs.length, email: 0, task: 0, meeting: 0, manual: 0, sensitive: 0, saved: 0, unsaved: 0 } as Record<string, number>;
     for (const d of docs) {
       c[d.source_type] = (c[d.source_type] ?? 0) + 1;
       if (d.is_sensitive) c.sensitive += 1;
+      if (d.onedrive_item_id) c.saved += 1; else c.unsaved += 1;
     }
     return c;
   }, [docs]);
+
 
   const emailsByAccount = useMemo(() => {
     const m = new Map<string | "none", number>();
