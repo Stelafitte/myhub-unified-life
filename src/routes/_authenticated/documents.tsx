@@ -214,6 +214,9 @@ function DocumentsPage() {
             <TreeItem icon={CalendarClock} label="Réunions" count={counts.meeting} active={source.kind === "meeting"} onClick={() => { setSource({ kind: "meeting" }); setSidebarOpen(false); }} />
             <TreeItem icon={FolderOpen} label="Manuel" count={counts.manual} active={source.kind === "manual"} onClick={() => { setSource({ kind: "manual" }); setSidebarOpen(false); }} />
             <TreeItem icon={Lock} label="Sensibles" count={counts.sensitive} active={source.kind === "sensitive"} onClick={() => { setSource({ kind: "sensitive" }); setSidebarOpen(false); }} className="text-red-600" />
+            <TreeItem icon={Cloud} label="Enregistrés OneDrive" count={counts.saved} active={source.kind === "saved"} onClick={() => { setSource({ kind: "saved" }); setSidebarOpen(false); }} className="text-emerald-600" />
+            <TreeItem icon={Sparkles} label="À classer" count={counts.unsaved} active={source.kind === "unsaved"} onClick={() => { setSource({ kind: "unsaved" }); setSidebarOpen(false); }} className="text-amber-600" />
+
 
             <div className="pt-3 mt-3 border-t">
               <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1"><Filter className="h-3 w-3" /> Filtres</p>
