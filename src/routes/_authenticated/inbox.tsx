@@ -605,9 +605,18 @@ function InboxPage() {
         if (ts > g.ts) g.ts = ts;
       } else groups.set(key, { ts, emails: [e] });
     }
+    // Pondération par utilité du thème : fort > modéré > faible.
+    // Les thèmes "faible" (ex. commerciaux/newsletters) sont rétrogradés
+    // sous les thèmes utiles, même s'ils contiennent des mails plus récents.
+    const utilityRank: Record<string, number> = { fort: 3, modere: 2, faible: 1 };
     const ordered = [...groups.entries()].sort((a, b) => {
       if (a[0] === NO_THEME) return 1;
       if (b[0] === NO_THEME) return -1;
+      const ta = themeById.get(a[0]);
+      const tb = themeById.get(b[0]);
+      const ua = utilityRank[ta?.utility_level ?? "modere"] ?? 2;
+      const ub = utilityRank[tb?.utility_level ?? "modere"] ?? 2;
+      if (ua !== ub) return ub - ua;
       return b[1].ts - a[1].ts;
     });
     const out: RenderItem[] = [];
