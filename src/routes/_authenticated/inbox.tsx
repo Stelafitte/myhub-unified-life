@@ -506,9 +506,9 @@ function InboxPage() {
   const counts = useMemo(() => {
     const live = emails.filter((e) => !isTrashed(e));
     const inboxEmails = live.filter((e) => !isSpam(e) && !isPromo(e));
-    const unread = inboxEmails.filter((e) => !e.is_read).length;
-    const attachments = inboxEmails.filter((e) => e.has_attachment).length;
-    const starred = inboxEmails.filter((e) => e.is_starred).length;
+    const unread = live.filter((e) => !e.is_read).length;
+    const attachments = live.filter((e) => e.has_attachment).length;
+    const starred = live.filter((e) => e.is_starred).length;
     const spam = live.filter(isSpam).length;
     const promo = live.filter(isPromo).length;
     const trash = emails.filter(isTrashed).length;
@@ -521,7 +521,7 @@ function InboxPage() {
       else noTheme++;
     });
     return {
-      all: inboxEmails.length,
+      all: live.length,
       unread,
       attachments,
       starred,
@@ -545,7 +545,10 @@ function InboxPage() {
         list = list.filter((e) => e.account_id === id);
       } else if (filter === "spam") list = list.filter(isSpam);
       else if (filter === "promo") list = list.filter(isPromo);
-      else {
+      else if (filter === "all") {
+        // Tous les mails : aucun filtre IA (spam/promo inclus)
+        if (false) list = list;
+      } else {
         list = list.filter((e) => !isSpam(e) && !isPromo(e));
         if (filter === "unread") list = list.filter((e) => !e.is_read);
         else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
