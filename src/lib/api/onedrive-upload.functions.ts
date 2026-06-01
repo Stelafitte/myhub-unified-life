@@ -45,6 +45,8 @@ export const uploadFileToOneDrive = createServerFn({ method: "POST" })
       "X-Connection-Api-Key": connKey,
     };
 
+    let result: { id: string; name: string; webUrl?: string } | null = null;
+
     // 2a. Simple upload (small files)
     if (blob.size <= SIMPLE_PUT_LIMIT) {
       const url = `${GATEWAY_URL}/me/drive/items/${encodeURIComponent(data.folderId)}:/${encodeURIComponent(filename)}:/content`;
@@ -54,41 +56,55 @@ export const uploadFileToOneDrive = createServerFn({ method: "POST" })
         body: await blob.arrayBuffer(),
       });
       if (!r.ok) throw new Error(`OneDrive upload ${r.status}: ${await r.text().catch(() => "")}`);
-      const j = (await r.json()) as { id: string; name: string; webUrl?: string };
-      return { id: j.id, name: j.name, webUrl: j.webUrl };
-    }
-
-    // 2b. Upload session (large files)
-    const sessUrl = `${GATEWAY_URL}/me/drive/items/${encodeURIComponent(data.folderId)}:/${encodeURIComponent(filename)}:/createUploadSession`;
-    const sessR = await fetch(sessUrl, {
-      method: "POST",
-      headers: { ...baseHeaders, "Content-Type": "application/json" },
-      body: JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": "rename", name: filename } }),
-    });
-    if (!sessR.ok) throw new Error(`OneDrive session ${sessR.status}: ${await sessR.text().catch(() => "")}`);
-    const { uploadUrl } = (await sessR.json()) as { uploadUrl: string };
-
-    const buf = new Uint8Array(await blob.arrayBuffer());
-    const total = buf.byteLength;
-    let offset = 0;
-    let last: { id: string; name: string; webUrl?: string } | null = null;
-    while (offset < total) {
-      const end = Math.min(offset + CHUNK, total);
-      const slice = buf.subarray(offset, end);
-      const r = await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Length": String(slice.byteLength),
-          "Content-Range": `bytes ${offset}-${end - 1}/${total}`,
-        },
-        body: slice,
+      result = (await r.json()) as { id: string; name: string; webUrl?: string };
+    } else {
+      // 2b. Upload session (large files)
+      const sessUrl = `${GATEWAY_URL}/me/drive/items/${encodeURIComponent(data.folderId)}:/${encodeURIComponent(filename)}:/createUploadSession`;
+      const sessR = await fetch(sessUrl, {
+        method: "POST",
+        headers: { ...baseHeaders, "Content-Type": "application/json" },
+        body: JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": "rename", name: filename } }),
       });
-      if (r.status !== 202 && !r.ok) {
-        throw new Error(`OneDrive chunk ${r.status}: ${await r.text().catch(() => "")}`);
+      if (!sessR.ok) throw new Error(`OneDrive session ${sessR.status}: ${await sessR.text().catch(() => "")}`);
+      const { uploadUrl } = (await sessR.json()) as { uploadUrl: string };
+
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      const total = buf.byteLength;
+      let offset = 0;
+      while (offset < total) {
+        const end = Math.min(offset + CHUNK, total);
+        const slice = buf.subarray(offset, end);
+        const r = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Length": String(slice.byteLength),
+            "Content-Range": `bytes ${offset}-${end - 1}/${total}`,
+          },
+          body: slice,
+        });
+        if (r.status !== 202 && !r.ok) {
+          throw new Error(`OneDrive chunk ${r.status}: ${await r.text().catch(() => "")}`);
+        }
+        if (r.ok && r.status !== 202) result = (await r.json()) as typeof result;
+        offset = end;
       }
-      if (r.ok && r.status !== 202) last = (await r.json()) as typeof last;
-      offset = end;
+      if (!result) throw new Error("Upload OneDrive incomplet");
     }
-    if (!last) throw new Error("Upload OneDrive incomplet");
-    return last;
+
+    // 3. Mark the document row as saved (if a documentId was provided)
+    if (data.documentId && result) {
+      const { error: upErr } = await supabaseAdmin
+        .from("documents")
+        .update({
+          onedrive_item_id: result.id,
+          onedrive_web_url: result.webUrl ?? null,
+          onedrive_folder_path: data.folderPath ?? null,
+          saved_at: new Date().toISOString(),
+        })
+        .eq("id", data.documentId);
+      if (upErr) console.warn("Failed to mark document saved:", upErr.message);
+    }
+
+    return result;
   });
+
