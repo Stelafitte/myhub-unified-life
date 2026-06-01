@@ -285,8 +285,9 @@ function InboxPage() {
     return v >= 320 ? v : 600;
   });
   const [winW, setWinW] = useState<number>(() =>
-    typeof window !== "undefined" ? window.innerWidth : 1280,
+    typeof window !== "undefined" ? window.innerWidth : 600,
   );
+
   const isMobileInbox = winW < 1024;
   const [readerOpen, setReaderOpen] = useState(false);
   useEffect(() => {
@@ -860,7 +861,27 @@ function InboxPage() {
     setSelectedId(e.id);
     setReaderOpen(true);
     if (!e.is_read) patch(e.id, { is_read: true });
+    // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
+    // « Retour » du téléphone ferme l'email et revienne à la liste.
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      try {
+        window.history.pushState({ inboxReader: true }, "");
+      } catch { /* ignore */ }
+    }
   };
+
+  // Bouton « Retour » du navigateur/téléphone → fermer le lecteur d'email
+  // sur mobile au lieu de quitter la page Inbox.
+  useEffect(() => {
+    if (!readerOpen) return;
+    const onPop = () => {
+      setReaderOpen(false);
+      setSelectedId(null);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [readerOpen]);
+
 
   return (
     <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
@@ -1671,14 +1692,21 @@ function InboxPage() {
         {selected && (
           <button
             onClick={() => {
-              setReaderOpen(false);
-              setSelectedId(null);
+              // Si une entrée d'historique a été empilée pour le lecteur,
+              // on la dépile pour rester cohérent avec le bouton retour natif.
+              if (typeof window !== "undefined" && window.history.state?.inboxReader) {
+                window.history.back();
+              } else {
+                setReaderOpen(false);
+                setSelectedId(null);
+              }
             }}
             className="flex items-center gap-1 border-b px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-accent lg:hidden"
           >
             <ChevronDown className="h-3.5 w-3.5 rotate-90" /> Retour à la liste
           </button>
         )}
+
         {!selected ? (
           <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">
             Sélectionnez un email pour le lire
