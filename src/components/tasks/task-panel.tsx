@@ -239,6 +239,87 @@ export function TaskPanel({
   };
   useEffect(() => { if (open && user) void loadOpThemes(); /* eslint-disable-next-line */ }, [open, user]);
 
+  // Charger les comptes mail actifs (pour l'envoi depuis la tâche).
+  useEffect(() => {
+    if (!open || !user) return;
+    let cancel = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("accounts")
+        .select("id,name,type,color,icon,credentials")
+        .eq("user_id", user.id)
+        .eq("is_active", true);
+      if (!cancel) setComposerAccounts((data ?? []) as ComposerAccount[]);
+    })();
+    return () => { cancel = true; };
+  }, [open, user]);
+
+  const blobToBase64 = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onerror = () => reject(fr.error ?? new Error("read error"));
+      fr.onload = () => {
+        const res = fr.result as string;
+        const idx = res.indexOf(",");
+        resolve(idx >= 0 ? res.slice(idx + 1) : res);
+      };
+      fr.readAsDataURL(blob);
+    });
+
+  const sendByEmail = async () => {
+    if (!title.trim()) { toast.error("La tâche doit avoir un titre."); return; }
+    setPreparingEmail(true);
+    try {
+      // 1) Préparer les pièces jointes (depuis le stockage)
+      const collected: ComposerAttachment[] = [];
+      const MAX = 18 * 1024 * 1024;
+      let total = 0;
+      const tryAdd = async (name: string, mime: string | null | undefined, path: string) => {
+        try {
+          const blob = await downloadAsBlob(path);
+          if (total + blob.size > MAX) { toast.warning(`"${name}" ignoré — limite 18 Mo`); return; }
+          const contentBase64 = await blobToBase64(blob);
+          collected.push({ name, type: mime || blob.type || "application/octet-stream", size: blob.size, contentBase64 });
+          total += blob.size;
+        } catch {
+          toast.warning(`"${name}" ignoré — téléchargement impossible`);
+        }
+      };
+      for (const doc of attachmentDocs) {
+        if (doc.storage_path && !doc.local_only) await tryAdd(doc.original_filename, doc.mime_type, doc.storage_path);
+      }
+      for (const a of fallbackAttachments) {
+        if (a.storage_path) await tryAdd(a.name ?? "fichier", a.mime ?? null, a.storage_path);
+      }
+
+      // 2) Générer le corps via IA
+      let subjectAi = title.trim();
+      let bodyAi = "";
+      try {
+        const draft = await draftEmail({
+          data: {
+            title: title.trim(),
+            description: description || null,
+            comments: comments || null,
+            attachments: collected.map((c) => c.name),
+          },
+        });
+        subjectAi = draft.subject || subjectAi;
+        bodyAi = draft.body || "";
+      } catch (e) {
+        toast.warning(e instanceof Error ? e.message : "IA indisponible — corps vide");
+      }
+
+      // 3) Ouvrir le composer
+      setComposerAttachments(collected);
+      setComposerInitial({ mode: "new", subject: subjectAi, body: bodyAi });
+      setComposerOpen(true);
+    } finally {
+      setPreparingEmail(false);
+    }
+  };
+
+
   // Initialiser theme/subtheme à partir des tags de la tâche
   useEffect(() => {
     if (!open) return;
