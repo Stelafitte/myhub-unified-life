@@ -116,6 +116,10 @@ export function TaskPanel({
   const [analyzing, setAnalyzing] = useState(false);
   const [addToCalendar, setAddToCalendar] = useState(false);
 
+  const [sharedLinks, setSharedLinks] = useState<{ name: string; url: string }[]>([]);
+  const [newLinkName, setNewLinkName] = useState("");
+  const [newLinkUrl, setNewLinkUrl] = useState("");
+
 
 
   // Thèmes / sous-thèmes du Plan d'opération
