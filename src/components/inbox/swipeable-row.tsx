@@ -139,7 +139,7 @@ export function SwipeableRow({
   const showRight = dx < 0;
 
   return (
-    <div className={cn("relative overflow-hidden", className)}>
+    <div className={cn("relative overflow-hidden flex flex-col", className)}>
       {leftActions.length > 0 && (
         <div
           className="absolute inset-y-0 left-0 flex"
@@ -201,7 +201,7 @@ export function SwipeableRow({
           transition: isDragging ? "none" : "transform 180ms ease-out",
           touchAction: "pan-y",
         }}
-        className="relative bg-background"
+        className="relative bg-background flex-1 flex flex-col"
       >
         {children}
       </div>
