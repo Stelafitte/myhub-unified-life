@@ -691,7 +691,7 @@ function PlanOperationPage() {
                   >
                     <button
                       onClick={() => setCollapsed((p) => ({ ...p, [sectionKey]: !p[sectionKey] }))}
-                      className="flex w-full items-center gap-1 border-b bg-muted/50 px-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted"
+                      className="flex w-full items-center gap-1 border-b border-border bg-muted px-3 text-left text-[11px] font-bold uppercase tracking-wider text-foreground shadow-sm hover:bg-muted/80"
                       style={{ height: SECTION_H }}
                     >
                       {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
