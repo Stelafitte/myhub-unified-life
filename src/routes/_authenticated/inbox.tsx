@@ -1159,17 +1159,10 @@ function InboxPage() {
               }}
             >
               <SelectTrigger className="h-7 w-auto max-w-[150px] gap-1 border-0 bg-transparent px-1 text-xs font-medium text-foreground hover:bg-accent/50 focus:ring-0 sm:max-w-none [&>svg]:hidden">
-                <SelectValue placeholder="Tous les comptes" />
+                <SelectValue placeholder="Filtres" />
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </SelectTrigger>
               <SelectContent align="start">
-                <SelectItem value="all" className="text-xs">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                    Tous les comptes
-                    <span className="ml-auto text-[10px] text-muted-foreground">{counts.all}</span>
-                  </div>
-                </SelectItem>
                 <SelectItem value="unread" className="text-xs">
                   <div className="flex items-center gap-2">
                     <Circle className="h-3.5 w-3.5 fill-current text-muted-foreground" />
