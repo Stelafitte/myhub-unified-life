@@ -608,9 +608,8 @@ function DetailRow({
         onPointerUp={onUp}
         onPointerCancel={onCancel}
         className={cn(
-          "absolute top-1/2 flex h-6 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium text-white shadow-sm",
-          barColor,
-          isDone && "opacity-60",
+          "absolute top-1/2 flex h-6 -translate-y-1/2 items-center rounded px-2 text-[10px] font-medium shadow-sm",
+          isDone ? "bg-emerald-200 text-emerald-900" : `${barColor} text-white`,
           isOverdue && "ring-1 ring-red-600",
         )}
         style={{ left, width, touchAction: "none" }}
