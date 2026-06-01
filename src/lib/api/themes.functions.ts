@@ -215,8 +215,9 @@ Règles:
 - Si un thème de la liste correspond clairement, retourne son nom EXACT.
 - Si aucun thème ne correspond mais qu'un nouveau thème métier précis émerge (projet, dossier client, sigle récurrent), propose-le.
 - N'invente PAS un thème générique ("Email", "Information"). Laisse vide plutôt.
+- Tiens compte du niveau d'utilité (faible/modere/fort) et de la portée (pro/perso) : privilégie un thème "fort" en cas de doute léger, évite un thème "faible" sauf correspondance évidente.
 - Réponds UNIQUEMENT en JSON:
-{"theme":"NOM_EXISTANT" | null, "new_theme": {"name":"...","description":"...","keywords":["..."]} | null}`;
+{"theme":"NOM_EXISTANT" | null, "new_theme": {"name":"...","description":"...","keywords":["..."],"scope":"pro"|"perso"} | null}`;
 
 export const classifyPendingThemes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
