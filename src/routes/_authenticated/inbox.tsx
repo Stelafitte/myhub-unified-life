@@ -2203,8 +2203,20 @@ function Reader({
           userId={userId}
           onCreateTask={() => onCreateTask()}
           onArchive={onArchive}
+          onUseReply={(text) =>
+            onCompose({
+              mode: "reply",
+              defaultAccountId: email.account_id,
+              to: email.from_address ?? "",
+              subject: subjReply,
+              body: text + quoted(),
+              inReplyTo: replyRefs,
+              references: replyRefs,
+            })
+          }
         />
       )}
+
     </div>
   );
 }
