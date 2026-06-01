@@ -30,6 +30,7 @@ import {
   Settings2,
   RefreshCw,
   Loader2,
+  Undo2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
