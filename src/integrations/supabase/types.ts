@@ -811,6 +811,7 @@ export type Database = {
           description: string | null
           end_at: string
           id: string
+          importance: string
           is_online: boolean
           location: string | null
           notes: string | null
@@ -834,6 +835,7 @@ export type Database = {
           description?: string | null
           end_at: string
           id?: string
+          importance?: string
           is_online?: boolean
           location?: string | null
           notes?: string | null
@@ -857,6 +859,7 @@ export type Database = {
           description?: string | null
           end_at?: string
           id?: string
+          importance?: string
           is_online?: boolean
           location?: string | null
           notes?: string | null
