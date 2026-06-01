@@ -4,6 +4,9 @@ import { z } from "zod";
 
 // ---------- Types ----------
 
+export type ThemeUtility = "faible" | "modere" | "fort";
+export type ThemeScope = "pro" | "perso";
+
 export type Theme = {
   id: string;
   name: string;
@@ -14,6 +17,8 @@ export type Theme = {
   archived_at: string | null;
   email_count: number;
   last_email_at: string | null;
+  utility_level: ThemeUtility;
+  scope: ThemeScope;
 };
 
 // ---------- List ----------
@@ -210,8 +215,9 @@ Règles:
 - Si un thème de la liste correspond clairement, retourne son nom EXACT.
 - Si aucun thème ne correspond mais qu'un nouveau thème métier précis émerge (projet, dossier client, sigle récurrent), propose-le.
 - N'invente PAS un thème générique ("Email", "Information"). Laisse vide plutôt.
+- Tiens compte du niveau d'utilité (faible/modere/fort) et de la portée (pro/perso) : privilégie un thème "fort" en cas de doute léger, évite un thème "faible" sauf correspondance évidente.
 - Réponds UNIQUEMENT en JSON:
-{"theme":"NOM_EXISTANT" | null, "new_theme": {"name":"...","description":"...","keywords":["..."]} | null}`;
+{"theme":"NOM_EXISTANT" | null, "new_theme": {"name":"...","description":"...","keywords":["..."],"scope":"pro"|"perso"} | null}`;
 
 export const classifyPendingThemes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -223,10 +229,10 @@ export const classifyPendingThemes = createServerFn({ method: "POST" })
     // Load themes
     const { data: themesRows } = await supabase
       .from("email_themes")
-      .select("id,name,description,keywords")
+      .select("id,name,description,keywords,utility_level,scope")
       .eq("user_id", userId)
       .is("archived_at", null);
-    const themes = (themesRows ?? []) as { id: string; name: string; description: string | null; keywords: string[] }[];
+    const themes = (themesRows ?? []) as { id: string; name: string; description: string | null; keywords: string[]; utility_level?: string; scope?: string }[];
     const themeByName = new Map(themes.map((t) => [t.name.toLowerCase(), t]));
 
     // Load sender memory
@@ -249,7 +255,7 @@ export const classifyPendingThemes = createServerFn({ method: "POST" })
     if (!rows || rows.length === 0) return { processed: 0 };
 
     const themeList = themes
-      .map((t) => `- "${t.name}"${t.description ? `: ${t.description}` : ""}${t.keywords.length ? ` [mots-clés: ${t.keywords.join(", ")}]` : ""}`)
+      .map((t) => `- "${t.name}" [${t.scope ?? "perso"}/${t.utility_level ?? "modere"}]${t.description ? `: ${t.description}` : ""}${t.keywords.length ? ` [mots-clés: ${t.keywords.join(", ")}]` : ""}`)
       .join("\n");
 
     let processed = 0;
@@ -291,7 +297,7 @@ ${(r.body_text ?? "").slice(0, 1500)}`;
             const raw = json?.choices?.[0]?.message?.content ?? "{}";
             const parsed = JSON.parse(raw) as {
               theme?: string | null;
-              new_theme?: { name: string; description?: string; keywords?: string[] } | null;
+              new_theme?: { name: string; description?: string; keywords?: string[]; scope?: string } | null;
             };
             if (parsed.theme) {
               const match = themeByName.get(parsed.theme.toLowerCase());
@@ -299,6 +305,7 @@ ${(r.body_text ?? "").slice(0, 1500)}`;
             }
             if (!themeId && parsed.new_theme?.name) {
               const nt = parsed.new_theme;
+              const scope = nt.scope === "pro" ? "pro" : "perso";
               const { data: inserted } = await supabase
                 .from("email_themes")
                 .upsert(
@@ -308,6 +315,7 @@ ${(r.body_text ?? "").slice(0, 1500)}`;
                     description: (nt.description ?? "").slice(0, 280),
                     keywords: (nt.keywords ?? []).slice(0, 10),
                     source: "ai",
+                    scope,
                   },
                   { onConflict: "user_id,name" },
                 )
@@ -516,4 +524,96 @@ export const mergeThemes = createServerFn({ method: "POST" })
     await supabase.from("email_themes").delete().eq("id", data.fromId).eq("user_id", userId);
     await refreshThemeCounts(supabase, userId);
     return { ok: true };
+  });
+
+// ---------- Utility level & scope ----------
+
+const SetUtilityInput = z.object({
+  id: z.string().uuid(),
+  utility_level: z.enum(["faible", "modere", "fort"]),
+});
+export const setThemeUtility = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => SetUtilityInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("email_themes")
+      .update({ utility_level: data.utility_level })
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    return { ok: !error, error: error?.message };
+  });
+
+const SetScopeInput = z.object({
+  id: z.string().uuid(),
+  scope: z.enum(["pro", "perso"]),
+});
+export const setThemeScope = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => SetScopeInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("email_themes")
+      .update({ scope: data.scope })
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    return { ok: !error, error: error?.message };
+  });
+
+// Auto-detect scope (pro/perso) for all active themes using AI.
+export const autoDetectThemeScopes = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) return { updated: 0, error: "LOVABLE_API_KEY manquant" };
+
+    const { data: themes } = await supabase
+      .from("email_themes")
+      .select("id,name,description,keywords")
+      .eq("user_id", userId)
+      .is("archived_at", null);
+
+    if (!themes || themes.length === 0) return { updated: 0 };
+
+    const list = (themes as { id: string; name: string; description: string | null; keywords: string[] }[])
+      .map((t) => `- "${t.name}"${t.description ? `: ${t.description}` : ""}${t.keywords?.length ? ` [${t.keywords.join(", ")}]` : ""}`)
+      .join("\n");
+
+    const sys = `Tu classes des thèmes d'email en deux catégories: "pro" (professionnel, métier, travail, clients, projets, fournisseurs) ou "perso" (famille, loisirs, achats personnels, santé, vie privée, abonnements perso).
+Réponds UNIQUEMENT en JSON: {"assignments":[{"name":"...","scope":"pro"|"perso"}]}`;
+
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: `THÈMES À CLASSER:\n${list}` },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (!resp.ok) return { updated: 0, error: `AI ${resp.status}` };
+    const json = await resp.json();
+    let parsed: { assignments?: { name: string; scope: string }[] } = {};
+    try { parsed = JSON.parse(json?.choices?.[0]?.message?.content ?? "{}"); } catch { return { updated: 0, error: "Réponse IA invalide" }; }
+
+    const byName = new Map((themes as { id: string; name: string }[]).map((t) => [t.name.toLowerCase(), t.id]));
+    let updated = 0;
+    for (const a of parsed.assignments ?? []) {
+      const id = byName.get((a.name ?? "").toLowerCase());
+      const scope = a.scope === "pro" ? "pro" : a.scope === "perso" ? "perso" : null;
+      if (!id || !scope) continue;
+      const { error } = await supabase
+        .from("email_themes")
+        .update({ scope })
+        .eq("id", id)
+        .eq("user_id", userId);
+      if (!error) updated++;
+    }
+    return { updated };
   });
