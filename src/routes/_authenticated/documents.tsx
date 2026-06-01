@@ -368,6 +368,7 @@ function DocRow({
   onPreview,
   onDelete,
   onCopy,
+  onSaveToOneDrive,
 }: {
   doc: DocumentRow;
   selectionMode: boolean;
@@ -376,7 +377,9 @@ function DocRow({
   onPreview: () => void;
   onDelete: () => void;
   onCopy: () => void;
+  onSaveToOneDrive: () => void;
 }) {
+
   const cat = categorize(doc.mime_type, doc.filename);
   const Icon = iconFor(cat);
   const src = sourceLabel(doc.source_type);
