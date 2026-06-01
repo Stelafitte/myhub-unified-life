@@ -405,7 +405,7 @@ export function MobilePlanView({
                     ) : (
                       <>
                         <span
-                          className="flex-1 truncate text-xs font-semibold uppercase tracking-wider text-foreground/80"
+                          className="flex-1 truncate text-xs font-bold uppercase tracking-wider text-foreground"
                           onPointerDown={(e) => {
                             // long-press = renommer
                             const timer = setTimeout(() => {
