@@ -190,6 +190,15 @@ function InboxPage() {
   const [aiRanking, setAiRanking] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+  const [undoStack, setUndoStack] = useState<{ label: string; run: () => Promise<void> | void }[]>([]);
+  const pushUndo = (entry: { label: string; run: () => Promise<void> | void }) =>
+    setUndoStack((s) => [...s.slice(-9), entry]);
+  const runUndo = async () => {
+    const last = undoStack[undoStack.length - 1];
+    if (!last) return;
+    setUndoStack((s) => s.slice(0, -1));
+    try { await last.run(); } catch (e) { toast.error(e instanceof Error ? e.message : "Annulation impossible"); }
+  };
 
   const openComposer = (init: ComposerInitial) => {
     setComposerInitial(init);
