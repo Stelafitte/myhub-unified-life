@@ -859,7 +859,8 @@ function BarRow({
   const isOverdue = bar.end < today && bar.status !== "done";
   const isDone = bar.status === "done";
 
-  const barColor = bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground";
+  const urgencyColor = !isDone ? urgencyBarClass(bar.end, today) : null;
+  const barColor = urgencyColor ?? (bar.priority ? PRIORITY_META[bar.priority].bar : "bg-muted-foreground");
 
   const onPointerDown = (mode: "move" | "resize-l" | "resize-r") => (ev: React.PointerEvent) => {
     ev.preventDefault(); ev.stopPropagation();
