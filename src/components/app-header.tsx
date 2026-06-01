@@ -62,14 +62,14 @@ export function AppHeader() {
         onClick={handleSync}
         disabled={syncing || state === "offline"}
         className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-60 ${badgeClass}`}
-        title="Synchroniser maintenant"
+        title="Synchroniser maintenant (Maj+clic = resynchronisation complète 30j)"
       >
         {state === "syncing" ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
           : state === "offline" ? <WifiOff className="h-3.5 w-3.5" />
           : <Wifi className="h-3.5 w-3.5" />}
         <span className="hidden sm:inline">{label}</span>
       </button>
-      <Button variant="ghost" size="icon" onClick={handleSync} disabled={syncing || state === "offline"} aria-label="Synchroniser" className="hidden sm:inline-flex">
+      <Button variant="ghost" size="icon" onClick={handleSync} disabled={syncing || state === "offline"} aria-label="Synchroniser" title="Synchroniser (Maj+clic = full 30j)" className="hidden sm:inline-flex">
         <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
       </Button>
 
