@@ -202,6 +202,15 @@ export function TaskPanel({
     setEmailSearch("");
     setEmailResults([]);
     setPendingFiles([]);
+
+    const existingLinks = task
+      ? (((task as Task & { attachments?: TaskAttachment[] }).attachments ?? [])
+          .filter((a) => a.url && !a.document_id && !a.storage_path)
+          .map((a) => ({ name: a.name || a.url || "Lien", url: a.url! })))
+      : [];
+    setSharedLinks(existingLinks);
+    setNewLinkName("");
+    setNewLinkUrl("");
   }, [open, task, defaultStatus]);
 
 
