@@ -9,9 +9,38 @@ import { GlobalTaskPanel } from "@/components/tasks/global-task-panel";
 import { SessionExpiredBanner } from "@/components/session-expired-banner";
 import { supabase } from "@/integrations/supabase/client";
 
+async function consumeOAuthTokensFromUrl() {
+  if (typeof window === "undefined") return;
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const searchParams = new URLSearchParams(window.location.search);
+  const accessToken = hashParams.get("access_token") ?? searchParams.get("access_token");
+  const refreshToken = hashParams.get("refresh_token") ?? searchParams.get("refresh_token");
+  const code = searchParams.get("code");
+
+  if (accessToken && refreshToken) {
+    await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    window.history.replaceState({}, document.title, window.location.pathname);
+    return;
+  }
+  if (code) {
+    await supabase.auth.exchangeCodeForSession(code).catch(() => null);
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ location }) => {
     if (typeof window === "undefined") return;
+
+    // 1) Si on revient d'un OAuth callback avec des tokens dans l'URL,
+    //    on les consomme AVANT de tester la session — sinon getSession()
+    //    renvoie null et on est redirigé vers /login alors qu'on vient
+    //    juste de se connecter.
+    await consumeOAuthTokensFromUrl();
+
+    // 2) getSession() déclenche l'initialisation interne du client Supabase
+    //    (lecture du localStorage), donc on est sûr d'avoir la session si
+    //    elle existe.
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
       throw redirect({
