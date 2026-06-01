@@ -506,9 +506,9 @@ function InboxPage() {
   const counts = useMemo(() => {
     const live = emails.filter((e) => !isTrashed(e));
     const inboxEmails = live.filter((e) => !isSpam(e) && !isPromo(e));
-    const unread = inboxEmails.filter((e) => !e.is_read).length;
-    const attachments = inboxEmails.filter((e) => e.has_attachment).length;
-    const starred = inboxEmails.filter((e) => e.is_starred).length;
+    const unread = live.filter((e) => !e.is_read).length;
+    const attachments = live.filter((e) => e.has_attachment).length;
+    const starred = live.filter((e) => e.is_starred).length;
     const spam = live.filter(isSpam).length;
     const promo = live.filter(isPromo).length;
     const trash = emails.filter(isTrashed).length;
@@ -521,7 +521,7 @@ function InboxPage() {
       else noTheme++;
     });
     return {
-      all: inboxEmails.length,
+      all: live.length,
       unread,
       attachments,
       starred,
