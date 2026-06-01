@@ -237,7 +237,7 @@ function Card({
       onDragEnd={onDragEnd}
       onClick={onClick}
       className={cn(
-        "group cursor-pointer rounded-md border bg-card p-2.5 text-sm shadow-sm transition-all hover:shadow-md hover:border-primary/40",
+        "group cursor-pointer rounded-md border bg-card p-2.5 text-sm shadow-sm transition-all hover:shadow-md hover:border-primary/40 h-full flex flex-col",
         dragging && "opacity-40",
       )}
     >
