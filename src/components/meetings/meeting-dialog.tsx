@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { requestAutoSync } from "@/lib/sync-queue";
 import { useAuth } from "@/lib/auth-context";
@@ -10,9 +10,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Download, Trash2, Sparkles } from "lucide-react";
+import { X, Download, Trash2, Sparkles, Paperclip, Mail, ListTodo, Upload, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { downloadIcs } from "@/lib/ics";
+import {
+  sha256,
+  storagePath,
+  uploadToStorage,
+  getSignedUrl,
+  removeFromStorage,
+  type DocumentRow,
+} from "@/lib/documents";
+import { formatBytes } from "@/lib/file-icons";
+import { cn } from "@/lib/utils";
 
 type Provider = "jitsi" | "google_meet" | "zoom" | "teams" | "other";
 const PROVIDER_LABEL: Record<Provider, string> = {
@@ -27,13 +37,23 @@ function generateJitsiLink(): string {
   return `https://meet.jit.si/MyHub-${slug}`;
 }
 
+type Importance = "low" | "normal" | "high" | "critical";
+const IMPORTANCE_META: Record<Importance, { label: string; cls: string }> = {
+  low: { label: "Faible", cls: "bg-muted text-muted-foreground" },
+  normal: { label: "Normal", cls: "bg-secondary text-secondary-foreground" },
+  high: { label: "Élevé", cls: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200" },
+  critical: { label: "Critique", cls: "bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200" },
+};
+
 type Participant = { email: string; name?: string; role: "required" | "optional" };
 
 export type MeetingFormValue = {
   id?: string;
   title: string;
   description: string;
-  start_at: string; // datetime-local
+  notes: string;
+  importance: Importance;
+  start_at: string;
   end_at: string;
   location: string;
   is_online: boolean;
@@ -48,6 +68,8 @@ export type MeetingFormValue = {
 const empty: MeetingFormValue = {
   title: "",
   description: "",
+  notes: "",
+  importance: "normal",
   start_at: "",
   end_at: "",
   location: "",
@@ -88,9 +110,23 @@ export function MeetingDialog({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newPart, setNewPart] = useState({ email: "", name: "" });
+  const [attachments, setAttachments] = useState<DocumentRow[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function loadAttachments(id: string) {
+    const { data } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("source_type", "meeting")
+      .eq("source_id", id)
+      .order("created_at", { ascending: false });
+    setAttachments((data ?? []) as DocumentRow[]);
+  }
 
   useEffect(() => {
     if (!open) return;
+    setAttachments([]);
     if (meetingId) {
       setLoading(true);
       (async () => {
@@ -103,6 +139,8 @@ export function MeetingDialog({
             id: m.id,
             title: m.title ?? "",
             description: m.description ?? "",
+            notes: m.notes ?? "",
+            importance: ((m as { importance?: string }).importance as Importance) ?? "normal",
             start_at: toLocalInput(m.start_at),
             end_at: toLocalInput(m.end_at),
             location: m.location ?? "",
@@ -117,6 +155,7 @@ export function MeetingDialog({
                 .filter((p) => p.role !== "organizer")
                 .map((p) => ({ email: p.email, name: p.name ?? "", role: (p.role as "required" | "optional") ?? "required" })),
           });
+          loadAttachments(meetingId);
         }
         setLoading(false);
       })();
@@ -171,6 +210,8 @@ export function MeetingDialog({
         user_id: user.id,
         title: form.title.trim(),
         description: form.description.trim() || null,
+        notes: form.notes.trim() || null,
+        importance: form.importance,
         start_at: fromLocalInput(form.start_at),
         end_at: fromLocalInput(form.end_at),
         location: form.location.trim() || null,
@@ -191,7 +232,6 @@ export function MeetingDialog({
         if (error) throw error;
         id = data.id;
       }
-      // organizer participant
       const rows = [
         {
           meeting_id: id!,
@@ -214,10 +254,10 @@ export function MeetingDialog({
         const { error } = await supabase.from("meeting_participants").insert(rows);
         if (error) throw error;
       }
+      setForm((f) => ({ ...f, id }));
       toast.success(form.id ? "Réunion mise à jour" : "Réunion créée");
       onSaved?.();
       requestAutoSync();
-      onOpenChange(false);
       return id!;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -225,6 +265,11 @@ export function MeetingDialog({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function saveAndClose() {
+    const id = await save();
+    if (id) onOpenChange(false);
   }
 
   async function saveAndDownload() {
@@ -243,13 +288,139 @@ export function MeetingDialog({
     });
   }
 
+  // --- Attachments ---
+  async function ensureSaved(): Promise<string | null> {
+    if (form.id) return form.id;
+    return await save();
+  }
+
+  async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!user || files.length === 0) return;
+    const id = await ensureSaved();
+    if (!id) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const docId = crypto.randomUUID();
+        const path = storagePath(user.id, "meeting", docId, file.name);
+        await uploadToStorage(path, file);
+        const checksum = await sha256(file);
+        const { error } = await supabase.from("documents").insert({
+          id: docId,
+          user_id: user.id,
+          filename: file.name,
+          original_filename: file.name,
+          file_size: file.size,
+          mime_type: file.type || null,
+          storage_path: path,
+          source_type: "meeting",
+          source_id: id,
+          tags: [],
+          checksum,
+        });
+        if (error) throw error;
+      }
+      await loadAttachments(id);
+      toast.success("Fichier(s) ajouté(s)");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur upload");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function downloadAttachment(doc: DocumentRow) {
+    if (!doc.storage_path) return;
+    try {
+      const url = await getSignedUrl(doc.storage_path, 60);
+      window.open(url, "_blank");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur téléchargement");
+    }
+  }
+
+  async function deleteAttachment(doc: DocumentRow) {
+    if (!confirm(`Supprimer "${doc.filename}" ?`)) return;
+    try {
+      if (doc.storage_path) await removeFromStorage(doc.storage_path);
+      await supabase.from("documents").delete().eq("id", doc.id);
+      setAttachments((a) => a.filter((d) => d.id !== doc.id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur suppression");
+    }
+  }
+
+  // --- Quick actions ---
+  function sendMailToParticipants() {
+    const recipients = form.participants.map((p) => p.email).filter(Boolean);
+    if (recipients.length === 0) {
+      toast.error("Aucun participant");
+      return;
+    }
+    const dateStr = form.start_at ? new Date(fromLocalInput(form.start_at)).toLocaleString("fr-FR") : "";
+    const lines = [
+      `Bonjour,`,
+      ``,
+      `Je vous propose la réunion suivante :`,
+      `• ${form.title}`,
+      dateStr ? `• Date : ${dateStr}` : "",
+      form.location ? `• Lieu : ${form.location}` : "",
+      form.is_online && form.online_link ? `• Visio : ${form.online_link}` : "",
+      form.description ? `\n${form.description}` : "",
+      ``,
+      `Cordialement,`,
+      form.organizer_name || "",
+    ].filter(Boolean).join("\n");
+    const subject = encodeURIComponent(`Invitation : ${form.title}`);
+    const body = encodeURIComponent(lines);
+    window.location.href = `mailto:${recipients.join(",")}?subject=${subject}&body=${body}`;
+  }
+
+  async function createLinkedTask() {
+    if (!user) return;
+    const id = await ensureSaved();
+    if (!id) return;
+    try {
+      const { data: task, error } = await supabase
+        .from("tasks")
+        .insert({
+          user_id: user.id,
+          title: `Préparer : ${form.title}`,
+          description: form.notes || form.description || null,
+          status: "todo",
+          priority: form.importance === "critical" || form.importance === "high" ? "high" : "medium",
+          due_date: fromLocalInput(form.start_at),
+          source_app: "myhubpro",
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      await supabase.from("meeting_tasks").insert({
+        meeting_id: id,
+        task_id: task.id,
+        user_id: user.id,
+      });
+      toast.success("Tâche associée créée");
+      requestAutoSync();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{form.id ? "Modifier la réunion" : "Nouvelle réunion"}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {form.id ? "Modifier la réunion" : "Nouvelle réunion"}
+            <Badge className={cn("ml-2 text-xs", IMPORTANCE_META[form.importance].cls)}>
+              {IMPORTANCE_META[form.importance].label}
+            </Badge>
+          </DialogTitle>
           <DialogDescription>
-            Renseignez les informations puis téléchargez l'invitation .ics à joindre à vos emails.
+            Préparez la réunion : notes, participants, pièces jointes, visio, importance…
           </DialogDescription>
         </DialogHeader>
 
@@ -257,10 +428,24 @@ export function MeetingDialog({
           <div className="py-8 text-center text-muted-foreground">Chargement…</div>
         ) : (
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="m-title">Titre *</Label>
-              <Input id="m-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+              <div>
+                <Label htmlFor="m-title">Titre *</Label>
+                <Input id="m-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+              </div>
+              <div>
+                <Label htmlFor="m-imp">Importance</Label>
+                <Select value={form.importance} onValueChange={(v) => setForm({ ...form, importance: v as Importance })}>
+                  <SelectTrigger id="m-imp" className="min-w-[140px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(IMPORTANCE_META) as Importance[]).map((k) => (
+                      <SelectItem key={k} value={k}>{IMPORTANCE_META[k].label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="m-start">Début *</Label>
@@ -275,6 +460,7 @@ export function MeetingDialog({
               <Label htmlFor="m-loc">Lieu</Label>
               <Input id="m-loc" placeholder="Salle, adresse…" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
             </div>
+
             <div className="flex items-center justify-between rounded-md border p-3">
               <div>
                 <Label htmlFor="m-online" className="cursor-pointer">Visioconférence</Label>
@@ -333,6 +519,11 @@ export function MeetingDialog({
                         <Sparkles className="h-4 w-4" />
                       </Button>
                     )}
+                    {form.online_link && (
+                      <Button type="button" variant="outline" onClick={() => window.open(form.online_link, "_blank")}>
+                        Ouvrir
+                      </Button>
+                    )}
                   </div>
                 </div>
                 {form.online_provider === "zoom" && (
@@ -343,9 +534,21 @@ export function MeetingDialog({
                 )}
               </div>
             )}
+
             <div>
               <Label htmlFor="m-desc">Description / Ordre du jour</Label>
               <Textarea id="m-desc" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </div>
+
+            <div>
+              <Label htmlFor="m-notes">Notes de préparation</Label>
+              <Textarea
+                id="m-notes"
+                rows={4}
+                placeholder="Points à aborder, questions, éléments à vérifier…"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
             </div>
 
             <div className="space-y-2">
@@ -378,6 +581,46 @@ export function MeetingDialog({
                 </div>
               )}
             </div>
+
+            <div className="space-y-2 rounded-md border p-3">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-1.5"><Paperclip className="h-4 w-4" /> Pièces jointes</Label>
+                <Button type="button" variant="outline" size="sm" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="h-4 w-4 mr-1" /> {uploading ? "Envoi…" : "Ajouter"}
+                </Button>
+                <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onPickFiles} />
+              </div>
+              {attachments.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {form.id ? "Aucun fichier." : "Enregistrez la réunion pour pouvoir joindre des fichiers."}
+                </p>
+              ) : (
+                <ul className="space-y-1">
+                  {attachments.map((d) => (
+                    <li key={d.id} className="flex items-center gap-2 text-sm rounded border bg-card p-2">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="truncate flex-1">{d.filename}</span>
+                      <span className="text-xs text-muted-foreground">{formatBytes(d.file_size)}</span>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => downloadAttachment(d)} title="Télécharger">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => deleteAttachment(d)} title="Supprimer">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2 rounded-md border p-3 bg-muted/30">
+              <Button type="button" variant="outline" size="sm" onClick={sendMailToParticipants}>
+                <Mail className="h-4 w-4 mr-1" /> Envoyer un mail aux participants
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={createLinkedTask}>
+                <ListTodo className="h-4 w-4 mr-1" /> Créer une tâche associée
+              </Button>
+            </div>
           </div>
         )}
 
@@ -403,7 +646,7 @@ export function MeetingDialog({
           <Button variant="outline" onClick={saveAndDownload} disabled={saving}>
             <Download className="h-4 w-4 mr-1" /> Enregistrer & .ics
           </Button>
-          <Button onClick={save} disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer"}</Button>
+          <Button onClick={saveAndClose} disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
