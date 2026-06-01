@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download, Upload } from "lucide-react";
+import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download, Upload, Link, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
