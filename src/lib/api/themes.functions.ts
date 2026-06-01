@@ -44,6 +44,8 @@ Règles:
 - Pour chaque thème, donne 3 à 6 mots-clés discriminants (noms propres, sigles, adresses email partielles, projets).
 - Réponds UNIQUEMENT en JSON valide:
 {"themes":[{"name":"...","description":"...","keywords":["...","..."]}]}`;
+}
+
 
 export const discoverThemes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
