@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download } from "lucide-react";
+import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download, Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { enqueue, requestAutoSync } from "@/lib/sync-queue";
 import { analyzeTaskText } from "@/lib/api/task-analysis.functions";
-import { getSignedUrl, type DocumentRow } from "@/lib/documents";
+import { getSignedUrl, sha256, storagePath, uploadToStorage, type DocumentRow } from "@/lib/documents";
 import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
 import { formatBytes } from "@/lib/file-icons";
+
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -109,9 +110,13 @@ export function TaskPanel({
   const [attachmentDocs, setAttachmentDocs] = useState<DocumentRow[]>([]);
   const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState<DocumentRow | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [addToCalendar, setAddToCalendar] = useState(false);
+
+
 
   // Thèmes / sous-thèmes du Plan d'opération
   type OpTheme = { id: string; name: string; position: number };
@@ -192,7 +197,9 @@ export function TaskPanel({
     setNewSection("");
     setEmailSearch("");
     setEmailResults([]);
+    setPendingFiles([]);
   }, [open, task, defaultStatus]);
+
 
   // Charger thèmes / sous-thèmes du plan d'opération
   const loadOpThemes = async () => {
@@ -514,7 +521,63 @@ export function TaskPanel({
           savedTask = { ...savedTask, calendar_event_id: null } as Task;
         }
 
+        // Upload pending file attachments
+        if (pendingFiles.length > 0 && savedTask) {
+          setUploadingFiles(true);
+          try {
+            const existingAttachments =
+              ((savedTask as Task & { attachments?: TaskAttachment[] }).attachments ?? []) as TaskAttachment[];
+            const newAttachments: TaskAttachment[] = [];
+            for (const file of pendingFiles) {
+              const docId = crypto.randomUUID();
+              const path = storagePath(user.id, "task", docId, file.name);
+              const checksum = await sha256(file);
+              await uploadToStorage(path, file);
+              const { error: docErr } = await supabase.from("documents").insert({
+                id: docId,
+                user_id: user.id,
+                filename: file.name,
+                original_filename: file.name,
+                file_size: file.size,
+                mime_type: file.type || null,
+                storage_path: path,
+                source_type: "task",
+                source_id: savedTask.id,
+                tags: [],
+                description: null,
+                is_sensitive: false,
+                local_only: false,
+                checksum,
+              });
+              if (docErr) throw docErr;
+              newAttachments.push({
+                name: file.name,
+                mime: file.type || null,
+                size: file.size,
+                url: null,
+                document_id: docId,
+                storage_path: path,
+              });
+            }
+            const mergedAttachments = [...existingAttachments, ...newAttachments];
+            const { data: updated, error: upErr } = await supabase
+              .from("tasks")
+              .update({ attachments: mergedAttachments })
+              .eq("id", savedTask.id)
+              .select()
+              .single();
+            if (upErr) throw upErr;
+            savedTask = updated as Task;
+            toast.success(`${pendingFiles.length} fichier${pendingFiles.length > 1 ? "s" : ""} attaché${pendingFiles.length > 1 ? "s" : ""}`);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Échec de l'upload des fichiers");
+          } finally {
+            setUploadingFiles(false);
+          }
+        }
+
         onSaved(savedTask);
+
       } else {
         // Offline: queue and create optimistic record
         const optimistic: Task = {
@@ -708,6 +771,57 @@ export function TaskPanel({
                 </ul>
               </div>
             )}
+
+            <div>
+              <Label className="mb-1.5 flex items-center gap-1.5">
+                <Upload className="h-3.5 w-3.5" /> Ajouter des fichiers
+              </Label>
+              <label
+                className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed p-3 text-xs text-muted-foreground transition-colors hover:border-primary hover:bg-accent/30"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const list = e.dataTransfer.files;
+                  if (list) setPendingFiles((prev) => [...prev, ...Array.from(list)]);
+                }}
+              >
+                <Upload className="h-4 w-4 opacity-60" />
+                <span>Glisser-déposer ou cliquer pour sélectionner</span>
+                <input
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const list = e.target.files;
+                    if (list) setPendingFiles((prev) => [...prev, ...Array.from(list)]);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {pendingFiles.length > 0 && (
+                <ul className="mt-2 space-y-1 rounded-md border bg-muted/20 p-2 text-xs">
+                  {pendingFiles.map((f, i) => (
+                    <li key={`${f.name}-${i}`} className="flex items-center gap-2">
+                      <Paperclip className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="flex-1 truncate">{f.name}</span>
+                      <span className="text-muted-foreground">{formatBytes(f.size)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {uploadingFiles && (
+                <p className="mt-1 text-xs text-muted-foreground">Upload en cours…</p>
+              )}
+            </div>
+
+
 
             {task && (task as Task & { calendar_event_id?: string | null }).calendar_event_id && (
               <div className="rounded-md border bg-muted/30 p-2 text-xs">
