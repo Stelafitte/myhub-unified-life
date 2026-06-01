@@ -34,84 +34,134 @@ export const listThemes = createServerFn({ method: "GET" })
 // ---------- Discover ----------
 // Analyses recent emails + optional folder hints via AI to propose a starter list of themes.
 
-const DISCOVER_SYS = `Tu es un assistant qui analyse les emails d'un professionnel pour en extraire les principaux THÈMES MÉTIER (projets, dossiers, sujets récurrents).
+function discoverSystemPrompt(maxThemes: number) {
+  return `Tu es un assistant qui analyse les emails d'un professionnel pour en extraire les principaux THÈMES MÉTIER (projets, dossiers, sujets récurrents).
 
 Règles:
-- Propose entre 5 et 12 thèmes maximum, distincts et non redondants.
+- Propose entre 5 et ${maxThemes} thèmes maximum, distincts et non redondants.
 - Un thème = un sujet métier précis (ex: "Congrès Bordeaux 2026", "Cabinet Bodin - Divorce", "Prestataires IT", "SFC", "ODP2C").
 - IGNORE les catégories génériques type "Newsletters", "Notifications", "Personnel".
 - Pour chaque thème, donne 3 à 6 mots-clés discriminants (noms propres, sigles, adresses email partielles, projets).
 - Réponds UNIQUEMENT en JSON valide:
 {"themes":[{"name":"...","description":"...","keywords":["...","..."]}]}`;
+}
+
+
+const DiscoverInput = z.object({ maxThemes: z.number().int().min(3).max(20).optional() }).optional();
+
+async function runDiscover(
+  supabase: any,
+  userId: string,
+  maxThemes: number,
+): Promise<{ created: number; error?: string }> {
+  const key = process.env.LOVABLE_API_KEY;
+  if (!key) return { created: 0, error: "LOVABLE_API_KEY manquant" };
+
+  const { data: rows } = await supabase
+    .from("emails")
+    .select("subject,from_address,from_name,ai_summary")
+    .eq("user_id", userId)
+    .eq("is_sensitive", false)
+    .order("received_at", { ascending: false })
+    .limit(200);
+
+  if (!rows || rows.length === 0) return { created: 0, error: "Pas assez d'emails pour analyser" };
+
+  const sample = rows
+    .map(
+      (r: any) =>
+        `• ${r.subject ?? "(sans sujet)"} — de ${r.from_name ?? ""} <${r.from_address ?? ""}>${r.ai_summary ? ` | ${r.ai_summary}` : ""}`,
+    )
+    .join("\n")
+    .slice(0, 14000);
+
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: discoverSystemPrompt(maxThemes) },
+        { role: "user", content: `Voici un échantillon de ${rows.length} emails récents:\n\n${sample}` },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+  if (!resp.ok) return { created: 0, error: `AI ${resp.status}` };
+  const json = await resp.json();
+  const raw = json?.choices?.[0]?.message?.content ?? "{}";
+
+  let parsed: { themes?: { name: string; description?: string; keywords?: string[] }[] } = {};
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { created: 0, error: "Réponse IA invalide" };
+  }
+
+  const themes = (parsed.themes ?? []).filter((t) => t.name && t.name.length > 1).slice(0, maxThemes);
+  if (themes.length === 0) return { created: 0 };
+
+  let created = 0;
+  for (const t of themes) {
+    const { error } = await supabase.from("email_themes").upsert(
+      {
+        user_id: userId,
+        name: t.name.slice(0, 80),
+        description: (t.description ?? "").slice(0, 280),
+        keywords: (t.keywords ?? []).slice(0, 10),
+        source: "ai",
+        archived_at: null,
+      },
+      { onConflict: "user_id,name" },
+    );
+    if (!error) created++;
+  }
+  return { created };
+}
 
 export const discoverThemes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) return { created: 0, error: "LOVABLE_API_KEY manquant" };
-
-    // Sample of recent emails
-    const { data: rows } = await supabase
-      .from("emails")
-      .select("subject,from_address,from_name,ai_summary")
-      .eq("user_id", userId)
-      .eq("is_sensitive", false)
-      .order("received_at", { ascending: false })
-      .limit(150);
-
-    if (!rows || rows.length === 0) return { created: 0, error: "Pas assez d'emails pour analyser" };
-
-    const sample = rows
-      .map(
-        (r) =>
-          `• ${r.subject ?? "(sans sujet)"} — de ${r.from_name ?? ""} <${r.from_address ?? ""}>${r.ai_summary ? ` | ${r.ai_summary}` : ""}`,
-      )
-      .join("\n")
-      .slice(0, 12000);
-
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: DISCOVER_SYS },
-          { role: "user", content: `Voici un échantillon de ${rows.length} emails récents:\n\n${sample}` },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-    if (!resp.ok) return { created: 0, error: `AI ${resp.status}` };
-    const json = await resp.json();
-    const raw = json?.choices?.[0]?.message?.content ?? "{}";
-
-    let parsed: { themes?: { name: string; description?: string; keywords?: string[] }[] } = {};
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return { created: 0, error: "Réponse IA invalide" };
-    }
-
-    const themes = (parsed.themes ?? []).filter((t) => t.name && t.name.length > 1).slice(0, 12);
-    if (themes.length === 0) return { created: 0 };
-
-    let created = 0;
-    for (const t of themes) {
-      const { error } = await supabase.from("email_themes").upsert(
-        {
-          user_id: userId,
-          name: t.name.slice(0, 80),
-          description: (t.description ?? "").slice(0, 280),
-          keywords: (t.keywords ?? []).slice(0, 10),
-          source: "ai",
-        },
-        { onConflict: "user_id,name", ignoreDuplicates: true },
-      );
-      if (!error) created++;
-    }
-    return { created };
+  .inputValidator((input: unknown) => DiscoverInput.parse(input))
+  .handler(async ({ data, context }) => {
+    return runDiscover(context.supabase, context.userId, data?.maxThemes ?? 12);
   });
+
+// ---------- Refine from scratch ----------
+// Archive existing themes, clear sender map, reset all emails, then regenerate
+// up to N themes (default 15) from a fresh sample.
+
+const RefineInput = z.object({ maxThemes: z.number().int().min(5).max(20).optional() }).optional();
+
+export const refineThemesFromScratch = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => RefineInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const maxThemes = data?.maxThemes ?? 15;
+
+    // 1. Reset all emails' classification
+    const { error: resetErr } = await supabase
+      .from("emails")
+      .update({ ai_theme_id: null, theme_processed_at: null })
+      .eq("user_id", userId);
+    if (resetErr) return { ok: false, created: 0, error: resetErr.message };
+
+    // 2. Clear sender memory so the IA re-decides
+    await supabase.from("sender_theme_map").delete().eq("user_id", userId);
+
+    // 3. Archive existing AI themes (keep manual/onedrive ones available but archived too,
+    //    so the new list is clean — user can unarchive if needed).
+    await supabase
+      .from("email_themes")
+      .update({ archived_at: new Date().toISOString(), email_count: 0 })
+      .eq("user_id", userId)
+      .is("archived_at", null);
+
+    // 4. Regenerate fresh themes
+    const res = await runDiscover(supabase, userId, maxThemes);
+    return { ok: !res.error, created: res.created, error: res.error };
+  });
+
 
 // ---------- Seed from OneDrive folders ----------
 

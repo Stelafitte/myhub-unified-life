@@ -30,6 +30,7 @@ import {
   Settings2,
   RefreshCw,
   Loader2,
+  Wand2,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
@@ -61,6 +62,7 @@ import {
   listThemes,
   classifyPendingThemes,
   discoverThemes,
+  refineThemesFromScratch,
   seedThemesFromFolders,
   setEmailTheme,
   type Theme,
@@ -183,9 +185,11 @@ function InboxPage() {
   const discoverThemesFn = useServerFn(discoverThemes);
   const seedFoldersFn = useServerFn(seedThemesFromFolders);
   const setEmailThemeFn = useServerFn(setEmailTheme);
+  const refineThemesFn = useServerFn(refineThemesFromScratch);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
   const [relaunching, setRelaunching] = useState(false);
+  const [refining, setRefining] = useState(false);
   const [aiRanking, setAiRanking] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
@@ -442,6 +446,54 @@ function InboxPage() {
     setThemes(r.themes);
     return r.themes;
   };
+
+  const handleRefineThemes = async () => {
+    if (refining) return;
+    const ok = window.confirm(
+      "Re-trier tous les mails avec l'IA ?\n\n• Les thèmes actuels seront archivés\n• L'IA générera jusqu'à 15 nouvelles sections\n• Tous les mails seront reclassés (peut prendre 1 à 2 minutes)",
+    );
+    if (!ok) return;
+    setRefining(true);
+    const toastId = toast.loading("Génération des 15 nouvelles sections…");
+    try {
+      const res = await refineThemesFn({ data: { maxThemes: 15 } });
+      if (!res.ok) {
+        toast.error(res.error ?? "Échec du re-tri", { id: toastId });
+        return;
+      }
+      toast.loading(`${res.created} sections créées. Classement des mails…`, { id: toastId });
+      await refreshThemes();
+      // Loop classify until done (safety cap)
+      let total = 0;
+      for (let i = 0; i < 60; i++) {
+        const r = await classifyThemesFn().catch(() => ({ processed: 0 }));
+        const n = r?.processed ?? 0;
+        if (n === 0) break;
+        total += n;
+        toast.loading(`Classement en cours… ${total} mails traités`, { id: toastId });
+        await refreshThemes();
+      }
+      // Reload emails list
+      const { data: refreshed } = await supabase
+        .from("emails")
+        .select("*")
+        .eq("is_archived", false)
+        .order("received_at", { ascending: false })
+        .limit(1000);
+      if (refreshed) setEmails(refreshed as Email[]);
+      toast.success(`Re-tri terminé · ${total} mails reclassés dans ${res.created} sections`, {
+        id: toastId,
+      });
+      setAiRanking(true);
+    } catch (e) {
+      toast.error("Erreur pendant le re-tri", { id: toastId });
+      console.error(e);
+    } finally {
+      setRefining(false);
+    }
+  };
+
+
 
   useEffect(() => {
     if (!user) return;
@@ -1238,7 +1290,21 @@ function InboxPage() {
               <Sparkles className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Classement IA</span>
             </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 shrink-0 gap-1 px-2 text-xs font-medium"
+              onClick={handleRefineThemes}
+              disabled={refining}
+              title="Demander à l'IA de refaire un tri complet (max 15 sections). Archive les thèmes actuels et reclasse tous les mails."
+            >
+              <Wand2 className={cn("h-3.5 w-3.5", refining && "animate-pulse")} />
+              <span className="hidden sm:inline">
+                {refining ? "Re-tri…" : "Affiner (15)"}
+              </span>
+            </Button>
           </div>
+
           <div className="flex shrink-0 items-center gap-2">
             {(filter === "trash" || filter === "spam") && filtered.length > 0 && (
               <Button
