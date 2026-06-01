@@ -317,15 +317,10 @@ export function ThemesManagerDialog({
                             value={t.utility_level}
                             onChange={(lvl) => handleSetUtility(t.id, lvl)}
                           />
-                          <Select value={t.scope} onValueChange={(v) => handleSetScope(t.id, v as ThemeScope)}>
-                            <SelectTrigger className="h-7 w-[100px] text-[11px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pro" className="text-xs">Pro</SelectItem>
-                              <SelectItem value="perso" className="text-xs">Perso</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <ScopeToggle
+                            value={t.scope}
+                            onChange={(s) => handleSetScope(t.id, s)}
+                          />
                           <div className="ml-auto flex items-center gap-0.5">
                             {mergeFrom && mergeFrom !== t.id ? (
                               <Button size="sm" variant="default" className="h-7" onClick={() => handleMerge(t.id)}>
