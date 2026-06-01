@@ -61,6 +61,7 @@ import {
   listThemes,
   classifyPendingThemes,
   discoverThemes,
+  refineThemesFromScratch,
   seedThemesFromFolders,
   setEmailTheme,
   type Theme,
