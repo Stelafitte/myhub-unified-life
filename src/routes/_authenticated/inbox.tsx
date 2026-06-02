@@ -572,7 +572,7 @@ function InboxPage() {
           .eq("is_archived", false)
           .order("received_at", { ascending: false })
           .limit(1000);
-        if (!cancelled && refreshed) setEmails(refreshed as Email[]);
+        if (!cancelled && refreshed) setEmails(applyLocalRead(refreshed as Email[]));
       }
     })();
     return () => {
