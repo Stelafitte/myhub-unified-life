@@ -8,6 +8,8 @@ import { SecuritySection } from "@/components/settings/security-section";
 import { DocumentsSection } from "@/components/settings/documents-section";
 import { AccountSection } from "@/components/settings/account-section";
 import { PlanOperationSection } from "@/components/settings/plan-operation-section";
+import { BackendSection } from "@/components/settings/backend-section";
+
 
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -36,7 +38,9 @@ function SettingsPage() {
           <TabsTrigger value="plan">📋 Plan d'opération</TabsTrigger>
           <TabsTrigger value="documents">📁 Documents</TabsTrigger>
           <TabsTrigger value="security">🔒 Sécurité & Conformité</TabsTrigger>
+          <TabsTrigger value="advanced">⚙️ Avancé</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="account">
           <AccountSection />
@@ -60,6 +64,10 @@ function SettingsPage() {
         <TabsContent value="security">
           <SecuritySection />
         </TabsContent>
+        <TabsContent value="advanced">
+          <BackendSection />
+        </TabsContent>
+
       </Tabs>
     </div>
   );
