@@ -1252,7 +1252,7 @@ function InboxPage() {
                 key={a.id}
                 onClick={() => setFilter(`account:${a.id}`)}
                 className={cn(
-                  "flex h-8 w-full items-center gap-2 rounded-md px-3 text-left leading-none transition-colors",
+                  "flex h-8 w-full items-center justify-start gap-2 rounded-md px-3 text-left leading-none transition-colors",
                   filter === `account:${a.id}` ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
                 )}
               >
@@ -1262,7 +1262,7 @@ function InboxPage() {
                 >
                   {a.icon ?? "✉️"}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm leading-none">{a.name}</span>
+                <span className="min-w-0 flex-1 truncate text-left text-sm leading-none">{a.name}</span>
                 <span className="ml-auto flex min-w-[1.5rem] shrink-0 items-center justify-end text-right text-[11px] leading-none tabular-nums text-muted-foreground">
                   {counts.byAccount.get(a.id) ?? 0}
                 </span>
@@ -2123,11 +2123,11 @@ function FilterRow({
         active ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
       )}
     >
-      <button onClick={onClick} className="flex h-full min-w-0 flex-1 items-center gap-2">
+      <button onClick={onClick} className="flex h-full min-w-0 flex-1 items-center gap-2 text-left">
         <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground">
           {icon}
         </span>
-        <span className="min-w-0 flex-1 truncate text-sm leading-none">{label}</span>
+        <span className="min-w-0 flex-1 truncate text-left text-sm leading-none">{label}</span>
         <span className="ml-auto flex min-w-[1.5rem] shrink-0 items-center justify-end text-right text-[11px] leading-none tabular-nums text-muted-foreground">
           {count}
         </span>
