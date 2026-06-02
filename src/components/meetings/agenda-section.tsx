@@ -376,19 +376,36 @@ export function AgendaSection({
         </DndContext>
       )}
 
-      {items.length > 0 && (
-        <div className="flex flex-wrap gap-1 pt-1 border-t">
-          {(Object.keys(STATUS_META) as AgendaItem["status"][]).map((k) => {
-            const count = items.filter((i) => i.status === k).length;
-            if (count === 0) return null;
-            return (
-              <Badge key={k} variant="secondary" className={cn("text-[10px]", STATUS_META[k].cls)}>
-                {STATUS_META[k].emoji} {count}
+      {items.length > 0 && (() => {
+        const totals = Object.values(counts).reduce(
+          (acc, c) => ({
+            total: acc.total + c.total,
+            done: acc.done + c.done,
+            overdue: acc.overdue + c.overdue,
+          }),
+          { total: 0, done: 0, overdue: 0 },
+        );
+        const rate = totals.total > 0 ? Math.round((totals.done / totals.total) * 100) : 0;
+        return (
+          <div className="flex flex-wrap items-center gap-1 pt-1 border-t">
+            {(Object.keys(STATUS_META) as AgendaItem["status"][]).map((k) => {
+              const count = items.filter((i) => i.status === k).length;
+              if (count === 0) return null;
+              return (
+                <Badge key={k} variant="secondary" className={cn("text-[10px]", STATUS_META[k].cls)}>
+                  {STATUS_META[k].emoji} {count}
+                </Badge>
+              );
+            })}
+            {totals.total > 0 && (
+              <Badge variant="outline" className="text-[10px] ml-auto">
+                ✅ Actions {totals.done}/{totals.total} ({rate}%)
+                {totals.overdue > 0 && <span className="text-destructive ml-1">· {totals.overdue} en retard</span>}
               </Badge>
-            );
-          })}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {running && (
         <RunningMeetingMode
