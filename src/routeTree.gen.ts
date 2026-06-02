@@ -22,6 +22,7 @@ import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedPlanOperationRouteImport } from './routes/_authenticated/plan-operation'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedMeetingsRouteImport } from './routes/_authenticated/meetings'
+import { Route as AuthenticatedMeetingActionsRouteImport } from './routes/_authenticated/meeting-actions'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -97,6 +98,12 @@ const AuthenticatedMeetingsRoute = AuthenticatedMeetingsRouteImport.update({
   path: '/meetings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedMeetingActionsRoute =
+  AuthenticatedMeetingActionsRouteImport.update({
+    id: '/meeting-actions',
+    path: '/meeting-actions',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
@@ -155,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/inbox': typeof AuthenticatedInboxRoute
+  '/meeting-actions': typeof AuthenticatedMeetingActionsRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/plan-operation': typeof AuthenticatedPlanOperationRoute
@@ -178,6 +186,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/inbox': typeof AuthenticatedInboxRoute
+  '/meeting-actions': typeof AuthenticatedMeetingActionsRoute
   '/meetings': typeof AuthenticatedMeetingsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/plan-operation': typeof AuthenticatedPlanOperationRoute
@@ -203,6 +212,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
+  '/_authenticated/meeting-actions': typeof AuthenticatedMeetingActionsRoute
   '/_authenticated/meetings': typeof AuthenticatedMeetingsRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/plan-operation': typeof AuthenticatedPlanOperationRoute
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/documents'
     | '/inbox'
+    | '/meeting-actions'
     | '/meetings'
     | '/onboarding'
     | '/plan-operation'
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/documents'
     | '/inbox'
+    | '/meeting-actions'
     | '/meetings'
     | '/onboarding'
     | '/plan-operation'
@@ -275,6 +287,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/documents'
     | '/_authenticated/inbox'
+    | '/_authenticated/meeting-actions'
     | '/_authenticated/meetings'
     | '/_authenticated/onboarding'
     | '/_authenticated/plan-operation'
@@ -393,6 +406,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMeetingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/meeting-actions': {
+      id: '/_authenticated/meeting-actions'
+      path: '/meeting-actions'
+      fullPath: '/meeting-actions'
+      preLoaderRoute: typeof AuthenticatedMeetingActionsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/inbox': {
       id: '/_authenticated/inbox'
       path: '/inbox'
@@ -466,6 +486,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
+  AuthenticatedMeetingActionsRoute: typeof AuthenticatedMeetingActionsRoute
   AuthenticatedMeetingsRoute: typeof AuthenticatedMeetingsRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedPlanOperationRoute: typeof AuthenticatedPlanOperationRoute
@@ -483,6 +504,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
+  AuthenticatedMeetingActionsRoute: AuthenticatedMeetingActionsRoute,
   AuthenticatedMeetingsRoute: AuthenticatedMeetingsRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedPlanOperationRoute: AuthenticatedPlanOperationRoute,
