@@ -402,6 +402,12 @@ function DocumentsPage() {
               <span className="hidden sm:inline">Classer IA</span>
             </Button>
           )}
+          {!selectionMode && grouped.length > 0 && (
+            <Button variant="outline" size="sm" onClick={toggleAllGroups} className="gap-1.5">
+              {allCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{allCollapsed ? "Tout déplier" : "Tout replier"}</span>
+            </Button>
+          )}
           {!selectionMode && filtered.length > 0 && (
             <Button variant="outline" size="sm" onClick={selectAllFiltered} className="hidden sm:inline-flex">
               Sélectionner
