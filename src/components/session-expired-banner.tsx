@@ -1,3 +1,4 @@
+// MyHub Pro v1.0
 import { useEffect, useState } from "react";
 import { AlertTriangle, LogIn, X } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
