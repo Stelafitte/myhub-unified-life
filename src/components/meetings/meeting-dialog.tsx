@@ -205,7 +205,10 @@ export function MeetingDialog({
                 .map((p) => ({ email: p.email, name: p.name ?? "", role: (p.role as "required" | "optional") ?? "required" })),
           });
           setConfirmedSlotId((m as { confirmed_slot_id?: string | null }).confirmed_slot_id ?? null);
+          lastSavedNotesRef.current = m.notes ?? "";
+          setNotesSavedAt((m as { notes_updated_at?: string | null }).notes_updated_at ? new Date((m as { notes_updated_at: string }).notes_updated_at) : null);
           loadAttachments(meetingId);
+          loadNotesHistory(meetingId);
           const poll = polls?.[0];
           if (poll) {
             setExistingPoll({ id: poll.id, public_token: poll.public_token, status: poll.status });
