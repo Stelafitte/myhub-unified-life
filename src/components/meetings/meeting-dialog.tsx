@@ -695,8 +695,108 @@ export function MeetingDialog({
                     </div>
                   </div>
                 )}
+
+                {existingPoll && pollSlots.length > 0 && (() => {
+                  const counts = pollSlots.map((s) => {
+                    const vs = pollVotes.filter((v) => v.slot_id === s.id);
+                    return {
+                      slot: s,
+                      yes: vs.filter((v) => v.vote === "yes").length,
+                      maybe: vs.filter((v) => v.vote === "maybe").length,
+                      no: vs.filter((v) => v.vote === "no").length,
+                      score: vs.filter((v) => v.vote === "yes").length * 2 + vs.filter((v) => v.vote === "maybe").length,
+                    };
+                  });
+                  const totalVoters = new Set(pollVotes.map((v) => v.voter_email.toLowerCase())).size;
+                  const maxScore = Math.max(...counts.map((c) => c.score), 0);
+                  return (
+                    <div className="rounded-md border bg-background p-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-medium flex items-center gap-1">
+                          <Trophy className="h-3.5 w-3.5" /> Résultats du sondage
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          {totalVoters} votant{totalVoters > 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {counts.map((c) => {
+                          const isWinner = maxScore > 0 && c.score === maxScore;
+                          const isConfirmed = confirmedSlotId === c.slot.id;
+                          return (
+                            <li
+                              key={c.slot.id ?? c.slot.startAt}
+                              className={cn(
+                                "flex items-center gap-2 rounded border p-2 text-sm",
+                                isConfirmed
+                                  ? "border-green-500 bg-green-50 dark:bg-green-950/30"
+                                  : isWinner
+                                    ? "border-amber-400 bg-amber-50/50 dark:bg-amber-950/20"
+                                    : "bg-card",
+                              )}
+                            >
+                              <span className="flex-1 min-w-0">
+                                {new Date(c.slot.startAt).toLocaleDateString("fr-FR", {
+                                  weekday: "short", day: "2-digit", month: "short",
+                                })}
+                                {" · "}
+                                {new Date(c.slot.startAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                {" → "}
+                                {new Date(c.slot.endAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                {isWinner && !isConfirmed && (
+                                  <Badge variant="outline" className="ml-2 text-[10px] border-amber-500 text-amber-700 dark:text-amber-300">
+                                    Préféré
+                                  </Badge>
+                                )}
+                                {isConfirmed && (
+                                  <Badge className="ml-2 text-[10px] bg-green-600 hover:bg-green-600">
+                                    Confirmé
+                                  </Badge>
+                                )}
+                              </span>
+                              <span className="flex items-center gap-2 text-xs shrink-0">
+                                <span className="flex items-center gap-0.5 text-green-600" title="Oui">
+                                  <CheckCircle2 className="h-3.5 w-3.5" /> {c.yes}
+                                </span>
+                                <span className="flex items-center gap-0.5 text-amber-600" title="Peut-être">
+                                  <HelpCircle className="h-3.5 w-3.5" /> {c.maybe}
+                                </span>
+                                <span className="flex items-center gap-0.5 text-red-600" title="Non">
+                                  <XCircle className="h-3.5 w-3.5" /> {c.no}
+                                </span>
+                              </span>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={isConfirmed ? "secondary" : isWinner ? "default" : "outline"}
+                                disabled={confirming || isConfirmed || !form.id}
+                                onClick={() => confirmSlot(c.slot)}
+                              >
+                                {isConfirmed ? "✓" : "Confirmer"}
+                              </Button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <p className="text-[11px] text-muted-foreground">
+                        Confirmer un créneau met à jour la date de la réunion et clôture le sondage.
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
-            ) : (
+            )}
+
+            {existingPoll && existingPoll.status === "closed" && !pollMode && (
+              <div className="rounded-md border border-green-500/40 bg-green-50 dark:bg-green-950/30 p-3 text-sm flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-green-600" />
+                <span className="text-green-800 dark:text-green-200">
+                  Sondage clôturé — créneau confirmé.
+                </span>
+              </div>
+            )}
+
+            {(() => null)()}
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
