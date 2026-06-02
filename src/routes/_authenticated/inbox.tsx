@@ -226,6 +226,8 @@ function InboxPage() {
   const setEmailThemeFn = useServerFn(setEmailTheme);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
+  const [recatOpen, setRecatOpen] = useState(false);
+  const [recatEmailId, setRecatEmailId] = useState<string | null>(null);
   const [relaunching, setRelaunching] = useState(false);
   const [aiRanking, setAiRanking] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
