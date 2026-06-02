@@ -134,12 +134,17 @@ export function MeetingDialog({
   useEffect(() => {
     if (!open) return;
     setAttachments([]);
+    setPollSlots([]);
+    setPollDeadline("");
+    setPollMode(false);
+    setExistingPoll(null);
     if (meetingId) {
       setLoading(true);
       (async () => {
-        const [{ data: m }, { data: ps }] = await Promise.all([
+        const [{ data: m }, { data: ps }, { data: polls }] = await Promise.all([
           supabase.from("meetings").select("*").eq("id", meetingId).maybeSingle(),
           supabase.from("meeting_participants").select("*").eq("meeting_id", meetingId),
+          supabase.from("meeting_polls").select("id, public_token, deadline").eq("meeting_id", meetingId).order("created_at", { ascending: false }).limit(1),
         ]);
         if (m) {
           setForm({
@@ -163,6 +168,18 @@ export function MeetingDialog({
                 .map((p) => ({ email: p.email, name: p.name ?? "", role: (p.role as "required" | "optional") ?? "required" })),
           });
           loadAttachments(meetingId);
+          const poll = polls?.[0];
+          if (poll) {
+            setExistingPoll({ id: poll.id, public_token: poll.public_token });
+            setPollMode(true);
+            if (poll.deadline) setPollDeadline(toLocalInput(poll.deadline));
+            const { data: slots } = await supabase
+              .from("meeting_poll_slots")
+              .select("start_at, end_at")
+              .eq("poll_id", poll.id)
+              .order("position", { ascending: true });
+            setPollSlots((slots ?? []).map((s) => ({ startAt: s.start_at, endAt: s.end_at })));
+          }
         }
         setLoading(false);
       })();
@@ -181,6 +198,32 @@ export function MeetingDialog({
       });
     }
   }, [open, meetingId, user, initial]);
+
+  function addPollSlot(startAt: string, endAt: string) {
+    setPollSlots((s) => {
+      if (s.some((x) => x.startAt === startAt)) {
+        toast.error("Créneau déjà ajouté");
+        return s;
+      }
+      return [...s, { startAt, endAt }].sort((a, b) => a.startAt.localeCompare(b.startAt));
+    });
+  }
+  function removePollSlot(idx: number) {
+    setPollSlots((s) => s.filter((_, i) => i !== idx));
+  }
+  function addManualPollSlot() {
+    const base = pollSlots.length
+      ? new Date(pollSlots[pollSlots.length - 1].endAt)
+      : new Date(form.start_at ? fromLocalInput(form.start_at) : Date.now());
+    const start = new Date(base.getTime() + (pollSlots.length ? 24 * 3600_000 : 0));
+    const durationMin = (() => {
+      if (!form.start_at || !form.end_at) return 60;
+      const ms = new Date(fromLocalInput(form.end_at)).getTime() - new Date(fromLocalInput(form.start_at)).getTime();
+      return Math.max(15, Math.round(ms / 60000));
+    })();
+    const end = new Date(start.getTime() + durationMin * 60_000);
+    addPollSlot(start.toISOString(), end.toISOString());
+  }
 
   function addPart() {
     const email = newPart.email.trim();
