@@ -1129,19 +1129,37 @@ export function MeetingDialog({
                 </p>
               ) : (
                 <ul className="space-y-1">
-                  {attachments.map((d) => (
-                    <li key={d.id} className="flex items-center gap-2 text-sm rounded border bg-card p-2">
-                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="truncate flex-1">{d.filename}</span>
-                      <span className="text-xs text-muted-foreground">{formatBytes(d.file_size)}</span>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => downloadAttachment(d)} title="Télécharger">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => deleteAttachment(d)} title="Supprimer">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </li>
-                  ))}
+                  {attachments.map((d) => {
+                    const shared = !!sharedMap[d.id];
+                    return (
+                      <li key={d.id} className="flex items-center gap-2 text-sm rounded border bg-card p-2">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="truncate flex-1">
+                          {d.filename}
+                          {d.is_sensitive && (
+                            <Badge variant="outline" className="ml-1.5 text-[10px] border-red-300 text-red-700 dark:text-red-300 gap-0.5">
+                              <Lock className="h-2.5 w-2.5" /> Sensible
+                            </Badge>
+                          )}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{formatBytes(d.file_size)}</span>
+                        <div className="flex items-center gap-1.5 pr-1" title={d.is_sensitive ? "Partage bloqué : document sensible" : "Partager avec les invités externes (page publique du sondage)"}>
+                          <Globe className={cn("h-3.5 w-3.5", shared ? "text-primary" : "text-muted-foreground")} />
+                          <Switch
+                            checked={shared}
+                            disabled={d.is_sensitive}
+                            onCheckedChange={(v) => toggleShareWithExternals(d, v)}
+                          />
+                        </div>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => downloadAttachment(d)} title="Télécharger">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => deleteAttachment(d)} title="Supprimer">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
