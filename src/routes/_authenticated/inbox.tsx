@@ -2067,6 +2067,7 @@ function InboxPage() {
         onApplied={(patch) => {
           setEmails((prev) => prev.map((x) => (x.id === recatEmailId ? { ...x, ...patch } : x)));
         }}
+        onThemesChanged={() => { refreshThemes(); }}
       />
 
       <EmailComposer
