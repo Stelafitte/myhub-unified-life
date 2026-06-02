@@ -854,6 +854,7 @@ function InboxPage() {
       .update({ deleted_at: now })
       .in("id", idsToDelete);
     if (error) { toast.error(error.message); return; }
+    pushProviderAction(idsToDelete, "trash");
     const undoTrash = async () => {
       const { error: err } = await supabase
         .from("emails")
