@@ -24,6 +24,7 @@ import {
 import { formatBytes } from "@/lib/file-icons";
 import { cn } from "@/lib/utils";
 import { SlotFinder } from "@/components/meetings/slot-finder";
+import { AgendaSection } from "@/components/meetings/agenda-section";
 
 type Provider = "jitsi" | "google_meet" | "zoom" | "teams" | "other";
 const PROVIDER_LABEL: Record<Provider, string> = {
@@ -1034,6 +1035,17 @@ export function MeetingDialog({
               <Label htmlFor="m-desc">Description / Ordre du jour</Label>
               <Textarea id="m-desc" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
+
+            {form.id && user && form.start_at && form.end_at && (
+              <AgendaSection
+                meetingId={form.id}
+                meetingTitle={form.title}
+                meetingStartAt={form.start_at}
+                meetingEndAt={form.end_at}
+                participants={form.participants.map((p) => ({ email: p.email, name: p.name }))}
+                userId={user.id}
+              />
+            )}
 
             <div>
               <div className="flex items-center justify-between gap-2">
