@@ -432,6 +432,72 @@ function parseAddress(s: string): { address: string | null; name: string | null 
   return { address: decoded.trim(), name: null };
 }
 
+function extractSearchUids(rawText: string): number[] {
+  const sm = rawText.match(/\* SEARCH([0-9 \r\n]*)/);
+  if (!sm) return [];
+  return sm[1].trim().split(/\s+/).filter(Boolean).map(Number).filter((n) => !isNaN(n));
+}
+
+async function openInbox(account: any): Promise<Imap> {
+  const creds = account.credentials ?? {};
+  const host = creds.server || creds.host;
+  const port = Number(creds.port ?? 993);
+  const user = creds.username || creds.user;
+  const pass = creds.password;
+  if (!host || !user || !pass) throw new Error("missing credentials");
+  const conn = await Deno.connectTls({ hostname: host, port });
+  const imap = new Imap(conn);
+  await imap.readGreeting();
+  const loginRes = await imap.cmd(`LOGIN "${escapeArg(user)}" "${escapeArg(pass)}"`);
+  if (!loginRes.ok) throw new Error(`LOGIN failed: ${loginRes.statusLine}`);
+  const selRes = await imap.cmd("SELECT INBOX");
+  if (!selRes.ok) throw new Error(`SELECT failed: ${selRes.statusLine}`);
+  return imap;
+}
+
+async function resolveImapUid(imap: Imap, accountId: string, messageId: string | null): Promise<number | null> {
+  if (!messageId) return null;
+  if (messageId.startsWith(`${accountId}-`)) {
+    const uid = Number(messageId.slice(accountId.length + 1));
+    if (Number.isFinite(uid) && uid > 0) return uid;
+  }
+  const variants = Array.from(new Set([messageId, messageId.replace(/^<|>$/g, ""), `<${messageId.replace(/^<|>$/g, "")}>`]));
+  for (const candidate of variants) {
+    const res = await imap.cmd(`UID SEARCH HEADER Message-ID "${escapeArg(candidate)}"`);
+    if (!res.ok) continue;
+    const uid = extractSearchUids(res.rawText).at(-1);
+    if (uid) return uid;
+  }
+  return null;
+}
+
+async function pushImapAction(
+  account: any,
+  action: "mark_read" | "mark_unread" | "trash",
+  email: { message_id: string | null },
+): Promise<{ ok: boolean; error?: string }> {
+  let imap: Imap | null = null;
+  try {
+    imap = await openInbox(account);
+    const uid = await resolveImapUid(imap, account.id, email.message_id);
+    if (!uid) return { ok: false, error: "imap message not found" };
+    const cmd = action === "mark_read"
+      ? `UID STORE ${uid} +FLAGS.SILENT (\\Seen)`
+      : action === "mark_unread"
+        ? `UID STORE ${uid} -FLAGS.SILENT (\\Seen)`
+        : `UID STORE ${uid} +FLAGS.SILENT (\\Deleted)`;
+    const res = await imap.cmd(cmd);
+    if (!res.ok) return { ok: false, error: res.statusLine };
+    if (action === "trash") await imap.cmd("EXPUNGE").catch(() => null);
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? String(e) };
+  } finally {
+    try { await imap?.cmd("LOGOUT"); } catch { /* noop */ }
+    try { imap?.close(); } catch { /* noop */ }
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Sync logic
 // ─────────────────────────────────────────────────────────────────────────────
@@ -477,9 +543,7 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
     const searchRes = await imap.cmd(`UID SEARCH SINCE ${sinceStr}`);
     if (!searchRes.ok) throw new Error(`SEARCH failed: ${searchRes.statusLine}`);
 
-    const uids: number[] = [];
-    const sm = searchRes.rawText.match(/\* SEARCH([0-9 \r\n]*)/);
-    if (sm) uids.push(...sm[1].trim().split(/\s+/).filter(Boolean).map(Number).filter((n) => !isNaN(n)));
+    const uids = extractSearchUids(searchRes.rawText);
     console.log(`[sync-imap] ${uids.length} UIDs since ${sinceStr}`);
 
     if (uids.length === 0) {
