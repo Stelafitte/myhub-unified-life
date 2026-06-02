@@ -148,13 +148,18 @@ function LoginPage() {
       return;
     }
 
-    const { data, error } = await supabase.auth.getUser();
-    setBusy(false);
-    if (error) toast.error(error.message);
-    else if (data.user) {
-      applyRememberPreference(remember);
-      navigate({ to: "/dashboard", replace: true });
+    // OAuth succeeded — session tokens are set by the lovable module.
+    // Don't call getUser() here: it can race with the session being attached
+    // to the supabase client and briefly returns "Auth session missing".
+    // The onAuthStateChange listener in auth-context will pick up SIGNED_IN
+    // and the useEffect above will navigate to /dashboard.
+    applyRememberPreference(remember);
+    try {
+      await refreshSession();
+    } catch {
+      /* listener will catch it */
     }
+    setBusy(false);
   };
 
   const mismatch = confirm.length > 0 && confirm !== password;
