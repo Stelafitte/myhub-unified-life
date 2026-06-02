@@ -40,6 +40,7 @@ export function RecategorizeAiDialog({
   onThemesChanged?: () => void;
 }) {
   const createFn = useServerFn(createTheme);
+  const setScopeFn = useServerFn(setThemeScope);
   const [tab, setTab] = useState<"pro" | "perso">("pro");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
