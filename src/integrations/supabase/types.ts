@@ -1005,6 +1005,48 @@ export type Database = {
           },
         ]
       }
+      meeting_settings: {
+        Row: {
+          created_at: string
+          default_duration_min: number
+          default_provider: string
+          email_template_confirm: string
+          email_template_invite: string
+          min_lead_hours: number
+          updated_at: string
+          user_id: string
+          work_days: number[]
+          work_end_time: string
+          work_start_time: string
+        }
+        Insert: {
+          created_at?: string
+          default_duration_min?: number
+          default_provider?: string
+          email_template_confirm?: string
+          email_template_invite?: string
+          min_lead_hours?: number
+          updated_at?: string
+          user_id: string
+          work_days?: number[]
+          work_end_time?: string
+          work_start_time?: string
+        }
+        Update: {
+          created_at?: string
+          default_duration_min?: number
+          default_provider?: string
+          email_template_confirm?: string
+          email_template_invite?: string
+          min_lead_hours?: number
+          updated_at?: string
+          user_id?: string
+          work_days?: number[]
+          work_end_time?: string
+          work_start_time?: string
+        }
+        Relationships: []
+      }
       meeting_shared_files: {
         Row: {
           created_at: string

@@ -9,6 +9,7 @@ import { DocumentsSection } from "@/components/settings/documents-section";
 import { AccountSection } from "@/components/settings/account-section";
 import { PlanOperationSection } from "@/components/settings/plan-operation-section";
 import { BackendSection } from "@/components/settings/backend-section";
+import { MeetingsSection } from "@/components/settings/meetings-section";
 
 
 
@@ -37,6 +38,7 @@ function SettingsPage() {
           <TabsTrigger value="preferences">Préférences</TabsTrigger>
           <TabsTrigger value="plan">📋 Plan d'opération</TabsTrigger>
           <TabsTrigger value="documents">📁 Documents</TabsTrigger>
+          <TabsTrigger value="meetings">🗓️ Réunions</TabsTrigger>
           <TabsTrigger value="security">🔒 Sécurité & Conformité</TabsTrigger>
           <TabsTrigger value="advanced">⚙️ Avancé</TabsTrigger>
         </TabsList>
@@ -60,6 +62,9 @@ function SettingsPage() {
 
         <TabsContent value="documents">
           <DocumentsSection />
+        </TabsContent>
+        <TabsContent value="meetings">
+          <MeetingsSection />
         </TabsContent>
         <TabsContent value="security">
           <SecuritySection />
