@@ -419,3 +419,155 @@ export function MeetingsSection() {
     </div>
   );
 }
+
+type OneNoteCardProps = {
+  enabled: boolean;
+  notebookId: string | null;
+  sectionId: string | null;
+  autoSync: boolean;
+  onChange: (
+    patch: Partial<{
+      onenote_enabled: boolean;
+      onenote_notebook_id: string | null;
+      onenote_section_id: string | null;
+      onenote_auto_sync: boolean;
+    }>,
+  ) => void;
+};
+
+function OneNoteCard({ enabled, notebookId, sectionId, autoSync, onChange }: OneNoteCardProps) {
+  const listNb = useServerFn(listOneNoteNotebooks);
+  const listSec = useServerFn(listOneNoteSections);
+  const testConn = useServerFn(testOneNoteConnection);
+  const [notebooks, setNotebooks] = useState<{ id: string; displayName: string }[]>([]);
+  const [sections, setSections] = useState<{ id: string; displayName: string }[]>([]);
+  const [loadingNb, setLoadingNb] = useState(false);
+  const [loadingSec, setLoadingSec] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    setLoadingNb(true);
+    listNb()
+      .then((r) => setNotebooks(r.notebooks))
+      .catch((e) => toast.error(e instanceof Error ? e.message : "Erreur OneNote"))
+      .finally(() => setLoadingNb(false));
+  }, [enabled, listNb]);
+
+  useEffect(() => {
+    if (!enabled || !notebookId) {
+      setSections([]);
+      return;
+    }
+    setLoadingSec(true);
+    listSec({ data: { notebookId } })
+      .then((r) => setSections(r.sections))
+      .catch((e) => toast.error(e instanceof Error ? e.message : "Erreur OneNote"))
+      .finally(() => setLoadingSec(false));
+  }, [enabled, notebookId, listSec]);
+
+  async function runTest() {
+    setTesting(true);
+    try {
+      const r = await testConn();
+      if (r.ok) toast.success(r.message);
+      else toast.error(r.message);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec test");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <NotebookPen className="h-5 w-5" /> Intégration OneNote
+        </CardTitle>
+        <CardDescription>
+          Synchronise chaque réunion (ordre du jour, participants, notes, décisions) vers un carnet OneNote.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="onenote-enabled">Activer la synchronisation OneNote</Label>
+          <Switch
+            id="onenote-enabled"
+            checked={enabled}
+            onCheckedChange={(v) => onChange({ onenote_enabled: v })}
+          />
+        </div>
+
+        {enabled && (
+          <>
+            <div className="space-y-2">
+              <Label>Carnet</Label>
+              <Select
+                value={notebookId ?? ""}
+                onValueChange={(v) =>
+                  onChange({ onenote_notebook_id: v || null, onenote_section_id: null })
+                }
+                disabled={loadingNb}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingNb ? "Chargement…" : "Choisir un carnet"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {notebooks.map((n) => (
+                    <SelectItem key={n.id} value={n.id}>
+                      {n.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Section</Label>
+              <Select
+                value={sectionId ?? ""}
+                onValueChange={(v) => onChange({ onenote_section_id: v || null })}
+                disabled={!notebookId || loadingSec}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingSec ? "Chargement…" : "Choisir une section"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {sections.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.displayName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="onenote-auto">Auto-sync à chaque modification</Label>
+                <p className="text-xs text-muted-foreground">
+                  Sinon, sync manuelle via le bouton dans chaque réunion.
+                </p>
+              </div>
+              <Switch
+                id="onenote-auto"
+                checked={autoSync}
+                onCheckedChange={(v) => onChange({ onenote_auto_sync: v })}
+              />
+            </div>
+
+            <Button type="button" variant="outline" size="sm" onClick={runTest} disabled={testing}>
+              {testing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <NotebookPen className="mr-2 h-4 w-4" />
+              )}
+              Tester la connexion
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
