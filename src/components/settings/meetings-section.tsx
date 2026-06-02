@@ -29,6 +29,10 @@ type Settings = {
   email_template_confirm: string;
   rsvp_reminders_enabled: boolean;
   rsvp_reminder_hours_before: number;
+  onenote_enabled: boolean;
+  onenote_notebook_id: string | null;
+  onenote_section_id: string | null;
+  onenote_auto_sync: boolean;
 };
 
 const DEFAULTS: Settings = {
