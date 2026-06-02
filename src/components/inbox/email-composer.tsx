@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Paperclip, Send, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -41,6 +41,26 @@ export type ComposerAttachment = {
 const SENDABLE_TYPES = new Set(["gmail", "outlook", "imap"]);
 const MAX_TOTAL_BYTES = 20 * 1024 * 1024; // 20 MB total
 
+// Détecte une ligne d'introduction de citation type "Le ... a écrit :" ou
+// "----- Original Message -----" et sépare le corps en (pré-citation, citation).
+function splitQuoted(body: string): { head: string; quote: string } {
+  if (!body) return { head: "", quote: "" };
+  const markers = [
+    /\n\s*Le .{1,200} a écrit\s*:\s*\n/i,
+    /\n\s*-{2,}\s*(Original Message|Message original|Forwarded message)\s*-{2,}\s*\n/i,
+    /\n\s*On .{1,200} wrote\s*:\s*\n/i,
+  ];
+  let idx = -1;
+  for (const m of markers) {
+    const match = body.match(m);
+    if (match && match.index !== undefined) {
+      if (idx === -1 || match.index < idx) idx = match.index;
+    }
+  }
+  if (idx < 0) return { head: body, quote: "" };
+  return { head: body.slice(0, idx).replace(/\s+$/g, ""), quote: body.slice(idx).replace(/^\s+/g, "") };
+}
+
 function readFileAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const fr = new FileReader();
@@ -79,7 +99,12 @@ export function EmailComposer({
   const [cc, setCc] = useState(initial.cc ?? "");
   const [bcc, setBcc] = useState("");
   const [subject, setSubject] = useState(initial.subject ?? "");
-  const [body, setBody] = useState(initial.body ?? "");
+  // `body` = partie éditable (message + signature). La citation est gardée
+  // séparément pour pouvoir l'afficher avec un fond différencié et garantir
+  // que la signature apparaît AVANT le rappel du fil précédent.
+  const [body, setBody] = useState("");
+  const [quoted, setQuoted] = useState("");
+  const [showQuoted, setShowQuoted] = useState(true);
   const [showCc, setShowCc] = useState(!!initial.cc);
   const [attachments, setAttachments] = useState<ComposerAttachment[]>(initialAttachments ?? []);
   const [busy, setBusy] = useState(false);
@@ -97,9 +122,12 @@ export function EmailComposer({
     setSubject(initial.subject ?? "");
     setShowCc(!!initial.cc);
     setAttachments(initialAttachments ?? []);
+    const { head, quote } = splitQuoted(initial.body ?? "");
+    setQuoted(quote);
+    setShowQuoted(true);
     const acct = sendable.find((a) => a.id === nextAccountId) ?? null;
     const sig = getSignatureForAccount(acct);
-    setBody(applySignature(initial.body ?? "", sig));
+    setBody(applySignature(head, sig));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -137,6 +165,12 @@ export function EmailComposer({
 
   const removeAttachment = (i: number) => setAttachments((prev) => prev.filter((_, idx) => idx !== i));
 
+  const composedBody = useMemo(() => {
+    if (!quoted || !showQuoted) return body;
+    // Signature (incluse dans `body`) AVANT la citation.
+    return `${body.replace(/\s+$/g, "")}\n\n${quoted}\n`;
+  }, [body, quoted, showQuoted]);
+
   const submit = async () => {
     if (!accountId) return toast.error("Choisir un compte expéditeur");
     if (!to.trim()) return toast.error("Destinataire requis");
@@ -150,7 +184,7 @@ export function EmailComposer({
           cc: cc.trim().replace(/,\s*$/, "") || undefined,
           bcc: bcc.trim().replace(/,\s*$/, "") || undefined,
           subject: subject.trim(),
-          body,
+          body: composedBody,
           in_reply_to: initial.inReplyTo,
           references: initial.references,
           attachments: attachments.length > 0 ? attachments : undefined,
@@ -222,10 +256,27 @@ export function EmailComposer({
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            rows={14}
+            rows={quoted ? 10 : 14}
             placeholder="Votre message…"
-            className="resize-none"
+            className="resize-none font-[ui-sans-serif] text-[14px] leading-relaxed"
           />
+          {quoted && (
+            <div className="rounded-md border border-border bg-muted/40">
+              <button
+                type="button"
+                onClick={() => setShowQuoted((v) => !v)}
+                className="flex w-full items-center justify-between gap-2 border-b border-border/60 px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground hover:bg-muted/60"
+              >
+                <span>— Fil précédent</span>
+                <span>{showQuoted ? "Masquer" : "Afficher"}</span>
+              </button>
+              {showQuoted && (
+                <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words bg-muted/20 px-3 py-2 font-[ui-sans-serif] text-[13px] leading-relaxed text-foreground/80">
+                  {quoted}
+                </pre>
+              )}
+            </div>
+          )}
           {attachments.length > 0 && (
             <div className="space-y-1 rounded-md border border-border bg-muted/30 p-2">
               <div className="text-xs text-muted-foreground">
