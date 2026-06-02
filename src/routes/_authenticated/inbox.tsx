@@ -1907,6 +1907,15 @@ function InboxPage() {
                     <Archive className="h-3.5 w-3.5" />
                   </IconBtn>
                   <IconBtn
+                    label="Recatégoriser avec l'IA"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      setRecatEmailId(e.id);
+                      setRecatOpen(true);
+                    }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  </IconBtn>
                     label="Créer une tâche"
                     onClick={(ev) => {
                       ev.stopPropagation();
