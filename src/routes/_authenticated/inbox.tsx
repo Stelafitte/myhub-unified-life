@@ -506,7 +506,7 @@ function InboxPage() {
                 .order("received_at", { ascending: false })
                 .limit(1000);
               if (!cancelled && refreshed) {
-                setEmails(refreshed as Email[]);
+                setEmails(applyLocalRead(refreshed as Email[]));
                 cacheEmails(refreshed as Email[]);
               }
             }
