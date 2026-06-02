@@ -177,6 +177,10 @@ function InboxPage() {
   const [taskOpen, setTaskOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  // Emails à garder visibles dans la vue courante même s'ils ne correspondent
+  // plus au filtre (ex. on vient d'ouvrir un mail dans "Non lus" → il devient
+  // lu mais reste visible jusqu'au changement de filtre).
+  const [stickyVisible, setStickyVisible] = useState<Set<string>>(new Set());
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
   const listThemesFn = useServerFn(listThemes);
@@ -589,27 +593,28 @@ function InboxPage() {
 
   const filtered = useMemo(() => {
     let list = emails;
+    const keep = (e: Email) => stickyVisible.has(e.id);
     if (filter === "trash") {
-      list = list.filter(isTrashed);
+      list = list.filter((e) => isTrashed(e) || keep(e));
     } else {
-      list = list.filter((e) => !isTrashed(e));
+      list = list.filter((e) => !isTrashed(e) || keep(e));
       if (filter.startsWith("account:")) {
         const id = filter.slice(8);
-        list = list.filter((e) => e.account_id === id);
-      } else if (filter === "spam") list = list.filter(isSpam);
-      else if (filter === "promo") list = list.filter(isPromo);
+        list = list.filter((e) => e.account_id === id || keep(e));
+      } else if (filter === "spam") list = list.filter((e) => isSpam(e) || keep(e));
+      else if (filter === "promo") list = list.filter((e) => isPromo(e) || keep(e));
       else if (filter === "all") {
         // Tous les mails : aucun filtre IA (spam/promo inclus)
         if (false) list = list;
       } else {
-        list = list.filter((e) => !isSpam(e) && !isPromo(e));
-        if (filter === "unread") list = list.filter((e) => !e.is_read);
-        else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
-        else if (filter === "starred") list = list.filter((e) => e.is_starred);
-        else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
+        list = list.filter((e) => (!isSpam(e) && !isPromo(e)) || keep(e));
+        if (filter === "unread") list = list.filter((e) => !e.is_read || keep(e));
+        else if (filter === "attachments") list = list.filter((e) => e.has_attachment || keep(e));
+        else if (filter === "starred") list = list.filter((e) => e.is_starred || keep(e));
+        else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id || keep(e));
         else if (filter.startsWith("theme:")) {
           const id = filter.slice(6);
-          list = list.filter((e) => e.ai_theme_id === id);
+          list = list.filter((e) => e.ai_theme_id === id || keep(e));
         }
       }
     }
@@ -624,7 +629,7 @@ function InboxPage() {
       );
     }
     return list;
-  }, [emails, filter, query]);
+  }, [emails, filter, query, stickyVisible]);
 
   // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
   // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
@@ -696,6 +701,9 @@ function InboxPage() {
 
   // Quand le filtre change, sur mobile on revient à la liste ; sur desktop on garde le panneau de lecture rempli.
   useEffect(() => {
+    // Vue propre à chaque changement de filtre : on purge la liste « sticky »
+    // (mails maintenus visibles après lecture / archivage dans la vue courante).
+    setStickyVisible(new Set());
     if (isMobileInbox) {
       setReaderOpen(false);
       setSelectedId(null);
@@ -977,7 +985,16 @@ function InboxPage() {
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     setReaderOpen(true);
-    if (!e.is_read) patch(e.id, { is_read: true });
+    if (!e.is_read) {
+      // On garde le mail visible dans la vue courante (ex. "Non lus") même
+      // après l'avoir marqué lu, pour éviter l'impression qu'il « disparaît ».
+      setStickyVisible((prev) => {
+        const next = new Set(prev);
+        next.add(e.id);
+        return next;
+      });
+      patch(e.id, { is_read: true });
+    }
     // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
     // « Retour » du téléphone ferme l'email et revienne à la liste.
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
