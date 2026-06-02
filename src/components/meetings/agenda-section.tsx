@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { RunningMeetingMode } from "./running-meeting-mode";
+import { AgendaItemActions } from "./agenda-item-actions";
 
 export type AgendaItem = {
   id: string;
