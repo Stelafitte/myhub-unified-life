@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { createTheme, type Theme } from "@/lib/api/themes.functions";
+import { createTheme, setThemeScope, type Theme } from "@/lib/api/themes.functions";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
