@@ -1025,10 +1025,15 @@ export type Database = {
           is_online: boolean
           location: string | null
           notes: string | null
+          onenote_page_id: string | null
           online_link: string | null
           online_provider: string | null
           organizer_email: string | null
           organizer_name: string | null
+          quorum_minimum: number | null
+          recurrence_rule: string | null
+          room: string | null
+          session_number: number | null
           source_email_id: string | null
           start_at: string
           status: string
@@ -1049,10 +1054,15 @@ export type Database = {
           is_online?: boolean
           location?: string | null
           notes?: string | null
+          onenote_page_id?: string | null
           online_link?: string | null
           online_provider?: string | null
           organizer_email?: string | null
           organizer_name?: string | null
+          quorum_minimum?: number | null
+          recurrence_rule?: string | null
+          room?: string | null
+          session_number?: number | null
           source_email_id?: string | null
           start_at: string
           status?: string
@@ -1073,10 +1083,15 @@ export type Database = {
           is_online?: boolean
           location?: string | null
           notes?: string | null
+          onenote_page_id?: string | null
           online_link?: string | null
           online_provider?: string | null
           organizer_email?: string | null
           organizer_name?: string | null
+          quorum_minimum?: number | null
+          recurrence_rule?: string | null
+          room?: string | null
+          session_number?: number | null
           source_email_id?: string | null
           start_at?: string
           status?: string
