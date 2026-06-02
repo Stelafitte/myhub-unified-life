@@ -80,6 +80,14 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
         const text = isHtml ? stripHtml(html) : (m.body?.content ?? m.bodyPreview ?? "");
         const isStarred = m.flag?.flagStatus === "flagged";
 
+        const { data: existingEmail } = await admin
+          .from("emails")
+          .select("is_read")
+          .eq("account_id", account.id)
+          .eq("message_id", messageId)
+          .maybeSingle();
+        const isRead = existingEmail?.is_read === true ? true : !!m.isRead;
+
         const { data: upserted, error: upErr } = await admin.from("emails").upsert({
           account_id: account.id,
           user_id: account.user_id,
@@ -93,7 +101,7 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
           meeting_link: extractMeetingLink(text, html),
           has_attachment: !!m.hasAttachments,
           received_at: receivedAt,
-          is_read: !!m.isRead,
+          is_read: isRead,
           is_starred: isStarred,
           origin_tag: "outlook",
           thread_id: m.conversationId || null,

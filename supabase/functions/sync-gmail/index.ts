@@ -134,8 +134,16 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
         const dateStr = header(headers, "Date");
         const receivedAt = dateStr ? new Date(dateStr).toISOString() : new Date(Number(m.internalDate || Date.now())).toISOString();
         const { text, html, hasAttach, attachments } = extractParts(m.payload);
-        const isRead = !((m.labelIds ?? []).includes("UNREAD"));
+        const providerIsRead = !((m.labelIds ?? []).includes("UNREAD"));
         const isStarred = (m.labelIds ?? []).includes("STARRED");
+
+        const { data: existingEmail } = await admin
+          .from("emails")
+          .select("is_read")
+          .eq("account_id", account.id)
+          .eq("message_id", messageId)
+          .maybeSingle();
+        const isRead = existingEmail?.is_read === true ? true : providerIsRead;
 
         const { data: upserted, error: upErr } = await admin.from("emails").upsert({
           account_id: account.id,
