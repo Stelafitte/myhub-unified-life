@@ -9,6 +9,9 @@ import { Step1Profile, type Step1Data } from "@/components/onboarding/step1-prof
 import { Step2Accounts } from "@/components/onboarding/step2-accounts";
 import { Step3Calendars } from "@/components/onboarding/step3-calendars";
 import { Step4Contacts } from "@/components/onboarding/step4-contacts";
+import { Step5Integrations } from "@/components/onboarding/step5-integrations";
+import { Step6AI } from "@/components/onboarding/step6-ai";
+import { Step7Recap } from "@/components/onboarding/step7-recap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
 });
 
 const TOTAL_STEPS = 7;
-const STEP_LABELS = ["Profil", "Comptes email", "Agendas", "Contacts", "Étape 5", "Étape 6", "Étape 7"];
+const STEP_LABELS = ["Profil", "Comptes email", "Agendas", "Contacts", "Intégrations", "IA", "Récap"];
 
 function OnboardingPage() {
   const { user } = useAuth();
