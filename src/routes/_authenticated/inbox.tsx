@@ -1023,6 +1023,7 @@ function InboxPage() {
         .update({ deleted_at: now })
         .in("id", ids);
       if (error) { toast.error(error.message); return; }
+      pushProviderAction(ids, "trash");
       const undoBulkTrash = async () => {
         const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
         if (err) { toast.error(err.message); return; }
