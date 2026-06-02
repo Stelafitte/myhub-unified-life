@@ -141,6 +141,8 @@ export function MeetingDialog({
     setPollDeadline("");
     setPollMode(false);
     setExistingPoll(null);
+    setPollVotes([]);
+    setConfirmedSlotId(null);
     if (meetingId) {
       setLoading(true);
       (async () => {
