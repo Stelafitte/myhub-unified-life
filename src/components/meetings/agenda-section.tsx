@@ -37,6 +37,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { RunningMeetingMode } from "./running-meeting-mode";
+import { AgendaItemActions } from "./agenda-item-actions";
 
 export type AgendaItem = {
   id: string;
@@ -213,6 +214,7 @@ export function AgendaSection({
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [counts, setCounts] = useState<Record<string, { total: number; done: number; overdue: number }>>({});
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   useEffect(() => {
@@ -345,34 +347,65 @@ export function AgendaSection({
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {items.map((it) => (
-                <SortableRow
-                  key={it.id}
-                  item={it}
-                  participants={participants}
-                  onChange={(patch) => updateItem(it.id, patch)}
-                  onDelete={() => deleteItem(it.id)}
-                />
+                <div key={it.id}>
+                  <SortableRow
+                    item={it}
+                    participants={participants}
+                    onChange={(patch) => updateItem(it.id, patch)}
+                    onDelete={() => deleteItem(it.id)}
+                  />
+                  <div className="rounded-b-md border border-t-0 bg-card px-3 pb-2 -mt-1">
+                    <AgendaItemActions
+                      meetingId={meetingId}
+                      meetingTitle={meetingTitle}
+                      itemId={it.id}
+                      itemTitle={it.title}
+                      defaultAssignee={it.responsible_email}
+                      userId={userId}
+                      onCountChange={(c) =>
+                        setCounts((prev) => ({ ...prev, [it.id]: c }))
+                      }
+                    />
+                  </div>
+                </div>
               ))}
             </div>
           </SortableContext>
         </DndContext>
       )}
 
-      {items.length > 0 && (
-        <div className="flex flex-wrap gap-1 pt-1 border-t">
-          {(Object.keys(STATUS_META) as AgendaItem["status"][]).map((k) => {
-            const count = items.filter((i) => i.status === k).length;
-            if (count === 0) return null;
-            return (
-              <Badge key={k} variant="secondary" className={cn("text-[10px]", STATUS_META[k].cls)}>
-                {STATUS_META[k].emoji} {count}
+      {items.length > 0 && (() => {
+        const totals = Object.values(counts).reduce(
+          (acc, c) => ({
+            total: acc.total + c.total,
+            done: acc.done + c.done,
+            overdue: acc.overdue + c.overdue,
+          }),
+          { total: 0, done: 0, overdue: 0 },
+        );
+        const rate = totals.total > 0 ? Math.round((totals.done / totals.total) * 100) : 0;
+        return (
+          <div className="flex flex-wrap items-center gap-1 pt-1 border-t">
+            {(Object.keys(STATUS_META) as AgendaItem["status"][]).map((k) => {
+              const count = items.filter((i) => i.status === k).length;
+              if (count === 0) return null;
+              return (
+                <Badge key={k} variant="secondary" className={cn("text-[10px]", STATUS_META[k].cls)}>
+                  {STATUS_META[k].emoji} {count}
+                </Badge>
+              );
+            })}
+            {totals.total > 0 && (
+              <Badge variant="outline" className="text-[10px] ml-auto">
+                ✅ Actions {totals.done}/{totals.total} ({rate}%)
+                {totals.overdue > 0 && <span className="text-destructive ml-1">· {totals.overdue} en retard</span>}
               </Badge>
-            );
-          })}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {running && (
         <RunningMeetingMode
