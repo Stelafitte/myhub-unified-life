@@ -29,6 +29,7 @@ import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiGoogleCalendarCallbackRouteImport } from './routes/api/google-calendar/callback'
+import { Route as ApiPublicPollTokenFilesRouteImport } from './routes/api/public/poll/$token/files'
 
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
@@ -131,6 +132,11 @@ const ApiGoogleCalendarCallbackRoute =
     path: '/api/google-calendar/callback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicPollTokenFilesRoute = ApiPublicPollTokenFilesRouteImport.update({
+  id: '/api/public/poll/$token/files',
+  path: '/api/public/poll/$token/files',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
+  '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
+  '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -196,6 +204,7 @@ export interface FileRoutesById {
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
+  '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -219,6 +228,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/poll/$token'
     | '/api/google-calendar/callback'
+    | '/api/public/poll/$token/files'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/poll/$token'
     | '/api/google-calendar/callback'
+    | '/api/public/poll/$token/files'
   id:
     | '__root__'
     | '/'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tasks'
     | '/poll/$token'
     | '/api/google-calendar/callback'
+    | '/api/public/poll/$token/files'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -271,6 +283,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   PollTokenRoute: typeof PollTokenRoute
   ApiGoogleCalendarCallbackRoute: typeof ApiGoogleCalendarCallbackRoute
+  ApiPublicPollTokenFilesRoute: typeof ApiPublicPollTokenFilesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -415,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGoogleCalendarCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/poll/$token/files': {
+      id: '/api/public/poll/$token/files'
+      path: '/api/public/poll/$token/files'
+      fullPath: '/api/public/poll/$token/files'
+      preLoaderRoute: typeof ApiPublicPollTokenFilesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -463,6 +483,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   PollTokenRoute: PollTokenRoute,
   ApiGoogleCalendarCallbackRoute: ApiGoogleCalendarCallbackRoute,
+  ApiPublicPollTokenFilesRoute: ApiPublicPollTokenFilesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
