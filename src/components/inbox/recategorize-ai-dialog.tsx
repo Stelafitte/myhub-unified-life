@@ -42,9 +42,9 @@ export function RecategorizeAiDialog({
 
   useEffect(() => {
     if (open && email) {
-      setThemeId(email.ai_theme_id);
-      setCategory(email.ai_category);
-      setPriority(email.ai_priority);
+      setThemeId(email.ai_theme_id ?? null);
+      setCategory(email.ai_category ?? null);
+      setPriority(email.ai_priority ?? null);
     }
   }, [open, email]);
 
