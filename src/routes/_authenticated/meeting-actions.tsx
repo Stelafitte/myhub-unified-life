@@ -42,7 +42,7 @@ function MeetingActionsPage() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [links, setLinks] = useState<Link[]>([]);
+  const [links, setLinks] = useState<MTLink[]>([]);
   const [loading, setLoading] = useState(true);
   const [meetingFilter, setMeetingFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
@@ -56,7 +56,7 @@ function MeetingActionsPage() {
       supabase.from("meeting_tasks").select("meeting_id, task_id"),
       supabase.from("meetings").select("id, title, start_at").order("start_at", { ascending: false }),
     ]);
-    const linkRows = (linkRes.data ?? []) as Link[];
+    const linkRows = (linkRes.data ?? []) as MTLink[];
     setLinks(linkRows);
     setMeetings((meetRes.data ?? []) as Meeting[]);
     const taskIds = Array.from(new Set(linkRows.map((l) => l.task_id)));
