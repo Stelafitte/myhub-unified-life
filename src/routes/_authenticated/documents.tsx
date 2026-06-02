@@ -418,12 +418,16 @@ function DocumentsPage() {
                     <div key={key}>
                       <button
                         onClick={() => toggleGroup(key)}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 mb-1 rounded hover:bg-muted/50 transition-colors text-left"
+                        className="sticky top-0 z-10 w-full flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20 rounded-sm mb-1"
                       >
-                        <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full", meta.cls)}>{meta.label}</span>
-                        <span className="text-xs text-muted-foreground">{groupDocs.length}</span>
-                        <span className="ml-auto text-xs text-muted-foreground">{collapsed ? "▸" : "▾"}</span>
+                        {collapsed ? (
+                          <ChevronRight className="h-3 w-3 text-primary" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3 text-primary" />
+                        )}
+                        <Sparkles className="h-3 w-3 text-primary" />
+                        <span className="truncate">{meta.label}</span>
+                        <span className="ml-auto text-[10px] font-normal">{groupDocs.length}</span>
                       </button>
                       {!collapsed && (
                         <div className="space-y-1">
