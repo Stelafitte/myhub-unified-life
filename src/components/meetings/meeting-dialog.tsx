@@ -1072,7 +1072,7 @@ export function MeetingDialog({
                 quorumMinimum={form.quorum_minimum}
                 equipment={form.equipment}
                 acceptedCount={
-                  form.participants.filter(() => false).length // placeholder, computed below
+                  acceptedCount={acceptedCount}
                 }
                 onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
               />
