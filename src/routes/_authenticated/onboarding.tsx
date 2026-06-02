@@ -81,12 +81,23 @@ function OnboardingPage() {
       .from("profiles")
       .update({ onboarding_completed_at: new Date().toISOString() })
       .eq("id", user.id);
-    setFinishing(false);
     if (error) {
+      setFinishing(false);
       toast.error(error.message);
       return;
     }
-    toast.success("Bienvenue dans MyHub Pro !");
+    // Déclenche une première synchro best-effort de tous les comptes actifs
+    void supabase
+      .from("accounts")
+      .update({ last_sync_at: null })
+      .eq("user_id", user.id)
+      .eq("is_active", true);
+    setFinishing(false);
+    toast.success(
+      step1Data?.firstName
+        ? `Bienvenue sur MyHub Pro ${step1Data.firstName} !`
+        : "Bienvenue sur MyHub Pro !",
+    );
     navigate({ to: "/inbox" });
   };
 
