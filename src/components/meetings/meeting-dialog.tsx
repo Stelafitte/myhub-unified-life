@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Download, Trash2, Sparkles, Paperclip, Mail, ListTodo, Upload, FileText } from "lucide-react";
+import { X, Download, Trash2, Sparkles, Paperclip, Mail, ListTodo, Upload, FileText, Plus, Vote, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { downloadIcs } from "@/lib/ics";
 import {
@@ -115,6 +115,12 @@ export function MeetingDialog({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // --- Poll mode state ---
+  const [pollMode, setPollMode] = useState(false);
+  const [pollSlots, setPollSlots] = useState<{ startAt: string; endAt: string }[]>([]);
+  const [pollDeadline, setPollDeadline] = useState<string>("");
+  const [existingPoll, setExistingPoll] = useState<{ id: string; public_token: string } | null>(null);
+
   async function loadAttachments(id: string) {
     const { data } = await supabase
       .from("documents")
@@ -128,12 +134,17 @@ export function MeetingDialog({
   useEffect(() => {
     if (!open) return;
     setAttachments([]);
+    setPollSlots([]);
+    setPollDeadline("");
+    setPollMode(false);
+    setExistingPoll(null);
     if (meetingId) {
       setLoading(true);
       (async () => {
-        const [{ data: m }, { data: ps }] = await Promise.all([
+        const [{ data: m }, { data: ps }, { data: polls }] = await Promise.all([
           supabase.from("meetings").select("*").eq("id", meetingId).maybeSingle(),
           supabase.from("meeting_participants").select("*").eq("meeting_id", meetingId),
+          supabase.from("meeting_polls").select("id, public_token, deadline").eq("meeting_id", meetingId).order("created_at", { ascending: false }).limit(1),
         ]);
         if (m) {
           setForm({
@@ -157,6 +168,18 @@ export function MeetingDialog({
                 .map((p) => ({ email: p.email, name: p.name ?? "", role: (p.role as "required" | "optional") ?? "required" })),
           });
           loadAttachments(meetingId);
+          const poll = polls?.[0];
+          if (poll) {
+            setExistingPoll({ id: poll.id, public_token: poll.public_token });
+            setPollMode(true);
+            if (poll.deadline) setPollDeadline(toLocalInput(poll.deadline));
+            const { data: slots } = await supabase
+              .from("meeting_poll_slots")
+              .select("start_at, end_at")
+              .eq("poll_id", poll.id)
+              .order("position", { ascending: true });
+            setPollSlots((slots ?? []).map((s) => ({ startAt: s.start_at, endAt: s.end_at })));
+          }
         }
         setLoading(false);
       })();
@@ -175,6 +198,32 @@ export function MeetingDialog({
       });
     }
   }, [open, meetingId, user, initial]);
+
+  function addPollSlot(startAt: string, endAt: string) {
+    setPollSlots((s) => {
+      if (s.some((x) => x.startAt === startAt)) {
+        toast.error("Créneau déjà ajouté");
+        return s;
+      }
+      return [...s, { startAt, endAt }].sort((a, b) => a.startAt.localeCompare(b.startAt));
+    });
+  }
+  function removePollSlot(idx: number) {
+    setPollSlots((s) => s.filter((_, i) => i !== idx));
+  }
+  function addManualPollSlot() {
+    const base = pollSlots.length
+      ? new Date(pollSlots[pollSlots.length - 1].endAt)
+      : new Date(form.start_at ? fromLocalInput(form.start_at) : Date.now());
+    const start = new Date(base.getTime() + (pollSlots.length ? 24 * 3600_000 : 0));
+    const durationMin = (() => {
+      if (!form.start_at || !form.end_at) return 60;
+      const ms = new Date(fromLocalInput(form.end_at)).getTime() - new Date(fromLocalInput(form.start_at)).getTime();
+      return Math.max(15, Math.round(ms / 60000));
+    })();
+    const end = new Date(start.getTime() + durationMin * 60_000);
+    addPollSlot(start.toISOString(), end.toISOString());
+  }
 
   function addPart() {
     const email = newPart.email.trim();
@@ -197,24 +246,35 @@ export function MeetingDialog({
       toast.error("Titre requis");
       return null;
     }
-    if (!form.start_at || !form.end_at) {
-      toast.error("Dates requises");
-      return null;
-    }
-    if (new Date(form.end_at) <= new Date(form.start_at)) {
-      toast.error("La fin doit être après le début");
-      return null;
+    if (pollMode) {
+      if (pollSlots.length < 2) {
+        toast.error("Ajoutez au moins 2 créneaux au sondage");
+        return null;
+      }
+    } else {
+      if (!form.start_at || !form.end_at) {
+        toast.error("Dates requises");
+        return null;
+      }
+      if (new Date(form.end_at) <= new Date(form.start_at)) {
+        toast.error("La fin doit être après le début");
+        return null;
+      }
     }
     setSaving(true);
     try {
+      // For poll mode the meeting acts as anchor; use the earliest slot as start/end
+      const effectiveStart = pollMode ? pollSlots[0].startAt : fromLocalInput(form.start_at);
+      const effectiveEnd = pollMode ? pollSlots[0].endAt : fromLocalInput(form.end_at);
+
       const payload = {
         user_id: user.id,
         title: form.title.trim(),
         description: form.description.trim() || null,
         notes: form.notes.trim() || null,
         importance: form.importance,
-        start_at: fromLocalInput(form.start_at),
-        end_at: fromLocalInput(form.end_at),
+        start_at: effectiveStart,
+        end_at: effectiveEnd,
         location: form.location.trim() || null,
         is_online: form.is_online,
         online_link: form.is_online ? form.online_link.trim() || null : null,
@@ -222,6 +282,7 @@ export function MeetingDialog({
         zoom_password: form.is_online && form.online_provider === "zoom" ? form.zoom_password.trim() || null : null,
         organizer_email: form.organizer_email.trim() || null,
         organizer_name: form.organizer_name.trim() || null,
+        status: pollMode ? "scheduled" : "scheduled",
       };
       let id = form.id;
       if (id) {
@@ -255,8 +316,49 @@ export function MeetingDialog({
         const { error } = await supabase.from("meeting_participants").insert(rows);
         if (error) throw error;
       }
+
+      // --- Poll persistence ---
+      if (pollMode) {
+        let pollId = existingPoll?.id ?? null;
+        const pollPayload = {
+          user_id: user.id,
+          meeting_id: id!,
+          title: form.title.trim(),
+          description: form.description.trim() || null,
+          deadline: pollDeadline ? fromLocalInput(pollDeadline) : null,
+          status: "open",
+        };
+        if (pollId) {
+          const { error } = await supabase.from("meeting_polls").update(pollPayload).eq("id", pollId);
+          if (error) throw error;
+          await supabase.from("meeting_poll_slots").delete().eq("poll_id", pollId);
+        } else {
+          const { data, error } = await supabase
+            .from("meeting_polls")
+            .insert(pollPayload)
+            .select("id, public_token")
+            .single();
+          if (error) throw error;
+          pollId = data.id;
+          setExistingPoll({ id: data.id, public_token: data.public_token });
+        }
+        const slotRows = pollSlots.map((s, i) => ({
+          poll_id: pollId!,
+          start_at: s.startAt,
+          end_at: s.endAt,
+          position: i,
+        }));
+        if (slotRows.length) {
+          const { error } = await supabase.from("meeting_poll_slots").insert(slotRows);
+          if (error) throw error;
+        }
+      } else if (existingPoll) {
+        // User disabled poll mode: close the existing poll
+        await supabase.from("meeting_polls").update({ status: "closed" }).eq("id", existingPoll.id);
+      }
+
       setForm((f) => ({ ...f, id }));
-      toast.success(form.id ? "Réunion mise à jour" : "Réunion créée");
+      toast.success(form.id ? "Réunion mise à jour" : pollMode ? "Sondage créé" : "Réunion créée");
       onSaved?.();
       requestAutoSync();
       return id!;
@@ -447,33 +549,133 @@ export function MeetingDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Poll mode toggle */}
+            <div className="flex items-center justify-between rounded-md border p-3 bg-muted/20">
               <div>
-                <Label htmlFor="m-start">Début *</Label>
-                <Input id="m-start" type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
+                <Label htmlFor="m-poll" className="cursor-pointer flex items-center gap-1.5">
+                  <Vote className="h-4 w-4" /> Mode sondage de dates
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Proposez plusieurs créneaux et laissez les participants voter via un lien public.
+                </p>
               </div>
-              <div>
-                <Label htmlFor="m-end">Fin *</Label>
-                <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
-              </div>
+              <Switch id="m-poll" checked={pollMode} onCheckedChange={setPollMode} />
             </div>
 
-            <SlotFinder
-              durationMinutes={(() => {
-                if (!form.start_at || !form.end_at) return 60;
-                const ms = new Date(fromLocalInput(form.end_at)).getTime() - new Date(fromLocalInput(form.start_at)).getTime();
-                const m = Math.round(ms / 60000);
-                return m > 0 ? m : 60;
-              })()}
-              onPick={({ startAt, endAt }) => {
-                setForm((f) => ({
-                  ...f,
-                  start_at: toLocalInput(startAt),
-                  end_at: toLocalInput(endAt),
-                }));
-                toast.success("Créneau sélectionné");
-              }}
-            />
+            {pollMode ? (
+              <div className="space-y-3 rounded-md border p-3">
+                <div className="flex items-center justify-between">
+                  <Label>Créneaux proposés ({pollSlots.length})</Label>
+                  <Button type="button" size="sm" variant="outline" onClick={addManualPollSlot}>
+                    <Plus className="h-4 w-4 mr-1" /> Ajouter
+                  </Button>
+                </div>
+                {pollSlots.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Aucun créneau. Utilisez le bouton ci-dessus ou les suggestions ci-dessous.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {pollSlots.map((s, i) => {
+                      const sd = new Date(s.startAt);
+                      const ed = new Date(s.endAt);
+                      return (
+                        <li key={i} className="flex items-center gap-2 rounded border bg-card p-2 text-sm">
+                          <span className="flex-1">
+                            {sd.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" })}
+                            {" · "}
+                            {sd.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                            {" → "}
+                            {ed.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          <Input
+                            type="datetime-local"
+                            className="w-[180px] h-8"
+                            value={toLocalInput(s.startAt)}
+                            onChange={(e) => {
+                              const newStart = fromLocalInput(e.target.value);
+                              const duration = new Date(s.endAt).getTime() - new Date(s.startAt).getTime();
+                              const newEnd = new Date(new Date(newStart).getTime() + duration).toISOString();
+                              setPollSlots((arr) => arr.map((x, j) => j === i ? { startAt: newStart, endAt: newEnd } : x));
+                            }}
+                          />
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removePollSlot(i)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                <div>
+                  <Label htmlFor="m-poll-deadline">Date limite de vote (optionnel)</Label>
+                  <Input
+                    id="m-poll-deadline"
+                    type="datetime-local"
+                    value={pollDeadline}
+                    onChange={(e) => setPollDeadline(e.target.value)}
+                  />
+                </div>
+
+                <SlotFinder
+                  durationMinutes={60}
+                  onPick={({ startAt, endAt }) => addPollSlot(startAt, endAt)}
+                />
+
+                {existingPoll && (
+                  <div className="rounded-md border bg-background p-2 text-xs space-y-1">
+                    <div className="font-medium">Lien public du sondage</div>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 truncate text-muted-foreground">
+                        {`${window.location.origin}/poll/${existingPoll.public_token}`}
+                      </code>
+                      <Button type="button" variant="ghost" size="icon" title="Copier"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/poll/${existingPoll.public_token}`);
+                          toast.success("Lien copié");
+                        }}>
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button type="button" variant="ghost" size="icon" title="Ouvrir"
+                        onClick={() => window.open(`${window.location.origin}/poll/${existingPoll.public_token}`, "_blank")}>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="m-start">Début *</Label>
+                    <Input id="m-start" type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label htmlFor="m-end">Fin *</Label>
+                    <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
+                  </div>
+                </div>
+
+                <SlotFinder
+                  durationMinutes={(() => {
+                    if (!form.start_at || !form.end_at) return 60;
+                    const ms = new Date(fromLocalInput(form.end_at)).getTime() - new Date(fromLocalInput(form.start_at)).getTime();
+                    const m = Math.round(ms / 60000);
+                    return m > 0 ? m : 60;
+                  })()}
+                  onPick={({ startAt, endAt }) => {
+                    setForm((f) => ({
+                      ...f,
+                      start_at: toLocalInput(startAt),
+                      end_at: toLocalInput(endAt),
+                    }));
+                    toast.success("Créneau sélectionné");
+                  }}
+                />
+              </>
+            )}
             <div>
               <Label htmlFor="m-loc">Lieu</Label>
               <Input id="m-loc" placeholder="Salle, adresse…" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
