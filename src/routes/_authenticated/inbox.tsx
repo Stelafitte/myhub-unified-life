@@ -2060,9 +2060,13 @@ function FilterRow({
       )}
     >
       <button onClick={onClick} className="flex flex-1 items-center gap-2 min-w-0">
-        <span className="text-muted-foreground">{icon}</span>
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground">
+          {icon}
+        </span>
         <span className="flex-1 truncate text-sm">{label}</span>
-        <span className="text-[11px] text-muted-foreground">{count}</span>
+        <span className="ml-auto min-w-[1.5rem] text-right text-[11px] tabular-nums text-muted-foreground">
+          {count}
+        </span>
       </button>
       {onAction && (
         <button
