@@ -246,24 +246,35 @@ export function MeetingDialog({
       toast.error("Titre requis");
       return null;
     }
-    if (!form.start_at || !form.end_at) {
-      toast.error("Dates requises");
-      return null;
-    }
-    if (new Date(form.end_at) <= new Date(form.start_at)) {
-      toast.error("La fin doit être après le début");
-      return null;
+    if (pollMode) {
+      if (pollSlots.length < 2) {
+        toast.error("Ajoutez au moins 2 créneaux au sondage");
+        return null;
+      }
+    } else {
+      if (!form.start_at || !form.end_at) {
+        toast.error("Dates requises");
+        return null;
+      }
+      if (new Date(form.end_at) <= new Date(form.start_at)) {
+        toast.error("La fin doit être après le début");
+        return null;
+      }
     }
     setSaving(true);
     try {
+      // For poll mode the meeting acts as anchor; use the earliest slot as start/end
+      const effectiveStart = pollMode ? pollSlots[0].startAt : fromLocalInput(form.start_at);
+      const effectiveEnd = pollMode ? pollSlots[0].endAt : fromLocalInput(form.end_at);
+
       const payload = {
         user_id: user.id,
         title: form.title.trim(),
         description: form.description.trim() || null,
         notes: form.notes.trim() || null,
         importance: form.importance,
-        start_at: fromLocalInput(form.start_at),
-        end_at: fromLocalInput(form.end_at),
+        start_at: effectiveStart,
+        end_at: effectiveEnd,
         location: form.location.trim() || null,
         is_online: form.is_online,
         online_link: form.is_online ? form.online_link.trim() || null : null,
@@ -271,6 +282,7 @@ export function MeetingDialog({
         zoom_password: form.is_online && form.online_provider === "zoom" ? form.zoom_password.trim() || null : null,
         organizer_email: form.organizer_email.trim() || null,
         organizer_name: form.organizer_name.trim() || null,
+        status: pollMode ? "scheduled" : "scheduled",
       };
       let id = form.id;
       if (id) {
@@ -304,8 +316,49 @@ export function MeetingDialog({
         const { error } = await supabase.from("meeting_participants").insert(rows);
         if (error) throw error;
       }
+
+      // --- Poll persistence ---
+      if (pollMode) {
+        let pollId = existingPoll?.id ?? null;
+        const pollPayload = {
+          user_id: user.id,
+          meeting_id: id!,
+          title: form.title.trim(),
+          description: form.description.trim() || null,
+          deadline: pollDeadline ? fromLocalInput(pollDeadline) : null,
+          status: "open",
+        };
+        if (pollId) {
+          const { error } = await supabase.from("meeting_polls").update(pollPayload).eq("id", pollId);
+          if (error) throw error;
+          await supabase.from("meeting_poll_slots").delete().eq("poll_id", pollId);
+        } else {
+          const { data, error } = await supabase
+            .from("meeting_polls")
+            .insert(pollPayload)
+            .select("id, public_token")
+            .single();
+          if (error) throw error;
+          pollId = data.id;
+          setExistingPoll({ id: data.id, public_token: data.public_token });
+        }
+        const slotRows = pollSlots.map((s, i) => ({
+          poll_id: pollId!,
+          start_at: s.startAt,
+          end_at: s.endAt,
+          position: i,
+        }));
+        if (slotRows.length) {
+          const { error } = await supabase.from("meeting_poll_slots").insert(slotRows);
+          if (error) throw error;
+        }
+      } else if (existingPoll) {
+        // User disabled poll mode: close the existing poll
+        await supabase.from("meeting_polls").update({ status: "closed" }).eq("id", existingPoll.id);
+      }
+
       setForm((f) => ({ ...f, id }));
-      toast.success(form.id ? "Réunion mise à jour" : "Réunion créée");
+      toast.success(form.id ? "Réunion mise à jour" : pollMode ? "Sondage créé" : "Réunion créée");
       onSaved?.();
       requestAutoSync();
       return id!;
