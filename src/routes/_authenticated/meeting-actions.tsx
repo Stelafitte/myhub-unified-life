@@ -30,7 +30,7 @@ type Task = {
 };
 
 type Meeting = { id: string; title: string; start_at: string };
-type Link = { meeting_id: string; task_id: string };
+type MTLink = { meeting_id: string; task_id: string };
 
 const STATUS_COLS: { key: Task["status"]; label: string; icon: typeof Circle; tone: string }[] = [
   { key: "todo", label: "À faire", icon: Circle, tone: "text-muted-foreground" },
