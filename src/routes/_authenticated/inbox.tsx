@@ -1049,6 +1049,7 @@ function InboxPage() {
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
     if (error) toast.error(error.message);
+    else pushProviderAction(ids, read ? "mark_read" : "mark_unread");
   };
 
   const bulkMoveToTheme = async (themeId: string | null) => {
