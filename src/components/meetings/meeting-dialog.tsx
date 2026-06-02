@@ -404,6 +404,50 @@ export function MeetingDialog({
     return await save();
   }
 
+  // --- Confirm winning slot ---
+  async function confirmSlot(slot: { id?: string; startAt: string; endAt: string }) {
+    if (!form.id || !existingPoll || !slot.id) {
+      toast.error("Enregistrez le sondage avant de confirmer un créneau.");
+      return;
+    }
+    if (!confirm("Confirmer ce créneau comme date définitive de la réunion ? Le sondage sera clôturé.")) return;
+    setConfirming(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const { error: mErr } = await supabase
+        .from("meetings")
+        .update({
+          start_at: slot.startAt,
+          end_at: slot.endAt,
+          confirmed_slot_id: slot.id,
+          confirmed_at: nowIso,
+          status: "scheduled",
+        })
+        .eq("id", form.id);
+      if (mErr) throw mErr;
+      const { error: pErr } = await supabase
+        .from("meeting_polls")
+        .update({ status: "closed" })
+        .eq("id", existingPoll.id);
+      if (pErr) throw pErr;
+      setConfirmedSlotId(slot.id);
+      setExistingPoll((p) => (p ? { ...p, status: "closed" } : p));
+      setPollMode(false);
+      setForm((f) => ({
+        ...f,
+        start_at: toLocalInput(slot.startAt),
+        end_at: toLocalInput(slot.endAt),
+      }));
+      toast.success("Créneau confirmé, sondage clôturé.");
+      onSaved?.();
+      requestAutoSync();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setConfirming(false);
+    }
+  }
+
   async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
