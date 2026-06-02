@@ -214,6 +214,7 @@ export function AgendaSection({
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [counts, setCounts] = useState<Record<string, { total: number; done: number; overdue: number }>>({});
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   useEffect(() => {
