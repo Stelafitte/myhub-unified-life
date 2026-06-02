@@ -204,6 +204,7 @@ function MeetingList({
   meetings,
   participants,
   taskCounts,
+  pollsByMeeting,
   empty,
   onEdit,
   onExport,
@@ -215,6 +216,7 @@ function MeetingList({
   meetings: Meeting[];
   participants: Participant[];
   taskCounts: Record<string, number>;
+  pollsByMeeting: Record<string, PollInfo>;
   empty: string;
   onEdit: (id: string) => void;
   onExport: (m: Meeting) => void;
@@ -248,6 +250,7 @@ function MeetingList({
             meeting={m}
             participants={ps}
             taskCount={taskCounts[m.id] ?? 0}
+            poll={pollsByMeeting[m.id]}
             onEdit={() => onEdit(m.id)}
             onExport={() => onExport(m)}
             myRsvp={mine?.rsvp_status}
