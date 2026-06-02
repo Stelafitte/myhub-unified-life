@@ -348,6 +348,9 @@ export function MeetingDialog({
         organizer_email: form.organizer_email.trim() || null,
         organizer_name: form.organizer_name.trim() || null,
         status: pollMode ? "scheduled" : "scheduled",
+        room: form.room.trim() || null,
+        quorum_minimum: form.quorum_minimum,
+        equipment: form.equipment,
       };
       let id = form.id;
       if (id) {
