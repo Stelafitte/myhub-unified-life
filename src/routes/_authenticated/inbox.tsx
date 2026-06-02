@@ -181,6 +181,42 @@ function InboxPage() {
   // plus au filtre (ex. on vient d'ouvrir un mail dans "Non lus" → il devient
   // lu mais reste visible jusqu'au changement de filtre).
   const [stickyVisible, setStickyVisible] = useState<Set<string>>(new Set());
+  // IDs des mails marqués lus localement pendant cette session. Sert à empêcher
+  // un re-fetch depuis Supabase (ou un re-sync IMAP/Gmail/Outlook qui ramène
+  // is_read=false depuis le serveur distant) de faire repasser ces mails en
+  // "non lu". Persisté en localStorage pour survivre aux rechargements.
+  const [locallyReadIds, setLocallyReadIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem("inbox:locallyReadIds");
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw) as string[];
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch {
+      return new Set();
+    }
+  });
+  const markLocallyRead = useCallback((ids: string[], read: boolean) => {
+    setLocallyReadIds((prev) => {
+      const next = new Set(prev);
+      if (read) ids.forEach((id) => next.add(id));
+      else ids.forEach((id) => next.delete(id));
+      try {
+        localStorage.setItem("inbox:locallyReadIds", JSON.stringify([...next]));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+  // Applique l'état "lu local" à n'importe quelle liste renvoyée par le serveur
+  // pour qu'un rechargement (sync IMAP, classification IA…) ne fasse jamais
+  // repasser un mail déjà lu en "non lu".
+  const applyLocalRead = useCallback(
+    (list: Email[]): Email[] =>
+      list.map((e) => (locallyReadIds.has(e.id) && !e.is_read ? { ...e, is_read: true } : e)),
+    [locallyReadIds],
+  );
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
   const listThemesFn = useServerFn(listThemes);
