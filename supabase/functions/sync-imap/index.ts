@@ -594,6 +594,13 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
 
 
           const bodyText = parsed.textPlain ? parsed.textPlain.slice(0, 100000) : null;
+          const { data: existingEmail } = await admin
+            .from("emails")
+            .select("is_read")
+            .eq("account_id", account.id)
+            .eq("message_id", messageId)
+            .maybeSingle();
+          const isRead = existingEmail?.is_read === true ? true : msg.flags.includes("\\Seen");
           const sens = detectSensitive({
             subject,
             from_address: from.address,
@@ -613,7 +620,7 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
             meeting_link: extractMeetingLink(bodyText, parsed.textHtml ?? null),
             has_attachment: parsed.attachments > 0,
             received_at: receivedAt,
-            is_read: msg.flags.includes("\\Seen"),
+            is_read: isRead,
             is_starred: msg.flags.includes("\\Flagged"),
             origin_tag: detectOrigin(to.address, (account.credentials as any)?.email ?? (account.credentials as any)?.username),
             thread_id: headers["in-reply-to"] || null,
