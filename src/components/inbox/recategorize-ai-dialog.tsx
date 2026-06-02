@@ -54,7 +54,7 @@ export function RecategorizeAiDialog({
   const submit = async () => {
     setSaving(true);
     try {
-      const patch: Record<string, unknown> = {};
+      const patch: { ai_theme_id?: string | null; ai_category?: string | null; ai_priority?: string | null } = {};
       if (themeId !== email.ai_theme_id) patch.ai_theme_id = themeId;
       if (category !== email.ai_category) patch.ai_category = category;
       if (priority !== email.ai_priority) patch.ai_priority = priority;
