@@ -688,7 +688,7 @@ function InboxPage() {
   // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
   // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
   type RenderItem =
-    | { kind: "header"; key: string; label: string; count: number }
+    | { kind: "header"; key: string; label: string; count: number; ids: string[] }
     | { kind: "email"; email: Email };
   const [collapsedThemes, setCollapsedThemes] = useState<Set<string>>(new Set());
   const toggleTheme = (key: string) =>
@@ -711,9 +711,6 @@ function InboxPage() {
         if (ts > g.ts) g.ts = ts;
       } else groups.set(key, { ts, emails: [e] });
     }
-    // Pondération par utilité du thème : fort > modéré > faible.
-    // Les thèmes "faible" (ex. commerciaux/newsletters) sont rétrogradés
-    // sous les thèmes utiles, même s'ils contiennent des mails plus récents.
     const utilityRank: Record<string, number> = { fort: 3, modere: 2, faible: 1 };
     const ordered = [...groups.entries()].sort((a, b) => {
       if (a[0] === NO_THEME) return 1;
@@ -739,6 +736,7 @@ function InboxPage() {
         key,
         label: t?.name ?? "Sans thème",
         count: g.emails.length,
+        ids: g.emails.map((e) => e.id),
       });
       if (!collapsed) for (const e of g.emails) out.push({ kind: "email", email: e });
     }
@@ -1648,7 +1646,7 @@ function InboxPage() {
               else clearChecked();
             }}
             className="h-3.5 w-3.5 cursor-pointer"
-            title="Tout sélectionner"
+            title="Tout sélectionner (tous les thèmes)"
             disabled={filtered.length === 0}
           />
           {aiRanking && (() => {
@@ -1742,12 +1740,35 @@ function InboxPage() {
           )}
           {displayItems.map((item) => {
             if (item.kind === "header") {
+              const allInGroupChecked =
+                item.ids.length > 0 && item.ids.every((id) => checked.has(id));
+              const someInGroupChecked =
+                !allInGroupChecked && item.ids.some((id) => checked.has(id));
               return (
                 <li
                   key={`h:${item.key}`}
                   onClick={() => toggleTheme(item.key)}
                   className="sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20"
                 >
+                  <input
+                    type="checkbox"
+                    checked={allInGroupChecked}
+                    ref={(el) => {
+                      if (el) el.indeterminate = someInGroupChecked;
+                    }}
+                    onClick={(ev) => ev.stopPropagation()}
+                    onChange={(ev) => {
+                      ev.stopPropagation();
+                      setChecked((prev) => {
+                        const next = new Set(prev);
+                        if (ev.target.checked) item.ids.forEach((id) => next.add(id));
+                        else item.ids.forEach((id) => next.delete(id));
+                        return next;
+                      });
+                    }}
+                    className="h-3.5 w-3.5 cursor-pointer"
+                    title={`Sélectionner tous les mails du thème « ${item.label} »`}
+                  />
                   {collapsedThemes.has(item.key) ? (
                     <ChevronRight className="h-3 w-3 text-primary" />
                   ) : (
