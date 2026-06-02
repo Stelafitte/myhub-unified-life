@@ -65,3 +65,13 @@ Pas de nouveau channel ; le badge quorum recalcule sur le hook existant qui char
 **Non touché** : sync-imap, sync-gmail, autres edge functions, tous les autres modules.
 
 Dis **« go 11 »** pour lancer.
+
+
+## Phase 12 — Intégration OneNote ✅
+- Connecteur Microsoft OneNote lié
+- Migration: meetings.onenote_page_url, onenote_synced_at; meeting_settings.onenote_enabled, onenote_notebook_id, onenote_section_id, onenote_auto_sync
+- src/lib/api/onenote.functions.ts (listNotebooks, listSections, test, syncMeetingToOneNote)
+- src/components/meetings/onenote-sync-button.tsx
+- Carte OneNote dans paramètres réunions (carnet/section, test connexion, auto-sync)
+- Bouton sync dans le header du dialog réunion
+

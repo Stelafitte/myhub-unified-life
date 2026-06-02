@@ -28,6 +28,7 @@ import { AgendaSection } from "@/components/meetings/agenda-section";
 import { RecurrenceSection } from "@/components/meetings/recurrence-section";
 import { MeetingHistorySection } from "@/components/meetings/meeting-history-section";
 import { LogisticsSection } from "@/components/meetings/logistics-section";
+import { OneNoteSyncButton } from "@/components/meetings/onenote-sync-button";
 
 type Provider = "jitsi" | "google_meet" | "zoom" | "teams" | "other";
 const PROVIDER_LABEL: Record<Provider, string> = {
@@ -126,6 +127,7 @@ export function MeetingDialog({
 }) {
   const { user } = useAuth();
   const [form, setForm] = useState<MeetingFormValue>(empty);
+  const [oneNoteUrl, setOneNoteUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newPart, setNewPart] = useState({ email: "", name: "" });
@@ -195,6 +197,7 @@ export function MeetingDialog({
     setPollVotes([]);
     setConfirmedSlotId(null);
     setAcceptedCount(0);
+    setOneNoteUrl(null);
     if (meetingId) {
       setLoading(true);
       (async () => {
@@ -230,6 +233,7 @@ export function MeetingDialog({
             quorum_minimum: (m as { quorum_minimum?: number | null }).quorum_minimum ?? null,
             equipment: ((m as { equipment?: string[] | null }).equipment ?? []) as string[],
           });
+          setOneNoteUrl((m as { onenote_page_url?: string | null }).onenote_page_url ?? null);
           setAcceptedCount(((ps ?? []) as { rsvp_status: string | null }[]).filter((p) => p.rsvp_status === "accepted").length);
           setConfirmedSlotId((m as { confirmed_slot_id?: string | null }).confirmed_slot_id ?? null);
           lastSavedNotesRef.current = m.notes ?? "";
@@ -720,11 +724,20 @@ export function MeetingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             {form.id ? "Modifier la réunion" : "Nouvelle réunion"}
             <Badge className={cn("ml-2 text-xs", IMPORTANCE_META[form.importance].cls)}>
               {IMPORTANCE_META[form.importance].label}
             </Badge>
+            {form.id && (
+              <div className="ml-auto">
+                <OneNoteSyncButton
+                  meetingId={form.id}
+                  pageUrl={oneNoteUrl}
+                  onSynced={(url) => setOneNoteUrl(url)}
+                />
+              </div>
+            )}
           </DialogTitle>
           <DialogDescription>
             Préparez la réunion : notes, participants, pièces jointes, visio, importance…
