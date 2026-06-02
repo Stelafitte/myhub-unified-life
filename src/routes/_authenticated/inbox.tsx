@@ -794,6 +794,7 @@ function InboxPage() {
     const nextRead = !e.is_read;
     markLocallyRead([e.id], nextRead);
     patch(e.id, { is_read: nextRead });
+    pushProviderAction([e.id], nextRead ? "mark_read" : "mark_unread");
   };
   const toggleStar = (e: Email) => patch(e.id, { is_starred: !e.is_starred });
   const archive = async (e: Email) => {
