@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Download, Trash2, Sparkles, Paperclip, Mail, ListTodo, Upload, FileText, Plus, Vote, Copy, ExternalLink, CheckCircle2, HelpCircle, XCircle, Trophy } from "lucide-react";
+import { X, Download, Trash2, Sparkles, Paperclip, Mail, ListTodo, Upload, FileText, Plus, Vote, Copy, ExternalLink, CheckCircle2, HelpCircle, XCircle, Trophy, Globe, Lock, History } from "lucide-react";
 import { toast } from "sonner";
 import { downloadIcs } from "@/lib/ics";
 import {
@@ -112,8 +112,15 @@ export function MeetingDialog({
   const [saving, setSaving] = useState(false);
   const [newPart, setNewPart] = useState({ email: "", name: "" });
   const [attachments, setAttachments] = useState<DocumentRow[]>([]);
+  const [sharedMap, setSharedMap] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [notesSavedAt, setNotesSavedAt] = useState<Date | null>(null);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedNotesRef = useRef<string>("");
+  const [notesHistory, setNotesHistory] = useState<{ id: string; created_at: string; content: string }[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   // --- Poll mode state ---
   const [pollMode, setPollMode] = useState(false);
@@ -125,18 +132,43 @@ export function MeetingDialog({
   const [confirming, setConfirming] = useState(false);
 
   async function loadAttachments(id: string) {
-    const { data } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("source_type", "meeting")
-      .eq("source_id", id)
-      .order("created_at", { ascending: false });
+    const [{ data }, { data: shared }] = await Promise.all([
+      supabase
+        .from("documents")
+        .select("*")
+        .eq("source_type", "meeting")
+        .eq("source_id", id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("meeting_shared_files")
+        .select("document_id, share_with_externals")
+        .eq("meeting_id", id),
+    ]);
     setAttachments((data ?? []) as DocumentRow[]);
+    const map: Record<string, boolean> = {};
+    ((shared ?? []) as { document_id: string; share_with_externals: boolean }[]).forEach((r) => {
+      map[r.document_id] = r.share_with_externals;
+    });
+    setSharedMap(map);
+  }
+
+  async function loadNotesHistory(id: string) {
+    const { data } = await supabase
+      .from("meeting_notes_history")
+      .select("id, created_at, content")
+      .eq("meeting_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setNotesHistory((data ?? []) as { id: string; created_at: string; content: string }[]);
   }
 
   useEffect(() => {
     if (!open) return;
     setAttachments([]);
+    setSharedMap({});
+    setNotesSavedAt(null);
+    setNotesHistory([]);
+    setShowHistory(false);
     setPollSlots([]);
     setPollDeadline("");
     setPollMode(false);
@@ -173,7 +205,10 @@ export function MeetingDialog({
                 .map((p) => ({ email: p.email, name: p.name ?? "", role: (p.role as "required" | "optional") ?? "required" })),
           });
           setConfirmedSlotId((m as { confirmed_slot_id?: string | null }).confirmed_slot_id ?? null);
+          lastSavedNotesRef.current = m.notes ?? "";
+          setNotesSavedAt((m as { notes_updated_at?: string | null }).notes_updated_at ? new Date((m as { notes_updated_at: string }).notes_updated_at) : null);
           loadAttachments(meetingId);
+          loadNotesHistory(meetingId);
           const poll = polls?.[0];
           if (poll) {
             setExistingPoll({ id: poll.id, public_token: poll.public_token, status: poll.status });
@@ -448,6 +483,92 @@ export function MeetingDialog({
     }
   }
 
+  // --- Notes autosave (debounced 30s) ---
+  async function flushNotesNow() {
+    if (!user || !form.id) return;
+    const content = form.notes ?? "";
+    if (content === lastSavedNotesRef.current) return;
+    setNotesSaving(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase
+        .from("meetings")
+        .update({ notes: content || null, notes_updated_at: nowIso })
+        .eq("id", form.id);
+      if (error) throw error;
+      if (content.trim()) {
+        await supabase.from("meeting_notes_history").insert({
+          meeting_id: form.id,
+          user_id: user.id,
+          content,
+        });
+      }
+      lastSavedNotesRef.current = content;
+      setNotesSavedAt(new Date(nowIso));
+      loadNotesHistory(form.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur autosave notes");
+    } finally {
+      setNotesSaving(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!form.id) return;
+    if ((form.notes ?? "") === lastSavedNotesRef.current) return;
+    if (notesTimerRef.current) clearTimeout(notesTimerRef.current);
+    notesTimerRef.current = setTimeout(() => {
+      flushNotesNow();
+    }, 30000);
+    return () => {
+      if (notesTimerRef.current) clearTimeout(notesTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.notes, form.id]);
+
+  async function restoreNoteVersion(version: { content: string }) {
+    if (!confirm("Remplacer les notes actuelles par cette version ?")) return;
+    setForm((f) => ({ ...f, notes: version.content }));
+    // Trigger immediate save
+    setTimeout(() => flushNotesNow(), 100);
+  }
+
+  // --- Share toggle on attachments ---
+  async function toggleShareWithExternals(doc: DocumentRow, share: boolean) {
+    if (!user || !form.id) return;
+    if (share && doc.is_sensitive) {
+      toast.error("Document marqué sensible : partage bloqué.");
+      return;
+    }
+    try {
+      if (share) {
+        const { error } = await supabase
+          .from("meeting_shared_files")
+          .upsert(
+            {
+              meeting_id: form.id,
+              document_id: doc.id,
+              user_id: user.id,
+              share_with_externals: true,
+            },
+            { onConflict: "meeting_id,document_id" },
+          );
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("meeting_shared_files")
+          .delete()
+          .eq("meeting_id", form.id)
+          .eq("document_id", doc.id);
+        if (error) throw error;
+      }
+      setSharedMap((m) => ({ ...m, [doc.id]: share }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur partage");
+    }
+  }
+
+
   async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
@@ -499,8 +620,10 @@ export function MeetingDialog({
     if (!confirm(`Supprimer "${doc.filename}" ?`)) return;
     try {
       if (doc.storage_path) await removeFromStorage(doc.storage_path);
+      if (form.id) await supabase.from("meeting_shared_files").delete().eq("meeting_id", form.id).eq("document_id", doc.id);
       await supabase.from("documents").delete().eq("id", doc.id);
       setAttachments((a) => a.filter((d) => d.id !== doc.id));
+      setSharedMap((m) => { const { [doc.id]: _omit, ...rest } = m; return rest; });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur suppression");
     }
@@ -913,14 +1036,54 @@ export function MeetingDialog({
             </div>
 
             <div>
-              <Label htmlFor="m-notes">Notes de préparation</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="m-notes">Notes de préparation</Label>
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  {notesSaving ? (
+                    <span>Enregistrement…</span>
+                  ) : notesSavedAt ? (
+                    <span>Sauvegardé à {notesSavedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                  ) : form.id ? (
+                    <span className="opacity-60">Autosave 30s</span>
+                  ) : null}
+                  {form.id && (
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2" onClick={flushNotesNow} disabled={notesSaving}>
+                      Enregistrer
+                    </Button>
+                  )}
+                  {form.id && notesHistory.length > 0 && (
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2" onClick={() => setShowHistory((s) => !s)}>
+                      <History className="h-3.5 w-3.5 mr-1" /> {notesHistory.length}
+                    </Button>
+                  )}
+                </div>
+              </div>
               <Textarea
                 id="m-notes"
                 rows={4}
                 placeholder="Points à aborder, questions, éléments à vérifier…"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                onBlur={() => form.id && flushNotesNow()}
               />
+              {showHistory && notesHistory.length > 0 && (
+                <div className="mt-2 rounded-md border bg-muted/30 p-2 space-y-1 max-h-48 overflow-y-auto">
+                  <p className="text-[11px] text-muted-foreground mb-1">Historique des versions (max 50)</p>
+                  {notesHistory.map((v) => (
+                    <div key={v.id} className="flex items-start gap-2 text-xs rounded border bg-card p-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-muted-foreground mb-0.5">
+                          {new Date(v.created_at).toLocaleString("fr-FR")}
+                        </div>
+                        <div className="line-clamp-2 whitespace-pre-wrap">{v.content || <em>(vide)</em>}</div>
+                      </div>
+                      <Button type="button" variant="ghost" size="sm" className="h-7" onClick={() => restoreNoteVersion(v)}>
+                        Restaurer
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -968,19 +1131,37 @@ export function MeetingDialog({
                 </p>
               ) : (
                 <ul className="space-y-1">
-                  {attachments.map((d) => (
-                    <li key={d.id} className="flex items-center gap-2 text-sm rounded border bg-card p-2">
-                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <span className="truncate flex-1">{d.filename}</span>
-                      <span className="text-xs text-muted-foreground">{formatBytes(d.file_size)}</span>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => downloadAttachment(d)} title="Télécharger">
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button type="button" variant="ghost" size="icon" onClick={() => deleteAttachment(d)} title="Supprimer">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </li>
-                  ))}
+                  {attachments.map((d) => {
+                    const shared = !!sharedMap[d.id];
+                    return (
+                      <li key={d.id} className="flex items-center gap-2 text-sm rounded border bg-card p-2">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="truncate flex-1">
+                          {d.filename}
+                          {d.is_sensitive && (
+                            <Badge variant="outline" className="ml-1.5 text-[10px] border-red-300 text-red-700 dark:text-red-300 gap-0.5">
+                              <Lock className="h-2.5 w-2.5" /> Sensible
+                            </Badge>
+                          )}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{formatBytes(d.file_size)}</span>
+                        <div className="flex items-center gap-1.5 pr-1" title={d.is_sensitive ? "Partage bloqué : document sensible" : "Partager avec les invités externes (page publique du sondage)"}>
+                          <Globe className={cn("h-3.5 w-3.5", shared ? "text-primary" : "text-muted-foreground")} />
+                          <Switch
+                            checked={shared}
+                            disabled={d.is_sensitive}
+                            onCheckedChange={(v) => toggleShareWithExternals(d, v)}
+                          />
+                        </div>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => downloadAttachment(d)} title="Télécharger">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => deleteAttachment(d)} title="Supprimer">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
