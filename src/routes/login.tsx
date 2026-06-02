@@ -167,7 +167,7 @@ function LoginPage() {
       if (result.redirected) return;
 
       if (result.error) {
-        toast.error(result.error.message ?? "Échec de connexion");
+        toast.error(explainAuthError(result.error));
         return;
       }
 
@@ -176,13 +176,13 @@ function LoginPage() {
       await refreshSession();
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) {
-        toast.error(error?.message ?? "Session non validée");
+        toast.error(explainAuthError(error ?? "Session non validée"));
         return;
       }
       applyRememberPreference(remember);
       navigate({ to: "/dashboard", replace: true });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Échec de connexion");
+      toast.error(explainAuthError(e));
     } finally {
       setBusy(false);
     }
