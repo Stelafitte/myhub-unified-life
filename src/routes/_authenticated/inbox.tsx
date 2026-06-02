@@ -197,11 +197,16 @@ function InboxPage() {
       return new Set();
     }
   });
+  const locallyReadIdsRef = useRef(locallyReadIds);
+  useEffect(() => {
+    locallyReadIdsRef.current = locallyReadIds;
+  }, [locallyReadIds]);
   const markLocallyRead = useCallback((ids: string[], read: boolean) => {
     setLocallyReadIds((prev) => {
       const next = new Set(prev);
       if (read) ids.forEach((id) => next.add(id));
       else ids.forEach((id) => next.delete(id));
+      locallyReadIdsRef.current = next;
       try {
         localStorage.setItem("inbox:locallyReadIds", JSON.stringify([...next]));
       } catch {
@@ -215,8 +220,8 @@ function InboxPage() {
   // repasser un mail déjà lu en "non lu".
   const applyLocalRead = useCallback(
     (list: Email[]): Email[] =>
-      list.map((e) => (locallyReadIds.has(e.id) && !e.is_read ? { ...e, is_read: true } : e)),
-    [locallyReadIds],
+      list.map((e) => (locallyReadIdsRef.current.has(e.id) && !e.is_read ? { ...e, is_read: true } : e)),
+    [],
   );
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
@@ -785,6 +790,7 @@ function InboxPage() {
       const fn =
         e.origin_tag === "gmail" ? "sync-gmail"
         : e.origin_tag === "outlook" ? "sync-outlook"
+        : e.origin_tag === "imap" || e.origin_tag === "chu" || e.origin_tag === "univ" ? "sync-imap"
         : null;
       if (!fn) continue;
       // fire-and-forget; errors are logged in the edge function
