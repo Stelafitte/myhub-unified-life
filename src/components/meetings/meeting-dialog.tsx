@@ -149,7 +149,7 @@ export function MeetingDialog({
         const [{ data: m }, { data: ps }, { data: polls }] = await Promise.all([
           supabase.from("meetings").select("*").eq("id", meetingId).maybeSingle(),
           supabase.from("meeting_participants").select("*").eq("meeting_id", meetingId),
-          supabase.from("meeting_polls").select("id, public_token, deadline").eq("meeting_id", meetingId).order("created_at", { ascending: false }).limit(1),
+          supabase.from("meeting_polls").select("id, public_token, deadline, status").eq("meeting_id", meetingId).order("created_at", { ascending: false }).limit(1),
         ]);
         if (m) {
           setForm({
@@ -172,18 +172,20 @@ export function MeetingDialog({
                 .filter((p) => p.role !== "organizer")
                 .map((p) => ({ email: p.email, name: p.name ?? "", role: (p.role as "required" | "optional") ?? "required" })),
           });
+          setConfirmedSlotId((m as { confirmed_slot_id?: string | null }).confirmed_slot_id ?? null);
           loadAttachments(meetingId);
           const poll = polls?.[0];
           if (poll) {
-            setExistingPoll({ id: poll.id, public_token: poll.public_token });
-            setPollMode(true);
+            setExistingPoll({ id: poll.id, public_token: poll.public_token, status: poll.status });
+            // Only auto-enable poll edit mode if poll is still open
+            setPollMode(poll.status !== "closed");
             if (poll.deadline) setPollDeadline(toLocalInput(poll.deadline));
-            const { data: slots } = await supabase
-              .from("meeting_poll_slots")
-              .select("start_at, end_at")
-              .eq("poll_id", poll.id)
-              .order("position", { ascending: true });
-            setPollSlots((slots ?? []).map((s) => ({ startAt: s.start_at, endAt: s.end_at })));
+            const [{ data: slots }, { data: votes }] = await Promise.all([
+              supabase.from("meeting_poll_slots").select("id, start_at, end_at").eq("poll_id", poll.id).order("position", { ascending: true }),
+              supabase.from("meeting_poll_votes").select("slot_id, vote, voter_email").eq("poll_id", poll.id),
+            ]);
+            setPollSlots((slots ?? []).map((s) => ({ id: s.id, startAt: s.start_at, endAt: s.end_at })));
+            setPollVotes((votes ?? []) as { slot_id: string; vote: string; voter_email: string }[]);
           }
         }
         setLoading(false);
