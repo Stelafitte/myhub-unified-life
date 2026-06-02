@@ -48,6 +48,10 @@ const DEFAULTS: Settings = {
     'Bonjour,\n\nLa réunion "{{title}}" est confirmée le {{date}}.\n\nLien : {{link}}\n\nCordialement,\n{{organizer}}',
   rsvp_reminders_enabled: true,
   rsvp_reminder_hours_before: 24,
+  onenote_enabled: false,
+  onenote_notebook_id: null,
+  onenote_section_id: null,
+  onenote_auto_sync: false,
 };
 
 const DAYS = [
