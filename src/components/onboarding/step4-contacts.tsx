@@ -259,6 +259,3 @@ function SourceButton({
     </button>
   );
 }
-
-// Garde l'icône Users importée pour usage futur
-void Users;
