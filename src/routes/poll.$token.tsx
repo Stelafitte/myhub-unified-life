@@ -348,6 +348,37 @@ function PollPage() {
           </div>
         )}
 
+        {sharedFiles.length > 0 && (
+          <Card className="p-4 space-y-2">
+            <div className="font-medium flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Documents partagés ({sharedFiles.length})
+            </div>
+            <ul className="space-y-1.5">
+              {sharedFiles.map((f) => (
+                <li key={f.id} className="flex items-center gap-2 text-sm rounded border bg-card p-2">
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="truncate flex-1">{f.filename}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {(f.file_size / 1024).toFixed(0)} Ko
+                  </span>
+                  {f.url ? (
+                    <Button asChild size="sm" variant="outline">
+                      <a href={f.url} target="_blank" rel="noreferrer">
+                        <Download className="h-3.5 w-3.5 mr-1" /> Ouvrir
+                      </a>
+                    </Button>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Indisponible</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <p className="text-[11px] text-muted-foreground">
+              Liens valides 7 jours. Les documents sensibles ne sont jamais partagés.
+            </p>
+          </Card>
+        )}
+
         {submitted && (
           <Card className="p-4 bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300 text-sm">
             ✅ Vos réponses ont bien été enregistrées. Vous pouvez fermer cette page ou modifier vos choix en revenant sur ce lien avec le même email.
