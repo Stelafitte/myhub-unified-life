@@ -1,95 +1,63 @@
+# Message 3 — Extensions module Réunions
 
-# Plan — Extension du module Réunions
+Découpage en 6 phases pour valider chaque livraison. Aucun module hors `meetings/`, `/poll/[token]`, Paramètres → Réunions/Intégrations ne sera touché.
 
-**Mode de livraison** : 1 partie par message. À la fin de chaque partie, j'attends ton OK pour passer à la suivante.
+## Phase 8 — Ordre du jour structuré + mode "réunion en cours"
 
-## Décisions cadres
-- **Emails** : via Gmail (connecteur `google_mail`) avec fallback Outlook (`microsoft_outlook`). Si aucun n'est connecté → fallback `mailto:` + .ics téléchargeable. Aucun envoi automatique sans clic explicite (relances RSVP = bouton "Envoyer les relances", pas de cron).
-- **Visio** : Google Meet créé via `conferenceData.createRequest` sur l'event GCal. Zoom/Teams = champ "coller le lien" pour l'instant. Hooks prêts pour ajouter Zoom dès que tu as les secrets.
-- **Scope** : uniquement `src/components/meetings/`, `src/routes/_authenticated/meetings.tsx`, `src/routes/poll.$token.tsx` (nouveau public), `src/components/settings/meetings-section.tsx` (nouveau), `src/lib/api/meetings.functions.ts` (nouveau). On ne touche pas aux Edge Functions ni aux autres modules.
-- **Architecture** : toute logique serveur sensible (Google Calendar, refresh token, calcul de créneaux, génération de liens Meet, envoi email) dans `createServerFn` avec `requireSupabaseAuth`. La page publique `/poll/$token` lit/écrit via routes serveur publiques `/api/public/poll/*` (insert vote anonyme, lecture sondage par token).
+- Nouvel onglet **📋 Ordre du jour** dans la fiche réunion.
+- Liste drag & drop (`@dnd-kit`) sur `meeting_agenda_items` : titre, durée (min), responsable (sélection parmi `meeting_participants`), statut (À traiter / En cours / Traité / Reporté).
+- Total durées vs `end_at - start_at` → alerte `⚠️ Ordre du jour trop chargé`.
+- Bouton **▶ Démarrer la réunion** → vue plein écran :
+  - Chronomètre par point + décompte
+  - Point actif surligné, bouton "Point suivant"
+  - Alerte visuelle si dépassement
+  - État local (pas de nouvelle table), persistance `status` à chaque transition
 
-## Migrations DB à prévoir
+## Phase 9 — Actions → tâches MyHub Pro
 
-**Phase 4** :
-- `meeting_polls.confirmed_slot_id uuid` + `confirmed_at timestamptz`
-- `meeting_polls.online_provider_default text`
+- Sous chaque point : bouton **➕ Ajouter une action** crée :
+  - une ligne `meeting_agenda_items` enfant (ou champ `parent_id` → migration légère si besoin)
+  - une tâche `tasks` (`source_app='myhubpro'`, `comments` préfixé `📋 Issu de réunion : [titre]`, `assigned_to`, `due_date`)
+  - lien dans `meeting_tasks`
+- Onglet **Actions** dans la fiche : tableau temps réel (jointure `meeting_tasks` ↔ `tasks`), badge rouge retard, taux complétion X/Y.
 
-**Phase 6** :
-- Table `meeting_notes_history(id, meeting_id, user_id, content, created_at)`
-- Table `meeting_shared_files(document_id, meeting_id, share_with_externals bool)` — OU plus simple, ajouter `documents.share_with_externals bool default false` filtré côté serveur (on choisira plus simple : nouvelle table de liaison pour ne PAS toucher `documents`).
-- Colonne `meetings.notes_updated_at`
+## Phase 10 — Récurrence
 
-**Phase 7** :
-- Table `meeting_settings(user_id PK, work_start_time time, work_end_time time, work_days int[], min_lead_hours int, default_provider text, default_duration_min int, email_template_invite text, email_template_confirm text)`
+- Migration : ajouter `recurrence_parent_id uuid` à `meetings` (les autres colonnes existent déjà).
+- Formulaire : section Récurrence (Aucune / Hebdo / Bimensuelle / Mensuelle / Personnalisée) + jours + fin (date ou nb occurrences) → encodage RRULE dans `recurrence_rule`.
+- Génération à la création : N occurrences avec `recurrence_parent_id` + `session_number` auto-incrémenté.
+- À l'ouverture d'une occurrence : copie de l'ordre du jour précédent (points Reportés en tête).
+- Onglet **🕐 Historique** : liste des sessions de la série avec liens.
 
-Pour chaque migration je te préviens avant de l'exécuter.
+## Phase 11 — Quorum, salle, matériel + relances RSVP
 
-## Découpage des 7 phases
+- Migration : ajouter `equipment text[]` à `meetings` (quorum_minimum + room déjà là).
+- Formulaire : Quorum, Salle (autocomplete depuis 10 dernières `meetings.room`), Matériel (tags libres).
+- Fiche : indicateur quorum atteint / non atteint (calcul côté client depuis `meeting_participants.rsvp_status`).
+- **Relances** : route serveur `/api/public/cron/meeting-rsvp-reminders` + job `pg_cron` toutes les heures qui envoie J-2 / J-1 / H-2 selon `meeting_settings` (nouvelles colonnes `reminder_j2/j1/h2 boolean`).
+- Settings → Réunions : 3 toggles.
 
-```text
-Phase 1 — Recherche de créneaux disponibles
-  • Server fn `findAvailableSlots(durationMin, days, leadHours)` qui :
-    - lit les google_calendar_connections actives
-    - refresh token si besoin
-    - récupère freebusy via GCal API
-    - applique plages 8h-19h / jours ouvrés / lead 24h (lus depuis meeting_settings si existant, sinon défauts)
-    - retourne top 5 créneaux scorés (préfère 10h-12h et 14h-16h)
-  • Dans meeting-dialog.tsx : bouton "🔍 Trouver des créneaux"
-  • Panneau de 5 cards avec badge Matin/AM + Idéal/Disponible
-  • Clic → remplit start_at / end_at
+## Phase 12 — OneNote via Microsoft Graph
 
-Phase 2 — Mode sondage de dates
-  • Migration meeting_polls.confirmed_slot_id
-  • Toggle "📊 Mode sondage" dans le dialog
-  • Sélection multi-créneaux (max 10) : "Ajouter depuis mes disponibilités" (réutilise phase 1) + "Ajouter manuellement"
-  • Au save : INSERT meeting_polls + meeting_poll_slots
-  • Affiche le lien public copiable avec public_token
+- Migration : `onenote_settings` (user_id, notebook_id, section_id, include_agenda, include_participants), `meetings.onenote_page_url`.
+- **TanStack server functions** (pas Edge Function — règle de stack) appelant Graph via le connecteur Microsoft OneNote du gateway :
+  - `listNotebooks`, `listSections`, `createMeetingPage`, `syncFromOneNote`
+  - Scopes `Notes.ReadWrite`, `Notes.Create` (vérif via `get_connection_configuration`, sinon `reconnect`)
+- Fiche réunion : bouton **📓 Créer page OneNote** → modal sélecteur carnet/section + "mémoriser". Devient **📓 Ouvrir dans OneNote** après création. Badge 📓 sur la card.
+- Bouton **🔄 Synchroniser depuis OneNote** : parse HTML du tableau Actions, propose création tâches (validation utilisateur obligatoire — jamais auto).
+- Settings → Intégrations → OneNote : statut connexion, sélecteurs carnet/section par défaut, toggles template, bouton "Tester la connexion".
 
-Phase 3 — Page publique /poll/$token
-  • Route file-based src/routes/poll.$token.tsx (publique, hors _authenticated)
-  • Server route /api/public/poll/$token (GET) → renvoie poll + slots + agrégats votes
-  • Server route /api/public/poll/$token/vote (POST) → upsert meeting_poll_votes (unique slot_id+voter_email)
-  • UI mobile-first : titre, organisateur, deadline, tableau créneaux × boutons Yes/Maybe/No
-  • Compteur votes temps réel (revalidation après chaque vote)
-  • Confirmation post-vote
-  • Anti-doublon : message clair si email déjà voté + bouton "modifier ma réponse"
+## Phase 13 — Polish, badges liste, QA visuelle
 
-Phase 4 — Onglet "Résultats" dans la fiche réunion
-  • Refacto meeting-dialog en Tabs : Détails / Sondage / Résultats / (Notes & Fichiers en phase 6)
-  • Onglet Résultats : tableau croisé, score (yes + 0.5*maybe), gagnant en évidence, barre de progression
-  • Bouton "Relancer non-répondants" → server fn qui envoie email via Gmail/Outlook
-  • Bouton "✅ Choisir ce créneau" → server fn confirmPollSlot :
-    - update meetings.start_at/end_at
-    - close poll (status='closed', confirmed_slot_id, confirmed_at)
-    - crée event GCal (avec conferenceData si provider=meet)
-    - pour chaque participant : envoi email + .ics
+- Badge 📓 + indicateur quorum sur `MeetingCard`.
+- Vérifs UI bout-en-bout sur les 6 phases.
 
-Phase 5 — Statuts & badges
-  • Sur les cards de la liste /meetings :
-    - "📊 Sondage ouvert (3 votes)" si poll open lié
-    - "⏰ Deadline dans Xh" si deadline < 24h
-    - "✅ Confirmée" si meetings.status='scheduled' + confirmed_slot_id
-    - Icône provider visio
-  • Pas de cron pour les relances RSVP : un bouton "Relancer" sur la card (ouvert si J-2, J-1 ou H-2). On posera des compteurs visuels (pas d'envoi auto).
+## Notes techniques
 
-Phase 6 — Notes & Fichiers
-  • Migration meeting_notes_history + table de liaison meeting_shared_files
-  • Onglet "📎 Notes & Fichiers" dans le dialog
-  • Éditeur : Textarea avec autosave debounce 30s → meetings.notes + insert history (1 ligne par version, max 50 conservées)
-  • Drag & drop : réutilise lib documents.ts existante, source_type='meeting', source_id=meeting.id, max 25MB côté client
-  • Toggle "🌐 Partager avec invités externes" par fichier → insert/delete dans meeting_shared_files (BLOQUÉ si is_sensitive=true)
-  • Sur /poll/$token : section "Documents partagés" lecture seule, liens signés 7 jours via server fn
-  • Checkbox "Joindre les fichiers à l'email de confirmation" dans phase 4
+- **Pas d'Edge Function** : la stack est TanStack Start → on utilise `createServerFn` + le connecteur Microsoft OneNote (gateway Lovable, token jamais côté client). Si tu veux absolument une Edge Function Supabase, dis-le, mais ça va contre la règle du template.
+- `@dnd-kit/core` à installer en phase 8.
+- Chaque phase = 1 migration max + code, suivie d'un "go phase X+1" de ta part avant la suivante.
 
-Phase 7 — Paramètres Réunions
-  • Migration table meeting_settings
-  • Nouveau composant src/components/settings/meetings-section.tsx
-  • Intégré dans la page Paramètres existante (j'identifierai où)
-  • Champs : horaires, jours ouvrés, lead time, provider par défaut, durée par défaut, 2 textarea pour templates email avec placeholders {{title}}, {{date}}, {{link}}, {{organizer}}
-  • Hooks pour : phase 1 (slots), phase 4 (templates email), phase 2 (durée par défaut)
-```
+---
 
-## Démarrage
-
-Je commence par **Phase 1** dès que tu valides ce plan. Aucune migration nécessaire pour la phase 1 (lecture seule GCal).
+**Confirme "go phase 8"** pour démarrer par l'ordre du jour + mode réunion en cours, ou indique-moi les ajustements (regroupement, ordre différent, Edge Function imposée pour OneNote, etc.).
