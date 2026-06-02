@@ -724,11 +724,20 @@ export function MeetingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
             {form.id ? "Modifier la réunion" : "Nouvelle réunion"}
             <Badge className={cn("ml-2 text-xs", IMPORTANCE_META[form.importance].cls)}>
               {IMPORTANCE_META[form.importance].label}
             </Badge>
+            {form.id && (
+              <div className="ml-auto">
+                <OneNoteSyncButton
+                  meetingId={form.id}
+                  pageUrl={oneNoteUrl}
+                  onSynced={(url) => setOneNoteUrl(url)}
+                />
+              </div>
+            )}
           </DialogTitle>
           <DialogDescription>
             Préparez la réunion : notes, participants, pièces jointes, visio, importance…
