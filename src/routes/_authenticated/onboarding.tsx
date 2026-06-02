@@ -137,13 +137,18 @@ function OnboardingPage() {
             <Step4Contacts onContinue={goNext} onSkip={goNext} outlookPreconnected={hasOutlookAccount} />
           )}
 
-          {step >= 5 && step <= 7 && (
-            <PlaceholderStep
-              n={step}
-              onContinue={step < TOTAL_STEPS ? goNext : finish}
-              onSkip={step < TOTAL_STEPS ? goNext : undefined}
-              canFinish={step === TOTAL_STEPS}
-              finishing={finishing}
+          {step === 5 && (
+            <Step5Integrations onContinue={goNext} onSkip={goNext} outlookPreconnected={hasOutlookAccount} />
+          )}
+
+          {step === 6 && <Step6AI onContinue={goNext} onSkip={goNext} />}
+
+          {step === 7 && (
+            <Step7Recap
+              firstName={step1Data?.firstName ?? initialProfile.firstName}
+              onGoToStep={(n) => setStep(n)}
+              onLaunch={finish}
+              launching={finishing}
               hasEmailAccount={hasEmailAccount}
             />
           )}
