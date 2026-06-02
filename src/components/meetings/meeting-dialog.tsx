@@ -1060,6 +1060,36 @@ export function MeetingDialog({
               />
             )}
 
+            {form.id && user && !pollMode && form.start_at && form.end_at && (
+              <RecurrenceSection
+                meetingId={form.id}
+                userId={user.id}
+                startAt={fromLocalInput(form.start_at)}
+                endAt={fromLocalInput(form.end_at)}
+                parentId={form.recurrence_parent_id}
+                currentRule={form.recurrence_rule}
+                sessionNumber={form.session_number}
+                onGenerated={() => {
+                  onSaved?.();
+                  toast.success("Série créée — vous pouvez ouvrir chaque session depuis l'historique.");
+                  setForm((f) => ({ ...f, recurrence_rule: f.recurrence_rule ?? "weekly", session_number: 1 }));
+                }}
+              />
+            )}
+
+            {form.id && (form.recurrence_rule || form.recurrence_parent_id) && (
+              <MeetingHistorySection
+                meetingId={form.id}
+                parentId={form.recurrence_parent_id}
+                onOpen={(id) => {
+                  if (onOpenMeeting) {
+                    onOpenChange(false);
+                    setTimeout(() => onOpenMeeting(id), 100);
+                  }
+                }}
+              />
+            )}
+
             <div>
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="m-notes">Notes de préparation</Label>
