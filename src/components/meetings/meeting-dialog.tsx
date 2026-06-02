@@ -347,7 +347,7 @@ export function MeetingDialog({
             .single();
           if (error) throw error;
           pollId = data.id;
-          setExistingPoll({ id: data.id, public_token: data.public_token });
+          setExistingPoll({ id: data.id, public_token: data.public_token, status: "open" });
         }
         const slotRows = pollSlots.map((s, i) => ({
           poll_id: pollId!,
