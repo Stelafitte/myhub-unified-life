@@ -2059,6 +2059,16 @@ function InboxPage() {
         }}
       />
 
+      <RecategorizeAiDialog
+        open={recatOpen}
+        onOpenChange={setRecatOpen}
+        email={emails.find((x) => x.id === recatEmailId) ?? null}
+        themes={themes}
+        onApplied={(patch) => {
+          setEmails((prev) => prev.map((x) => (x.id === recatEmailId ? { ...x, ...patch } : x)));
+        }}
+      />
+
       <EmailComposer
         open={composerOpen}
         onOpenChange={setComposerOpen}
