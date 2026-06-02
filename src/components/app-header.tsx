@@ -101,3 +101,63 @@ export function AppHeader() {
     </header>
   );
 }
+
+function GlobalSearchBar() {
+  const navigate = useNavigate();
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Cmd/Ctrl+K focus shortcut
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const submit = () => {
+    const q = value.trim();
+    if (q.length < 2) {
+      toast.info("Saisissez au moins 2 caractères pour lancer la recherche.");
+      return;
+    }
+    navigate({ to: "/search", search: { q } });
+  };
+
+  return (
+    <form
+      onSubmit={(e) => { e.preventDefault(); submit(); }}
+      className="hidden md:flex w-full max-w-[500px] items-center gap-2 rounded-md border border-border/60 bg-muted/40 px-2.5 py-1.5 text-sm focus-within:border-border focus-within:bg-background transition-colors"
+      role="search"
+    >
+      <Search className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+      <input
+        ref={inputRef}
+        type="search"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="🔍 Rechercher dans MyHub Pro..."
+        aria-label="Rechercher dans MyHub Pro"
+        className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground/70"
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => { setValue(""); inputRef.current?.focus(); }}
+          aria-label="Effacer la recherche"
+          className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+      <kbd className="hidden lg:inline-flex h-5 select-none items-center gap-1 rounded border border-border/60 bg-background/60 px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+        Entrée
+      </kbd>
+    </form>
+  );
+}
