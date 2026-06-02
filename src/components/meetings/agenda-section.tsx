@@ -347,15 +347,29 @@ export function AgendaSection({
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {items.map((it) => (
-                <SortableRow
-                  key={it.id}
-                  item={it}
-                  participants={participants}
-                  onChange={(patch) => updateItem(it.id, patch)}
-                  onDelete={() => deleteItem(it.id)}
-                />
+                <div key={it.id}>
+                  <SortableRow
+                    item={it}
+                    participants={participants}
+                    onChange={(patch) => updateItem(it.id, patch)}
+                    onDelete={() => deleteItem(it.id)}
+                  />
+                  <div className="rounded-b-md border border-t-0 bg-card px-3 pb-2 -mt-1">
+                    <AgendaItemActions
+                      meetingId={meetingId}
+                      meetingTitle={meetingTitle}
+                      itemId={it.id}
+                      itemTitle={it.title}
+                      defaultAssignee={it.responsible_email}
+                      userId={userId}
+                      onCountChange={(c) =>
+                        setCounts((prev) => ({ ...prev, [it.id]: c }))
+                      }
+                    />
+                  </div>
+                </div>
               ))}
             </div>
           </SortableContext>
