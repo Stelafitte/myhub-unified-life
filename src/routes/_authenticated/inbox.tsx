@@ -688,7 +688,7 @@ function InboxPage() {
   // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
   // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
   type RenderItem =
-    | { kind: "header"; key: string; label: string; count: number }
+    | { kind: "header"; key: string; label: string; count: number; ids: string[] }
     | { kind: "email"; email: Email };
   const [collapsedThemes, setCollapsedThemes] = useState<Set<string>>(new Set());
   const toggleTheme = (key: string) =>
@@ -711,9 +711,6 @@ function InboxPage() {
         if (ts > g.ts) g.ts = ts;
       } else groups.set(key, { ts, emails: [e] });
     }
-    // Pondération par utilité du thème : fort > modéré > faible.
-    // Les thèmes "faible" (ex. commerciaux/newsletters) sont rétrogradés
-    // sous les thèmes utiles, même s'ils contiennent des mails plus récents.
     const utilityRank: Record<string, number> = { fort: 3, modere: 2, faible: 1 };
     const ordered = [...groups.entries()].sort((a, b) => {
       if (a[0] === NO_THEME) return 1;
@@ -739,6 +736,7 @@ function InboxPage() {
         key,
         label: t?.name ?? "Sans thème",
         count: g.emails.length,
+        ids: g.emails.map((e) => e.id),
       });
       if (!collapsed) for (const e of g.emails) out.push({ kind: "email", email: e });
     }
