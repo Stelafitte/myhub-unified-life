@@ -1071,9 +1071,7 @@ export function MeetingDialog({
                 room={form.room}
                 quorumMinimum={form.quorum_minimum}
                 equipment={form.equipment}
-                acceptedCount={
-                  acceptedCount={acceptedCount}
-                }
+                acceptedCount={acceptedCount}
                 onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
               />
             )}
