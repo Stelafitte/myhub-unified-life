@@ -114,10 +114,13 @@ export function RecategorizeAiDialog({
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      const r = await createFn({ data: { name: newName.trim(), scope: tab } });
+      const r = await createFn({ data: { name: newName.trim() } });
       if (!r.theme) {
         toast.error(r.error ?? "Impossible de créer le thème");
         return;
+      }
+      if (tab === "pro") {
+        await setScopeFn({ data: { id: r.theme.id, scope: "pro" } }).catch(() => null);
       }
       setNewName("");
       onThemesChanged?.();
