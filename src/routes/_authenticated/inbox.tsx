@@ -1916,6 +1916,7 @@ function InboxPage() {
                   >
                     <Sparkles className="h-3.5 w-3.5 text-primary" />
                   </IconBtn>
+                  <IconBtn
                     label="Créer une tâche"
                     onClick={(ev) => {
                       ev.stopPropagation();
