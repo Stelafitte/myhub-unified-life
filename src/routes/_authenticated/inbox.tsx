@@ -1005,16 +1005,21 @@ function InboxPage() {
         .update({ deleted_at: now })
         .in("id", ids);
       if (error) { toast.error(error.message); return; }
-      toast.success(`${ids.length} email(s) dans la corbeille`);
-      pushUndo({
-        label: "Mise à la corbeille (groupée)",
-        run: async () => {
-          const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
-          if (err) throw new Error(err.message);
-          setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: null } : x)));
-          toast.success("Suppression annulée");
-        },
+      const undoBulkTrash = async () => {
+        const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
+        if (err) { toast.error(err.message); return; }
+        setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: null } : x)));
+        setStickyVisible((s) => {
+          const n = new Set(s);
+          ids.forEach((id) => n.add(id));
+          return n;
+        });
+        toast.success("Suppression annulée");
+      };
+      toast.success(`${ids.length} email(s) dans la corbeille`, {
+        action: { label: "Annuler", onClick: () => { void undoBulkTrash(); } },
       });
+      pushUndo({ label: "Mise à la corbeille (groupée)", run: undoBulkTrash });
     }
   };
   const bulkMarkRead = async (read: boolean) => {
