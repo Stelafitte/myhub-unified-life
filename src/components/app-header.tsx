@@ -1,5 +1,5 @@
 // MyHub Pro v1.0
-import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2, Plus, CheckSquare } from "lucide-react";
+import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2, CheckSquare, Search, X } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useTaskPanel } from "@/lib/task-panel-context";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function AppHeader() {
   const { theme, toggle } = useTheme();
