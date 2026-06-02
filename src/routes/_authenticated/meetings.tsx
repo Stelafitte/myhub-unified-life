@@ -184,13 +184,13 @@ function MeetingsPage() {
         </TabsList>
 
         <TabsContent value="upcoming" className="mt-4">
-          <MeetingList loading={loading} meetings={upcoming} participants={participants} taskCounts={taskCounts} empty="Aucune réunion à venir." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} />
+          <MeetingList loading={loading} meetings={upcoming} participants={participants} taskCounts={taskCounts} pollsByMeeting={pollsByMeeting} empty="Aucune réunion à venir." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} />
         </TabsContent>
         <TabsContent value="past" className="mt-4">
-          <MeetingList loading={loading} meetings={past} participants={participants} taskCounts={taskCounts} empty="Aucune réunion passée." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} />
+          <MeetingList loading={loading} meetings={past} participants={participants} taskCounts={taskCounts} pollsByMeeting={pollsByMeeting} empty="Aucune réunion passée." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} />
         </TabsContent>
         <TabsContent value="invitations" className="mt-4">
-          <MeetingList loading={loading} meetings={invitations} participants={participants} taskCounts={taskCounts} empty="Aucune invitation en attente." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} showRsvp />
+          <MeetingList loading={loading} meetings={invitations} participants={participants} taskCounts={taskCounts} pollsByMeeting={pollsByMeeting} empty="Aucune invitation en attente." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} showRsvp />
         </TabsContent>
       </Tabs>
 
