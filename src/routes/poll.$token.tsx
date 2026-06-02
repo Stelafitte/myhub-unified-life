@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarClock, CheckCircle2, HelpCircle, XCircle, Loader2, MapPin, Video } from "lucide-react";
+import { CalendarClock, CheckCircle2, HelpCircle, XCircle, Loader2, MapPin, Video, FileText, Download } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
