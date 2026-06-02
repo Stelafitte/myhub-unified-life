@@ -23,6 +23,7 @@ import {
 } from "@/lib/documents";
 import { formatBytes } from "@/lib/file-icons";
 import { cn } from "@/lib/utils";
+import { SlotFinder } from "@/components/meetings/slot-finder";
 
 type Provider = "jitsi" | "google_meet" | "zoom" | "teams" | "other";
 const PROVIDER_LABEL: Record<Provider, string> = {
@@ -456,6 +457,23 @@ export function MeetingDialog({
                 <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
               </div>
             </div>
+
+            <SlotFinder
+              durationMinutes={(() => {
+                if (!form.start_at || !form.end_at) return 60;
+                const ms = new Date(fromLocalInput(form.end_at)).getTime() - new Date(fromLocalInput(form.start_at)).getTime();
+                const m = Math.round(ms / 60000);
+                return m > 0 ? m : 60;
+              })()}
+              onPick={({ startAt, endAt }) => {
+                setForm((f) => ({
+                  ...f,
+                  start_at: toLocalInput(startAt),
+                  end_at: toLocalInput(endAt),
+                }));
+                toast.success("Créneau sélectionné");
+              }}
+            />
             <div>
               <Label htmlFor="m-loc">Lieu</Label>
               <Input id="m-loc" placeholder="Salle, adresse…" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
