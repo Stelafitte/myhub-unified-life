@@ -1128,6 +1128,7 @@ export type Database = {
           organizer_email: string | null
           organizer_name: string | null
           quorum_minimum: number | null
+          recurrence_parent_id: string | null
           recurrence_rule: string | null
           room: string | null
           session_number: number | null
@@ -1161,6 +1162,7 @@ export type Database = {
           organizer_email?: string | null
           organizer_name?: string | null
           quorum_minimum?: number | null
+          recurrence_parent_id?: string | null
           recurrence_rule?: string | null
           room?: string | null
           session_number?: number | null
@@ -1194,6 +1196,7 @@ export type Database = {
           organizer_email?: string | null
           organizer_name?: string | null
           quorum_minimum?: number | null
+          recurrence_parent_id?: string | null
           recurrence_rule?: string | null
           room?: string | null
           session_number?: number | null
