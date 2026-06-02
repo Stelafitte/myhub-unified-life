@@ -75,3 +75,12 @@ Dis **« go 11 »** pour lancer.
 - Carte OneNote dans paramètres réunions (carnet/section, test connexion, auto-sync)
 - Bouton sync dans le header du dialog réunion
 
+
+
+## Phase 13 — Suivi des actions ✅
+- Nouvelle route `/meeting-actions` : kanban + liste transverse des `tasks` liées via `meeting_tasks`
+- Filtres : recherche, réunion, responsable, en retard
+- Changement de statut inline (todo / in_progress / done)
+- Lien direct vers la réunion source, badges priorité/échéance
+- Entrée sidebar "Actions de réunion" (icône ListChecks)
+- Aucune migration DB (réutilise tasks + meeting_tasks existants)
