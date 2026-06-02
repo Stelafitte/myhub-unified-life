@@ -1646,7 +1646,7 @@ function InboxPage() {
               else clearChecked();
             }}
             className="h-3.5 w-3.5 cursor-pointer"
-            title="Tout sélectionner"
+            title="Tout sélectionner (tous les thèmes)"
             disabled={filtered.length === 0}
           />
           {aiRanking && (() => {
