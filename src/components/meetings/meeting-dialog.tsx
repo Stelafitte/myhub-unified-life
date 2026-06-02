@@ -112,8 +112,15 @@ export function MeetingDialog({
   const [saving, setSaving] = useState(false);
   const [newPart, setNewPart] = useState({ email: "", name: "" });
   const [attachments, setAttachments] = useState<DocumentRow[]>([]);
+  const [sharedMap, setSharedMap] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [notesSavedAt, setNotesSavedAt] = useState<Date | null>(null);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedNotesRef = useRef<string>("");
+  const [notesHistory, setNotesHistory] = useState<{ id: string; created_at: string; content: string }[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   // --- Poll mode state ---
   const [pollMode, setPollMode] = useState(false);
