@@ -9,6 +9,7 @@ import { DocumentsSection } from "@/components/settings/documents-section";
 import { AccountSection } from "@/components/settings/account-section";
 import { PlanOperationSection } from "@/components/settings/plan-operation-section";
 import { BackendSection } from "@/components/settings/backend-section";
+import { MeetingsSection } from "@/components/settings/meetings-section";
 
 
 
