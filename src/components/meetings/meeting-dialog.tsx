@@ -796,8 +796,9 @@ export function MeetingDialog({
               </div>
             )}
 
-            {(() => null)()}
+            {!pollMode && (
               <>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <Label htmlFor="m-start">Début *</Label>
