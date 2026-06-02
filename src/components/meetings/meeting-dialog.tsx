@@ -28,6 +28,7 @@ import { AgendaSection } from "@/components/meetings/agenda-section";
 import { RecurrenceSection } from "@/components/meetings/recurrence-section";
 import { MeetingHistorySection } from "@/components/meetings/meeting-history-section";
 import { LogisticsSection } from "@/components/meetings/logistics-section";
+import { OneNoteSyncButton } from "@/components/meetings/onenote-sync-button";
 
 type Provider = "jitsi" | "google_meet" | "zoom" | "teams" | "other";
 const PROVIDER_LABEL: Record<Provider, string> = {
