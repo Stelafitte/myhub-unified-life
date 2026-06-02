@@ -38,7 +38,9 @@ function SettingsPage() {
           <TabsTrigger value="plan">📋 Plan d'opération</TabsTrigger>
           <TabsTrigger value="documents">📁 Documents</TabsTrigger>
           <TabsTrigger value="security">🔒 Sécurité & Conformité</TabsTrigger>
+          <TabsTrigger value="advanced">⚙️ Avancé</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="account">
           <AccountSection />
