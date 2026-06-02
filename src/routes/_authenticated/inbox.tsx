@@ -1214,13 +1214,13 @@ function InboxPage() {
                 )}
               >
                 <span
-                  className="flex h-5 w-5 items-center justify-center rounded text-xs"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] leading-none"
                   style={{ background: a.color ?? "#64748b", color: "#fff" }}
                 >
                   {a.icon ?? "✉️"}
                 </span>
                 <span className="flex-1 truncate text-sm">{a.name}</span>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="ml-auto min-w-[1.5rem] text-right text-[11px] tabular-nums text-muted-foreground">
                   {counts.byAccount.get(a.id) ?? 0}
                 </span>
               </button>
