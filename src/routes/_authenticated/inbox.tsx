@@ -494,9 +494,10 @@ function InboxPage() {
       if (error) {
         if (emails.length === 0) toast.error("Hors-ligne : aucun cache disponible");
       } else if (ems) {
-        setEmails(applyLocalRead(ems as Email[]));
+        const normalized = applyLocalRead(ems as Email[]);
+        setEmails(normalized);
         setUsingCache(false);
-        cacheEmails(ems as Email[]);
+        cacheEmails(normalized);
 
         const hasPending = (ems as Email[]).some((e) => !e.ai_processed_at);
         if (hasPending) {
@@ -1244,7 +1245,7 @@ function InboxPage() {
               <button
                 key={a.id}
                 onClick={() => setFilter(`account:${a.id}`)}
-                  className={cn(
+                className={cn(
                   "flex h-8 w-full items-center gap-2 rounded-md px-3 text-left leading-none transition-colors",
                   filter === `account:${a.id}` ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
                 )}
