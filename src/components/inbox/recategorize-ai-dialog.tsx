@@ -84,7 +84,7 @@ export function RecategorizeAiDialog({
         }).catch((e) => console.warn("[ai-feedback]", e));
       }
 
-      onApplied?.(patch as { ai_theme_id?: string | null; ai_category?: string | null; ai_priority?: string | null });
+      onApplied?.(patch);
       toast.success("Recatégorisation enregistrée — l'IA apprendra de cette correction");
       onOpenChange(false);
     } catch (e) {
