@@ -701,6 +701,9 @@ function InboxPage() {
 
   // Quand le filtre change, sur mobile on revient à la liste ; sur desktop on garde le panneau de lecture rempli.
   useEffect(() => {
+    // Vue propre à chaque changement de filtre : on purge la liste « sticky »
+    // (mails maintenus visibles après lecture / archivage dans la vue courante).
+    setStickyVisible(new Set());
     if (isMobileInbox) {
       setReaderOpen(false);
       setSelectedId(null);
