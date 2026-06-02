@@ -195,6 +195,47 @@ function DocumentsPage() {
   }, [filtered]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const toggleGroup = (k: string) => setCollapsedGroups((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const allCollapsed = grouped.length > 0 && grouped.every((g) => collapsedGroups.has(g.key));
+  const toggleAllGroups = () => {
+    setCollapsedGroups(allCollapsed ? new Set() : new Set(grouped.map((g) => g.key)));
+  };
+
+  async function applyMinSizeRule() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await saveMinSize(minSizeKb);
+    const minBytes = minSizeKb * 1024;
+    const now = new Date().toISOString();
+    try {
+      const smallDocs = docs.filter((d) => d.file_size < minBytes);
+      const smallImages = smallDocs.filter((d) => (d.mime_type ?? "").startsWith("image/")).map((d) => d.id);
+      const smallOther = smallDocs.filter((d) => !(d.mime_type ?? "").startsWith("image/")).map((d) => d.id);
+      if (smallImages.length > 0) {
+        await supabase.from("documents").update({
+          ai_processed_at: now, ai_category: "signature", ai_priority: "low",
+          ai_summary: `Fichier < ${minSizeKb} Ko — ignoré`, ai_skipped_reason: "small_file",
+        }).in("id", smallImages);
+      }
+      if (smallOther.length > 0) {
+        await supabase.from("documents").update({
+          ai_processed_at: now, ai_category: "autre", ai_priority: "low",
+          ai_summary: `Fichier < ${minSizeKb} Ko — ignoré`, ai_skipped_reason: "small_file",
+        }).in("id", smallOther);
+      }
+      const reEligible = docs.filter((d) => d.ai_skipped_reason === "small_file" && d.file_size >= minBytes).map((d) => d.id);
+      if (reEligible.length > 0) {
+        await supabase.from("documents").update({
+          ai_processed_at: null, ai_category: null, ai_priority: null,
+          ai_summary: null, ai_skipped_reason: null,
+        }).in("id", reEligible);
+      }
+      const total = smallImages.length + smallOther.length + reEligible.length;
+      toast.success(total > 0 ? `Règle appliquée — ${total} document(s) mis à jour` : "Règle appliquée");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de l'application");
+    }
+  }
 
   const selectionMode = selected.size > 0;
   const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selected.has(d.id));
