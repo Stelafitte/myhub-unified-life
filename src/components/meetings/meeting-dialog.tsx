@@ -229,6 +229,7 @@ export function MeetingDialog({
             quorum_minimum: (m as { quorum_minimum?: number | null }).quorum_minimum ?? null,
             equipment: ((m as { equipment?: string[] | null }).equipment ?? []) as string[],
           });
+          setAcceptedCount(((ps ?? []) as { rsvp_status: string | null }[]).filter((p) => p.rsvp_status === "accepted").length);
           setConfirmedSlotId((m as { confirmed_slot_id?: string | null }).confirmed_slot_id ?? null);
           lastSavedNotesRef.current = m.notes ?? "";
           setNotesSavedAt((m as { notes_updated_at?: string | null }).notes_updated_at ? new Date((m as { notes_updated_at: string }).notes_updated_at) : null);
