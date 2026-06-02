@@ -1660,6 +1660,17 @@ function InboxPage() {
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Supprimer
                 </Button>
+                <Select onValueChange={(v) => bulkMoveToTheme(v === "__none__" ? null : v)}>
+                  <SelectTrigger className="h-6 w-auto gap-1 px-2 text-xs">
+                    <SelectValue placeholder="Déplacer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs">Sans thème</SelectItem>
+                    {themes.filter((t) => !t.archived_at).map((t) => (
+                      <SelectItem key={t.id} value={t.id} className="text-xs">{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button size="sm" variant="ghost" className="h-6 px-2" onClick={clearChecked}>
                   Annuler
                 </Button>
