@@ -549,33 +549,133 @@ export function MeetingDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Poll mode toggle */}
+            <div className="flex items-center justify-between rounded-md border p-3 bg-muted/20">
               <div>
-                <Label htmlFor="m-start">Début *</Label>
-                <Input id="m-start" type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
+                <Label htmlFor="m-poll" className="cursor-pointer flex items-center gap-1.5">
+                  <Vote className="h-4 w-4" /> Mode sondage de dates
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Proposez plusieurs créneaux et laissez les participants voter via un lien public.
+                </p>
               </div>
-              <div>
-                <Label htmlFor="m-end">Fin *</Label>
-                <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
-              </div>
+              <Switch id="m-poll" checked={pollMode} onCheckedChange={setPollMode} />
             </div>
 
-            <SlotFinder
-              durationMinutes={(() => {
-                if (!form.start_at || !form.end_at) return 60;
-                const ms = new Date(fromLocalInput(form.end_at)).getTime() - new Date(fromLocalInput(form.start_at)).getTime();
-                const m = Math.round(ms / 60000);
-                return m > 0 ? m : 60;
-              })()}
-              onPick={({ startAt, endAt }) => {
-                setForm((f) => ({
-                  ...f,
-                  start_at: toLocalInput(startAt),
-                  end_at: toLocalInput(endAt),
-                }));
-                toast.success("Créneau sélectionné");
-              }}
-            />
+            {pollMode ? (
+              <div className="space-y-3 rounded-md border p-3">
+                <div className="flex items-center justify-between">
+                  <Label>Créneaux proposés ({pollSlots.length})</Label>
+                  <Button type="button" size="sm" variant="outline" onClick={addManualPollSlot}>
+                    <Plus className="h-4 w-4 mr-1" /> Ajouter
+                  </Button>
+                </div>
+                {pollSlots.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Aucun créneau. Utilisez le bouton ci-dessus ou les suggestions ci-dessous.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {pollSlots.map((s, i) => {
+                      const sd = new Date(s.startAt);
+                      const ed = new Date(s.endAt);
+                      return (
+                        <li key={i} className="flex items-center gap-2 rounded border bg-card p-2 text-sm">
+                          <span className="flex-1">
+                            {sd.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "short" })}
+                            {" · "}
+                            {sd.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                            {" → "}
+                            {ed.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          <Input
+                            type="datetime-local"
+                            className="w-[180px] h-8"
+                            value={toLocalInput(s.startAt)}
+                            onChange={(e) => {
+                              const newStart = fromLocalInput(e.target.value);
+                              const duration = new Date(s.endAt).getTime() - new Date(s.startAt).getTime();
+                              const newEnd = new Date(new Date(newStart).getTime() + duration).toISOString();
+                              setPollSlots((arr) => arr.map((x, j) => j === i ? { startAt: newStart, endAt: newEnd } : x));
+                            }}
+                          />
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removePollSlot(i)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                <div>
+                  <Label htmlFor="m-poll-deadline">Date limite de vote (optionnel)</Label>
+                  <Input
+                    id="m-poll-deadline"
+                    type="datetime-local"
+                    value={pollDeadline}
+                    onChange={(e) => setPollDeadline(e.target.value)}
+                  />
+                </div>
+
+                <SlotFinder
+                  durationMinutes={60}
+                  onPick={({ startAt, endAt }) => addPollSlot(startAt, endAt)}
+                />
+
+                {existingPoll && (
+                  <div className="rounded-md border bg-background p-2 text-xs space-y-1">
+                    <div className="font-medium">Lien public du sondage</div>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 truncate text-muted-foreground">
+                        {`${window.location.origin}/poll/${existingPoll.public_token}`}
+                      </code>
+                      <Button type="button" variant="ghost" size="icon" title="Copier"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/poll/${existingPoll.public_token}`);
+                          toast.success("Lien copié");
+                        }}>
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button type="button" variant="ghost" size="icon" title="Ouvrir"
+                        onClick={() => window.open(`${window.location.origin}/poll/${existingPoll.public_token}`, "_blank")}>
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="m-start">Début *</Label>
+                    <Input id="m-start" type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label htmlFor="m-end">Fin *</Label>
+                    <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
+                  </div>
+                </div>
+
+                <SlotFinder
+                  durationMinutes={(() => {
+                    if (!form.start_at || !form.end_at) return 60;
+                    const ms = new Date(fromLocalInput(form.end_at)).getTime() - new Date(fromLocalInput(form.start_at)).getTime();
+                    const m = Math.round(ms / 60000);
+                    return m > 0 ? m : 60;
+                  })()}
+                  onPick={({ startAt, endAt }) => {
+                    setForm((f) => ({
+                      ...f,
+                      start_at: toLocalInput(startAt),
+                      end_at: toLocalInput(endAt),
+                    }));
+                    toast.success("Créneau sélectionné");
+                  }}
+                />
+              </>
+            )}
             <div>
               <Label htmlFor="m-loc">Lieu</Label>
               <Input id="m-loc" placeholder="Salle, adresse…" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
