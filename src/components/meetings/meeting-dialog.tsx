@@ -1062,6 +1062,19 @@ export function MeetingDialog({
               <Textarea id="m-desc" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
 
+            {user && (
+              <LogisticsSection
+                userId={user.id}
+                room={form.room}
+                quorumMinimum={form.quorum_minimum}
+                equipment={form.equipment}
+                acceptedCount={
+                  form.participants.filter(() => false).length // placeholder, computed below
+                }
+                onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              />
+            )}
+
             {form.id && user && form.start_at && form.end_at && (
               <AgendaSection
                 meetingId={form.id}
