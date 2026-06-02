@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Users, Loader2, Trash2, CheckCircle2 } from "lucide-react";
+import { Loader2, Trash2, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
