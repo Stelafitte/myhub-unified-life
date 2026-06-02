@@ -116,16 +116,20 @@ function LoginPage() {
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setBusy(false);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        toast.error(explainAuthError(error));
+        return;
+      }
       applyRememberPreference(remember);
       navigate({ to: "/dashboard" });
+    } catch (err) {
+      toast.error(explainAuthError(err));
+    } finally {
+      setBusy(false);
     }
   };
-
-  const signUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirm) {
       toast.error("Les mots de passe ne correspondent pas");
