@@ -767,6 +767,22 @@ function InboxPage() {
     }
   }, [filtered, isMobileInbox, selectedId]);
 
+  // Push read/unread/trash state to remote provider (Gmail/Outlook) — best-effort.
+  const pushProviderAction = (ids: string[], action: "mark_read" | "mark_unread" | "trash") => {
+    const targets = emails.filter((x) => ids.includes(x.id));
+    for (const e of targets) {
+      const fn =
+        e.origin_tag === "gmail" ? "sync-gmail"
+        : e.origin_tag === "outlook" ? "sync-outlook"
+        : null;
+      if (!fn) continue;
+      // fire-and-forget; errors are logged in the edge function
+      supabase.functions
+        .invoke(fn, { body: { action, email_id: e.id } })
+        .catch((err) => console.warn(`[${fn}] action ${action} failed`, err));
+    }
+  };
+
   // Mutations (optimistic)
   const patch = async (id: string, updates: Partial<Email>) => {
     setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
@@ -778,6 +794,7 @@ function InboxPage() {
     const nextRead = !e.is_read;
     markLocallyRead([e.id], nextRead);
     patch(e.id, { is_read: nextRead });
+    pushProviderAction([e.id], nextRead ? "mark_read" : "mark_unread");
   };
   const toggleStar = (e: Email) => patch(e.id, { is_starred: !e.is_starred });
   const archive = async (e: Email) => {
@@ -837,6 +854,7 @@ function InboxPage() {
       .update({ deleted_at: now })
       .in("id", idsToDelete);
     if (error) { toast.error(error.message); return; }
+    pushProviderAction(idsToDelete, "trash");
     const undoTrash = async () => {
       const { error: err } = await supabase
         .from("emails")
@@ -1005,6 +1023,7 @@ function InboxPage() {
         .update({ deleted_at: now })
         .in("id", ids);
       if (error) { toast.error(error.message); return; }
+      pushProviderAction(ids, "trash");
       const undoBulkTrash = async () => {
         const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
         if (err) { toast.error(err.message); return; }
@@ -1030,6 +1049,7 @@ function InboxPage() {
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
     if (error) toast.error(error.message);
+    else pushProviderAction(ids, read ? "mark_read" : "mark_unread");
   };
 
   const bulkMoveToTheme = async (themeId: string | null) => {
@@ -1055,6 +1075,7 @@ function InboxPage() {
       });
       markLocallyRead([e.id], true);
       patch(e.id, { is_read: true });
+      pushProviderAction([e.id], "mark_read");
     }
     // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
     // « Retour » du téléphone ferme l'email et revienne à la liste.
