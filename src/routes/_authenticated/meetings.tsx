@@ -59,6 +59,7 @@ function MeetingsPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
+  const [pollsByMeeting, setPollsByMeeting] = useState<Record<string, PollInfo>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -67,10 +68,12 @@ function MeetingsPage() {
     const cached = await cacheGetAll<Meeting>("meetings");
     if (cached.length) { setMeetings(cached); setLoading(false); }
     if (!navigator.onLine) { setLoading(false); return; }
-    const [m, p, t] = await Promise.all([
+    const [m, p, t, polls, votes] = await Promise.all([
       supabase.from("meetings").select("*").order("start_at", { ascending: false }),
       supabase.from("meeting_participants").select("*"),
       supabase.from("meeting_tasks").select("meeting_id"),
+      supabase.from("meeting_polls").select("id, meeting_id, status, deadline, public_token"),
+      supabase.from("meeting_poll_votes").select("poll_id, voter_email"),
     ]);
     const meetingsList = (m.data as Meeting[]) ?? [];
     setMeetings(meetingsList);
@@ -81,6 +84,28 @@ function MeetingsPage() {
       counts[row.meeting_id] = (counts[row.meeting_id] ?? 0) + 1;
     });
     setTaskCounts(counts);
+
+    const voteRows = (votes.data ?? []) as { poll_id: string; voter_email: string }[];
+    const voteAgg: Record<string, { total: number; voters: Set<string> }> = {};
+    voteRows.forEach((v) => {
+      const a = voteAgg[v.poll_id] ?? (voteAgg[v.poll_id] = { total: 0, voters: new Set() });
+      a.total += 1;
+      a.voters.add((v.voter_email ?? "").toLowerCase());
+    });
+    const pollMap: Record<string, PollInfo> = {};
+    ((polls.data ?? []) as { id: string; meeting_id: string; status: string; deadline: string | null; public_token: string }[]).forEach((pl) => {
+      const agg = voteAgg[pl.id];
+      pollMap[pl.meeting_id] = {
+        id: pl.id,
+        meeting_id: pl.meeting_id,
+        status: pl.status,
+        deadline: pl.deadline,
+        public_token: pl.public_token,
+        voteCount: agg?.total ?? 0,
+        voterCount: agg?.voters.size ?? 0,
+      };
+    });
+    setPollsByMeeting(pollMap);
     setLoading(false);
   }, []);
 
