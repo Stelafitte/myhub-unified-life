@@ -1032,6 +1032,16 @@ function InboxPage() {
     if (error) toast.error(error.message);
   };
 
+  const bulkMoveToTheme = async (themeId: string | null) => {
+    const ids = bulkIds();
+    if (!ids.length) return;
+    setEmails((prev) => prev.map((x) => (checked.has(x.id) ? { ...x, ai_theme_id: themeId } : x)));
+    clearChecked();
+    const { error } = await supabase.from("emails").update({ ai_theme_id: themeId }).in("id", ids);
+    if (error) toast.error(error.message);
+    else toast.success(`${ids.length} email(s) déplacé(s)`);
+  };
+
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     setReaderOpen(true);
