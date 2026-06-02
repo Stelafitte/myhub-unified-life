@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { CalendarClock, Video, MapPin, Users as UsersIcon, CheckCircle2, XCircle, Clock, HelpCircle, Loader2, Mail, Download, Pencil } from "lucide-react";
+import { CalendarClock, Video, MapPin, Users as UsersIcon, CheckCircle2, XCircle, Clock, HelpCircle, Loader2, Mail, Download, Pencil, BarChart3, AlarmClock, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,6 +32,7 @@ type Meeting = {
   status: string;
   organizer_email: string | null;
   organizer_name: string | null;
+  confirmed_slot_id?: string | null;
 };
 
 type Participant = {
@@ -43,11 +44,22 @@ type Participant = {
   rsvp_status: string;
 };
 
+type PollInfo = {
+  id: string;
+  meeting_id: string;
+  status: string;
+  deadline: string | null;
+  public_token: string;
+  voteCount: number;
+  voterCount: number;
+};
+
 function MeetingsPage() {
   const { user } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
+  const [pollsByMeeting, setPollsByMeeting] = useState<Record<string, PollInfo>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -56,10 +68,12 @@ function MeetingsPage() {
     const cached = await cacheGetAll<Meeting>("meetings");
     if (cached.length) { setMeetings(cached); setLoading(false); }
     if (!navigator.onLine) { setLoading(false); return; }
-    const [m, p, t] = await Promise.all([
+    const [m, p, t, polls, votes] = await Promise.all([
       supabase.from("meetings").select("*").order("start_at", { ascending: false }),
       supabase.from("meeting_participants").select("*"),
       supabase.from("meeting_tasks").select("meeting_id"),
+      supabase.from("meeting_polls").select("id, meeting_id, status, deadline, public_token"),
+      supabase.from("meeting_poll_votes").select("poll_id, voter_email"),
     ]);
     const meetingsList = (m.data as Meeting[]) ?? [];
     setMeetings(meetingsList);
@@ -70,6 +84,28 @@ function MeetingsPage() {
       counts[row.meeting_id] = (counts[row.meeting_id] ?? 0) + 1;
     });
     setTaskCounts(counts);
+
+    const voteRows = (votes.data ?? []) as { poll_id: string; voter_email: string }[];
+    const voteAgg: Record<string, { total: number; voters: Set<string> }> = {};
+    voteRows.forEach((v) => {
+      const a = voteAgg[v.poll_id] ?? (voteAgg[v.poll_id] = { total: 0, voters: new Set() });
+      a.total += 1;
+      a.voters.add((v.voter_email ?? "").toLowerCase());
+    });
+    const pollMap: Record<string, PollInfo> = {};
+    ((polls.data ?? []) as { id: string; meeting_id: string; status: string; deadline: string | null; public_token: string }[]).forEach((pl) => {
+      const agg = voteAgg[pl.id];
+      pollMap[pl.meeting_id] = {
+        id: pl.id,
+        meeting_id: pl.meeting_id,
+        status: pl.status,
+        deadline: pl.deadline,
+        public_token: pl.public_token,
+        voteCount: agg?.total ?? 0,
+        voterCount: agg?.voters.size ?? 0,
+      };
+    });
+    setPollsByMeeting(pollMap);
     setLoading(false);
   }, []);
 
@@ -148,13 +184,13 @@ function MeetingsPage() {
         </TabsList>
 
         <TabsContent value="upcoming" className="mt-4">
-          <MeetingList loading={loading} meetings={upcoming} participants={participants} taskCounts={taskCounts} empty="Aucune réunion à venir." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} />
+          <MeetingList loading={loading} meetings={upcoming} participants={participants} taskCounts={taskCounts} pollsByMeeting={pollsByMeeting} empty="Aucune réunion à venir." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} />
         </TabsContent>
         <TabsContent value="past" className="mt-4">
-          <MeetingList loading={loading} meetings={past} participants={participants} taskCounts={taskCounts} empty="Aucune réunion passée." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} />
+          <MeetingList loading={loading} meetings={past} participants={participants} taskCounts={taskCounts} pollsByMeeting={pollsByMeeting} empty="Aucune réunion passée." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} />
         </TabsContent>
         <TabsContent value="invitations" className="mt-4">
-          <MeetingList loading={loading} meetings={invitations} participants={participants} taskCounts={taskCounts} empty="Aucune invitation en attente." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} showRsvp />
+          <MeetingList loading={loading} meetings={invitations} participants={participants} taskCounts={taskCounts} pollsByMeeting={pollsByMeeting} empty="Aucune invitation en attente." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} showRsvp />
         </TabsContent>
       </Tabs>
 
@@ -168,6 +204,7 @@ function MeetingList({
   meetings,
   participants,
   taskCounts,
+  pollsByMeeting,
   empty,
   onEdit,
   onExport,
@@ -179,6 +216,7 @@ function MeetingList({
   meetings: Meeting[];
   participants: Participant[];
   taskCounts: Record<string, number>;
+  pollsByMeeting: Record<string, PollInfo>;
   empty: string;
   onEdit: (id: string) => void;
   onExport: (m: Meeting) => void;
@@ -212,6 +250,7 @@ function MeetingList({
             meeting={m}
             participants={ps}
             taskCount={taskCounts[m.id] ?? 0}
+            poll={pollsByMeeting[m.id]}
             onEdit={() => onEdit(m.id)}
             onExport={() => onExport(m)}
             myRsvp={mine?.rsvp_status}
@@ -229,6 +268,7 @@ function MeetingCard({
   meeting,
   participants,
   taskCount,
+  poll,
   onEdit,
   onExport,
   myRsvp,
@@ -239,6 +279,7 @@ function MeetingCard({
   meeting: Meeting;
   participants: Participant[];
   taskCount: number;
+  poll?: PollInfo;
   onEdit: () => void;
   onExport: () => void;
   myRsvp?: string;
@@ -256,6 +297,19 @@ function MeetingCard({
     pending: participants.filter((p) => p.rsvp_status === "pending").length,
   };
 
+  const isConfirmed = meeting.status === "scheduled" && !!meeting.confirmed_slot_id;
+  const pollOpen = poll?.status === "open";
+  const deadlineDate = poll?.deadline ? new Date(poll.deadline) : null;
+  const hoursToDeadline = deadlineDate ? Math.round((deadlineDate.getTime() - Date.now()) / 3600000) : null;
+  const hoursToStart = Math.round((start.getTime() - Date.now()) / 3600000);
+  const showReminder = !pollOpen && hoursToStart > 0 && (hoursToStart <= 48) && counts.pending > 0;
+
+  function copyPollLink() {
+    if (!poll) return;
+    const url = `${window.location.origin}/poll/${poll.public_token}`;
+    navigator.clipboard.writeText(url).then(() => toast.success("Lien du sondage copié"));
+  }
+
   return (
     <Card className="p-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-4">
@@ -263,6 +317,21 @@ function MeetingCard({
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold truncate">{meeting.title}</h3>
             <StatusBadge status={meeting.status} />
+            {isConfirmed && (
+              <Badge variant="outline" className="gap-1 border-green-300 text-green-700 dark:text-green-300">
+                <CheckCircle2 className="h-3 w-3" /> Confirmée
+              </Badge>
+            )}
+            {pollOpen && (
+              <Badge variant="outline" className="gap-1 border-violet-300 text-violet-700 dark:text-violet-300">
+                <BarChart3 className="h-3 w-3" /> Sondage ouvert · {poll!.voterCount} votant{poll!.voterCount > 1 ? "s" : ""}
+              </Badge>
+            )}
+            {pollOpen && hoursToDeadline !== null && hoursToDeadline >= 0 && hoursToDeadline <= 24 && (
+              <Badge variant="outline" className="gap-1 border-amber-300 text-amber-700 dark:text-amber-300">
+                <AlarmClock className="h-3 w-3" /> Deadline dans {hoursToDeadline}h
+              </Badge>
+            )}
             {meeting.is_online && (
               <Badge variant="outline" className="gap-1">
                 <Video className="h-3 w-3" />
@@ -341,6 +410,16 @@ function MeetingCard({
           {meeting.is_online && meeting.online_link && (
             <Button asChild size="sm" variant="outline">
               <a href={meeting.online_link} target="_blank" rel="noreferrer">Rejoindre</a>
+            </Button>
+          )}
+          {pollOpen && (
+            <Button size="sm" variant="outline" onClick={copyPollLink} title="Copier le lien public du sondage">
+              <BarChart3 className="h-3.5 w-3.5 mr-1" /> Lien sondage
+            </Button>
+          )}
+          {showReminder && (
+            <Button size="sm" variant="outline" onClick={onEdit} title="Ouvrir la réunion pour relancer les non-répondants">
+              <Bell className="h-3.5 w-3.5 mr-1" /> Relancer
             </Button>
           )}
           <Button size="sm" variant="ghost" onClick={onEdit}>
