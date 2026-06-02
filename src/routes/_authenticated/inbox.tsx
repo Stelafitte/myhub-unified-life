@@ -489,7 +489,7 @@ function InboxPage() {
       if (error) {
         if (emails.length === 0) toast.error("Hors-ligne : aucun cache disponible");
       } else if (ems) {
-        setEmails(ems as Email[]);
+        setEmails(applyLocalRead(ems as Email[]));
         setUsingCache(false);
         cacheEmails(ems as Email[]);
 
