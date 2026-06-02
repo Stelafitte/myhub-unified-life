@@ -268,6 +268,7 @@ function MeetingCard({
   meeting,
   participants,
   taskCount,
+  poll,
   onEdit,
   onExport,
   myRsvp,
@@ -278,6 +279,7 @@ function MeetingCard({
   meeting: Meeting;
   participants: Participant[];
   taskCount: number;
+  poll?: PollInfo;
   onEdit: () => void;
   onExport: () => void;
   myRsvp?: string;
@@ -295,6 +297,19 @@ function MeetingCard({
     pending: participants.filter((p) => p.rsvp_status === "pending").length,
   };
 
+  const isConfirmed = meeting.status === "scheduled" && !!meeting.confirmed_slot_id;
+  const pollOpen = poll?.status === "open";
+  const deadlineDate = poll?.deadline ? new Date(poll.deadline) : null;
+  const hoursToDeadline = deadlineDate ? Math.round((deadlineDate.getTime() - Date.now()) / 3600000) : null;
+  const hoursToStart = Math.round((start.getTime() - Date.now()) / 3600000);
+  const showReminder = !pollOpen && hoursToStart > 0 && (hoursToStart <= 48) && counts.pending > 0;
+
+  function copyPollLink() {
+    if (!poll) return;
+    const url = `${window.location.origin}/poll/${poll.public_token}`;
+    navigator.clipboard.writeText(url).then(() => toast.success("Lien du sondage copié"));
+  }
+
   return (
     <Card className="p-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-4">
@@ -302,6 +317,21 @@ function MeetingCard({
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold truncate">{meeting.title}</h3>
             <StatusBadge status={meeting.status} />
+            {isConfirmed && (
+              <Badge variant="outline" className="gap-1 border-green-300 text-green-700 dark:text-green-300">
+                <CheckCircle2 className="h-3 w-3" /> Confirmée
+              </Badge>
+            )}
+            {pollOpen && (
+              <Badge variant="outline" className="gap-1 border-violet-300 text-violet-700 dark:text-violet-300">
+                <BarChart3 className="h-3 w-3" /> Sondage ouvert · {poll!.voterCount} votant{poll!.voterCount > 1 ? "s" : ""}
+              </Badge>
+            )}
+            {pollOpen && hoursToDeadline !== null && hoursToDeadline >= 0 && hoursToDeadline <= 24 && (
+              <Badge variant="outline" className="gap-1 border-amber-300 text-amber-700 dark:text-amber-300">
+                <AlarmClock className="h-3 w-3" /> Deadline dans {hoursToDeadline}h
+              </Badge>
+            )}
             {meeting.is_online && (
               <Badge variant="outline" className="gap-1">
                 <Video className="h-3 w-3" />
