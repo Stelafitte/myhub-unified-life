@@ -10,7 +10,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { Loader2, Save, Plus, Trash2 } from "lucide-react";
+import { Loader2, Save, Plus, Trash2, NotebookPen } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  listOneNoteNotebooks,
+  listOneNoteSections,
+  testOneNoteConnection,
+} from "@/lib/api/onenote.functions";
 
 type Settings = {
   work_start_time: string;
