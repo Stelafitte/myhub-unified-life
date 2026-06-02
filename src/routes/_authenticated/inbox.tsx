@@ -982,7 +982,16 @@ function InboxPage() {
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     setReaderOpen(true);
-    if (!e.is_read) patch(e.id, { is_read: true });
+    if (!e.is_read) {
+      // On garde le mail visible dans la vue courante (ex. "Non lus") même
+      // après l'avoir marqué lu, pour éviter l'impression qu'il « disparaît ».
+      setStickyVisible((prev) => {
+        const next = new Set(prev);
+        next.add(e.id);
+        return next;
+      });
+      patch(e.id, { is_read: true });
+    }
     // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
     // « Retour » du téléphone ferme l'email et revienne à la liste.
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
