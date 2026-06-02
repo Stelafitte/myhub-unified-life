@@ -7,8 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Plus, Trash2 } from "lucide-react";
 
 type Settings = {
   work_start_time: string;
@@ -19,6 +21,8 @@ type Settings = {
   default_duration_min: number;
   email_template_invite: string;
   email_template_confirm: string;
+  rsvp_reminders_enabled: boolean;
+  rsvp_reminder_hours_before: number;
 };
 
 const DEFAULTS: Settings = {
@@ -32,6 +36,8 @@ const DEFAULTS: Settings = {
     'Bonjour,\n\nVous êtes invité(e) à la réunion "{{title}}" le {{date}}.\n\nLien : {{link}}\n\nCordialement,\n{{organizer}}',
   email_template_confirm:
     'Bonjour,\n\nLa réunion "{{title}}" est confirmée le {{date}}.\n\nLien : {{link}}\n\nCordialement,\n{{organizer}}',
+  rsvp_reminders_enabled: true,
+  rsvp_reminder_hours_before: 24,
 };
 
 const DAYS = [
@@ -44,20 +50,27 @@ const DAYS = [
   { value: 0, label: "Dim" },
 ];
 
+type Preset = { id: string; label: string; icon: string | null; position: number };
+
 export function MeetingsSection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [s, setS] = useState<Settings>(DEFAULTS);
+  const [presets, setPresets] = useState<Preset[]>([]);
+  const [newPreset, setNewPreset] = useState({ label: "", icon: "📽️" });
 
   useEffect(() => {
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return;
-      const { data } = await supabase
-        .from("meeting_settings")
-        .select("*")
-        .eq("user_id", u.user.id)
-        .maybeSingle();
+      const [{ data }, { data: pr }] = await Promise.all([
+        supabase.from("meeting_settings").select("*").eq("user_id", u.user.id).maybeSingle(),
+        supabase
+          .from("meeting_equipment_presets")
+          .select("id, label, icon, position")
+          .eq("user_id", u.user.id)
+          .order("position", { ascending: true }),
+      ]);
       if (data) {
         setS({
           work_start_time: (data.work_start_time as string).slice(0, 5),
@@ -68,8 +81,13 @@ export function MeetingsSection() {
           default_duration_min: data.default_duration_min,
           email_template_invite: data.email_template_invite,
           email_template_confirm: data.email_template_confirm,
+          rsvp_reminders_enabled:
+            (data as { rsvp_reminders_enabled?: boolean }).rsvp_reminders_enabled ?? true,
+          rsvp_reminder_hours_before:
+            (data as { rsvp_reminder_hours_before?: number }).rsvp_reminder_hours_before ?? 24,
         });
       }
+      setPresets((pr ?? []) as Preset[]);
       setLoading(false);
     })();
   }, []);
@@ -97,6 +115,37 @@ export function MeetingsSection() {
     if (error) toast.error("Erreur : " + error.message);
     else toast.success("Paramètres réunions sauvegardés");
   };
+
+  async function addPreset() {
+    if (!newPreset.label.trim()) return;
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return;
+    const { data, error } = await supabase
+      .from("meeting_equipment_presets")
+      .insert({
+        user_id: u.user.id,
+        label: newPreset.label.trim(),
+        icon: newPreset.icon || null,
+        position: presets.length,
+      })
+      .select("id, label, icon, position")
+      .single();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setPresets((p) => [...p, data as Preset]);
+    setNewPreset({ label: "", icon: "📽️" });
+  }
+
+  async function removePreset(id: string) {
+    const { error } = await supabase.from("meeting_equipment_presets").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setPresets((p) => p.filter((x) => x.id !== id));
+  }
 
   if (loading) {
     return (
@@ -201,6 +250,97 @@ export function MeetingsSection() {
                 }
               />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Rappels RSVP</CardTitle>
+          <CardDescription>
+            Envoi automatique d'un rappel aux participants n'ayant pas encore répondu.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="rsvp-enabled">Activer les rappels automatiques</Label>
+            <Switch
+              id="rsvp-enabled"
+              checked={s.rsvp_reminders_enabled}
+              onCheckedChange={(v) => setS({ ...s, rsvp_reminders_enabled: v })}
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Délai avant la réunion</Label>
+              <span className="text-sm text-muted-foreground">
+                {s.rsvp_reminder_hours_before} h
+              </span>
+            </div>
+            <Slider
+              min={1}
+              max={72}
+              step={1}
+              value={[s.rsvp_reminder_hours_before]}
+              onValueChange={([v]) => setS({ ...s, rsvp_reminder_hours_before: v })}
+              disabled={!s.rsvp_reminders_enabled}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Matériel disponible</CardTitle>
+          <CardDescription>
+            Liste personnalisable proposée dans la logistique de chaque réunion.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {presets.length > 0 && (
+            <div className="space-y-2">
+              {presets.map((p) => (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between rounded-md border px-3 py-2"
+                >
+                  <div className="flex items-center gap-2 text-sm">
+                    {p.icon && <span>{p.icon}</span>}
+                    {p.label}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removePreset(p.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2 items-end">
+            <div className="w-16 space-y-1">
+              <Label>Icône</Label>
+              <Input
+                value={newPreset.icon}
+                maxLength={2}
+                onChange={(e) => setNewPreset({ ...newPreset, icon: e.target.value })}
+              />
+            </div>
+            <div className="flex-1 space-y-1">
+              <Label>Libellé</Label>
+              <Input
+                value={newPreset.label}
+                placeholder="ex. Vidéoprojecteur"
+                onChange={(e) => setNewPreset({ ...newPreset, label: e.target.value })}
+                onKeyDown={(e) => e.key === "Enter" && addPreset()}
+              />
+            </div>
+            <Button type="button" onClick={addPreset} disabled={!newPreset.label.trim()}>
+              <Plus className="mr-1 h-4 w-4" /> Ajouter
+            </Button>
           </div>
         </CardContent>
       </Card>

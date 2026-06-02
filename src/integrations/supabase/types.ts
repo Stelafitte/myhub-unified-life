@@ -792,6 +792,33 @@ export type Database = {
           },
         ]
       }
+      meeting_equipment_presets: {
+        Row: {
+          created_at: string
+          icon: string | null
+          id: string
+          label: string
+          position: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          label: string
+          position?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          label?: string
+          position?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       meeting_notes_history: {
         Row: {
           content: string
@@ -1013,6 +1040,8 @@ export type Database = {
           email_template_confirm: string
           email_template_invite: string
           min_lead_hours: number
+          rsvp_reminder_hours_before: number
+          rsvp_reminders_enabled: boolean
           updated_at: string
           user_id: string
           work_days: number[]
@@ -1026,6 +1055,8 @@ export type Database = {
           email_template_confirm?: string
           email_template_invite?: string
           min_lead_hours?: number
+          rsvp_reminder_hours_before?: number
+          rsvp_reminders_enabled?: boolean
           updated_at?: string
           user_id: string
           work_days?: number[]
@@ -1039,6 +1070,8 @@ export type Database = {
           email_template_confirm?: string
           email_template_invite?: string
           min_lead_hours?: number
+          rsvp_reminder_hours_before?: number
+          rsvp_reminders_enabled?: boolean
           updated_at?: string
           user_id?: string
           work_days?: number[]
@@ -1115,6 +1148,7 @@ export type Database = {
           decisions: string | null
           description: string | null
           end_at: string
+          equipment: string[]
           id: string
           importance: string
           is_online: boolean
@@ -1131,6 +1165,8 @@ export type Database = {
           recurrence_parent_id: string | null
           recurrence_rule: string | null
           room: string | null
+          rsvp_reminder_hours_before: number
+          rsvp_reminder_sent_at: string | null
           session_number: number | null
           source_email_id: string | null
           start_at: string
@@ -1149,6 +1185,7 @@ export type Database = {
           decisions?: string | null
           description?: string | null
           end_at: string
+          equipment?: string[]
           id?: string
           importance?: string
           is_online?: boolean
@@ -1165,6 +1202,8 @@ export type Database = {
           recurrence_parent_id?: string | null
           recurrence_rule?: string | null
           room?: string | null
+          rsvp_reminder_hours_before?: number
+          rsvp_reminder_sent_at?: string | null
           session_number?: number | null
           source_email_id?: string | null
           start_at: string
@@ -1183,6 +1222,7 @@ export type Database = {
           decisions?: string | null
           description?: string | null
           end_at?: string
+          equipment?: string[]
           id?: string
           importance?: string
           is_online?: boolean
@@ -1199,6 +1239,8 @@ export type Database = {
           recurrence_parent_id?: string | null
           recurrence_rule?: string | null
           room?: string | null
+          rsvp_reminder_hours_before?: number
+          rsvp_reminder_sent_at?: string | null
           session_number?: number | null
           source_email_id?: string | null
           start_at?: string

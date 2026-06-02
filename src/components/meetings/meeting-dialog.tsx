@@ -27,6 +27,7 @@ import { SlotFinder } from "@/components/meetings/slot-finder";
 import { AgendaSection } from "@/components/meetings/agenda-section";
 import { RecurrenceSection } from "@/components/meetings/recurrence-section";
 import { MeetingHistorySection } from "@/components/meetings/meeting-history-section";
+import { LogisticsSection } from "@/components/meetings/logistics-section";
 
 type Provider = "jitsi" | "google_meet" | "zoom" | "teams" | "other";
 const PROVIDER_LABEL: Record<Provider, string> = {
@@ -70,6 +71,9 @@ export type MeetingFormValue = {
   recurrence_rule: string | null;
   recurrence_parent_id: string | null;
   session_number: number | null;
+  room: string;
+  quorum_minimum: number | null;
+  equipment: string[];
 };
 
 const empty: MeetingFormValue = {
@@ -90,6 +94,9 @@ const empty: MeetingFormValue = {
   recurrence_rule: null,
   recurrence_parent_id: null,
   session_number: null,
+  room: "",
+  quorum_minimum: null,
+  equipment: [],
 };
 
 function toLocalInput(iso: string): string {
@@ -132,6 +139,7 @@ export function MeetingDialog({
   const lastSavedNotesRef = useRef<string>("");
   const [notesHistory, setNotesHistory] = useState<{ id: string; created_at: string; content: string }[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [acceptedCount, setAcceptedCount] = useState(0);
 
   // --- Poll mode state ---
   const [pollMode, setPollMode] = useState(false);
@@ -186,6 +194,7 @@ export function MeetingDialog({
     setExistingPoll(null);
     setPollVotes([]);
     setConfirmedSlotId(null);
+    setAcceptedCount(0);
     if (meetingId) {
       setLoading(true);
       (async () => {
@@ -217,7 +226,11 @@ export function MeetingDialog({
             recurrence_rule: (m as { recurrence_rule?: string | null }).recurrence_rule ?? null,
             recurrence_parent_id: (m as { recurrence_parent_id?: string | null }).recurrence_parent_id ?? null,
             session_number: (m as { session_number?: number | null }).session_number ?? null,
+            room: (m as { room?: string | null }).room ?? "",
+            quorum_minimum: (m as { quorum_minimum?: number | null }).quorum_minimum ?? null,
+            equipment: ((m as { equipment?: string[] | null }).equipment ?? []) as string[],
           });
+          setAcceptedCount(((ps ?? []) as { rsvp_status: string | null }[]).filter((p) => p.rsvp_status === "accepted").length);
           setConfirmedSlotId((m as { confirmed_slot_id?: string | null }).confirmed_slot_id ?? null);
           lastSavedNotesRef.current = m.notes ?? "";
           setNotesSavedAt((m as { notes_updated_at?: string | null }).notes_updated_at ? new Date((m as { notes_updated_at: string }).notes_updated_at) : null);
@@ -339,6 +352,9 @@ export function MeetingDialog({
         organizer_email: form.organizer_email.trim() || null,
         organizer_name: form.organizer_name.trim() || null,
         status: pollMode ? "scheduled" : "scheduled",
+        room: form.room.trim() || null,
+        quorum_minimum: form.quorum_minimum,
+        equipment: form.equipment,
       };
       let id = form.id;
       if (id) {
@@ -1048,6 +1064,17 @@ export function MeetingDialog({
               <Label htmlFor="m-desc">Description / Ordre du jour</Label>
               <Textarea id="m-desc" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
+
+            {user && (
+              <LogisticsSection
+                userId={user.id}
+                room={form.room}
+                quorumMinimum={form.quorum_minimum}
+                equipment={form.equipment}
+                acceptedCount={acceptedCount}
+                onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+              />
+            )}
 
             {form.id && user && form.start_at && form.end_at && (
               <AgendaSection
