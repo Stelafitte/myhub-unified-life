@@ -302,8 +302,9 @@ function InboxPage() {
         .order("received_at", { ascending: false })
         .limit(1000);
       if (refreshed) {
-        setEmails(applyLocalRead(refreshed as Email[]));
-        cacheEmails(refreshed as Email[]);
+        const normalized = applyLocalRead(refreshed as Email[]);
+        setEmails(normalized);
+        cacheEmails(normalized);
       }
       toast.success(
         totalProcessed > 0 ? `${totalProcessed} email(s) reclassé(s)` : "Aucun email à reclasser",
@@ -444,7 +445,8 @@ function InboxPage() {
     (async () => {
       const cached = await loadCachedEmails();
       if (!cancelled && cached.length > 0) {
-        setEmails((prev) => (prev.length === 0 ? cached : prev));
+        const normalized = applyLocalRead(cached);
+        setEmails((prev) => (prev.length === 0 ? normalized : prev));
         setUsingCache(true);
       }
     })();
@@ -509,8 +511,9 @@ function InboxPage() {
                 .order("received_at", { ascending: false })
                 .limit(1000);
               if (!cancelled && refreshed) {
-                setEmails(applyLocalRead(refreshed as Email[]));
-                cacheEmails(refreshed as Email[]);
+                const normalized = applyLocalRead(refreshed as Email[]);
+                setEmails(normalized);
+                cacheEmails(normalized);
               }
             }
           })();
@@ -575,7 +578,11 @@ function InboxPage() {
           .eq("is_archived", false)
           .order("received_at", { ascending: false })
           .limit(1000);
-        if (!cancelled && refreshed) setEmails(applyLocalRead(refreshed as Email[]));
+        if (!cancelled && refreshed) {
+          const normalized = applyLocalRead(refreshed as Email[]);
+          setEmails(normalized);
+          cacheEmails(normalized);
+        }
       }
     })();
     return () => {
@@ -782,6 +789,11 @@ function InboxPage() {
       // fire-and-forget; errors are logged in the edge function
       supabase.functions
         .invoke(fn, { body: { action, email_id: e.id } })
+        .then(({ data, error }) => {
+          if (error || data?.ok === false) {
+            console.warn(`[${fn}] action ${action} failed`, error ?? data?.error);
+          }
+        })
         .catch((err) => console.warn(`[${fn}] action ${action} failed`, err));
     }
   };
@@ -1232,19 +1244,19 @@ function InboxPage() {
               <button
                 key={a.id}
                 onClick={() => setFilter(`account:${a.id}`)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
-                  filter === `account:${a.id}` ? "bg-accent" : "hover:bg-accent/50",
+                  className={cn(
+                  "flex h-8 w-full items-center gap-2 rounded-md px-3 text-left leading-none transition-colors",
+                  filter === `account:${a.id}` ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
                 )}
               >
                 <span
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] leading-none"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-center text-[11px] leading-none"
                   style={{ background: a.color ?? "#64748b", color: "#fff" }}
                 >
                   {a.icon ?? "✉️"}
                 </span>
-                <span className="flex-1 truncate text-sm">{a.name}</span>
-                <span className="ml-auto min-w-[1.5rem] text-right text-[11px] tabular-nums text-muted-foreground">
+                <span className="min-w-0 flex-1 truncate text-sm leading-none">{a.name}</span>
+                <span className="ml-auto flex min-w-[1.5rem] shrink-0 items-center justify-end text-right text-[11px] leading-none tabular-nums text-muted-foreground">
                   {counts.byAccount.get(a.id) ?? 0}
                 </span>
               </button>
@@ -2100,16 +2112,16 @@ function FilterRow({
   return (
     <div
       className={cn(
-        "group flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+        "group flex h-8 w-full items-center gap-2 rounded-md px-3 text-left leading-none transition-colors",
         active ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
       )}
     >
-      <button onClick={onClick} className="flex flex-1 items-center gap-2 min-w-0">
+      <button onClick={onClick} className="flex h-full min-w-0 flex-1 items-center gap-2">
         <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground">
           {icon}
         </span>
-        <span className="flex-1 truncate text-sm">{label}</span>
-        <span className="ml-auto min-w-[1.5rem] text-right text-[11px] tabular-nums text-muted-foreground">
+        <span className="min-w-0 flex-1 truncate text-sm leading-none">{label}</span>
+        <span className="ml-auto flex min-w-[1.5rem] shrink-0 items-center justify-end text-right text-[11px] leading-none tabular-nums text-muted-foreground">
           {count}
         </span>
       </button>
@@ -2120,7 +2132,7 @@ function FilterRow({
             onAction();
           }}
           title={actionLabel}
-          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-destructive group-hover:opacity-100"
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-destructive group-hover:opacity-100"
         >
           <Trash2 className="h-3 w-3" />
         </button>
