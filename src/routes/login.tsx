@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,6 +130,26 @@ function LoginPage() {
     }
   };
 
+  const signInWithApple = async () => {
+    setBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("apple", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast.error(explainAuthError(result.error));
+        return;
+      }
+      if (result.redirected) return;
+      applyRememberPreference(remember);
+      navigate({ to: "/dashboard" });
+    } catch (err) {
+      toast.error(explainAuthError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const signUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirm) {
@@ -205,6 +226,16 @@ function LoginPage() {
                 </div>
                 <Button type="submit" disabled={busy} className="w-full">
                   {busy ? "Connexion…" : "Se connecter"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={signInWithApple}
+                  className="w-full"
+                >
+                  <span aria-hidden="true" className="text-base leading-none"></span>
+                  S’identifier avec Apple
                 </Button>
               </form>
             </TabsContent>
