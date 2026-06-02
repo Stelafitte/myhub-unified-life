@@ -299,7 +299,7 @@ function InboxPage() {
         .order("received_at", { ascending: false })
         .limit(1000);
       if (refreshed) {
-        setEmails(refreshed as Email[]);
+        setEmails(applyLocalRead(refreshed as Email[]));
         cacheEmails(refreshed as Email[]);
       }
       toast.success(
