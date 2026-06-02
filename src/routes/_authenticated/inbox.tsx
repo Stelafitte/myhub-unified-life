@@ -593,27 +593,28 @@ function InboxPage() {
 
   const filtered = useMemo(() => {
     let list = emails;
+    const keep = (e: Email) => stickyVisible.has(e.id);
     if (filter === "trash") {
-      list = list.filter(isTrashed);
+      list = list.filter((e) => isTrashed(e) || keep(e));
     } else {
-      list = list.filter((e) => !isTrashed(e));
+      list = list.filter((e) => !isTrashed(e) || keep(e));
       if (filter.startsWith("account:")) {
         const id = filter.slice(8);
-        list = list.filter((e) => e.account_id === id);
-      } else if (filter === "spam") list = list.filter(isSpam);
-      else if (filter === "promo") list = list.filter(isPromo);
+        list = list.filter((e) => e.account_id === id || keep(e));
+      } else if (filter === "spam") list = list.filter((e) => isSpam(e) || keep(e));
+      else if (filter === "promo") list = list.filter((e) => isPromo(e) || keep(e));
       else if (filter === "all") {
         // Tous les mails : aucun filtre IA (spam/promo inclus)
         if (false) list = list;
       } else {
-        list = list.filter((e) => !isSpam(e) && !isPromo(e));
-        if (filter === "unread") list = list.filter((e) => !e.is_read);
-        else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
-        else if (filter === "starred") list = list.filter((e) => e.is_starred);
-        else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
+        list = list.filter((e) => (!isSpam(e) && !isPromo(e)) || keep(e));
+        if (filter === "unread") list = list.filter((e) => !e.is_read || keep(e));
+        else if (filter === "attachments") list = list.filter((e) => e.has_attachment || keep(e));
+        else if (filter === "starred") list = list.filter((e) => e.is_starred || keep(e));
+        else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id || keep(e));
         else if (filter.startsWith("theme:")) {
           const id = filter.slice(6);
-          list = list.filter((e) => e.ai_theme_id === id);
+          list = list.filter((e) => e.ai_theme_id === id || keep(e));
         }
       }
     }
@@ -628,7 +629,7 @@ function InboxPage() {
       );
     }
     return list;
-  }, [emails, filter, query]);
+  }, [emails, filter, query, stickyVisible]);
 
   // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
   // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
