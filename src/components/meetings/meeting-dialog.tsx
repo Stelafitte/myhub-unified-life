@@ -117,9 +117,12 @@ export function MeetingDialog({
 
   // --- Poll mode state ---
   const [pollMode, setPollMode] = useState(false);
-  const [pollSlots, setPollSlots] = useState<{ startAt: string; endAt: string }[]>([]);
+  const [pollSlots, setPollSlots] = useState<{ id?: string; startAt: string; endAt: string }[]>([]);
   const [pollDeadline, setPollDeadline] = useState<string>("");
-  const [existingPoll, setExistingPoll] = useState<{ id: string; public_token: string } | null>(null);
+  const [existingPoll, setExistingPoll] = useState<{ id: string; public_token: string; status?: string } | null>(null);
+  const [pollVotes, setPollVotes] = useState<{ slot_id: string; vote: string; voter_email: string }[]>([]);
+  const [confirmedSlotId, setConfirmedSlotId] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   async function loadAttachments(id: string) {
     const { data } = await supabase
