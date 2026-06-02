@@ -32,6 +32,7 @@ type Meeting = {
   status: string;
   organizer_email: string | null;
   organizer_name: string | null;
+  confirmed_slot_id?: string | null;
 };
 
 type Participant = {
@@ -41,6 +42,16 @@ type Participant = {
   name: string | null;
   role: string;
   rsvp_status: string;
+};
+
+type PollInfo = {
+  id: string;
+  meeting_id: string;
+  status: string;
+  deadline: string | null;
+  public_token: string;
+  voteCount: number;
+  voterCount: number;
 };
 
 function MeetingsPage() {
