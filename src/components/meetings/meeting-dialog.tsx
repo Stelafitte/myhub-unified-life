@@ -223,6 +223,9 @@ export function MeetingDialog({
             recurrence_rule: (m as { recurrence_rule?: string | null }).recurrence_rule ?? null,
             recurrence_parent_id: (m as { recurrence_parent_id?: string | null }).recurrence_parent_id ?? null,
             session_number: (m as { session_number?: number | null }).session_number ?? null,
+            room: (m as { room?: string | null }).room ?? "",
+            quorum_minimum: (m as { quorum_minimum?: number | null }).quorum_minimum ?? null,
+            equipment: ((m as { equipment?: string[] | null }).equipment ?? []) as string[],
           });
           setConfirmedSlotId((m as { confirmed_slot_id?: string | null }).confirmed_slot_id ?? null);
           lastSavedNotesRef.current = m.notes ?? "";
