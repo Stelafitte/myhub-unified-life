@@ -70,6 +70,9 @@ export type MeetingFormValue = {
   recurrence_rule: string | null;
   recurrence_parent_id: string | null;
   session_number: number | null;
+  room: string;
+  quorum_minimum: number | null;
+  equipment: string[];
 };
 
 const empty: MeetingFormValue = {
@@ -90,6 +93,9 @@ const empty: MeetingFormValue = {
   recurrence_rule: null,
   recurrence_parent_id: null,
   session_number: null,
+  room: "",
+  quorum_minimum: null,
+  equipment: [],
 };
 
 function toLocalInput(iso: string): string {
