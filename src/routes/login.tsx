@@ -130,23 +130,30 @@ function LoginPage() {
       setBusy(false);
     }
   };
+
+  const signUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirm) {
       toast.error("Les mots de passe ne correspondent pas");
       return;
     }
     setBusy(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { display_name: name },
-      },
-    });
-    setBusy(false);
-    if (error) toast.error(error.message);
-    else toast.success("Compte créé. Vérifiez vos emails pour confirmer.");
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: { display_name: name },
+        },
+      });
+      if (error) toast.error(explainAuthError(error));
+      else toast.success("Compte créé. Vérifiez vos emails pour confirmer.");
+    } catch (err) {
+      toast.error(explainAuthError(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const oauth = async (provider: "google" | "apple") => {
