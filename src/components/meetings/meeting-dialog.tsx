@@ -25,6 +25,8 @@ import { formatBytes } from "@/lib/file-icons";
 import { cn } from "@/lib/utils";
 import { SlotFinder } from "@/components/meetings/slot-finder";
 import { AgendaSection } from "@/components/meetings/agenda-section";
+import { RecurrenceSection } from "@/components/meetings/recurrence-section";
+import { MeetingHistorySection } from "@/components/meetings/meeting-history-section";
 
 type Provider = "jitsi" | "google_meet" | "zoom" | "teams" | "other";
 const PROVIDER_LABEL: Record<Provider, string> = {
@@ -65,6 +67,9 @@ export type MeetingFormValue = {
   organizer_email: string;
   organizer_name: string;
   participants: Participant[];
+  recurrence_rule: string | null;
+  recurrence_parent_id: string | null;
+  session_number: number | null;
 };
 
 const empty: MeetingFormValue = {
@@ -82,6 +87,9 @@ const empty: MeetingFormValue = {
   organizer_email: "",
   organizer_name: "",
   participants: [],
+  recurrence_rule: null,
+  recurrence_parent_id: null,
+  session_number: null,
 };
 
 function toLocalInput(iso: string): string {
@@ -100,12 +108,14 @@ export function MeetingDialog({
   meetingId,
   initial,
   onSaved,
+  onOpenMeeting,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   meetingId?: string | null;
   initial?: Partial<MeetingFormValue>;
   onSaved?: () => void;
+  onOpenMeeting?: (id: string) => void;
 }) {
   const { user } = useAuth();
   const [form, setForm] = useState<MeetingFormValue>(empty);
@@ -204,6 +214,9 @@ export function MeetingDialog({
               (ps ?? [])
                 .filter((p) => p.role !== "organizer")
                 .map((p) => ({ email: p.email, name: p.name ?? "", role: (p.role as "required" | "optional") ?? "required" })),
+            recurrence_rule: (m as { recurrence_rule?: string | null }).recurrence_rule ?? null,
+            recurrence_parent_id: (m as { recurrence_parent_id?: string | null }).recurrence_parent_id ?? null,
+            session_number: (m as { session_number?: number | null }).session_number ?? null,
           });
           setConfirmedSlotId((m as { confirmed_slot_id?: string | null }).confirmed_slot_id ?? null);
           lastSavedNotesRef.current = m.notes ?? "";
@@ -1044,6 +1057,36 @@ export function MeetingDialog({
                 meetingEndAt={form.end_at}
                 participants={form.participants.map((p) => ({ email: p.email, name: p.name }))}
                 userId={user.id}
+              />
+            )}
+
+            {form.id && user && !pollMode && form.start_at && form.end_at && (
+              <RecurrenceSection
+                meetingId={form.id}
+                userId={user.id}
+                startAt={fromLocalInput(form.start_at)}
+                endAt={fromLocalInput(form.end_at)}
+                parentId={form.recurrence_parent_id}
+                currentRule={form.recurrence_rule}
+                sessionNumber={form.session_number}
+                onGenerated={() => {
+                  onSaved?.();
+                  toast.success("Série créée — vous pouvez ouvrir chaque session depuis l'historique.");
+                  setForm((f) => ({ ...f, recurrence_rule: f.recurrence_rule ?? "weekly", session_number: 1 }));
+                }}
+              />
+            )}
+
+            {form.id && (form.recurrence_rule || form.recurrence_parent_id) && (
+              <MeetingHistorySection
+                meetingId={form.id}
+                parentId={form.recurrence_parent_id}
+                onOpen={(id) => {
+                  if (onOpenMeeting) {
+                    onOpenChange(false);
+                    setTimeout(() => onOpenMeeting(id), 100);
+                  }
+                }}
               />
             )}
 
