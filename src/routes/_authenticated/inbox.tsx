@@ -197,11 +197,16 @@ function InboxPage() {
       return new Set();
     }
   });
+  const locallyReadIdsRef = useRef(locallyReadIds);
+  useEffect(() => {
+    locallyReadIdsRef.current = locallyReadIds;
+  }, [locallyReadIds]);
   const markLocallyRead = useCallback((ids: string[], read: boolean) => {
     setLocallyReadIds((prev) => {
       const next = new Set(prev);
       if (read) ids.forEach((id) => next.add(id));
       else ids.forEach((id) => next.delete(id));
+      locallyReadIdsRef.current = next;
       try {
         localStorage.setItem("inbox:locallyReadIds", JSON.stringify([...next]));
       } catch {
@@ -215,8 +220,10 @@ function InboxPage() {
   // repasser un mail déjà lu en "non lu".
   const applyLocalRead = useCallback(
     (list: Email[]): Email[] =>
-      list.map((e) => (locallyReadIds.has(e.id) && !e.is_read ? { ...e, is_read: true } : e)),
-    [locallyReadIds],
+      list.map((e) =>
+        locallyReadIdsRef.current.has(e.id) && !e.is_read ? { ...e, is_read: true } : e,
+      ),
+    [],
   );
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
@@ -783,9 +790,13 @@ function InboxPage() {
     const targets = emails.filter((x) => ids.includes(x.id));
     for (const e of targets) {
       const fn =
-        e.origin_tag === "gmail" ? "sync-gmail"
-        : e.origin_tag === "outlook" ? "sync-outlook"
-        : null;
+        e.origin_tag === "gmail"
+          ? "sync-gmail"
+          : e.origin_tag === "outlook"
+            ? "sync-outlook"
+            : e.origin_tag === "imap" || e.origin_tag === "chu" || e.origin_tag === "univ"
+              ? "sync-imap"
+              : null;
       if (!fn) continue;
       // fire-and-forget; errors are logged in the edge function
       supabase.functions
@@ -1246,8 +1257,10 @@ function InboxPage() {
                 key={a.id}
                 onClick={() => setFilter(`account:${a.id}`)}
                 className={cn(
-                  "flex h-8 w-full items-center gap-2 rounded-md px-3 text-left leading-none transition-colors",
-                  filter === `account:${a.id}` ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
+                  "flex h-8 w-full items-center justify-start gap-2 rounded-md px-3 text-left leading-none transition-colors",
+                  filter === `account:${a.id}`
+                    ? "bg-accent text-foreground"
+                    : "text-foreground/80 hover:bg-accent/50",
                 )}
               >
                 <span
@@ -1256,7 +1269,9 @@ function InboxPage() {
                 >
                   {a.icon ?? "✉️"}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-sm leading-none">{a.name}</span>
+                <span className="min-w-0 flex-1 truncate text-left text-sm leading-none">
+                  {a.name}
+                </span>
                 <span className="ml-auto flex min-w-[1.5rem] shrink-0 items-center justify-end text-right text-[11px] leading-none tabular-nums text-muted-foreground">
                   {counts.byAccount.get(a.id) ?? 0}
                 </span>
@@ -2117,11 +2132,14 @@ function FilterRow({
         active ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
       )}
     >
-      <button onClick={onClick} className="flex h-full min-w-0 flex-1 items-center gap-2">
+      <button
+        onClick={onClick}
+        className="flex h-full min-w-0 flex-1 items-center gap-2 text-left"
+      >
         <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground">
           {icon}
         </span>
-        <span className="min-w-0 flex-1 truncate text-sm leading-none">{label}</span>
+        <span className="min-w-0 flex-1 truncate text-left text-sm leading-none">{label}</span>
         <span className="ml-auto flex min-w-[1.5rem] shrink-0 items-center justify-end text-right text-[11px] leading-none tabular-nums text-muted-foreground">
           {count}
         </span>
