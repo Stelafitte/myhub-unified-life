@@ -658,7 +658,14 @@ Deno.serve(async (req: Request) => {
 
   try {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    let body: { account_id?: string; force_full?: boolean; test_credentials?: { server: string; port: number; username: string; password: string } } = {};
+    let body: {
+      account_id?: string;
+      force_full?: boolean;
+      test_credentials?: { server: string; port: number; username: string; password: string };
+      action?: "mark_read" | "mark_unread" | "trash";
+      email_id?: string;
+      message_id?: string;
+    } = {};
     try { body = await req.json(); } catch { /* empty body OK for cron */ }
 
     // Test de connexion rapide (sans compte enregistré)
@@ -679,6 +686,39 @@ Deno.serve(async (req: Request) => {
       });
       const { data } = await userClient.auth.getUser();
       userId = data.user?.id ?? null;
+    }
+
+    // Bidirectional action push (read / unread / trash) for IMAP-backed sources,
+    // including CHU redirects imported through the IMAP account.
+    if (body.action) {
+      let email: { message_id: string | null; account_id: string } | null = null;
+      if (body.email_id) {
+        let eq = admin.from("emails").select("message_id, account_id").eq("id", body.email_id);
+        if (userId) eq = eq.eq("user_id", userId);
+        const { data } = await eq.maybeSingle();
+        email = data as any;
+      } else if (body.message_id && body.account_id) {
+        email = { message_id: body.message_id, account_id: body.account_id };
+      }
+      if (!email) {
+        return new Response(JSON.stringify({ ok: false, error: "email not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      let accQ = admin.from("accounts").select("*").eq("id", email.account_id).eq("type", "imap");
+      if (userId) accQ = accQ.eq("user_id", userId);
+      const { data: account } = await accQ.maybeSingle();
+      if (!account) {
+        return new Response(JSON.stringify({ ok: false, error: "account not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const result = await pushImapAction(account, body.action, email);
+      console.log(`[sync-imap] action=${body.action} email_id=${body.email_id} result=`, result);
+      return new Response(JSON.stringify(result), {
+        status: result.ok ? 200 : 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     let q = admin.from("accounts").select("*").eq("is_active", true).eq("type", "imap");
