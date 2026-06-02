@@ -1,63 +1,67 @@
-# Message 3 — Extensions module Réunions
+# Phase 11 — Quorum, salle/matériel, rappels RSVP
 
-Découpage en 6 phases pour valider chaque livraison. Aucun module hors `meetings/`, `/poll/[token]`, Paramètres → Réunions/Intégrations ne sera touché.
+Périmètre strict : `meetings/`, route `/poll/$token`, Paramètres → Réunions. Aucun autre module touché.
 
-## Phase 8 — Ordre du jour structuré + mode "réunion en cours"
+## 1. Base de données (migration)
 
-- Nouvel onglet **📋 Ordre du jour** dans la fiche réunion.
-- Liste drag & drop (`@dnd-kit`) sur `meeting_agenda_items` : titre, durée (min), responsable (sélection parmi `meeting_participants`), statut (À traiter / En cours / Traité / Reporté).
-- Total durées vs `end_at - start_at` → alerte `⚠️ Ordre du jour trop chargé`.
-- Bouton **▶ Démarrer la réunion** → vue plein écran :
-  - Chronomètre par point + décompte
-  - Point actif surligné, bouton "Point suivant"
-  - Alerte visuelle si dépassement
-  - État local (pas de nouvelle table), persistance `status` à chaque transition
+Nouvelles colonnes sur `meetings` :
+- `equipment` text[] — matériel requis (vidéoprojecteur, micro, etc.)
+- `rsvp_reminder_sent_at` timestamptz — anti-doublon pour le cron
+- `rsvp_reminder_hours_before` int default 24
 
-## Phase 9 — Actions → tâches MyHub Pro
+(les colonnes `room` et `quorum_minimum` existent déjà)
 
-- Sous chaque point : bouton **➕ Ajouter une action** crée :
-  - une ligne `meeting_agenda_items` enfant (ou champ `parent_id` → migration légère si besoin)
-  - une tâche `tasks` (`source_app='myhubpro'`, `comments` préfixé `📋 Issu de réunion : [titre]`, `assigned_to`, `due_date`)
-  - lien dans `meeting_tasks`
-- Onglet **Actions** dans la fiche : tableau temps réel (jointure `meeting_tasks` ↔ `tasks`), badge rouge retard, taux complétion X/Y.
+Nouvelle table `meeting_equipment_presets` (user_id, label, icon) — liste personnalisable du matériel.
+GRANTs + RLS `auth.uid() = user_id` standard.
 
-## Phase 10 — Récurrence
+## 2. UI fiche réunion (`meeting-dialog.tsx`)
 
-- Migration : ajouter `recurrence_parent_id uuid` à `meetings` (les autres colonnes existent déjà).
-- Formulaire : section Récurrence (Aucune / Hebdo / Bimensuelle / Mensuelle / Personnalisée) + jours + fin (date ou nb occurrences) → encodage RRULE dans `recurrence_rule`.
-- Génération à la création : N occurrences avec `recurrence_parent_id` + `session_number` auto-incrémenté.
-- À l'ouverture d'une occurrence : copie de l'ordre du jour précédent (points Reportés en tête).
-- Onglet **🕐 Historique** : liste des sessions de la série avec liens.
+Nouvelle section **"Logistique"** au-dessus de l'agenda :
+- Champ **Salle** (input texte libre + suggestions des dernières salles utilisées)
+- Champ **Quorum minimum** (number, 0 = désactivé)
+- Sélecteur **Matériel** (multi-checkbox à partir des presets utilisateur + bouton "+ Ajouter")
+- Badge dynamique **Quorum** dans l'en-tête : `✅ Quorum atteint (5/3)` ou `⚠️ Quorum non atteint (2/3)` calculé depuis `meeting_participants.rsvp_status='yes'`
 
-## Phase 11 — Quorum, salle, matériel + relances RSVP
+## 3. Paramètres → Réunions (`settings/meetings-section.tsx`)
 
-- Migration : ajouter `equipment text[]` à `meetings` (quorum_minimum + room déjà là).
-- Formulaire : Quorum, Salle (autocomplete depuis 10 dernières `meetings.room`), Matériel (tags libres).
-- Fiche : indicateur quorum atteint / non atteint (calcul côté client depuis `meeting_participants.rsvp_status`).
-- **Relances** : route serveur `/api/public/cron/meeting-rsvp-reminders` + job `pg_cron` toutes les heures qui envoie J-2 / J-1 / H-2 selon `meeting_settings` (nouvelles colonnes `reminder_j2/j1/h2 boolean`).
-- Settings → Réunions : 3 toggles.
+Nouvelle carte **"Rappels RSVP"** :
+- Heures avant la réunion (slider 1-72h, défaut 24)
+- Toggle "Activer les rappels automatiques"
 
-## Phase 12 — OneNote via Microsoft Graph
+Nouvelle carte **"Matériel disponible"** :
+- Liste éditable des presets (ajout/suppression d'items avec icône)
 
-- Migration : `onenote_settings` (user_id, notebook_id, section_id, include_agenda, include_participants), `meetings.onenote_page_url`.
-- **TanStack server functions** (pas Edge Function — règle de stack) appelant Graph via le connecteur Microsoft OneNote du gateway :
-  - `listNotebooks`, `listSections`, `createMeetingPage`, `syncFromOneNote`
-  - Scopes `Notes.ReadWrite`, `Notes.Create` (vérif via `get_connection_configuration`, sinon `reconnect`)
-- Fiche réunion : bouton **📓 Créer page OneNote** → modal sélecteur carnet/section + "mémoriser". Devient **📓 Ouvrir dans OneNote** après création. Badge 📓 sur la card.
-- Bouton **🔄 Synchroniser depuis OneNote** : parse HTML du tableau Actions, propose création tâches (validation utilisateur obligatoire — jamais auto).
-- Settings → Intégrations → OneNote : statut connexion, sélecteurs carnet/section par défaut, toggles template, bouton "Tester la connexion".
+## 4. Cron rappels RSVP
 
-## Phase 13 — Polish, badges liste, QA visuelle
+- Route publique `src/routes/api/public/hooks/rsvp-reminders.ts`
+  - Auth via `apikey` header (anon key)
+  - Sélectionne les réunions à venir où :
+    - `start_at` entre `now() + reminder_hours - 1h` et `now() + reminder_hours`
+    - `rsvp_reminder_sent_at IS NULL`
+    - participants avec `rsvp_status = 'pending'`
+  - Pour chaque participant pending, log un enregistrement (table existante ou simple console.log + marqueur)
+  - Met à jour `rsvp_reminder_sent_at`
+- pg_cron toutes les 30 min appelant cette route
 
-- Badge 📓 + indicateur quorum sur `MeetingCard`.
-- Vérifs UI bout-en-bout sur les 6 phases.
+Note : l'envoi email réel passera par l'infra `send-transactional-email` si elle est déjà scaffoldée ; sinon, on prépare le hook et un template `meeting-rsvp-reminder.tsx` prêt à brancher.
 
-## Notes techniques
+## 5. Synchro temps réel
 
-- **Pas d'Edge Function** : la stack est TanStack Start → on utilise `createServerFn` + le connecteur Microsoft OneNote (gateway Lovable, token jamais côté client). Si tu veux absolument une Edge Function Supabase, dis-le, mais ça va contre la règle du template.
-- `@dnd-kit/core` à installer en phase 8.
-- Chaque phase = 1 migration max + code, suivie d'un "go phase X+1" de ta part avant la suivante.
+Pas de nouveau channel ; le badge quorum recalcule sur le hook existant qui charge `meeting_participants`.
 
----
+## Fichiers touchés
 
-**Confirme "go phase 8"** pour démarrer par l'ordre du jour + mode réunion en cours, ou indique-moi les ajustements (regroupement, ordre différent, Edge Function imposée pour OneNote, etc.).
+**Créés :**
+- `supabase/migrations/<ts>_meetings_phase11.sql`
+- `src/components/meetings/logistics-section.tsx`
+- `src/components/meetings/quorum-badge.tsx`
+- `src/routes/api/public/hooks/rsvp-reminders.ts`
+
+**Édités :**
+- `src/components/meetings/meeting-dialog.tsx` (intégration LogisticsSection + QuorumBadge)
+- `src/components/settings/meetings-section.tsx` (cartes Rappels RSVP + Matériel)
+- `src/integrations/supabase/types.ts` (auto via migration)
+
+**Non touché** : sync-imap, sync-gmail, autres edge functions, tous les autres modules.
+
+Dis **« go 11 »** pour lancer.
