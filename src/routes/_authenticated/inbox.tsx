@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -68,7 +68,6 @@ import {
 } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
-import { RecategorizeAiDialog } from "@/components/inbox/recategorize-ai-dialog";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
 import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
 import { useDeleteKey } from "@/hooks/use-delete-key";
@@ -178,53 +177,6 @@ function InboxPage() {
   const [taskOpen, setTaskOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
-  // Emails à garder visibles dans la vue courante même s'ils ne correspondent
-  // plus au filtre (ex. on vient d'ouvrir un mail dans "Non lus" → il devient
-  // lu mais reste visible jusqu'au changement de filtre).
-  const [stickyVisible, setStickyVisible] = useState<Set<string>>(new Set());
-  // IDs des mails marqués lus localement pendant cette session. Sert à empêcher
-  // un re-fetch depuis Supabase (ou un re-sync IMAP/Gmail/Outlook qui ramène
-  // is_read=false depuis le serveur distant) de faire repasser ces mails en
-  // "non lu". Persisté en localStorage pour survivre aux rechargements.
-  const [locallyReadIds, setLocallyReadIds] = useState<Set<string>>(() => {
-    if (typeof window === "undefined") return new Set();
-    try {
-      const raw = localStorage.getItem("inbox:locallyReadIds");
-      if (!raw) return new Set();
-      const arr = JSON.parse(raw) as string[];
-      return new Set(Array.isArray(arr) ? arr : []);
-    } catch {
-      return new Set();
-    }
-  });
-  const locallyReadIdsRef = useRef(locallyReadIds);
-  useEffect(() => {
-    locallyReadIdsRef.current = locallyReadIds;
-  }, [locallyReadIds]);
-  const markLocallyRead = useCallback((ids: string[], read: boolean) => {
-    setLocallyReadIds((prev) => {
-      const next = new Set(prev);
-      if (read) ids.forEach((id) => next.add(id));
-      else ids.forEach((id) => next.delete(id));
-      locallyReadIdsRef.current = next;
-      try {
-        localStorage.setItem("inbox:locallyReadIds", JSON.stringify([...next]));
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }, []);
-  // Applique l'état "lu local" à n'importe quelle liste renvoyée par le serveur
-  // pour qu'un rechargement (sync IMAP, classification IA…) ne fasse jamais
-  // repasser un mail déjà lu en "non lu".
-  const applyLocalRead = useCallback(
-    (list: Email[]): Email[] =>
-      list.map((e) =>
-        locallyReadIdsRef.current.has(e.id) && !e.is_read ? { ...e, is_read: true } : e,
-      ),
-    [],
-  );
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
   const listThemesFn = useServerFn(listThemes);
@@ -234,8 +186,6 @@ function InboxPage() {
   const setEmailThemeFn = useServerFn(setEmailTheme);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
-  const [recatOpen, setRecatOpen] = useState(false);
-  const [recatEmailId, setRecatEmailId] = useState<string | null>(null);
   const [relaunching, setRelaunching] = useState(false);
   const [aiRanking, setAiRanking] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -309,9 +259,8 @@ function InboxPage() {
         .order("received_at", { ascending: false })
         .limit(1000);
       if (refreshed) {
-        const normalized = applyLocalRead(refreshed as Email[]);
-        setEmails(normalized);
-        cacheEmails(normalized);
+        setEmails(refreshed as Email[]);
+        cacheEmails(refreshed as Email[]);
       }
       toast.success(
         totalProcessed > 0 ? `${totalProcessed} email(s) reclassé(s)` : "Aucun email à reclasser",
@@ -452,8 +401,7 @@ function InboxPage() {
     (async () => {
       const cached = await loadCachedEmails();
       if (!cancelled && cached.length > 0) {
-        const normalized = applyLocalRead(cached);
-        setEmails((prev) => (prev.length === 0 ? normalized : prev));
+        setEmails((prev) => (prev.length === 0 ? cached : prev));
         setUsingCache(true);
       }
     })();
@@ -501,10 +449,9 @@ function InboxPage() {
       if (error) {
         if (emails.length === 0) toast.error("Hors-ligne : aucun cache disponible");
       } else if (ems) {
-        const normalized = applyLocalRead(ems as Email[]);
-        setEmails(normalized);
+        setEmails(ems as Email[]);
         setUsingCache(false);
-        cacheEmails(normalized);
+        cacheEmails(ems as Email[]);
 
         const hasPending = (ems as Email[]).some((e) => !e.ai_processed_at);
         if (hasPending) {
@@ -519,9 +466,8 @@ function InboxPage() {
                 .order("received_at", { ascending: false })
                 .limit(1000);
               if (!cancelled && refreshed) {
-                const normalized = applyLocalRead(refreshed as Email[]);
-                setEmails(normalized);
-                cacheEmails(normalized);
+                setEmails(refreshed as Email[]);
+                cacheEmails(refreshed as Email[]);
               }
             }
           })();
@@ -586,11 +532,7 @@ function InboxPage() {
           .eq("is_archived", false)
           .order("received_at", { ascending: false })
           .limit(1000);
-        if (!cancelled && refreshed) {
-          const normalized = applyLocalRead(refreshed as Email[]);
-          setEmails(normalized);
-          cacheEmails(normalized);
-        }
+        if (!cancelled && refreshed) setEmails(refreshed as Email[]);
       }
     })();
     return () => {
@@ -647,28 +589,27 @@ function InboxPage() {
 
   const filtered = useMemo(() => {
     let list = emails;
-    const keep = (e: Email) => stickyVisible.has(e.id);
     if (filter === "trash") {
-      list = list.filter((e) => isTrashed(e) || keep(e));
+      list = list.filter(isTrashed);
     } else {
-      list = list.filter((e) => !isTrashed(e) || keep(e));
+      list = list.filter((e) => !isTrashed(e));
       if (filter.startsWith("account:")) {
         const id = filter.slice(8);
-        list = list.filter((e) => e.account_id === id || keep(e));
-      } else if (filter === "spam") list = list.filter((e) => isSpam(e) || keep(e));
-      else if (filter === "promo") list = list.filter((e) => isPromo(e) || keep(e));
+        list = list.filter((e) => e.account_id === id);
+      } else if (filter === "spam") list = list.filter(isSpam);
+      else if (filter === "promo") list = list.filter(isPromo);
       else if (filter === "all") {
         // Tous les mails : aucun filtre IA (spam/promo inclus)
         if (false) list = list;
       } else {
-        list = list.filter((e) => (!isSpam(e) && !isPromo(e)) || keep(e));
-        if (filter === "unread") list = list.filter((e) => !e.is_read || keep(e));
-        else if (filter === "attachments") list = list.filter((e) => e.has_attachment || keep(e));
-        else if (filter === "starred") list = list.filter((e) => e.is_starred || keep(e));
-        else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id || keep(e));
+        list = list.filter((e) => !isSpam(e) && !isPromo(e));
+        if (filter === "unread") list = list.filter((e) => !e.is_read);
+        else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
+        else if (filter === "starred") list = list.filter((e) => e.is_starred);
+        else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
         else if (filter.startsWith("theme:")) {
           const id = filter.slice(6);
-          list = list.filter((e) => e.ai_theme_id === id || keep(e));
+          list = list.filter((e) => e.ai_theme_id === id);
         }
       }
     }
@@ -683,12 +624,12 @@ function InboxPage() {
       );
     }
     return list;
-  }, [emails, filter, query, stickyVisible]);
+  }, [emails, filter, query]);
 
   // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
   // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
   type RenderItem =
-    | { kind: "header"; key: string; label: string; count: number; ids: string[] }
+    | { kind: "header"; key: string; label: string; count: number }
     | { kind: "email"; email: Email };
   const [collapsedThemes, setCollapsedThemes] = useState<Set<string>>(new Set());
   const toggleTheme = (key: string) =>
@@ -711,6 +652,9 @@ function InboxPage() {
         if (ts > g.ts) g.ts = ts;
       } else groups.set(key, { ts, emails: [e] });
     }
+    // Pondération par utilité du thème : fort > modéré > faible.
+    // Les thèmes "faible" (ex. commerciaux/newsletters) sont rétrogradés
+    // sous les thèmes utiles, même s'ils contiennent des mails plus récents.
     const utilityRank: Record<string, number> = { fort: 3, modere: 2, faible: 1 };
     const ordered = [...groups.entries()].sort((a, b) => {
       if (a[0] === NO_THEME) return 1;
@@ -736,7 +680,6 @@ function InboxPage() {
         key,
         label: t?.name ?? "Sans thème",
         count: g.emails.length,
-        ids: g.emails.map((e) => e.id),
       });
       if (!collapsed) for (const e of g.emails) out.push({ kind: "email", email: e });
     }
@@ -753,9 +696,6 @@ function InboxPage() {
 
   // Quand le filtre change, sur mobile on revient à la liste ; sur desktop on garde le panneau de lecture rempli.
   useEffect(() => {
-    // Vue propre à chaque changement de filtre : on purge la liste « sticky »
-    // (mails maintenus visibles après lecture / archivage dans la vue courante).
-    setStickyVisible(new Set());
     if (isMobileInbox) {
       setReaderOpen(false);
       setSelectedId(null);
@@ -783,31 +723,6 @@ function InboxPage() {
     }
   }, [filtered, isMobileInbox, selectedId]);
 
-  // Push read/unread/trash state to remote provider (Gmail/Outlook) — best-effort.
-  const pushProviderAction = (ids: string[], action: "mark_read" | "mark_unread" | "trash") => {
-    const targets = emails.filter((x) => ids.includes(x.id));
-    for (const e of targets) {
-      const fn =
-        e.origin_tag === "gmail"
-          ? "sync-gmail"
-          : e.origin_tag === "outlook"
-            ? "sync-outlook"
-            : e.origin_tag === "imap" || e.origin_tag === "chu" || e.origin_tag === "univ"
-              ? "sync-imap"
-              : null;
-      if (!fn) continue;
-      // fire-and-forget; errors are logged in the edge function
-      supabase.functions
-        .invoke(fn, { body: { action, email_id: e.id } })
-        .then(({ data, error }) => {
-          if (error || data?.ok === false) {
-            console.warn(`[${fn}] action ${action} failed`, error ?? data?.error);
-          }
-        })
-        .catch((err) => console.warn(`[${fn}] action ${action} failed`, err));
-    }
-  };
-
   // Mutations (optimistic)
   const patch = async (id: string, updates: Partial<Email>) => {
     setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
@@ -815,12 +730,7 @@ function InboxPage() {
     if (error) toast.error(error.message);
   };
 
-  const toggleRead = (e: Email) => {
-    const nextRead = !e.is_read;
-    markLocallyRead([e.id], nextRead);
-    patch(e.id, { is_read: nextRead });
-    pushProviderAction([e.id], nextRead ? "mark_read" : "mark_unread");
-  };
+  const toggleRead = (e: Email) => patch(e.id, { is_read: !e.is_read });
   const toggleStar = (e: Email) => patch(e.id, { is_starred: !e.is_starred });
   const archive = async (e: Email) => {
     const snapshot = e;
@@ -879,28 +789,23 @@ function InboxPage() {
       .update({ deleted_at: now })
       .in("id", idsToDelete);
     if (error) { toast.error(error.message); return; }
-    pushProviderAction(idsToDelete, "trash");
-    const undoTrash = async () => {
-      const { error: err } = await supabase
-        .from("emails")
-        .update({ deleted_at: null })
-        .in("id", idsToDelete);
-      if (err) { toast.error(err.message); return; }
-      setEmails((prev) => prev.map((x) => (idsToDelete.includes(x.id) ? { ...x, deleted_at: null } : x)));
-      setStickyVisible((s) => {
-        const n = new Set(s);
-        idsToDelete.forEach((id) => n.add(id));
-        return n;
-      });
-      toast.success("Suppression annulée");
-    };
     toast.success(
       idsToDelete.length > 1
         ? `${idsToDelete.length} emails déplacés vers la corbeille`
         : "Email déplacé vers la corbeille",
-      { action: { label: "Annuler", onClick: () => { void undoTrash(); } } },
     );
-    pushUndo({ label: "Mise à la corbeille", run: undoTrash });
+    pushUndo({
+      label: "Mise à la corbeille",
+      run: async () => {
+        const { error: err } = await supabase
+          .from("emails")
+          .update({ deleted_at: null })
+          .in("id", idsToDelete);
+        if (err) throw new Error(err.message);
+        setEmails((prev) => prev.map((x) => (idsToDelete.includes(x.id) ? { ...x, deleted_at: null } : x)));
+        toast.success("Suppression annulée");
+      },
+    });
   };
 
   const restore = async (e: Email) => {
@@ -1048,60 +953,31 @@ function InboxPage() {
         .update({ deleted_at: now })
         .in("id", ids);
       if (error) { toast.error(error.message); return; }
-      pushProviderAction(ids, "trash");
-      const undoBulkTrash = async () => {
-        const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
-        if (err) { toast.error(err.message); return; }
-        setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: null } : x)));
-        setStickyVisible((s) => {
-          const n = new Set(s);
-          ids.forEach((id) => n.add(id));
-          return n;
-        });
-        toast.success("Suppression annulée");
-      };
-      toast.success(`${ids.length} email(s) dans la corbeille`, {
-        action: { label: "Annuler", onClick: () => { void undoBulkTrash(); } },
+      toast.success(`${ids.length} email(s) dans la corbeille`);
+      pushUndo({
+        label: "Mise à la corbeille (groupée)",
+        run: async () => {
+          const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
+          if (err) throw new Error(err.message);
+          setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: null } : x)));
+          toast.success("Suppression annulée");
+        },
       });
-      pushUndo({ label: "Mise à la corbeille (groupée)", run: undoBulkTrash });
     }
   };
   const bulkMarkRead = async (read: boolean) => {
     const ids = bulkIds();
     if (!ids.length) return;
     setEmails((prev) => prev.map((x) => (checked.has(x.id) ? { ...x, is_read: read } : x)));
-    markLocallyRead(ids, read);
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
     if (error) toast.error(error.message);
-    else pushProviderAction(ids, read ? "mark_read" : "mark_unread");
-  };
-
-  const bulkMoveToTheme = async (themeId: string | null) => {
-    const ids = bulkIds();
-    if (!ids.length) return;
-    setEmails((prev) => prev.map((x) => (checked.has(x.id) ? { ...x, ai_theme_id: themeId } : x)));
-    clearChecked();
-    const { error } = await supabase.from("emails").update({ ai_theme_id: themeId }).in("id", ids);
-    if (error) toast.error(error.message);
-    else toast.success(`${ids.length} email(s) déplacé(s)`);
   };
 
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     setReaderOpen(true);
-    if (!e.is_read) {
-      // On garde le mail visible dans la vue courante (ex. "Non lus") même
-      // après l'avoir marqué lu, pour éviter l'impression qu'il « disparaît ».
-      setStickyVisible((prev) => {
-        const next = new Set(prev);
-        next.add(e.id);
-        return next;
-      });
-      markLocallyRead([e.id], true);
-      patch(e.id, { is_read: true });
-      pushProviderAction([e.id], "mark_read");
-    }
+    if (!e.is_read) patch(e.id, { is_read: true });
     // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
     // « Retour » du téléphone ferme l'email et revienne à la liste.
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
@@ -1255,22 +1131,18 @@ function InboxPage() {
                 key={a.id}
                 onClick={() => setFilter(`account:${a.id}`)}
                 className={cn(
-                  "flex h-8 w-full items-center justify-start gap-2 rounded-md px-3 text-left leading-none transition-colors",
-                  filter === `account:${a.id}`
-                    ? "bg-accent text-foreground"
-                    : "text-foreground/80 hover:bg-accent/50",
+                  "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                  filter === `account:${a.id}` ? "bg-accent" : "hover:bg-accent/50",
                 )}
               >
                 <span
-                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-center text-[11px] leading-none"
+                  className="flex h-5 w-5 items-center justify-center rounded text-xs"
                   style={{ background: a.color ?? "#64748b", color: "#fff" }}
                 >
                   {a.icon ?? "✉️"}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-left text-sm leading-none">
-                  {a.name}
-                </span>
-                <span className="ml-auto flex min-w-[1.5rem] shrink-0 items-center justify-end text-right text-[11px] leading-none tabular-nums text-muted-foreground">
+                <span className="flex-1 truncate text-sm">{a.name}</span>
+                <span className="text-[11px] text-muted-foreground">
                   {counts.byAccount.get(a.id) ?? 0}
                 </span>
               </button>
@@ -1646,7 +1518,7 @@ function InboxPage() {
               else clearChecked();
             }}
             className="h-3.5 w-3.5 cursor-pointer"
-            title="Tout sélectionner (tous les thèmes)"
+            title="Tout sélectionner"
             disabled={filtered.length === 0}
           />
           {aiRanking && (() => {
@@ -1710,17 +1582,6 @@ function InboxPage() {
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Supprimer
                 </Button>
-                <Select onValueChange={(v) => bulkMoveToTheme(v === "__none__" ? null : v)}>
-                  <SelectTrigger className="h-6 w-auto gap-1 px-2 text-xs">
-                    <SelectValue placeholder="Déplacer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__" className="text-xs">Sans thème</SelectItem>
-                    {themes.filter((t) => !t.archived_at).map((t) => (
-                      <SelectItem key={t.id} value={t.id} className="text-xs">{t.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
                 <Button size="sm" variant="ghost" className="h-6 px-2" onClick={clearChecked}>
                   Annuler
                 </Button>
@@ -1740,35 +1601,12 @@ function InboxPage() {
           )}
           {displayItems.map((item) => {
             if (item.kind === "header") {
-              const allInGroupChecked =
-                item.ids.length > 0 && item.ids.every((id) => checked.has(id));
-              const someInGroupChecked =
-                !allInGroupChecked && item.ids.some((id) => checked.has(id));
               return (
                 <li
                   key={`h:${item.key}`}
                   onClick={() => toggleTheme(item.key)}
                   className="sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20"
                 >
-                  <input
-                    type="checkbox"
-                    checked={allInGroupChecked}
-                    ref={(el) => {
-                      if (el) el.indeterminate = someInGroupChecked;
-                    }}
-                    onClick={(ev) => ev.stopPropagation()}
-                    onChange={(ev) => {
-                      ev.stopPropagation();
-                      setChecked((prev) => {
-                        const next = new Set(prev);
-                        if (ev.target.checked) item.ids.forEach((id) => next.add(id));
-                        else item.ids.forEach((id) => next.delete(id));
-                        return next;
-                      });
-                    }}
-                    className="h-3.5 w-3.5 cursor-pointer"
-                    title={`Sélectionner tous les mails du thème « ${item.label} »`}
-                  />
                   {collapsedThemes.has(item.key) ? (
                     <ChevronRight className="h-3 w-3 text-primary" />
                   ) : (
@@ -1956,16 +1794,6 @@ function InboxPage() {
                     <Archive className="h-3.5 w-3.5" />
                   </IconBtn>
                   <IconBtn
-                    label="Recatégoriser avec l'IA"
-                    onClick={(ev) => {
-                      ev.stopPropagation();
-                      setRecatEmailId(e.id);
-                      setRecatOpen(true);
-                    }}
-                  >
-                    <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  </IconBtn>
-                  <IconBtn
                     label="Créer une tâche"
                     onClick={(ev) => {
                       ev.stopPropagation();
@@ -2108,17 +1936,6 @@ function InboxPage() {
         }}
       />
 
-      <RecategorizeAiDialog
-        open={recatOpen}
-        onOpenChange={setRecatOpen}
-        email={emails.find((x) => x.id === recatEmailId) ?? null}
-        themes={themes}
-        onApplied={(patch) => {
-          setEmails((prev) => prev.map((x) => (x.id === recatEmailId ? { ...x, ...patch } : x)));
-        }}
-        onThemesChanged={() => { refreshThemes(); }}
-      />
-
       <EmailComposer
         open={composerOpen}
         onOpenChange={setComposerOpen}
@@ -2149,21 +1966,14 @@ function FilterRow({
   return (
     <div
       className={cn(
-        "group flex h-8 w-full items-center gap-2 rounded-md px-3 text-left leading-none transition-colors",
+        "group flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
         active ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
       )}
     >
-      <button
-        onClick={onClick}
-        className="flex h-full min-w-0 flex-1 items-center gap-2 text-left"
-      >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground">
-          {icon}
-        </span>
-        <span className="min-w-0 flex-1 truncate text-left text-sm leading-none">{label}</span>
-        <span className="ml-auto flex min-w-[1.5rem] shrink-0 items-center justify-end text-right text-[11px] leading-none tabular-nums text-muted-foreground">
-          {count}
-        </span>
+      <button onClick={onClick} className="flex flex-1 items-center gap-2 min-w-0">
+        <span className="text-muted-foreground">{icon}</span>
+        <span className="flex-1 truncate text-sm">{label}</span>
+        <span className="text-[11px] text-muted-foreground">{count}</span>
       </button>
       {onAction && (
         <button
@@ -2172,7 +1982,7 @@ function FilterRow({
             onAction();
           }}
           title={actionLabel}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-destructive group-hover:opacity-100"
+          className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-destructive group-hover:opacity-100"
         >
           <Trash2 className="h-3 w-3" />
         </button>

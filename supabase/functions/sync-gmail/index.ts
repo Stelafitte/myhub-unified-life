@@ -134,16 +134,8 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
         const dateStr = header(headers, "Date");
         const receivedAt = dateStr ? new Date(dateStr).toISOString() : new Date(Number(m.internalDate || Date.now())).toISOString();
         const { text, html, hasAttach, attachments } = extractParts(m.payload);
-        const providerIsRead = !((m.labelIds ?? []).includes("UNREAD"));
+        const isRead = !((m.labelIds ?? []).includes("UNREAD"));
         const isStarred = (m.labelIds ?? []).includes("STARRED");
-
-        const { data: existingEmail } = await admin
-          .from("emails")
-          .select("is_read")
-          .eq("account_id", account.id)
-          .eq("message_id", messageId)
-          .maybeSingle();
-        const isRead = existingEmail?.is_read === true ? true : providerIsRead;
 
         const { data: upserted, error: upErr } = await admin.from("emails").upsert({
           account_id: account.id,
@@ -189,42 +181,6 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
   }
 }
 
-async function resolveGmailId(rfcMessageId: string): Promise<string | null> {
-  if (!rfcMessageId) return null;
-  // If it already looks like a Gmail internal id (hex only, no @), assume it's the provider id
-  if (!rfcMessageId.includes("@") && /^[0-9a-fA-F]+$/.test(rfcMessageId)) return rfcMessageId;
-  const q = encodeURIComponent(`rfc822msgid:${rfcMessageId.replace(/^<|>$/g, "")}`);
-  const r = await fetch(`${GATEWAY}/users/me/messages?maxResults=1&q=${q}`, { headers: gh() });
-  if (!r.ok) return null;
-  const j = await r.json();
-  return j.messages?.[0]?.id ?? null;
-}
-
-async function pushGmailAction(
-  admin: any,
-  action: "mark_read" | "mark_unread" | "trash",
-  email: { message_id: string | null },
-): Promise<{ ok: boolean; status?: number; error?: string }> {
-  if (!email.message_id) return { ok: false, error: "missing message_id" };
-  const providerId = await resolveGmailId(email.message_id);
-  if (!providerId) return { ok: false, error: "gmail message not found" };
-  if (action === "trash") {
-    const r = await fetch(`${GATEWAY}/users/me/messages/${providerId}/trash`, { method: "POST", headers: gh() });
-    if (!r.ok) return { ok: false, status: r.status, error: (await r.text()).slice(0, 200) };
-    return { ok: true };
-  }
-  const body = action === "mark_read"
-    ? { removeLabelIds: ["UNREAD"] }
-    : { addLabelIds: ["UNREAD"] };
-  const r = await fetch(`${GATEWAY}/users/me/messages/${providerId}/modify`, {
-    method: "POST",
-    headers: { ...gh(), "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) return { ok: false, status: r.status, error: (await r.text()).slice(0, 200) };
-  return { ok: true };
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -232,14 +188,7 @@ Deno.serve(async (req: Request) => {
     if (!GMAIL_KEY) throw new Error("GOOGLE_MAIL_API_KEY missing — connector not linked");
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    let body: {
-      account_id?: string;
-      test?: boolean;
-      force_full?: boolean;
-      action?: "mark_read" | "mark_unread" | "trash";
-      email_id?: string;
-      message_id?: string;
-    } = {};
+    let body: { account_id?: string; test?: boolean; force_full?: boolean } = {};
     try { body = await req.json(); } catch { /* empty */ }
 
     // Quick connection test
@@ -247,28 +196,6 @@ Deno.serve(async (req: Request) => {
       const r = await fetch(`${GATEWAY}/users/me/profile`, { headers: gh() });
       const data = await r.json().catch(() => ({}));
       return new Response(JSON.stringify({ ok: r.ok, status: r.status, profile: data }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Bidirectional action push (read / unread / trash)
-    if (body.action) {
-      let email: { message_id: string | null; account_id: string } | null = null;
-      if (body.email_id) {
-        const { data } = await admin.from("emails").select("message_id, account_id").eq("id", body.email_id).maybeSingle();
-        email = data as any;
-      } else if (body.message_id && body.account_id) {
-        email = { message_id: body.message_id, account_id: body.account_id };
-      }
-      if (!email) {
-        return new Response(JSON.stringify({ ok: false, error: "email not found" }), {
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const result = await pushGmailAction(admin, body.action, email);
-      console.log(`[sync-gmail] action=${body.action} email_id=${body.email_id} result=`, result);
-      return new Response(JSON.stringify(result), {
-        status: result.ok ? 200 : 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

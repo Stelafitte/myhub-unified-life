@@ -18,7 +18,6 @@ import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedStatsRouteImport } from './routes/_authenticated/stats'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSecureBoxRouteImport } from './routes/_authenticated/secure-box'
-import { Route as AuthenticatedSearchRouteImport } from './routes/_authenticated/search'
 import { Route as AuthenticatedRoadmapRouteImport } from './routes/_authenticated/roadmap'
 import { Route as AuthenticatedPlanOperationRouteImport } from './routes/_authenticated/plan-operation'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
@@ -76,11 +75,6 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedSecureBoxRoute = AuthenticatedSecureBoxRouteImport.update({
   id: '/secure-box',
   path: '/secure-box',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedSearchRoute = AuthenticatedSearchRouteImport.update({
-  id: '/search',
-  path: '/search',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedRoadmapRoute = AuthenticatedRoadmapRouteImport.update({
@@ -173,7 +167,6 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/plan-operation': typeof AuthenticatedPlanOperationRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
-  '/search': typeof AuthenticatedSearchRoute
   '/secure-box': typeof AuthenticatedSecureBoxRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/stats': typeof AuthenticatedStatsRoute
@@ -198,7 +191,6 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/plan-operation': typeof AuthenticatedPlanOperationRoute
   '/roadmap': typeof AuthenticatedRoadmapRoute
-  '/search': typeof AuthenticatedSearchRoute
   '/secure-box': typeof AuthenticatedSecureBoxRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/stats': typeof AuthenticatedStatsRoute
@@ -225,7 +217,6 @@ export interface FileRoutesById {
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/plan-operation': typeof AuthenticatedPlanOperationRoute
   '/_authenticated/roadmap': typeof AuthenticatedRoadmapRoute
-  '/_authenticated/search': typeof AuthenticatedSearchRoute
   '/_authenticated/secure-box': typeof AuthenticatedSecureBoxRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/stats': typeof AuthenticatedStatsRoute
@@ -252,7 +243,6 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/plan-operation'
     | '/roadmap'
-    | '/search'
     | '/secure-box'
     | '/settings'
     | '/stats'
@@ -277,7 +267,6 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/plan-operation'
     | '/roadmap'
-    | '/search'
     | '/secure-box'
     | '/settings'
     | '/stats'
@@ -303,7 +292,6 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding'
     | '/_authenticated/plan-operation'
     | '/_authenticated/roadmap'
-    | '/_authenticated/search'
     | '/_authenticated/secure-box'
     | '/_authenticated/settings'
     | '/_authenticated/stats'
@@ -388,13 +376,6 @@ declare module '@tanstack/react-router' {
       path: '/secure-box'
       fullPath: '/secure-box'
       preLoaderRoute: typeof AuthenticatedSecureBoxRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/search': {
-      id: '/_authenticated/search'
-      path: '/search'
-      fullPath: '/search'
-      preLoaderRoute: typeof AuthenticatedSearchRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/roadmap': {
@@ -510,7 +491,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedPlanOperationRoute: typeof AuthenticatedPlanOperationRoute
   AuthenticatedRoadmapRoute: typeof AuthenticatedRoadmapRoute
-  AuthenticatedSearchRoute: typeof AuthenticatedSearchRoute
   AuthenticatedSecureBoxRoute: typeof AuthenticatedSecureBoxRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStatsRoute: typeof AuthenticatedStatsRoute
@@ -529,7 +509,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedPlanOperationRoute: AuthenticatedPlanOperationRoute,
   AuthenticatedRoadmapRoute: AuthenticatedRoadmapRoute,
-  AuthenticatedSearchRoute: AuthenticatedSearchRoute,
   AuthenticatedSecureBoxRoute: AuthenticatedSecureBoxRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStatsRoute: AuthenticatedStatsRoute,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter, X, CheckCircle2, Cloud, Sparkles, Wand2, ChevronRight, ChevronDown } from "lucide-react";
+import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter, X, CheckCircle2, Cloud, Sparkles, Wand2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -195,47 +195,6 @@ function DocumentsPage() {
   }, [filtered]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const toggleGroup = (k: string) => setCollapsedGroups((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
-  const allCollapsed = grouped.length > 0 && grouped.every((g) => collapsedGroups.has(g.key));
-  const toggleAllGroups = () => {
-    setCollapsedGroups(allCollapsed ? new Set() : new Set(grouped.map((g) => g.key)));
-  };
-
-  async function applyMinSizeRule() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await saveMinSize(minSizeKb);
-    const minBytes = minSizeKb * 1024;
-    const now = new Date().toISOString();
-    try {
-      const smallDocs = docs.filter((d) => d.file_size < minBytes);
-      const smallImages = smallDocs.filter((d) => (d.mime_type ?? "").startsWith("image/")).map((d) => d.id);
-      const smallOther = smallDocs.filter((d) => !(d.mime_type ?? "").startsWith("image/")).map((d) => d.id);
-      if (smallImages.length > 0) {
-        await supabase.from("documents").update({
-          ai_processed_at: now, ai_category: "signature", ai_priority: "low",
-          ai_summary: `Fichier < ${minSizeKb} Ko — ignoré`, ai_skipped_reason: "small_file",
-        }).in("id", smallImages);
-      }
-      if (smallOther.length > 0) {
-        await supabase.from("documents").update({
-          ai_processed_at: now, ai_category: "autre", ai_priority: "low",
-          ai_summary: `Fichier < ${minSizeKb} Ko — ignoré`, ai_skipped_reason: "small_file",
-        }).in("id", smallOther);
-      }
-      const reEligible = docs.filter((d) => d.ai_skipped_reason === "small_file" && d.file_size >= minBytes).map((d) => d.id);
-      if (reEligible.length > 0) {
-        await supabase.from("documents").update({
-          ai_processed_at: null, ai_category: null, ai_priority: null,
-          ai_summary: null, ai_skipped_reason: null,
-        }).in("id", reEligible);
-      }
-      const total = smallImages.length + smallOther.length + reEligible.length;
-      toast.success(total > 0 ? `Règle appliquée — ${total} document(s) mis à jour` : "Règle appliquée");
-      await load();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Échec de l'application");
-    }
-  }
 
   const selectionMode = selected.size > 0;
   const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selected.has(d.id));
@@ -375,9 +334,6 @@ function DocumentsPage() {
                   />
                   <span className="text-xs text-muted-foreground">Ko</span>
                 </div>
-                <Button size="sm" variant="secondary" className="mt-1.5 w-full h-7 text-xs" onClick={applyMinSizeRule}>
-                  Appliquer la règle
-                </Button>
                 <p className="text-[10px] text-muted-foreground mt-1">S'applique à tous les fichiers (signatures, logos, fragments…).</p>
               </div>
             </div>
@@ -403,12 +359,6 @@ function DocumentsPage() {
             <Button variant="outline" size="sm" onClick={classifyNow} disabled={classifying} className="gap-1.5">
               {classifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
               <span className="hidden sm:inline">Classer IA</span>
-            </Button>
-          )}
-          {!selectionMode && grouped.length > 0 && (
-            <Button variant="outline" size="sm" onClick={toggleAllGroups} className="gap-1.5">
-              {allCollapsed ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-              <span className="hidden sm:inline">{allCollapsed ? "Tout déplier" : "Tout replier"}</span>
             </Button>
           )}
           {!selectionMode && filtered.length > 0 && (
@@ -468,16 +418,12 @@ function DocumentsPage() {
                     <div key={key}>
                       <button
                         onClick={() => toggleGroup(key)}
-                        className="sticky top-0 z-10 w-full flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20 rounded-sm mb-1"
+                        className="w-full flex items-center gap-2 px-2 py-1.5 mb-1 rounded hover:bg-muted/50 transition-colors text-left"
                       >
-                        {collapsed ? (
-                          <ChevronRight className="h-3 w-3 text-primary" />
-                        ) : (
-                          <ChevronDown className="h-3 w-3 text-primary" />
-                        )}
-                        <Sparkles className="h-3 w-3 text-primary" />
-                        <span className="truncate">{meta.label}</span>
-                        <span className="ml-auto text-[10px] font-normal">{groupDocs.length}</span>
+                        <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full", meta.cls)}>{meta.label}</span>
+                        <span className="text-xs text-muted-foreground">{groupDocs.length}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">{collapsed ? "▸" : "▾"}</span>
                       </button>
                       {!collapsed && (
                         <div className="space-y-1">

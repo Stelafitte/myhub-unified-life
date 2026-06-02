@@ -80,14 +80,6 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
         const text = isHtml ? stripHtml(html) : (m.body?.content ?? m.bodyPreview ?? "");
         const isStarred = m.flag?.flagStatus === "flagged";
 
-        const { data: existingEmail } = await admin
-          .from("emails")
-          .select("is_read")
-          .eq("account_id", account.id)
-          .eq("message_id", messageId)
-          .maybeSingle();
-        const isRead = existingEmail?.is_read === true ? true : !!m.isRead;
-
         const { data: upserted, error: upErr } = await admin.from("emails").upsert({
           account_id: account.id,
           user_id: account.user_id,
@@ -101,7 +93,7 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
           meeting_link: extractMeetingLink(text, html),
           has_attachment: !!m.hasAttachments,
           received_at: receivedAt,
-          is_read: isRead,
+          is_read: !!m.isRead,
           is_starred: isStarred,
           origin_tag: "outlook",
           thread_id: m.conversationId || null,
@@ -147,51 +139,6 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
   }
 }
 
-async function resolveOutlookId(rfcMessageId: string): Promise<string | null> {
-  if (!rfcMessageId) return null;
-  // Outlook Graph ids are long base64-like strings without "@"; RFC Message-IDs contain "@"
-  if (!rfcMessageId.includes("@") && rfcMessageId.length > 40) return rfcMessageId;
-  const filter = encodeURIComponent(`internetMessageId eq '${rfcMessageId.replace(/'/g, "''").replace(/^<|>$/g, "")}'`);
-  // Some message-ids are stored without < >, others with — try both
-  const tryFetch = async (f: string) => {
-    const r = await fetch(`${GATEWAY}/me/messages?$top=1&$select=id&$filter=${f}`, { headers: gh() });
-    if (!r.ok) return null;
-    const j = await r.json();
-    return j.value?.[0]?.id ?? null;
-  };
-  const id = await tryFetch(filter);
-  if (id) return id;
-  const filterAngled = encodeURIComponent(`internetMessageId eq '<${rfcMessageId.replace(/'/g, "''").replace(/^<|>$/g, "")}>'`);
-  return await tryFetch(filterAngled);
-}
-
-async function pushOutlookAction(
-  admin: any,
-  action: "mark_read" | "mark_unread" | "trash",
-  email: { message_id: string | null },
-): Promise<{ ok: boolean; status?: number; error?: string }> {
-  if (!email.message_id) return { ok: false, error: "missing message_id" };
-  const providerId = await resolveOutlookId(email.message_id);
-  if (!providerId) return { ok: false, error: "outlook message not found" };
-  if (action === "trash") {
-    // Move to Deleted Items folder (well-known id: deleteditems)
-    const r = await fetch(`${GATEWAY}/me/messages/${providerId}/move`, {
-      method: "POST",
-      headers: { ...gh(), "Content-Type": "application/json" },
-      body: JSON.stringify({ destinationId: "deleteditems" }),
-    });
-    if (!r.ok) return { ok: false, status: r.status, error: (await r.text()).slice(0, 200) };
-    return { ok: true };
-  }
-  const r = await fetch(`${GATEWAY}/me/messages/${providerId}`, {
-    method: "PATCH",
-    headers: { ...gh(), "Content-Type": "application/json" },
-    body: JSON.stringify({ isRead: action === "mark_read" }),
-  });
-  if (!r.ok) return { ok: false, status: r.status, error: (await r.text()).slice(0, 200) };
-  return { ok: true };
-}
-
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -199,14 +146,7 @@ Deno.serve(async (req: Request) => {
     if (!OUTLOOK_KEY) throw new Error("MICROSOFT_OUTLOOK_API_KEY missing — connector not linked");
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    let body: {
-      account_id?: string;
-      test?: boolean;
-      force_full?: boolean;
-      action?: "mark_read" | "mark_unread" | "trash";
-      email_id?: string;
-      message_id?: string;
-    } = {};
+    let body: { account_id?: string; test?: boolean; force_full?: boolean } = {};
     try { body = await req.json(); } catch { /* empty */ }
 
     // Quick connection test — use a Mail endpoint (the /me profile endpoint requires User.Read which isn't granted)
@@ -220,28 +160,6 @@ Deno.serve(async (req: Request) => {
       if (m) emailAddress = decodeURIComponent(m[1]);
       if (!emailAddress) emailAddress = data?.value?.[0]?.toRecipients?.[0]?.emailAddress?.address ?? null;
       return new Response(JSON.stringify({ ok: r.ok, status: r.status, profile: { emailAddress } }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Bidirectional action push (read / unread / trash)
-    if (body.action) {
-      let email: { message_id: string | null; account_id: string } | null = null;
-      if (body.email_id) {
-        const { data } = await admin.from("emails").select("message_id, account_id").eq("id", body.email_id).maybeSingle();
-        email = data as any;
-      } else if (body.message_id && body.account_id) {
-        email = { message_id: body.message_id, account_id: body.account_id };
-      }
-      if (!email) {
-        return new Response(JSON.stringify({ ok: false, error: "email not found" }), {
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const result = await pushOutlookAction(admin, body.action, email);
-      console.log(`[sync-outlook] action=${body.action} email_id=${body.email_id} result=`, result);
-      return new Response(JSON.stringify(result), {
-        status: result.ok ? 200 : 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
