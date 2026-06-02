@@ -367,6 +367,16 @@ export function MeetingsSection() {
         </CardContent>
       </Card>
 
+      <OneNoteCard
+        enabled={s.onenote_enabled}
+        notebookId={s.onenote_notebook_id}
+        sectionId={s.onenote_section_id}
+        autoSync={s.onenote_auto_sync}
+        onChange={(patch) => setS({ ...s, ...patch })}
+      />
+
+
+
       <Card>
         <CardHeader>
           <CardTitle>Modèles d'email</CardTitle>
