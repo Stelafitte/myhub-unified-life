@@ -92,6 +92,16 @@ function PollPage() {
     ]);
     setSlots((slotRows as Slot[]) ?? []);
     setVotes((voteRows as Vote[]) ?? []);
+    // Load shared files via public server route (signed URLs, 7d)
+    try {
+      const res = await fetch(`/api/public/poll/${token}/files`, { cache: "no-store" });
+      if (res.ok) {
+        const json = (await res.json()) as { files: typeof sharedFiles };
+        setSharedFiles(json.files ?? []);
+      }
+    } catch {
+      // non-blocking
+    }
     setLoading(false);
   }, [token]);
 
