@@ -483,6 +483,92 @@ export function MeetingDialog({
     }
   }
 
+  // --- Notes autosave (debounced 30s) ---
+  async function flushNotesNow() {
+    if (!user || !form.id) return;
+    const content = form.notes ?? "";
+    if (content === lastSavedNotesRef.current) return;
+    setNotesSaving(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const { error } = await supabase
+        .from("meetings")
+        .update({ notes: content || null, notes_updated_at: nowIso })
+        .eq("id", form.id);
+      if (error) throw error;
+      if (content.trim()) {
+        await supabase.from("meeting_notes_history").insert({
+          meeting_id: form.id,
+          user_id: user.id,
+          content,
+        });
+      }
+      lastSavedNotesRef.current = content;
+      setNotesSavedAt(new Date(nowIso));
+      loadNotesHistory(form.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur autosave notes");
+    } finally {
+      setNotesSaving(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!form.id) return;
+    if ((form.notes ?? "") === lastSavedNotesRef.current) return;
+    if (notesTimerRef.current) clearTimeout(notesTimerRef.current);
+    notesTimerRef.current = setTimeout(() => {
+      flushNotesNow();
+    }, 30000);
+    return () => {
+      if (notesTimerRef.current) clearTimeout(notesTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.notes, form.id]);
+
+  async function restoreNoteVersion(version: { content: string }) {
+    if (!confirm("Remplacer les notes actuelles par cette version ?")) return;
+    setForm((f) => ({ ...f, notes: version.content }));
+    // Trigger immediate save
+    setTimeout(() => flushNotesNow(), 100);
+  }
+
+  // --- Share toggle on attachments ---
+  async function toggleShareWithExternals(doc: DocumentRow, share: boolean) {
+    if (!user || !form.id) return;
+    if (share && doc.is_sensitive) {
+      toast.error("Document marqué sensible : partage bloqué.");
+      return;
+    }
+    try {
+      if (share) {
+        const { error } = await supabase
+          .from("meeting_shared_files")
+          .upsert(
+            {
+              meeting_id: form.id,
+              document_id: doc.id,
+              user_id: user.id,
+              share_with_externals: true,
+            },
+            { onConflict: "meeting_id,document_id" },
+          );
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("meeting_shared_files")
+          .delete()
+          .eq("meeting_id", form.id)
+          .eq("document_id", doc.id);
+        if (error) throw error;
+      }
+      setSharedMap((m) => ({ ...m, [doc.id]: share }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur partage");
+    }
+  }
+
+
   async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
