@@ -63,6 +63,9 @@ function SettingsPage() {
         <TabsContent value="documents">
           <DocumentsSection />
         </TabsContent>
+        <TabsContent value="meetings">
+          <MeetingsSection />
+        </TabsContent>
         <TabsContent value="security">
           <SecuritySection />
         </TabsContent>
