@@ -38,7 +38,7 @@ export type CachedEmail = {
   spam_reason?: string | null;
   meeting_link?: string | null;
   deleted_at?: string | null;
-  origin_tag?: string | null;
+  origin_tag?: "chu" | "gmail" | "imap" | "outlook" | "univ" | null;
 };
 
 function openDb(): Promise<IDBDatabase> {
