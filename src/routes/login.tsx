@@ -42,7 +42,6 @@ function applyRememberPreference(remember: boolean) {
   }
 }
 
-
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
@@ -134,59 +133,16 @@ function LoginPage() {
     else toast.success("Compte créé. Vérifiez vos emails pour confirmer.");
   };
 
-  const trustedOAuthMessageOrigins = () =>
-    new Set([window.location.origin, "https://oauth.lovable.app", "https://lovable.dev"]);
-
-  const completeOAuthSession = async (tokens: { access_token: string; refresh_token: string }) => {
-    const { error: sessionError } = await supabase.auth.setSession(tokens);
-    if (sessionError) throw sessionError;
-
-    const { data, error: userError } = await supabase.auth.getUser();
-    if (userError || !data.user) throw userError ?? new Error("Session non validée");
-
-    await refreshSession();
-    return data.user;
-  };
-
   const oauth = async (provider: "google" | "apple") => {
     setBusy(true);
-
-    let completedFromMessage = false;
-    const onOAuthMessage = (event: MessageEvent) => {
-      if (!trustedOAuthMessageOrigins().has(event.origin)) return;
-      const response = (event.data as { type?: string; response?: Record<string, unknown> } | null)
-        ?.response;
-      if ((event.data as { type?: string } | null)?.type !== "authorization_response" || !response)
-        return;
-
-      const accessToken = response.access_token;
-      const refreshToken = response.refresh_token;
-      if (typeof accessToken !== "string" || typeof refreshToken !== "string") return;
-
-      completedFromMessage = true;
-      void completeOAuthSession({ access_token: accessToken, refresh_token: refreshToken })
-        .then(() => {
-          applyRememberPreference(remember);
-          navigate({ to: "/dashboard", replace: true });
-        })
-        .catch((error) =>
-          toast.error(error instanceof Error ? error.message : "Échec de connexion"),
-        )
-        .finally(() => setBusy(false));
-    };
-
-    window.addEventListener("message", onOAuthMessage);
 
     const result = await lovable.auth.signInWithOAuth(provider, {
       redirect_uri: window.location.origin,
     });
 
-    window.removeEventListener("message", onOAuthMessage);
-
     if (result.redirected) return;
 
     if (result.error) {
-      if (completedFromMessage) return;
       setBusy(false);
       toast.error(result.error.message ?? "Échec de connexion");
       return;
@@ -293,7 +249,10 @@ function LoginPage() {
                     checked={remember}
                     onCheckedChange={(v) => setRemember(v === true)}
                   />
-                  <Label htmlFor="remember-me" className="cursor-pointer text-sm font-normal text-muted-foreground">
+                  <Label
+                    htmlFor="remember-me"
+                    className="cursor-pointer text-sm font-normal text-muted-foreground"
+                  >
                     Rester connecté sur cet appareil
                   </Label>
                 </div>
