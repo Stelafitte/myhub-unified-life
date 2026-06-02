@@ -1016,6 +1016,8 @@ export type Database = {
       meetings: {
         Row: {
           calendar_event_id: string | null
+          confirmed_at: string | null
+          confirmed_slot_id: string | null
           created_at: string
           decisions: string | null
           description: string | null
@@ -1028,6 +1030,7 @@ export type Database = {
           onenote_page_id: string | null
           online_link: string | null
           online_provider: string | null
+          online_provider_default: string | null
           organizer_email: string | null
           organizer_name: string | null
           quorum_minimum: number | null
@@ -1045,6 +1048,8 @@ export type Database = {
         }
         Insert: {
           calendar_event_id?: string | null
+          confirmed_at?: string | null
+          confirmed_slot_id?: string | null
           created_at?: string
           decisions?: string | null
           description?: string | null
@@ -1057,6 +1062,7 @@ export type Database = {
           onenote_page_id?: string | null
           online_link?: string | null
           online_provider?: string | null
+          online_provider_default?: string | null
           organizer_email?: string | null
           organizer_name?: string | null
           quorum_minimum?: number | null
@@ -1074,6 +1080,8 @@ export type Database = {
         }
         Update: {
           calendar_event_id?: string | null
+          confirmed_at?: string | null
+          confirmed_slot_id?: string | null
           created_at?: string
           decisions?: string | null
           description?: string | null
@@ -1086,6 +1094,7 @@ export type Database = {
           onenote_page_id?: string | null
           online_link?: string | null
           online_provider?: string | null
+          online_provider_default?: string | null
           organizer_email?: string | null
           organizer_name?: string | null
           quorum_minimum?: number | null
