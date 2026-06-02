@@ -767,6 +767,22 @@ function InboxPage() {
     }
   }, [filtered, isMobileInbox, selectedId]);
 
+  // Push read/unread/trash state to remote provider (Gmail/Outlook) — best-effort.
+  const pushProviderAction = (ids: string[], action: "mark_read" | "mark_unread" | "trash") => {
+    const targets = emails.filter((x) => ids.includes(x.id));
+    for (const e of targets) {
+      const fn =
+        e.origin_tag === "gmail" ? "sync-gmail"
+        : e.origin_tag === "outlook" ? "sync-outlook"
+        : null;
+      if (!fn) continue;
+      // fire-and-forget; errors are logged in the edge function
+      supabase.functions
+        .invoke(fn, { body: { action, email_id: e.id } })
+        .catch((err) => console.warn(`[${fn}] action ${action} failed`, err));
+    }
+  };
+
   // Mutations (optimistic)
   const patch = async (id: string, updates: Partial<Email>) => {
     setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
