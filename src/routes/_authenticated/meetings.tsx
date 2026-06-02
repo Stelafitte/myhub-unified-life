@@ -412,6 +412,16 @@ function MeetingCard({
               <a href={meeting.online_link} target="_blank" rel="noreferrer">Rejoindre</a>
             </Button>
           )}
+          {pollOpen && (
+            <Button size="sm" variant="outline" onClick={copyPollLink} title="Copier le lien public du sondage">
+              <BarChart3 className="h-3.5 w-3.5 mr-1" /> Lien sondage
+            </Button>
+          )}
+          {showReminder && (
+            <Button size="sm" variant="outline" onClick={onEdit} title="Ouvrir la réunion pour relancer les non-répondants">
+              <Bell className="h-3.5 w-3.5 mr-1" /> Relancer
+            </Button>
+          )}
           <Button size="sm" variant="ghost" onClick={onEdit}>
             <Pencil className="h-3.5 w-3.5 mr-1" /> Éditer
           </Button>
