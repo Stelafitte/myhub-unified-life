@@ -792,6 +792,30 @@ export type Database = {
           },
         ]
       }
+      meeting_notes_history: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          meeting_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          meeting_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          meeting_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       meeting_participants: {
         Row: {
           contact_id: string | null
@@ -981,6 +1005,33 @@ export type Database = {
           },
         ]
       }
+      meeting_shared_files: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          meeting_id: string
+          share_with_externals: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          meeting_id: string
+          share_with_externals?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          meeting_id?: string
+          share_with_externals?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       meeting_tasks: {
         Row: {
           created_at: string
@@ -1027,6 +1078,7 @@ export type Database = {
           is_online: boolean
           location: string | null
           notes: string | null
+          notes_updated_at: string | null
           onenote_page_id: string | null
           online_link: string | null
           online_provider: string | null
@@ -1059,6 +1111,7 @@ export type Database = {
           is_online?: boolean
           location?: string | null
           notes?: string | null
+          notes_updated_at?: string | null
           onenote_page_id?: string | null
           online_link?: string | null
           online_provider?: string | null
@@ -1091,6 +1144,7 @@ export type Database = {
           is_online?: boolean
           location?: string | null
           notes?: string | null
+          notes_updated_at?: string | null
           onenote_page_id?: string | null
           online_link?: string | null
           online_provider?: string | null
