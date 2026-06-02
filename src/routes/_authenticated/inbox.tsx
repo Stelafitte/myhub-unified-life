@@ -1032,6 +1032,16 @@ function InboxPage() {
     if (error) toast.error(error.message);
   };
 
+  const bulkMoveToTheme = async (themeId: string | null) => {
+    const ids = bulkIds();
+    if (!ids.length) return;
+    setEmails((prev) => prev.map((x) => (checked.has(x.id) ? { ...x, ai_theme_id: themeId } : x)));
+    clearChecked();
+    const { error } = await supabase.from("emails").update({ ai_theme_id: themeId }).in("id", ids);
+    if (error) toast.error(error.message);
+    else toast.success(`${ids.length} email(s) déplacé(s)`);
+  };
+
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     setReaderOpen(true);
@@ -1650,6 +1660,17 @@ function InboxPage() {
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Supprimer
                 </Button>
+                <Select onValueChange={(v) => bulkMoveToTheme(v === "__none__" ? null : v)}>
+                  <SelectTrigger className="h-6 w-auto gap-1 px-2 text-xs">
+                    <SelectValue placeholder="Déplacer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-xs">Sans thème</SelectItem>
+                    {themes.filter((t) => !t.archived_at).map((t) => (
+                      <SelectItem key={t.id} value={t.id} className="text-xs">{t.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button size="sm" variant="ghost" className="h-6 px-2" onClick={clearChecked}>
                   Annuler
                 </Button>
