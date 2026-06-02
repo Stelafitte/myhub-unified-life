@@ -663,6 +663,3 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
     </li>
   );
 }
-
-// Garde useMemo importé pour usages futurs sans warning
-void useMemo;
