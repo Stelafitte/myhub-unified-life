@@ -139,6 +139,7 @@ export function MeetingDialog({
   const lastSavedNotesRef = useRef<string>("");
   const [notesHistory, setNotesHistory] = useState<{ id: string; created_at: string; content: string }[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [acceptedCount, setAcceptedCount] = useState(0);
 
   // --- Poll mode state ---
   const [pollMode, setPollMode] = useState(false);
