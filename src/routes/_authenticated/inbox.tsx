@@ -68,6 +68,7 @@ import {
 } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
+import { RecategorizeAiDialog } from "@/components/inbox/recategorize-ai-dialog";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
 import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
 import { useDeleteKey } from "@/hooks/use-delete-key";
@@ -226,6 +227,8 @@ function InboxPage() {
   const setEmailThemeFn = useServerFn(setEmailTheme);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
+  const [recatOpen, setRecatOpen] = useState(false);
+  const [recatEmailId, setRecatEmailId] = useState<string | null>(null);
   const [relaunching, setRelaunching] = useState(false);
   const [aiRanking, setAiRanking] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -1904,6 +1907,16 @@ function InboxPage() {
                     <Archive className="h-3.5 w-3.5" />
                   </IconBtn>
                   <IconBtn
+                    label="Recatégoriser avec l'IA"
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      setRecatEmailId(e.id);
+                      setRecatOpen(true);
+                    }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  </IconBtn>
+                  <IconBtn
                     label="Créer une tâche"
                     onClick={(ev) => {
                       ev.stopPropagation();
@@ -2043,6 +2056,16 @@ function InboxPage() {
         onChanged={() => {
           refreshThemes();
           setReloadKey((k) => k + 1);
+        }}
+      />
+
+      <RecategorizeAiDialog
+        open={recatOpen}
+        onOpenChange={setRecatOpen}
+        email={emails.find((x) => x.id === recatEmailId) ?? null}
+        themes={themes}
+        onApplied={(patch) => {
+          setEmails((prev) => prev.map((x) => (x.id === recatEmailId ? { ...x, ...patch } : x)));
         }}
       />
 
