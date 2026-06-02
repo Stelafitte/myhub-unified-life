@@ -41,7 +41,18 @@ function applyRememberPreference(remember: boolean) {
     /* storage may be blocked in private mode */
   }
 }
-
+function explainAuthError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? "");
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+  if (!url || !key) {
+    return "Configuration backend manquante (VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY vides). Reconnectez Lovable Cloud.";
+  }
+  if (/failed to fetch|networkerror|load failed|fetch failed|network request failed/i.test(raw)) {
+    return `Impossible de joindre le serveur d'authentification (${url}). Causes possibles : projet backend en pause/inactif, coupure réseau, bloqueur (VPN/proxy/extension), ou URL non autorisée dans Auth → URL Configuration. Réessayez dans quelques secondes.`;
+  }
+  return raw || "Échec de connexion";
+}
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
