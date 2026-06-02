@@ -1040,6 +1040,10 @@ export type Database = {
           email_template_confirm: string
           email_template_invite: string
           min_lead_hours: number
+          onenote_auto_sync: boolean
+          onenote_enabled: boolean
+          onenote_notebook_id: string | null
+          onenote_section_id: string | null
           rsvp_reminder_hours_before: number
           rsvp_reminders_enabled: boolean
           updated_at: string
@@ -1055,6 +1059,10 @@ export type Database = {
           email_template_confirm?: string
           email_template_invite?: string
           min_lead_hours?: number
+          onenote_auto_sync?: boolean
+          onenote_enabled?: boolean
+          onenote_notebook_id?: string | null
+          onenote_section_id?: string | null
           rsvp_reminder_hours_before?: number
           rsvp_reminders_enabled?: boolean
           updated_at?: string
@@ -1070,6 +1078,10 @@ export type Database = {
           email_template_confirm?: string
           email_template_invite?: string
           min_lead_hours?: number
+          onenote_auto_sync?: boolean
+          onenote_enabled?: boolean
+          onenote_notebook_id?: string | null
+          onenote_section_id?: string | null
           rsvp_reminder_hours_before?: number
           rsvp_reminders_enabled?: boolean
           updated_at?: string
@@ -1156,6 +1168,8 @@ export type Database = {
           notes: string | null
           notes_updated_at: string | null
           onenote_page_id: string | null
+          onenote_page_url: string | null
+          onenote_synced_at: string | null
           online_link: string | null
           online_provider: string | null
           online_provider_default: string | null
@@ -1193,6 +1207,8 @@ export type Database = {
           notes?: string | null
           notes_updated_at?: string | null
           onenote_page_id?: string | null
+          onenote_page_url?: string | null
+          onenote_synced_at?: string | null
           online_link?: string | null
           online_provider?: string | null
           online_provider_default?: string | null
@@ -1230,6 +1246,8 @@ export type Database = {
           notes?: string | null
           notes_updated_at?: string | null
           onenote_page_id?: string | null
+          onenote_page_url?: string | null
+          onenote_synced_at?: string | null
           online_link?: string | null
           online_provider?: string | null
           online_provider_default?: string | null
