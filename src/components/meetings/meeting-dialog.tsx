@@ -613,7 +613,7 @@ export function MeetingDialog({
               <Switch id="m-poll" checked={pollMode} onCheckedChange={setPollMode} />
             </div>
 
-            {pollMode ? (
+            {pollMode && (
               <div className="space-y-3 rounded-md border p-3">
                 <div className="flex items-center justify-between">
                   <Label>Créneaux proposés ({pollSlots.length})</Label>
