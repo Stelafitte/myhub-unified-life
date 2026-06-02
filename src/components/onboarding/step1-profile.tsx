@@ -228,7 +228,3 @@ async function resizeImage(file: File, max: number): Promise<string> {
   bitmap.close?.();
   return canvas.toDataURL("image/jpeg", 0.85);
 }
-
-// Évite warning ESLint sur useEffect importé non utilisé : on garde l'import
-// disponible pour future extension du composant.
-void useEffect;
