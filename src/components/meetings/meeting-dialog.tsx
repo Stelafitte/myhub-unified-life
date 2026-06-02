@@ -132,18 +132,43 @@ export function MeetingDialog({
   const [confirming, setConfirming] = useState(false);
 
   async function loadAttachments(id: string) {
-    const { data } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("source_type", "meeting")
-      .eq("source_id", id)
-      .order("created_at", { ascending: false });
+    const [{ data }, { data: shared }] = await Promise.all([
+      supabase
+        .from("documents")
+        .select("*")
+        .eq("source_type", "meeting")
+        .eq("source_id", id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("meeting_shared_files")
+        .select("document_id, share_with_externals")
+        .eq("meeting_id", id),
+    ]);
     setAttachments((data ?? []) as DocumentRow[]);
+    const map: Record<string, boolean> = {};
+    ((shared ?? []) as { document_id: string; share_with_externals: boolean }[]).forEach((r) => {
+      map[r.document_id] = r.share_with_externals;
+    });
+    setSharedMap(map);
+  }
+
+  async function loadNotesHistory(id: string) {
+    const { data } = await supabase
+      .from("meeting_notes_history")
+      .select("id, created_at, content")
+      .eq("meeting_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    setNotesHistory((data ?? []) as { id: string; created_at: string; content: string }[]);
   }
 
   useEffect(() => {
     if (!open) return;
     setAttachments([]);
+    setSharedMap({});
+    setNotesSavedAt(null);
+    setNotesHistory([]);
+    setShowHistory(false);
     setPollSlots([]);
     setPollDeadline("");
     setPollMode(false);
