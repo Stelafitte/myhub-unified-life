@@ -196,6 +196,7 @@ export function MeetingDialog({
     setPollVotes([]);
     setConfirmedSlotId(null);
     setAcceptedCount(0);
+    setOneNoteUrl(null);
     if (meetingId) {
       setLoading(true);
       (async () => {
