@@ -41,7 +41,18 @@ function applyRememberPreference(remember: boolean) {
     /* storage may be blocked in private mode */
   }
 }
-
+function explainAuthError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? "");
+  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+  if (!url || !key) {
+    return "Configuration backend manquante (VITE_SUPABASE_URL / VITE_SUPABASE_PUBLISHABLE_KEY vides). Reconnectez Lovable Cloud.";
+  }
+  if (/failed to fetch|networkerror|load failed|fetch failed|network request failed/i.test(raw)) {
+    return `Impossible de joindre le serveur d'authentification (${url}). Causes possibles : projet backend en pause/inactif, coupure réseau, bloqueur (VPN/proxy/extension), ou URL non autorisée dans Auth → URL Configuration. Réessayez dans quelques secondes.`;
+  }
+  return raw || "Échec de connexion";
+}
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -105,12 +116,18 @@ function LoginPage() {
   const signIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setBusy(false);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        toast.error(explainAuthError(error));
+        return;
+      }
       applyRememberPreference(remember);
       navigate({ to: "/dashboard" });
+    } catch (err) {
+      toast.error(explainAuthError(err));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -121,17 +138,22 @@ function LoginPage() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { display_name: name },
-      },
-    });
-    setBusy(false);
-    if (error) toast.error(error.message);
-    else toast.success("Compte créé. Vérifiez vos emails pour confirmer.");
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: { display_name: name },
+        },
+      });
+      if (error) toast.error(explainAuthError(error));
+      else toast.success("Compte créé. Vérifiez vos emails pour confirmer.");
+    } catch (err) {
+      toast.error(explainAuthError(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const oauth = async (provider: "google" | "apple") => {
@@ -145,7 +167,7 @@ function LoginPage() {
       if (result.redirected) return;
 
       if (result.error) {
-        toast.error(result.error.message ?? "Échec de connexion");
+        toast.error(explainAuthError(result.error));
         return;
       }
 
@@ -154,13 +176,13 @@ function LoginPage() {
       await refreshSession();
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) {
-        toast.error(error?.message ?? "Session non validée");
+        toast.error(explainAuthError(error ?? "Session non validée"));
         return;
       }
       applyRememberPreference(remember);
       navigate({ to: "/dashboard", replace: true });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Échec de connexion");
+      toast.error(explainAuthError(e));
     } finally {
       setBusy(false);
     }
