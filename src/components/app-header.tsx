@@ -143,7 +143,7 @@ function GlobalSearchBar() {
         onChange={(e) => setValue(e.target.value)}
         placeholder="🔍 Rechercher dans MyHub Pro..."
         aria-label="Rechercher dans MyHub Pro"
-        className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground/70"
+        className="flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground/70"
       />
       {value && (
         <button
