@@ -64,6 +64,7 @@ function PollPage() {
   const [choices, setChoices] = useState<Record<string, Choice>>({});
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [sharedFiles, setSharedFiles] = useState<{ id: string; filename: string; file_size: number; mime_type: string | null; url: string | null }[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
