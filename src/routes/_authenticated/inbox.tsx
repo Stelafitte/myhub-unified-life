@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -181,6 +181,42 @@ function InboxPage() {
   // plus au filtre (ex. on vient d'ouvrir un mail dans "Non lus" → il devient
   // lu mais reste visible jusqu'au changement de filtre).
   const [stickyVisible, setStickyVisible] = useState<Set<string>>(new Set());
+  // IDs des mails marqués lus localement pendant cette session. Sert à empêcher
+  // un re-fetch depuis Supabase (ou un re-sync IMAP/Gmail/Outlook qui ramène
+  // is_read=false depuis le serveur distant) de faire repasser ces mails en
+  // "non lu". Persisté en localStorage pour survivre aux rechargements.
+  const [locallyReadIds, setLocallyReadIds] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem("inbox:locallyReadIds");
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw) as string[];
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch {
+      return new Set();
+    }
+  });
+  const markLocallyRead = useCallback((ids: string[], read: boolean) => {
+    setLocallyReadIds((prev) => {
+      const next = new Set(prev);
+      if (read) ids.forEach((id) => next.add(id));
+      else ids.forEach((id) => next.delete(id));
+      try {
+        localStorage.setItem("inbox:locallyReadIds", JSON.stringify([...next]));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
+  // Applique l'état "lu local" à n'importe quelle liste renvoyée par le serveur
+  // pour qu'un rechargement (sync IMAP, classification IA…) ne fasse jamais
+  // repasser un mail déjà lu en "non lu".
+  const applyLocalRead = useCallback(
+    (list: Email[]): Email[] =>
+      list.map((e) => (locallyReadIds.has(e.id) && !e.is_read ? { ...e, is_read: true } : e)),
+    [locallyReadIds],
+  );
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
   const listThemesFn = useServerFn(listThemes);
@@ -263,7 +299,7 @@ function InboxPage() {
         .order("received_at", { ascending: false })
         .limit(1000);
       if (refreshed) {
-        setEmails(refreshed as Email[]);
+        setEmails(applyLocalRead(refreshed as Email[]));
         cacheEmails(refreshed as Email[]);
       }
       toast.success(
@@ -453,7 +489,7 @@ function InboxPage() {
       if (error) {
         if (emails.length === 0) toast.error("Hors-ligne : aucun cache disponible");
       } else if (ems) {
-        setEmails(ems as Email[]);
+        setEmails(applyLocalRead(ems as Email[]));
         setUsingCache(false);
         cacheEmails(ems as Email[]);
 
@@ -470,7 +506,7 @@ function InboxPage() {
                 .order("received_at", { ascending: false })
                 .limit(1000);
               if (!cancelled && refreshed) {
-                setEmails(refreshed as Email[]);
+                setEmails(applyLocalRead(refreshed as Email[]));
                 cacheEmails(refreshed as Email[]);
               }
             }
@@ -536,7 +572,7 @@ function InboxPage() {
           .eq("is_archived", false)
           .order("received_at", { ascending: false })
           .limit(1000);
-        if (!cancelled && refreshed) setEmails(refreshed as Email[]);
+        if (!cancelled && refreshed) setEmails(applyLocalRead(refreshed as Email[]));
       }
     })();
     return () => {
@@ -738,7 +774,11 @@ function InboxPage() {
     if (error) toast.error(error.message);
   };
 
-  const toggleRead = (e: Email) => patch(e.id, { is_read: !e.is_read });
+  const toggleRead = (e: Email) => {
+    const nextRead = !e.is_read;
+    markLocallyRead([e.id], nextRead);
+    patch(e.id, { is_read: nextRead });
+  };
   const toggleStar = (e: Email) => patch(e.id, { is_starred: !e.is_starred });
   const archive = async (e: Email) => {
     const snapshot = e;
@@ -977,6 +1017,7 @@ function InboxPage() {
     const ids = bulkIds();
     if (!ids.length) return;
     setEmails((prev) => prev.map((x) => (checked.has(x.id) ? { ...x, is_read: read } : x)));
+    markLocallyRead(ids, read);
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
     if (error) toast.error(error.message);
@@ -993,6 +1034,7 @@ function InboxPage() {
         next.add(e.id);
         return next;
       });
+      markLocallyRead([e.id], true);
       patch(e.id, { is_read: true });
     }
     // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
