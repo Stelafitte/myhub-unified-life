@@ -99,6 +99,14 @@ export function MeetingsSection() {
             (data as { rsvp_reminders_enabled?: boolean }).rsvp_reminders_enabled ?? true,
           rsvp_reminder_hours_before:
             (data as { rsvp_reminder_hours_before?: number }).rsvp_reminder_hours_before ?? 24,
+          onenote_enabled:
+            (data as { onenote_enabled?: boolean }).onenote_enabled ?? false,
+          onenote_notebook_id:
+            (data as { onenote_notebook_id?: string | null }).onenote_notebook_id ?? null,
+          onenote_section_id:
+            (data as { onenote_section_id?: string | null }).onenote_section_id ?? null,
+          onenote_auto_sync:
+            (data as { onenote_auto_sync?: boolean }).onenote_auto_sync ?? false,
         });
       }
       setPresets((pr ?? []) as Preset[]);
