@@ -177,6 +177,10 @@ function InboxPage() {
   const [taskOpen, setTaskOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  // Emails à garder visibles dans la vue courante même s'ils ne correspondent
+  // plus au filtre (ex. on vient d'ouvrir un mail dans "Non lus" → il devient
+  // lu mais reste visible jusqu'au changement de filtre).
+  const [stickyVisible, setStickyVisible] = useState<Set<string>>(new Set());
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
   const listThemesFn = useServerFn(listThemes);
