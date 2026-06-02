@@ -210,6 +210,9 @@ export function MeetingDialog({
               (ps ?? [])
                 .filter((p) => p.role !== "organizer")
                 .map((p) => ({ email: p.email, name: p.name ?? "", role: (p.role as "required" | "optional") ?? "required" })),
+            recurrence_rule: (m as { recurrence_rule?: string | null }).recurrence_rule ?? null,
+            recurrence_parent_id: (m as { recurrence_parent_id?: string | null }).recurrence_parent_id ?? null,
+            session_number: (m as { session_number?: number | null }).session_number ?? null,
           });
           setConfirmedSlotId((m as { confirmed_slot_id?: string | null }).confirmed_slot_id ?? null);
           lastSavedNotesRef.current = m.notes ?? "";
