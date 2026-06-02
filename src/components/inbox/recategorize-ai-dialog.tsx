@@ -14,9 +14,9 @@ type EmailLike = {
   id: string;
   subject: string | null;
   from_address: string | null;
-  ai_theme_id: string | null;
-  ai_category: string | null;
-  ai_priority: string | null;
+  ai_theme_id?: string | null;
+  ai_category?: string | null;
+  ai_priority?: string | null;
 };
 
 const CATEGORIES = ["action", "rendez-vous", "document", "facturation", "rh", "info", "newsletter"] as const;
