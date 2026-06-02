@@ -64,6 +64,10 @@ function SettingsPage() {
         <TabsContent value="security">
           <SecuritySection />
         </TabsContent>
+        <TabsContent value="advanced">
+          <BackendSection />
+        </TabsContent>
+
       </Tabs>
     </div>
   );
