@@ -689,16 +689,19 @@ Deno.serve(async (req: Request) => {
       email_id?: string;
       message_id?: string;
     } = {};
-    try { body = await req.json(); } catch { /* empty body OK for cron */ }
+    try {
+      body = await req.json();
+    } catch {
+      /* empty body OK for cron */
+    }
 
     // Test de connexion rapide (sans compte enregistré)
     if (body.test_credentials) {
       const tc = body.test_credentials;
       const r = await syncOne({ credentials: tc } as any, admin, tc);
-      return new Response(
-        JSON.stringify(r),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify(r), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const authHeader = req.headers.get("Authorization");
@@ -725,7 +728,8 @@ Deno.serve(async (req: Request) => {
       }
       if (!email) {
         return new Response(JSON.stringify({ ok: false, error: "email not found" }), {
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       let accQ = admin.from("accounts").select("*").eq("id", email.account_id).eq("type", "imap");
@@ -733,7 +737,8 @@ Deno.serve(async (req: Request) => {
       const { data: account } = await accQ.maybeSingle();
       if (!account) {
         return new Response(JSON.stringify({ ok: false, error: "account not found" }), {
-          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const result = await pushImapAction(account, body.action, email);
