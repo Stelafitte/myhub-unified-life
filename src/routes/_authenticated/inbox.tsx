@@ -1013,6 +1013,7 @@ function InboxPage() {
     const ids = bulkIds();
     if (!ids.length) return;
     setEmails((prev) => prev.map((x) => (checked.has(x.id) ? { ...x, is_read: read } : x)));
+    markLocallyRead(ids, read);
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
     if (error) toast.error(error.message);
@@ -1029,6 +1030,7 @@ function InboxPage() {
         next.add(e.id);
         return next;
       });
+      markLocallyRead([e.id], true);
       patch(e.id, { is_read: true });
     }
     // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
