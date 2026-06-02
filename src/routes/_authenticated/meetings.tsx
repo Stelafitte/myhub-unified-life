@@ -194,7 +194,16 @@ function MeetingsPage() {
         </TabsContent>
       </Tabs>
 
-      <MeetingDialog open={dialogOpen} onOpenChange={setDialogOpen} meetingId={editId} onSaved={load} />
+      <MeetingDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        meetingId={editId}
+        onSaved={load}
+        onOpenMeeting={(id) => {
+          setEditId(id);
+          setDialogOpen(true);
+        }}
+      />
     </div>
   );
 }
