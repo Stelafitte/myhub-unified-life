@@ -9,6 +9,9 @@ import { Step1Profile, type Step1Data } from "@/components/onboarding/step1-prof
 import { Step2Accounts } from "@/components/onboarding/step2-accounts";
 import { Step3Calendars } from "@/components/onboarding/step3-calendars";
 import { Step4Contacts } from "@/components/onboarding/step4-contacts";
+import { Step5Integrations } from "@/components/onboarding/step5-integrations";
+import { Step6AI } from "@/components/onboarding/step6-ai";
+import { Step7Recap } from "@/components/onboarding/step7-recap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +20,7 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
 });
 
 const TOTAL_STEPS = 7;
-const STEP_LABELS = ["Profil", "Comptes email", "Agendas", "Contacts", "Étape 5", "Étape 6", "Étape 7"];
+const STEP_LABELS = ["Profil", "Comptes email", "Agendas", "Contacts", "Intégrations", "IA", "Récap"];
 
 function OnboardingPage() {
   const { user } = useAuth();
@@ -78,12 +81,23 @@ function OnboardingPage() {
       .from("profiles")
       .update({ onboarding_completed_at: new Date().toISOString() })
       .eq("id", user.id);
-    setFinishing(false);
     if (error) {
+      setFinishing(false);
       toast.error(error.message);
       return;
     }
-    toast.success("Bienvenue dans MyHub Pro !");
+    // Déclenche une première synchro best-effort de tous les comptes actifs
+    void supabase
+      .from("accounts")
+      .update({ last_sync_at: null })
+      .eq("user_id", user.id)
+      .eq("is_active", true);
+    setFinishing(false);
+    toast.success(
+      step1Data?.firstName
+        ? `Bienvenue sur MyHub Pro ${step1Data.firstName} !`
+        : "Bienvenue sur MyHub Pro !",
+    );
     navigate({ to: "/inbox" });
   };
 
@@ -123,13 +137,18 @@ function OnboardingPage() {
             <Step4Contacts onContinue={goNext} onSkip={goNext} outlookPreconnected={hasOutlookAccount} />
           )}
 
-          {step >= 5 && step <= 7 && (
-            <PlaceholderStep
-              n={step}
-              onContinue={step < TOTAL_STEPS ? goNext : finish}
-              onSkip={step < TOTAL_STEPS ? goNext : undefined}
-              canFinish={step === TOTAL_STEPS}
-              finishing={finishing}
+          {step === 5 && (
+            <Step5Integrations onContinue={goNext} onSkip={goNext} outlookPreconnected={hasOutlookAccount} />
+          )}
+
+          {step === 6 && <Step6AI onContinue={goNext} onSkip={goNext} />}
+
+          {step === 7 && (
+            <Step7Recap
+              firstName={step1Data?.firstName ?? initialProfile.firstName}
+              onGoToStep={(n) => setStep(n)}
+              onLaunch={finish}
+              launching={finishing}
               hasEmailAccount={hasEmailAccount}
             />
           )}
@@ -185,61 +204,6 @@ function ProgressHeader({ step }: { step: number }) {
           );
         })}
       </div>
-    </div>
-  );
-}
-
-function PlaceholderStep({
-  n,
-  onContinue,
-  onSkip,
-  canFinish,
-  finishing,
-  hasEmailAccount,
-}: {
-  n: number;
-  onContinue: () => void;
-  onSkip?: () => void;
-  canFinish: boolean;
-  finishing: boolean;
-  hasEmailAccount: boolean;
-}) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Étape {n}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Cette étape sera configurée dans la prochaine livraison du wizard.
-        </p>
-      </div>
-
-      <div className="rounded-lg border border-dashed bg-muted/30 p-6 text-center">
-        <Sparkles className="mx-auto h-8 w-8 text-muted-foreground" />
-        <p className="mt-2 text-sm text-muted-foreground">
-          Contenu à venir
-        </p>
-      </div>
-
-      <div className="flex items-center justify-end gap-2 border-t pt-4">
-        {onSkip && (
-          <Button variant="ghost" onClick={onSkip}>
-            Passer cette étape
-          </Button>
-        )}
-        <Button
-          onClick={onContinue}
-          disabled={(canFinish && !hasEmailAccount) || finishing}
-          size="lg"
-        >
-          {canFinish ? (finishing ? "Finalisation…" : "Terminer le wizard") : "Continuer"}
-        </Button>
-      </div>
-
-      {canFinish && !hasEmailAccount && (
-        <p className="text-center text-xs text-destructive">
-          Au moins 1 compte email doit être configuré (étape 2) pour terminer.
-        </p>
-      )}
     </div>
   );
 }
