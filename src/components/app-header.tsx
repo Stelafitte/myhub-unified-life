@@ -1,3 +1,4 @@
+// MyHub Pro v1.0
 import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2, Plus, CheckSquare } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
