@@ -1034,14 +1034,54 @@ export function MeetingDialog({
             </div>
 
             <div>
-              <Label htmlFor="m-notes">Notes de préparation</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="m-notes">Notes de préparation</Label>
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  {notesSaving ? (
+                    <span>Enregistrement…</span>
+                  ) : notesSavedAt ? (
+                    <span>Sauvegardé à {notesSavedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
+                  ) : form.id ? (
+                    <span className="opacity-60">Autosave 30s</span>
+                  ) : null}
+                  {form.id && (
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2" onClick={flushNotesNow} disabled={notesSaving}>
+                      Enregistrer
+                    </Button>
+                  )}
+                  {form.id && notesHistory.length > 0 && (
+                    <Button type="button" variant="ghost" size="sm" className="h-6 px-2" onClick={() => setShowHistory((s) => !s)}>
+                      <History className="h-3.5 w-3.5 mr-1" /> {notesHistory.length}
+                    </Button>
+                  )}
+                </div>
+              </div>
               <Textarea
                 id="m-notes"
                 rows={4}
                 placeholder="Points à aborder, questions, éléments à vérifier…"
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                onBlur={() => form.id && flushNotesNow()}
               />
+              {showHistory && notesHistory.length > 0 && (
+                <div className="mt-2 rounded-md border bg-muted/30 p-2 space-y-1 max-h-48 overflow-y-auto">
+                  <p className="text-[11px] text-muted-foreground mb-1">Historique des versions (max 50)</p>
+                  {notesHistory.map((v) => (
+                    <div key={v.id} className="flex items-start gap-2 text-xs rounded border bg-card p-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-muted-foreground mb-0.5">
+                          {new Date(v.created_at).toLocaleString("fr-FR")}
+                        </div>
+                        <div className="line-clamp-2 whitespace-pre-wrap">{v.content || <em>(vide)</em>}</div>
+                      </div>
+                      <Button type="button" variant="ghost" size="sm" className="h-7" onClick={() => restoreNoteVersion(v)}>
+                        Restaurer
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
