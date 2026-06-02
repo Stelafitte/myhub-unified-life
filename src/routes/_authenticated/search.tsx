@@ -121,7 +121,7 @@ function SearchPage() {
       return;
     }
     let cancelled = false;
-    const like = `%${term.replace(/[%_]/g, (m) => "\\" + m)}%`;
+    const like = `%${term.replace(/[%_]/g, (m: string) => "\\" + m)}%`;
     setLoading(true);
     setError(null);
 
