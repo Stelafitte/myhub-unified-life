@@ -1075,6 +1075,7 @@ function InboxPage() {
       });
       markLocallyRead([e.id], true);
       patch(e.id, { is_read: true });
+      pushProviderAction([e.id], "mark_read");
     }
     // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
     // « Retour » du téléphone ferme l'email et revienne à la liste.
