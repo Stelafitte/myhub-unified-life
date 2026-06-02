@@ -115,6 +115,12 @@ export function MeetingDialog({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // --- Poll mode state ---
+  const [pollMode, setPollMode] = useState(false);
+  const [pollSlots, setPollSlots] = useState<{ startAt: string; endAt: string }[]>([]);
+  const [pollDeadline, setPollDeadline] = useState<string>("");
+  const [existingPoll, setExistingPoll] = useState<{ id: string; public_token: string } | null>(null);
+
   async function loadAttachments(id: string) {
     const { data } = await supabase
       .from("documents")
