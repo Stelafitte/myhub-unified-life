@@ -42,7 +42,6 @@ function applyRememberPreference(remember: boolean) {
   }
 }
 
-
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
@@ -250,7 +249,10 @@ function LoginPage() {
                     checked={remember}
                     onCheckedChange={(v) => setRemember(v === true)}
                   />
-                  <Label htmlFor="remember-me" className="cursor-pointer text-sm font-normal text-muted-foreground">
+                  <Label
+                    htmlFor="remember-me"
+                    className="cursor-pointer text-sm font-normal text-muted-foreground"
+                  >
                     Rester connecté sur cet appareil
                   </Label>
                 </div>
