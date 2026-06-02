@@ -620,8 +620,10 @@ export function MeetingDialog({
     if (!confirm(`Supprimer "${doc.filename}" ?`)) return;
     try {
       if (doc.storage_path) await removeFromStorage(doc.storage_path);
+      if (form.id) await supabase.from("meeting_shared_files").delete().eq("meeting_id", form.id).eq("document_id", doc.id);
       await supabase.from("documents").delete().eq("id", doc.id);
       setAttachments((a) => a.filter((d) => d.id !== doc.id));
+      setSharedMap((m) => { const { [doc.id]: _omit, ...rest } = m; return rest; });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur suppression");
     }
