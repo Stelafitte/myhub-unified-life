@@ -27,6 +27,7 @@ import { SlotFinder } from "@/components/meetings/slot-finder";
 import { AgendaSection } from "@/components/meetings/agenda-section";
 import { RecurrenceSection } from "@/components/meetings/recurrence-section";
 import { MeetingHistorySection } from "@/components/meetings/meeting-history-section";
+import { LogisticsSection } from "@/components/meetings/logistics-section";
 
 type Provider = "jitsi" | "google_meet" | "zoom" | "teams" | "other";
 const PROVIDER_LABEL: Record<Provider, string> = {
