@@ -375,6 +375,9 @@ function DocumentsPage() {
                   />
                   <span className="text-xs text-muted-foreground">Ko</span>
                 </div>
+                <Button size="sm" variant="secondary" className="mt-1.5 w-full h-7 text-xs" onClick={applyMinSizeRule}>
+                  Appliquer la règle
+                </Button>
                 <p className="text-[10px] text-muted-foreground mt-1">S'applique à tous les fichiers (signatures, logos, fragments…).</p>
               </div>
             </div>
