@@ -774,7 +774,11 @@ function InboxPage() {
     if (error) toast.error(error.message);
   };
 
-  const toggleRead = (e: Email) => patch(e.id, { is_read: !e.is_read });
+  const toggleRead = (e: Email) => {
+    const nextRead = !e.is_read;
+    markLocallyRead([e.id], nextRead);
+    patch(e.id, { is_read: nextRead });
+  };
   const toggleStar = (e: Email) => patch(e.id, { is_starred: !e.is_starred });
   const archive = async (e: Email) => {
     const snapshot = e;
