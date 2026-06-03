@@ -1989,11 +1989,18 @@ function NewEventDialog({
     setSaving(true);
     try {
       const acc = accounts.find((a) => a.id === accountId);
-      const rrule =
+      const baseRule =
         recurrence === "none" ? null :
         recurrence === "daily" ? "FREQ=DAILY" :
         recurrence === "weekly" ? "FREQ=WEEKLY" :
         recurrence === "monthly" ? "FREQ=MONTHLY" : null;
+      let rrule = baseRule;
+      if (rrule && recurrenceUntil) {
+        // UNTIL au format YYYYMMDDT235959Z (fin de journée UTC)
+        const until = recurrenceUntil.replace(/-/g, "") + "T235959Z";
+        rrule = `${rrule};UNTIL=${until}`;
+      }
+
 
       const parts = participants
         .split(/[,;\s]+/)
