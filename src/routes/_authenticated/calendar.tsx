@@ -221,6 +221,16 @@ function AgendaPage() {
   const [events, setEvents] = useState<DbEvent[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
+  const lastClickRef = React.useRef<{ id: string; time: number } | null>(null);
+  const handleSelectEvent = (e: UnifiedEvent) => {
+    const now = Date.now();
+    if (lastClickRef.current && lastClickRef.current.id === e.id && now - lastClickRef.current.time < 400) {
+      setSelected(e);
+      lastClickRef.current = null;
+    } else {
+      lastClickRef.current = { id: e.id, time: now };
+    }
+  };
   const [catColors, setCatColors] = useState<Record<EventCategory, string>>(() => loadCategoryColors());
   // Touche Suppr : supprime l'événement sélectionné
   useDeleteKey(!!selected, () => { if (selected) deleteEvent(selected); });
