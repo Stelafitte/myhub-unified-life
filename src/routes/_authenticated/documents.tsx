@@ -702,12 +702,12 @@ function DocRow({
       <div
         className={cn(
           "relative flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 py-3 bg-background",
-          !selected && "hover:bg-muted/50",
+          !selected && "hover:bg-muted",
           selected && "bg-primary/10",
           isSkipped && "opacity-50",
           startRef.current?.locked === "h" ? "" : "transition-transform duration-200",
         )}
-        style={{ transform: `translateX(${dragX}px)` }}
+        style={{ transform: `translateX(${dragX}px)`, backgroundColor: dragX === 0 ? undefined : undefined }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
