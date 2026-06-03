@@ -1787,7 +1787,9 @@ function NewEventDialog({
   const writable = useMemo(
     () =>
       accounts.filter(
-        (a) => a.sync_direction === "bidirectional" || a.sync_direction === "push",
+        (a) =>
+          (a.sync_direction === "bidirectional" || a.sync_direction === "push") &&
+          toCalendarSource(a.type) !== null,
       ),
     [accounts],
   );
@@ -1923,7 +1925,7 @@ function NewEventDialog({
             </Select>
             {writable.length === 0 && (
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Aucun compte en écriture configuré — l'événement restera local.
+                Aucun agenda en écriture configuré — l'événement restera local.
               </p>
             )}
           </div>
