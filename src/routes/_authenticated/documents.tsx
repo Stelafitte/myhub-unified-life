@@ -704,6 +704,7 @@ function DocRow({
           "relative flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 py-3 bg-background",
           !selected && "hover:bg-muted/50",
           selected && "bg-primary/10",
+          isSkipped && "opacity-50",
           startRef.current?.locked === "h" ? "" : "transition-transform duration-200",
         )}
         style={{ transform: `translateX(${dragX}px)` }}
