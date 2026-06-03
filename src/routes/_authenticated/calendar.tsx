@@ -317,11 +317,14 @@ function AgendaPage() {
     return m;
   }, [accounts]);
 
+  const hiddenConns = useHiddenConnections();
   const unified: UnifiedEvent[] = useMemo(() => {
     const items: UnifiedEvent[] = [];
     for (const e of events) {
+      const connId = (e as { gcal_connection_id?: string | null }).gcal_connection_id ?? null;
+      if (connId && hiddenConns.has(connId)) continue;
       const acc = e.account_id ? accById.get(e.account_id) : null;
-      const isGoogle = e.source === "google" || (e as any).gcal_connection_id != null;
+      const isGoogle = e.source === "google" || connId != null;
       const meta = isGoogle ? SOURCE_META.gmail : (acc ? SOURCE_META[acc.type] : SOURCE_META.imap);
       const blob = `${e.description ?? ""} ${e.location ?? ""}`;
       const cat = categoryOf(e);
@@ -345,7 +348,7 @@ function AgendaPage() {
     }
     // Les tâches ne sont volontairement pas affichées dans l'agenda
     return items.sort((a, b) => a.start.getTime() - b.start.getTime());
-  }, [events, tasks, accById, catColors]);
+  }, [events, tasks, accById, catColors, hiddenConns]);
 
   // Range for current view
   const range = useMemo(() => {
