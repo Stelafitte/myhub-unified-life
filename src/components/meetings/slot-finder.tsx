@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,7 +34,7 @@ export function SlotFinder({ durationMinutes, onPick, isSelected, triggerLabel }
 
   // AI proposition dialog state
   const [aiOpen, setAiOpen] = useState(false);
-  const [aiConstraints, setAiConstraints] = useState("");
+  const aiConstraintsRef = useRef<HTMLTextAreaElement>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSlots, setAiSlots] = useState<AiProposedSlot[] | null>(null);
 
@@ -62,7 +62,8 @@ export function SlotFinder({ durationMinutes, onPick, isSelected, triggerLabel }
   }
 
   async function runAi() {
-    if (!aiConstraints.trim()) {
+    const constraints = aiConstraintsRef.current?.value.trim() ?? "";
+    if (!constraints) {
       toast.error("Décrivez vos contraintes pour la proposition IA.");
       return;
     }
@@ -71,7 +72,7 @@ export function SlotFinder({ durationMinutes, onPick, isSelected, triggerLabel }
     try {
       const res = await propose({
         data: {
-          constraints: aiConstraints.trim(),
+          constraints,
           durationMinutes: Math.max(15, Math.min(8 * 60, durationMinutes || 60)),
           daysAhead: 30,
           leadHours: 24,
@@ -185,10 +186,10 @@ export function SlotFinder({ durationMinutes, onPick, isSelected, triggerLabel }
               <Label htmlFor="ai-constraints">Vos contraintes</Label>
               <Textarea
                 id="ai-constraints"
+                ref={aiConstraintsRef}
                 rows={4}
                 placeholder="Ex : la semaine prochaine, plutôt le matin, pas le lundi, éviter avant 9h, idéalement mardi ou jeudi…"
-                value={aiConstraints}
-                onChange={(e) => setAiConstraints(e.target.value)}
+                defaultValue=""
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Durée recherchée : {durationMinutes} min. L'IA ne propose que des créneaux libres dans votre agenda.
