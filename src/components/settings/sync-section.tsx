@@ -43,6 +43,8 @@ const FREQ_OPTIONS = [
 
 export function SyncSection() {
   const { user } = useAuth();
+  const runOutlookCal = useServerFn(syncOutlookCalendarEvents);
+  const runGoogleCal = useServerFn(syncGoogleCalendarEvents);
   const [settings, setSettings] = useState<SyncSetting[] | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
 
