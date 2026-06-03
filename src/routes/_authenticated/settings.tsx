@@ -10,6 +10,10 @@ import { AccountSection } from "@/components/settings/account-section";
 import { PlanOperationSection } from "@/components/settings/plan-operation-section";
 import { BackendSection } from "@/components/settings/backend-section";
 import { MeetingsSection } from "@/components/settings/meetings-section";
+import { ContactsSection } from "@/components/settings/contacts-section";
+import { IntegrationsSection } from "@/components/settings/integrations-section";
+import { AiSection } from "@/components/settings/ai-section";
+import { NotificationsSection } from "@/components/settings/notifications-section";
 
 
 
