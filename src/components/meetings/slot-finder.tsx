@@ -46,7 +46,7 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
       const res = await find({
         data: {
           durationMinutes: Math.max(15, Math.min(8 * 60, durationMinutes || 60)),
-          daysAhead: 30,
+          daysAhead,
           leadHours: 24,
           maxResults: 5,
         },
@@ -76,7 +76,7 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
         data: {
           constraints,
           durationMinutes: Math.max(15, Math.min(8 * 60, durationMinutes || 60)),
-          daysAhead: 30,
+          daysAhead,
           leadHours: 24,
           maxResults: 5,
         },
