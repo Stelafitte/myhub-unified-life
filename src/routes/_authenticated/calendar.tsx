@@ -898,20 +898,17 @@ function MonthView({
               {d.getDate()}
             </div>
             <div className="space-y-0.5">
-              {dayEvents.slice(0, 3).map((e) => {
-                const press = usePressToOpen(() => onSelect(e), 400);
-                return (
-                  <div
-                    key={e.id}
-                    {...press}
-                    className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] text-white"
-                    style={{ background: e.color }}
-                  >
-                    <span>{e.badge}</span>
-                    <span className="truncate">{e.isAllDay ? "" : fmtTime(e.start) + " "}{e.title}</span>
-                  </div>
-                );
-              })}
+              {dayEvents.slice(0, 3).map((e) => (
+                <div
+                  key={e.id}
+                  onClick={(ev) => { ev.stopPropagation(); onSelect(e); }}
+                  className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] text-white"
+                  style={{ background: e.color }}
+                >
+                  <span>{e.badge}</span>
+                  <span className="truncate">{e.isAllDay ? "" : fmtTime(e.start) + " "}{e.title}</span>
+                </div>
+              ))}
               {dayEvents.length > 3 && (
                 <div className="text-[10px] text-muted-foreground">+{dayEvents.length - 3} autres</div>
               )}
