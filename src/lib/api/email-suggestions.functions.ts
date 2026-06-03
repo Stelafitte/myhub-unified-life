@@ -42,26 +42,7 @@ export const getEmailSuggestions = createServerFn({ method: "POST" })
 
     const today = new Date().toISOString();
     const tz = "Europe/Paris";
-    // Calcule l'offset RÉEL d'Europe/Paris (gère l'heure d'été), pas celui du serveur (UTC sur Worker).
-    const computeOffsetStr = (timeZone: string): string => {
-      const now = new Date();
-      const dtf = new Intl.DateTimeFormat("en-US", {
-        timeZone,
-        hourCycle: "h23",
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", second: "2-digit",
-      });
-      const parts = Object.fromEntries(dtf.formatToParts(now).filter(p => p.type !== "literal").map(p => [p.type, p.value]));
-      const asUTC = Date.UTC(
-        Number(parts.year), Number(parts.month) - 1, Number(parts.day),
-        Number(parts.hour), Number(parts.minute), Number(parts.second),
-      );
-      const diffMin = Math.round((asUTC - now.getTime()) / 60000);
-      const sign = diffMin >= 0 ? "+" : "-";
-      const abs = Math.abs(diffMin);
-      return `${sign}${String(Math.floor(abs / 60)).padStart(2, "0")}:${String(abs % 60).padStart(2, "0")}`;
-    };
-    const offsetStr = computeOffsetStr(tz);
+    const offsetStr = getZoneOffsetString(tz);
     const bodyText = e.body_text ?? "";
     const bodyHtml = (e as any).body_html ?? "";
     // Détection systématique de liens de réunion en ligne (champ stocké en priorité, fallback regex)
