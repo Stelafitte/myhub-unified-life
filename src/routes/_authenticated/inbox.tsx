@@ -31,7 +31,16 @@ import {
   RefreshCw,
   Loader2,
   Undo2,
+  FolderInput,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
 import { AiSuggestionsPanel } from "@/components/inbox/ai-suggestions-panel";
@@ -653,7 +662,7 @@ function InboxPage() {
   // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
   // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
   type RenderItem =
-    | { kind: "header"; key: string; label: string; count: number }
+    | { kind: "header"; key: string; label: string; count: number; ids: string[] }
     | { kind: "email"; email: Email };
   const [collapsedThemes, setCollapsedThemes] = useState<Set<string>>(new Set());
   const toggleTheme = (key: string) =>
@@ -704,6 +713,7 @@ function InboxPage() {
         key,
         label: t?.name ?? "Sans thème",
         count: g.emails.length,
+        ids: g.emails.map((e) => e.id),
       });
       if (!collapsed) for (const e of g.emails) out.push({ kind: "email", email: e });
     }
@@ -939,20 +949,21 @@ function InboxPage() {
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_archived: true }).in("id", ids);
     if (error) { toast.error(error.message); return; }
-    toast.success(`${ids.length} email(s) archivé(s)`);
-    pushUndo({
-      label: "Archivage groupé",
-      run: async () => {
-        const { error: err } = await supabase.from("emails").update({ is_archived: false }).in("id", ids);
-        if (err) throw new Error(err.message);
-        setEmails((prev) => {
-          const known = new Set(prev.map((x) => x.id));
-          const missing = snapshots.filter((s) => !known.has(s.id));
-          return [...missing, ...prev];
-        });
-        toast.success("Archivage annulé");
-      },
+    const undoArchive = async () => {
+      const { error: err } = await supabase.from("emails").update({ is_archived: false }).in("id", ids);
+      if (err) { toast.error(err.message); return; }
+      setEmails((prev) => {
+        const known = new Set(prev.map((x) => x.id));
+        const missing = snapshots.filter((s) => !known.has(s.id));
+        return [...missing, ...prev];
+      });
+      toast.success("Archivage annulé");
+    };
+    toast.success(`${ids.length} email(s) archivé(s)`, {
+      duration: 5000,
+      action: { label: "Annuler", onClick: () => { void undoArchive(); } },
     });
+    pushUndo({ label: "Archivage groupé", run: undoArchive });
   };
   const bulkDelete = async () => {
     const ids = bulkIds();
@@ -979,25 +990,68 @@ function InboxPage() {
         .update({ deleted_at: now })
         .in("id", ids);
       if (error) { toast.error(error.message); return; }
-      toast.success(`${ids.length} email(s) dans la corbeille`);
-      pushUndo({
-        label: "Mise à la corbeille (groupée)",
-        run: async () => {
-          const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
-          if (err) throw new Error(err.message);
-          setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: null } : x)));
-          toast.success("Suppression annulée");
-        },
+      const undoTrashBulk = async () => {
+        const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
+        if (err) { toast.error(err.message); return; }
+        setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: null } : x)));
+        toast.success("Suppression annulée");
+      };
+      toast.success(`${ids.length} email(s) dans la corbeille`, {
+        duration: 5000,
+        action: { label: "Annuler", onClick: () => { void undoTrashBulk(); } },
       });
+      pushUndo({ label: "Mise à la corbeille (groupée)", run: undoTrashBulk });
     }
   };
   const bulkMarkRead = async (read: boolean) => {
     const ids = bulkIds();
     if (!ids.length) return;
+    // Snapshot des valeurs avant pour l'annulation
+    const prevByIdMap = new Map(emails.filter((x) => ids.includes(x.id)).map((x) => [x.id, x.is_read] as const));
     setEmails((prev) => prev.map((x) => (checked.has(x.id) ? { ...x, is_read: read } : x)));
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
-    if (error) toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
+    const undoFn = async () => {
+      await Promise.all(
+        Array.from(prevByIdMap.entries()).map(([id, val]) =>
+          supabase.from("emails").update({ is_read: val }).eq("id", id),
+        ),
+      );
+      setEmails((prev) => prev.map((x) => (prevByIdMap.has(x.id) ? { ...x, is_read: prevByIdMap.get(x.id)! } : x)));
+      toast.success("Action annulée");
+    };
+    toast.success(`${ids.length} email(s) marqué(s) ${read ? "lus" : "non lus"}`, {
+      duration: 5000,
+      action: { label: "Annuler", onClick: () => { void undoFn(); } },
+    });
+  };
+
+  // Déplacement groupé vers un thème IA (ou aucun)
+  const bulkSetTheme = async (themeId: string | null) => {
+    const ids = bulkIds();
+    if (!ids.length) return;
+    const prevByIdMap = new Map(
+      emails.filter((x) => ids.includes(x.id)).map((x) => [x.id, x.ai_theme_id ?? null] as const),
+    );
+    setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, ai_theme_id: themeId } : x)));
+    clearChecked();
+    const { error } = await supabase.from("emails").update({ ai_theme_id: themeId }).in("id", ids);
+    if (error) { toast.error(error.message); return; }
+    const themeName = themeId ? (themes.find((t) => t.id === themeId)?.name ?? "ce thème") : "Sans thème";
+    const undoFn = async () => {
+      await Promise.all(
+        Array.from(prevByIdMap.entries()).map(([id, val]) =>
+          supabase.from("emails").update({ ai_theme_id: val }).eq("id", id),
+        ),
+      );
+      setEmails((prev) => prev.map((x) => (prevByIdMap.has(x.id) ? { ...x, ai_theme_id: prevByIdMap.get(x.id)! } : x)));
+      toast.success("Déplacement annulé");
+    };
+    toast.success(`${ids.length} email(s) déplacé(s) vers « ${themeName} »`, {
+      duration: 5000,
+      action: { label: "Annuler", onClick: () => { void undoFn(); } },
+    });
   };
 
   const openEmail = (e: Email) => {
@@ -1162,13 +1216,13 @@ function InboxPage() {
                 )}
               >
                 <span
-                  className="flex h-5 w-5 items-center justify-center rounded text-xs"
+                  className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] leading-none"
                   style={{ background: a.color ?? "#64748b", color: "#fff" }}
                 >
                   {a.icon ?? "✉️"}
                 </span>
                 <span className="flex-1 truncate text-sm">{a.name}</span>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
                   {counts.byAccount.get(a.id) ?? 0}
                 </span>
               </button>
@@ -1578,7 +1632,7 @@ function InboxPage() {
           {checked.size > 0 ? (
             <>
               <span className="font-medium">
-                {checked.size} sélectionné{checked.size > 1 ? "s" : ""}
+                {checked.size} mail{checked.size > 1 ? "s" : ""} sélectionné{checked.size > 1 ? "s" : ""}
               </span>
               <div className="ml-auto flex flex-wrap gap-1">
                 <Button
@@ -1587,7 +1641,7 @@ function InboxPage() {
                   className="h-6 gap-1 px-2"
                   onClick={() => bulkMarkRead(true)}
                 >
-                  <MailOpen className="h-3.5 w-3.5" /> Lu
+                  <MailOpen className="h-3.5 w-3.5" /> Marquer lu
                 </Button>
                 <Button
                   size="sm"
@@ -1595,7 +1649,7 @@ function InboxPage() {
                   className="h-6 gap-1 px-2"
                   onClick={() => bulkMarkRead(false)}
                 >
-                  <Mail className="h-3.5 w-3.5" /> Non lu
+                  <Mail className="h-3.5 w-3.5" /> Marquer non lu
                 </Button>
                 <Button size="sm" variant="ghost" className="h-6 gap-1 px-2" onClick={bulkArchive}>
                   <Archive className="h-3.5 w-3.5" /> Archiver
@@ -1608,8 +1662,29 @@ function InboxPage() {
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Supprimer
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-6 gap-1 px-2">
+                      <FolderInput className="h-3.5 w-3.5" /> Déplacer
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="max-h-72 w-56 overflow-y-auto">
+                    <DropdownMenuLabel>Déplacer vers un thème</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => bulkSetTheme(null)}>
+                      Sans thème
+                    </DropdownMenuItem>
+                    {themes.length > 0 && <DropdownMenuSeparator />}
+                    {themes.map((t) => (
+                      <DropdownMenuItem key={t.id} onSelect={() => bulkSetTheme(t.id)}>
+                        {t.icon ? <span className="mr-2">{t.icon}</span> : null}
+                        <span className="truncate">{t.name}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button size="sm" variant="ghost" className="h-6 px-2" onClick={clearChecked}>
-                  Annuler
+                  ✕ Annuler la sélection
                 </Button>
               </div>
             </>
@@ -1627,12 +1702,30 @@ function InboxPage() {
           )}
           {displayItems.map((item) => {
             if (item.kind === "header") {
+              const allInTheme = item.ids.length > 0 && item.ids.every((id) => checked.has(id));
+              const someInTheme = !allInTheme && item.ids.some((id) => checked.has(id));
               return (
                 <li
                   key={`h:${item.key}`}
                   onClick={() => toggleTheme(item.key)}
                   className="sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20"
                 >
+                  <input
+                    type="checkbox"
+                    checked={allInTheme}
+                    ref={(el) => { if (el) el.indeterminate = someInTheme; }}
+                    onClick={(ev) => ev.stopPropagation()}
+                    onChange={(ev) => {
+                      setChecked((prev) => {
+                        const next = new Set(prev);
+                        if (ev.target.checked) item.ids.forEach((id) => next.add(id));
+                        else item.ids.forEach((id) => next.delete(id));
+                        return next;
+                      });
+                    }}
+                    className="h-3.5 w-3.5 shrink-0 cursor-pointer"
+                    title="Sélectionner ce thème"
+                  />
                   {collapsedThemes.has(item.key) ? (
                     <ChevronRight className="h-3 w-3 text-primary" />
                   ) : (
@@ -1997,9 +2090,13 @@ function FilterRow({
       )}
     >
       <button onClick={onClick} className="flex flex-1 items-center gap-2 min-w-0">
-        <span className="text-muted-foreground">{icon}</span>
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground">
+          {icon}
+        </span>
         <span className="flex-1 truncate text-sm">{label}</span>
-        <span className="text-[11px] text-muted-foreground">{count}</span>
+        <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+          {count}
+        </span>
       </button>
       {onAction && (
         <button
