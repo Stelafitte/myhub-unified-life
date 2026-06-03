@@ -897,7 +897,10 @@ function InboxPage() {
       .update({ deleted_at: null })
       .eq("id", e.id);
     if (error) toast.error(error.message);
-    else toast.success("Email restauré");
+    else {
+      pushAction(e.id, e.account_id, "untrash");
+      toast.success("Email restauré");
+    }
   };
 
   const emptyTrash = async () => {
