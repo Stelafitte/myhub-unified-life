@@ -421,11 +421,13 @@ function AgendaPage() {
         if (rule.until && t > rule.until) break;
         if (t > expTo) break;
         if (t < expFrom) continue;
+        if (rule.exdates.has(t)) continue;
         push(s, new Date(t + duration), i === 0 ? "" : `:${i}`);
       }
     }
     return items.sort((a, b) => a.start.getTime() - b.start.getTime());
   }, [events, tasks, accById, catColors, hiddenConns]);
+
 
   // Range for current view
   const range = useMemo(() => {
