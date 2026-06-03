@@ -662,7 +662,7 @@ function InboxPage() {
   // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
   // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
   type RenderItem =
-    | { kind: "header"; key: string; label: string; count: number }
+    | { kind: "header"; key: string; label: string; count: number; ids: string[] }
     | { kind: "email"; email: Email };
   const [collapsedThemes, setCollapsedThemes] = useState<Set<string>>(new Set());
   const toggleTheme = (key: string) =>
