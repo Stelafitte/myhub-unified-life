@@ -183,16 +183,16 @@ export function SlotFinder({ durationMinutes, onPick, isSelected, triggerLabel }
 
           <div className="space-y-3">
             <div>
-              <Label htmlFor="ai-constraints">Vos contraintes</Label>
+              <Label htmlFor="ai-constraints">Contraintes et disponibilités</Label>
               <Textarea
                 id="ai-constraints"
                 ref={aiConstraintsRef}
                 rows={4}
-                placeholder="Ex : la semaine prochaine, plutôt le matin, pas le lundi, éviter avant 9h, idéalement mardi ou jeudi…"
+                placeholder="Ex : dispo les après-midis de 15h à 18h, pas le lundi, éviter avant 9h, idéalement mardi ou jeudi…"
                 defaultValue=""
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Durée recherchée : {durationMinutes} min. L'IA ne propose que des créneaux libres dans votre agenda.
+                Durée recherchée : {Math.max(15, Math.min(8 * 60, durationMinutes || 60))} min. L'IA ne propose que des créneaux libres dans votre agenda qui respectent strictement vos disponibilités.
               </p>
             </div>
 

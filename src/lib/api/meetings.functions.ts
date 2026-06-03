@@ -43,6 +43,50 @@ async function refreshAccessToken(
 }
 
 /* ------------------------------------------------------------------ */
+/* Timezone helpers (DST-aware, server runs UTC)                      */
+/* ------------------------------------------------------------------ */
+
+function tzParts(d: Date, tz: string) {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+    weekday: "short",
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(d).map((p) => [p.type, p.value]));
+  const wdMap: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+  return {
+    y: Number(parts.year),
+    mo: Number(parts.month),
+    da: Number(parts.day),
+    h: Number(parts.hour) === 24 ? 0 : Number(parts.hour),
+    mi: Number(parts.minute),
+    isoWeekday: wdMap[parts.weekday] ?? 1,
+  };
+}
+
+function parisWallToUtc(y: number, mo: number, da: number, h: number, mi: number, tz: string): Date {
+  const guess = Date.UTC(y, mo - 1, da, h, mi);
+  const back = tzParts(new Date(guess), tz);
+  const wallUtc = Date.UTC(back.y, back.mo - 1, back.da, back.h, back.mi);
+  const offset = wallUtc - guess;
+  return new Date(guess - offset);
+}
+
+function parisMidnight(d: Date, tz: string): Date {
+  const p = tzParts(d, tz);
+  return parisWallToUtc(p.y, p.mo, p.da, 0, 0, tz);
+}
+
+function parisYMD(d: Date, tz: string) {
+  return tzParts(d, tz);
+}
+
+function parisHour(d: Date, tz: string): number {
+  return tzParts(d, tz).h;
+}
+
+/* ------------------------------------------------------------------ */
 /* Slot finder                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -187,25 +231,23 @@ export const findAvailableSlots = createServerFn({ method: "POST" })
     }
 
     const workDays = new Set(data.workDays);
-    const startDay = new Date(earliest);
-    startDay.setHours(0, 0, 0, 0);
+    const TZ = "Europe/Paris";
+    const startDay = parisMidnight(new Date(earliest), TZ);
 
     for (let d = 0; d <= data.daysAhead; d++) {
-      const day = new Date(startDay.getTime() + d * 86400_000);
-      const iso = ((day.getDay() + 6) % 7) + 1; // 1..7 (Mon..Sun)
-      if (!workDays.has(iso)) continue;
+      const dayRef = new Date(startDay.getTime() + d * 86400_000 + 12 * 3600_000);
+      const { y, mo, da, isoWeekday } = parisYMD(dayRef, TZ);
+      if (!workDays.has(isoWeekday)) continue;
 
-      const dayStart = new Date(day);
-      dayStart.setHours(data.workStartHour, 0, 0, 0);
-      const dayEnd = new Date(day);
-      dayEnd.setHours(clamp(data.workEndHour, 1, 24), 0, 0, 0);
+      const dayStartMs = parisWallToUtc(y, mo, da, data.workStartHour, 0, TZ).getTime();
+      const dayEndMs = parisWallToUtc(y, mo, da, clamp(data.workEndHour, 1, 24), 0, TZ).getTime();
 
-      for (let t = dayStart.getTime(); t + durationMs <= dayEnd.getTime(); t += step) {
+      for (let t = dayStartMs; t + durationMs <= dayEndMs; t += step) {
         if (t < earliest) continue;
         const endT = t + durationMs;
         if (isBusy(t, endT)) continue;
 
-        const startH = new Date(t).getHours();
+        const startH = parisHour(new Date(t), TZ);
         const period: "morning" | "afternoon" = startH < 12 ? "morning" : "afternoon";
         // Ideal windows: 10-12 and 14-16
         const ideal = (startH >= 10 && startH < 12) || (startH >= 14 && startH < 16);
@@ -287,18 +329,29 @@ export const aiProposeSlots = createServerFn({ method: "POST" })
     }
 
     const slotList = candidates.slots.map((s, i) => {
-      const start = new Date(s.startAt);
-      const end = new Date(s.endAt);
-      const day = start.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
-      const hours = `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}–${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`;
-      return `${i + 1}. ${day} ${hours} (period=${s.period}) [startAt=${s.startAt}, endAt=${s.endAt}]`;
+      const fmtDay = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", weekday: "long", day: "2-digit", month: "long" });
+      const fmtTime = new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit", hour12: false });
+      const day = fmtDay.format(new Date(s.startAt));
+      const hours = `${fmtTime.format(new Date(s.startAt))}–${fmtTime.format(new Date(s.endAt))}`;
+      return `${i + 1}. ${day} ${hours} (Europe/Paris, period=${s.period}) [startAt=${s.startAt}, endAt=${s.endAt}]`;
     }).join("\n");
 
-    const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+    const today = new Date().toLocaleDateString("fr-FR", { timeZone: "Europe/Paris", weekday: "long", day: "2-digit", month: "long", year: "numeric" });
 
-    const system = `Tu es un assistant de planification. On te donne une liste de créneaux libres dans le calendrier de l'utilisateur (déjà filtrés sur ses heures de travail), et des contraintes en langage naturel. Ta tâche : choisir au maximum ${data.maxResults} créneaux qui respectent au mieux les contraintes, classés du meilleur au moins bon. Réponds UNIQUEMENT en JSON valide, sans markdown, au format : {"slots":[{"startAt":"ISO","endAt":"ISO","reason":"courte explication en français"}]}. Les valeurs startAt/endAt DOIVENT être copiées exactement depuis la liste fournie. Si aucun créneau ne convient, renvoie {"slots":[]}.`;
+    const system = `Tu es un assistant de planification rigoureux. Tu reçois (1) une liste de créneaux libres dans le calendrier de l'utilisateur, affichés en heure de Paris (Europe/Paris), et (2) un texte libre en français qui peut contenir DEUX types d'informations à distinguer :
+- DISPONIBILITÉS (positif, ex : "dispo les après-midis de 15h à 18h", "uniquement mardi ou jeudi", "le matin entre 9h et 11h") — ce sont des fenêtres EXCLUSIVES : tout créneau hors de ces fenêtres doit être éliminé.
+- CONTRAINTES (négatif, ex : "pas le lundi", "éviter avant 9h", "sauf le week-end") — ce sont des exclusions : éliminer tout créneau qui les enfreint.
 
-    const user = `Date d'aujourd'hui : ${today}\n\nContraintes utilisateur :\n${data.constraints}\n\nCréneaux libres disponibles :\n${slotList}`;
+Règles strictes :
+1. Identifie d'abord les disponibilités exprimées. Si l'utilisateur précise une plage horaire (ex "15h à 18h"), un créneau N'EST RETENU QUE SI son heure de début ET son heure de fin sont entièrement dans cette plage en heure de Paris.
+2. Applique ensuite les contraintes (exclusions).
+3. Ne choisis QUE parmi les créneaux fournis. N'invente jamais de startAt/endAt.
+4. Si aucun créneau ne respecte les disponibilités ET les contraintes, renvoie {"slots":[]} — ne propose surtout pas un créneau approximatif.
+5. Classe les retenus du meilleur au moins bon, max ${data.maxResults}.
+
+Réponds UNIQUEMENT en JSON valide, sans markdown : {"slots":[{"startAt":"ISO exact copié","endAt":"ISO exact copié","reason":"courte explication en français citant la disponibilité/contrainte respectée"}]}.`;
+
+    const user = `Date d'aujourd'hui (Paris) : ${today}\n\nTexte utilisateur (contraintes et disponibilités à analyser) :\n"""\n${data.constraints}\n"""\n\nCréneaux libres candidats (heures en Europe/Paris) :\n${slotList}`;
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -429,19 +482,19 @@ async function findCandidateSlots(
     }
     return false;
   }
-  const startDay = new Date(earliest);
-  startDay.setHours(0, 0, 0, 0);
+  const TZ = "Europe/Paris";
+  const startDay = parisMidnight(new Date(earliest), TZ);
   for (let d = 0; d <= opts.daysAhead; d++) {
-    const day = new Date(startDay.getTime() + d * 86400_000);
-    const iso = ((day.getDay() + 6) % 7) + 1;
-    if (!workDays.has(iso)) continue;
-    const dayStart = new Date(day); dayStart.setHours(workStartHour, 0, 0, 0);
-    const dayEnd = new Date(day); dayEnd.setHours(workEndHour, 0, 0, 0);
-    for (let t = dayStart.getTime(); t + durationMs <= dayEnd.getTime(); t += step) {
+    const dayRef = new Date(startDay.getTime() + d * 86400_000 + 12 * 3600_000); // noon to avoid DST edge
+    const { y, mo, da, isoWeekday } = parisYMD(dayRef, TZ);
+    if (!workDays.has(isoWeekday)) continue;
+    const dayStartMs = parisWallToUtc(y, mo, da, workStartHour, 0, TZ).getTime();
+    const dayEndMs = parisWallToUtc(y, mo, da, workEndHour, 0, TZ).getTime();
+    for (let t = dayStartMs; t + durationMs <= dayEndMs; t += step) {
       if (t < earliest) continue;
       const endT = t + durationMs;
       if (isBusy(t, endT)) continue;
-      const startH = new Date(t).getHours();
+      const startH = parisHour(new Date(t), TZ);
       const period: "morning" | "afternoon" = startH < 12 ? "morning" : "afternoon";
       const ideal = (startH >= 10 && startH < 12) || (startH >= 14 && startH < 16);
       let score = 100;
