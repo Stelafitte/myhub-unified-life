@@ -326,3 +326,161 @@ export const deleteCalendarEvent = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/* ------------------------------------------------------------------ */
+/* Multi-agenda: list / add / update connections                       */
+/* ------------------------------------------------------------------ */
+
+export const listGoogleCalendarConnections = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { userId } = context as { userId: string };
+    const { data, error } = await supabaseAdmin
+      .from("google_calendar_connections")
+      .select("id,label,google_email,calendar_id,category,color,sync_direction,is_active,last_sync_at,created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+/** Fetch the list of calendars available in the Google account of an existing connection. */
+export const listGoogleCalendarsForConnection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ connectionId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as { userId: string };
+    const { data: conn, error } = await supabaseAdmin
+      .from("google_calendar_connections")
+      .select("*")
+      .eq("id", data.connectionId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error || !conn) throw new Error("Connexion introuvable");
+
+    let accessToken = conn.access_token as string;
+    if (new Date(conn.expires_at).getTime() < Date.now() + 60_000) {
+      const refreshed = await refreshAccessToken(conn.refresh_token);
+      accessToken = refreshed.accessToken;
+      await supabaseAdmin
+        .from("google_calendar_connections")
+        .update({ access_token: accessToken, expires_at: refreshed.expiresAt })
+        .eq("id", conn.id);
+    }
+
+    const res = await fetch(
+      "https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=writer",
+      { headers: { authorization: `Bearer ${accessToken}` } },
+    );
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      throw new Error(`Google calendarList ${res.status}: ${t.slice(0, 200)}`);
+    }
+    const body = (await res.json()) as {
+      items?: { id: string; summary?: string; primary?: boolean; backgroundColor?: string }[];
+    };
+    return (body.items ?? []).map((c) => ({
+      id: c.id,
+      summary: c.summary ?? c.id,
+      primary: !!c.primary,
+      backgroundColor: c.backgroundColor ?? null,
+    }));
+  });
+
+/** Create a second connection row reusing an existing refresh_token but targeting a different calendar_id. */
+export const addGoogleCalendarFromExisting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        sourceConnectionId: z.string().uuid(),
+        calendarId: z.string().min(1).max(255),
+        label: z.string().min(1).max(120),
+        category: z.enum(["pro", "perso"]).default("perso"),
+        color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+        syncDirection: z.enum(["pull", "push", "bidirectional"]).default("bidirectional"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context as { userId: string };
+    const { data: src, error } = await supabaseAdmin
+      .from("google_calendar_connections")
+      .select("*")
+      .eq("id", data.sourceConnectionId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error || !src) throw new Error("Connexion source introuvable");
+
+    const { data: existing } = await supabaseAdmin
+      .from("google_calendar_connections")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("calendar_id", data.calendarId)
+      .maybeSingle();
+    if (existing) throw new Error("Cet agenda est déjà connecté.");
+
+    const color = data.color ?? (data.category === "perso" ? "#f97316" : "#6366f1");
+
+    const { data: inserted, error: insErr } = await supabaseAdmin
+      .from("google_calendar_connections")
+      .insert({
+        user_id: userId,
+        label: data.label,
+        google_email: src.google_email,
+        access_token: src.access_token,
+        refresh_token: src.refresh_token,
+        expires_at: src.expires_at,
+        calendar_id: data.calendarId,
+        category: data.category,
+        color,
+        sync_direction: data.syncDirection,
+      })
+      .select("id")
+      .single();
+    if (insErr) throw new Error(insErr.message);
+
+    return { id: inserted.id };
+  });
+
+export const updateGoogleCalendarConnection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        label: z.string().min(1).max(120).optional(),
+        category: z.enum(["pro", "perso"]).optional(),
+        color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+        sync_direction: z.enum(["pull", "push", "bidirectional"]).optional(),
+        is_active: z.boolean().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context as { userId: string };
+    const { id, ...rest } = data;
+    const patch: Record<string, unknown> = { ...rest, updated_at: new Date().toISOString() };
+    const { error } = await supabaseAdmin
+      .from("google_calendar_connections")
+      .update(patch)
+      .eq("id", id)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteGoogleCalendarConnection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as { userId: string };
+    const { error } = await supabaseAdmin
+      .from("google_calendar_connections")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+
