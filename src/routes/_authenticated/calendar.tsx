@@ -133,6 +133,12 @@ const SOURCE_META: Record<
   task: { badge: "🟠", color: "#f97316", label: "Tâche MyHub" },
 };
 
+function toCalendarSource(type?: AccountType | null): "google" | "icloud" | "outlook" | null {
+  if (type === "gmail") return "google";
+  if (type === "icloud" || type === "outlook") return type;
+  return null;
+}
+
 const DEFAULT_CATEGORY_COLORS: Record<EventCategory, string> = {
   pro_recurring: "#2563eb",
   pro_oneoff: "#0ea5e9",
@@ -1876,7 +1882,7 @@ function NewEventDialog({
         recurrence_rule: rrule,
         category,
         color,
-        source: acc ? (acc.type as never) : null,
+        source: toCalendarSource(acc?.type),
         sync_direction: acc?.sync_direction ?? "bidirectional",
       });
       if (error) throw error;
