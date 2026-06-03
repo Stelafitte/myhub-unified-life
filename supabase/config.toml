@@ -4,4 +4,7 @@ project_id = "ttonkqwfaaqdgpfiwomp"
 verify_jwt = false
 
 [functions.push-email-actions]
-verify_jwt = true
+# The function performs its own JWT auth via supabase.auth.getUser(authHeader),
+# so we disable platform-level verification to avoid double validation rejecting
+# valid sessions (clock skew / JWKS race) and silently dropping calls.
+verify_jwt = false

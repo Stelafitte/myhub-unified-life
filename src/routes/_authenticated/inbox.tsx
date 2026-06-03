@@ -773,7 +773,7 @@ function InboxPage() {
         });
         if (error) throw error;
       } catch (err) {
-        // Silencieux pour l'utilisateur ; on logue + on enfile pour replay offline.
+        // Silencieux pour l'utilisateur ; on logue + on enfile pour replay ultérieur.
         console.warn("[push-email-actions] queued for retry", err);
         if (!user?.id) return;
         try {
@@ -788,6 +788,59 @@ function InboxPage() {
       }
     })();
   };
+
+  // Drain pending push-email-actions queued during previous failures.
+  // Runs once on mount (after user is known) and then opportunistically when
+  // the inbox regains focus / comes back online.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    const drain = async () => {
+      if (!navigator.onLine) return;
+      const { data, error } = await supabase
+        .from("sync_queue")
+        .select("id, payload")
+        .eq("user_id", user.id)
+        .eq("entity_type", "email")
+        .eq("status", "pending")
+        .order("created_at", { ascending: true })
+        .limit(50);
+      if (error || !data || cancelled) return;
+      for (const row of data) {
+        const p = (row.payload ?? {}) as {
+          kind?: string;
+          action?: string;
+          account_id?: string;
+          email_id?: string;
+        };
+        if (p.kind !== "push-email-actions" || !p.action || !p.account_id || !p.email_id) continue;
+        try {
+          const { error: invErr } = await supabase.functions.invoke("push-email-actions", {
+            body: { email_id: p.email_id, action: p.action, account_id: p.account_id },
+          });
+          if (invErr) throw invErr;
+          await supabase.from("sync_queue").delete().eq("id", row.id);
+        } catch (err) {
+          // Stop draining on first hard failure so we don't hammer the provider.
+          console.warn("[push-email-actions] drain stopped", err);
+          return;
+        }
+        if (cancelled) return;
+      }
+    };
+    void drain();
+    const onFocus = () => void drain();
+    const onOnline = () => void drain();
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("online", onOnline);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", onOnline);
+    };
+  }, [user?.id]);
+
+
 
   // Mutations (optimistic)
   const patch = async (id: string, updates: Partial<Email>) => {
