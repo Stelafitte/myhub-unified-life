@@ -163,30 +163,33 @@ function DocumentsPage() {
   }
 
 
+  const activeDocs = useMemo(() => docs.filter((d) => !d.ai_skipped_reason), [docs]);
+  const skippedDocs = useMemo(() => docs.filter((d) => !!d.ai_skipped_reason), [docs]);
+
   const counts = useMemo(() => {
-    const c = { all: docs.length, email: 0, task: 0, meeting: 0, manual: 0, sensitive: 0, saved: 0, unsaved: 0 } as Record<string, number>;
-    for (const d of docs) {
+    const c = { all: activeDocs.length, email: 0, task: 0, meeting: 0, manual: 0, sensitive: 0, saved: 0, unsaved: 0 } as Record<string, number>;
+    for (const d of activeDocs) {
       c[d.source_type] = (c[d.source_type] ?? 0) + 1;
       if (d.is_sensitive) c.sensitive += 1;
       if (d.onedrive_item_id) c.saved += 1; else c.unsaved += 1;
     }
     return c;
-  }, [docs]);
+  }, [activeDocs]);
 
 
   const emailsByAccount = useMemo(() => {
     const m = new Map<string | "none", number>();
-    docs.filter((d) => d.source_type === "email").forEach((d) => {
+    activeDocs.filter((d) => d.source_type === "email").forEach((d) => {
       const k = d.account_id ?? "none";
       m.set(k, (m.get(k) ?? 0) + 1);
     });
     return m;
-  }, [docs]);
+  }, [activeDocs]);
 
   const filtered = useMemo(() => {
     const now = Date.now();
     const dayMs = 86400000;
-    return docs.filter((d) => {
+    return activeDocs.filter((d) => {
       if (source.kind === "sensitive" && !d.is_sensitive) return false;
       if (source.kind === "saved" && !d.onedrive_item_id) return false;
       if (source.kind === "unsaved" && d.onedrive_item_id) return false;
@@ -214,7 +217,7 @@ function DocumentsPage() {
       }
       return true;
     });
-  }, [docs, source, typeF, dateF, sizeF, aiF, search]);
+  }, [activeDocs, source, typeF, dateF, sizeF, aiF, search]);
 
   const grouped = useMemo(() => {
     const order = ["facture","contrat","rapport","presentation","courrier","rh","technique","image","autre","signature","__unclassified"] as const;
@@ -311,7 +314,14 @@ function DocumentsPage() {
     }
   }
 
-  const totalSize = docs.reduce((s, d) => s + (d.file_size ?? 0), 0);
+  const totalSize = activeDocs.reduce((s, d) => s + (d.file_size ?? 0), 0);
+
+  async function deleteSkippedDocs() {
+    if (skippedDocs.length === 0) return;
+    if (!confirm(`Supprimer ${skippedDocs.length} document${skippedDocs.length > 1 ? "s" : ""} ignoré${skippedDocs.length > 1 ? "s" : ""} ?`)) return;
+    await performDelete(skippedDocs);
+    load();
+  }
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] relative">
@@ -322,7 +332,7 @@ function DocumentsPage() {
       )}>
         <div className="p-3 border-b">
           <Button className="w-full" size="sm" onClick={() => setUploadOpen(true)}>＋ Ajouter un document</Button>
-          <p className="text-xs text-muted-foreground mt-2">{docs.length} fichiers · {formatBytes(totalSize)}</p>
+          <p className="text-xs text-muted-foreground mt-2">{activeDocs.length} fichiers · {formatBytes(totalSize)}</p>
         </div>
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-0.5 text-sm">
@@ -459,6 +469,17 @@ function DocumentsPage() {
               </Card>
             ) : (
               <div className="space-y-4">
+                {skippedDocs.length > 0 && (
+                  <div className="rounded-md border bg-amber-50 dark:bg-amber-950/20 px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-medium">{skippedDocs.length} document{skippedDocs.length > 1 ? "s" : ""} ignoré{skippedDocs.length > 1 ? "s" : ""}</span>
+                      <span className="text-muted-foreground">— masqué{skippedDocs.length > 1 ? "s" : ""} de la liste</span>
+                    </div>
+                    <Button size="sm" variant="destructive" onClick={deleteSkippedDocs} className="gap-1">
+                      <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                    </Button>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
                     <Sparkles className="h-4 w-4" /> Analyse IA
