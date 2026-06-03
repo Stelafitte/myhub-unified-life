@@ -281,12 +281,12 @@ export function EmailComposer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-2xl flex-col gap-0 p-0">
+        <DialogHeader className="shrink-0 border-b border-border px-6 py-4">
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-2">
+        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-6 py-4">
           {/* Sélecteur de compte expéditeur */}
           <div className="flex items-center gap-2">
             <label className="w-16 text-xs text-muted-foreground">De</label>
