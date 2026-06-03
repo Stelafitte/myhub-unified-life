@@ -440,19 +440,19 @@ async function findCandidateSlots(
     }
     return false;
   }
-  const startDay = new Date(earliest);
-  startDay.setHours(0, 0, 0, 0);
+  const TZ = "Europe/Paris";
+  const startDay = parisMidnight(new Date(earliest), TZ);
   for (let d = 0; d <= opts.daysAhead; d++) {
-    const day = new Date(startDay.getTime() + d * 86400_000);
-    const iso = ((day.getDay() + 6) % 7) + 1;
-    if (!workDays.has(iso)) continue;
-    const dayStart = new Date(day); dayStart.setHours(workStartHour, 0, 0, 0);
-    const dayEnd = new Date(day); dayEnd.setHours(workEndHour, 0, 0, 0);
-    for (let t = dayStart.getTime(); t + durationMs <= dayEnd.getTime(); t += step) {
+    const dayRef = new Date(startDay.getTime() + d * 86400_000 + 12 * 3600_000); // noon to avoid DST edge
+    const { y, mo, da, isoWeekday } = parisYMD(dayRef, TZ);
+    if (!workDays.has(isoWeekday)) continue;
+    const dayStartMs = parisWallToUtc(y, mo, da, workStartHour, 0, TZ).getTime();
+    const dayEndMs = parisWallToUtc(y, mo, da, workEndHour, 0, TZ).getTime();
+    for (let t = dayStartMs; t + durationMs <= dayEndMs; t += step) {
       if (t < earliest) continue;
       const endT = t + durationMs;
       if (isBusy(t, endT)) continue;
-      const startH = new Date(t).getHours();
+      const startH = parisHour(new Date(t), TZ);
       const period: "morning" | "afternoon" = startH < 12 ? "morning" : "afternoon";
       const ideal = (startH >= 10 && startH < 12) || (startH >= 14 && startH < 16);
       let score = 100;
