@@ -10,6 +10,10 @@ import { AccountSection } from "@/components/settings/account-section";
 import { PlanOperationSection } from "@/components/settings/plan-operation-section";
 import { BackendSection } from "@/components/settings/backend-section";
 import { MeetingsSection } from "@/components/settings/meetings-section";
+import { ContactsSection } from "@/components/settings/contacts-section";
+import { IntegrationsSection } from "@/components/settings/integrations-section";
+import { AiSection } from "@/components/settings/ai-section";
+import { NotificationsSection } from "@/components/settings/notifications-section";
 
 
 
@@ -33,46 +37,35 @@ function SettingsPage() {
       <Tabs defaultValue="account">
         <TabsList className="mb-6 flex-wrap">
           <TabsTrigger value="account">👤 Mon compte</TabsTrigger>
-          <TabsTrigger value="accounts">Comptes</TabsTrigger>
-          <TabsTrigger value="sync">Synchronisation</TabsTrigger>
-          <TabsTrigger value="preferences">Préférences</TabsTrigger>
+          <TabsTrigger value="accounts">📧 Comptes</TabsTrigger>
+          <TabsTrigger value="calendars">📅 Agendas</TabsTrigger>
+          <TabsTrigger value="contacts">👥 Contacts</TabsTrigger>
+          <TabsTrigger value="sync">🔄 Synchronisation</TabsTrigger>
+          <TabsTrigger value="integrations">🔌 Intégrations</TabsTrigger>
+          <TabsTrigger value="ai">✨ IA</TabsTrigger>
+          <TabsTrigger value="notifications">🔔 Notifications</TabsTrigger>
+          <TabsTrigger value="meetings">🗓️ Réunions</TabsTrigger>
           <TabsTrigger value="plan">📋 Plan d'opération</TabsTrigger>
           <TabsTrigger value="documents">📁 Documents</TabsTrigger>
-          <TabsTrigger value="meetings">🗓️ Réunions</TabsTrigger>
-          <TabsTrigger value="security">🔒 Sécurité & Conformité</TabsTrigger>
+          <TabsTrigger value="security">🔒 Sécurité</TabsTrigger>
+          <TabsTrigger value="preferences">🎨 Apparence</TabsTrigger>
           <TabsTrigger value="advanced">⚙️ Avancé</TabsTrigger>
         </TabsList>
 
-
-        <TabsContent value="account">
-          <AccountSection />
-        </TabsContent>
-        <TabsContent value="accounts">
-          <AccountsSection />
-        </TabsContent>
-        <TabsContent value="sync">
-          <SyncSection />
-        </TabsContent>
-        <TabsContent value="preferences">
-          <PreferencesSection />
-        </TabsContent>
-        <TabsContent value="plan">
-          <PlanOperationSection />
-        </TabsContent>
-
-        <TabsContent value="documents">
-          <DocumentsSection />
-        </TabsContent>
-        <TabsContent value="meetings">
-          <MeetingsSection />
-        </TabsContent>
-        <TabsContent value="security">
-          <SecuritySection />
-        </TabsContent>
-        <TabsContent value="advanced">
-          <BackendSection />
-        </TabsContent>
-
+        <TabsContent value="account"><AccountSection /></TabsContent>
+        <TabsContent value="accounts"><AccountsSection /></TabsContent>
+        <TabsContent value="calendars"><SyncSection /></TabsContent>
+        <TabsContent value="contacts"><ContactsSection /></TabsContent>
+        <TabsContent value="sync"><SyncSection /></TabsContent>
+        <TabsContent value="integrations"><IntegrationsSection /></TabsContent>
+        <TabsContent value="ai"><AiSection /></TabsContent>
+        <TabsContent value="notifications"><NotificationsSection /></TabsContent>
+        <TabsContent value="meetings"><MeetingsSection /></TabsContent>
+        <TabsContent value="plan"><PlanOperationSection /></TabsContent>
+        <TabsContent value="documents"><DocumentsSection /></TabsContent>
+        <TabsContent value="security"><SecuritySection /></TabsContent>
+        <TabsContent value="preferences"><PreferencesSection /></TabsContent>
+        <TabsContent value="advanced"><BackendSection /></TabsContent>
       </Tabs>
     </div>
   );
