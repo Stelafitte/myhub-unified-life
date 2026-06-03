@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { MeetingDialog } from "@/components/meetings/meeting-dialog";
+import { MeetingActionsPanel } from "@/components/meetings/meeting-actions-panel";
 import { downloadIcs } from "@/lib/ics";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
