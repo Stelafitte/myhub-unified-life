@@ -246,3 +246,219 @@ export const findAvailableSlots = createServerFn({ method: "POST" })
       busyIntervals: merged.length,
     };
   });
+
+/* ------------------------------------------------------------------ */
+/* AI slot proposal: rank free slots against user-provided constraints */
+/* ------------------------------------------------------------------ */
+
+export type AiProposedSlot = {
+  startAt: string;
+  endAt: string;
+  reason: string;
+};
+
+const aiProposeInput = z.object({
+  constraints: z.string().min(1).max(2000),
+  durationMinutes: z.number().int().min(15).max(8 * 60).default(60),
+  daysAhead: z.number().int().min(1).max(60).default(30),
+  leadHours: z.number().int().min(0).max(7 * 24).default(24),
+  maxResults: z.number().int().min(1).max(8).default(5),
+});
+
+export const aiProposeSlots = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => aiProposeInput.parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("LOVABLE_API_KEY manquant");
+    const { userId } = context as { userId: string };
+
+    // Reuse the slot finder logic by calling its handler-equivalent directly.
+    // Generate a wide candidate set (up to 20 slots) for the AI to choose from.
+    const candidates = await findCandidateSlots(userId, {
+      durationMinutes: data.durationMinutes,
+      daysAhead: data.daysAhead,
+      leadHours: data.leadHours,
+      maxResults: 20,
+    });
+
+    if (candidates.slots.length === 0) {
+      return { slots: [] as AiProposedSlot[], hasGoogleCalendar: candidates.hasGoogleCalendar, raw: "" };
+    }
+
+    const slotList = candidates.slots.map((s, i) => {
+      const start = new Date(s.startAt);
+      const end = new Date(s.endAt);
+      const day = start.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long" });
+      const hours = `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}–${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`;
+      return `${i + 1}. ${day} ${hours} (period=${s.period}) [startAt=${s.startAt}, endAt=${s.endAt}]`;
+    }).join("\n");
+
+    const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+
+    const system = `Tu es un assistant de planification. On te donne une liste de créneaux libres dans le calendrier de l'utilisateur (déjà filtrés sur ses heures de travail), et des contraintes en langage naturel. Ta tâche : choisir au maximum ${data.maxResults} créneaux qui respectent au mieux les contraintes, classés du meilleur au moins bon. Réponds UNIQUEMENT en JSON valide, sans markdown, au format : {"slots":[{"startAt":"ISO","endAt":"ISO","reason":"courte explication en français"}]}. Les valeurs startAt/endAt DOIVENT être copiées exactement depuis la liste fournie. Si aucun créneau ne convient, renvoie {"slots":[]}.`;
+
+    const user = `Date d'aujourd'hui : ${today}\n\nContraintes utilisateur :\n${data.constraints}\n\nCréneaux libres disponibles :\n${slotList}`;
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Lovable-API-Key": apiKey,
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      if (res.status === 429) throw new Error("Limite de requêtes IA atteinte, réessayez dans un instant.");
+      if (res.status === 402) throw new Error("Crédits IA épuisés. Ajoutez du crédit dans Paramètres → Workspace.");
+      throw new Error(`Erreur IA (${res.status}): ${body.slice(0, 200)}`);
+    }
+
+    const payload = await res.json() as { choices?: { message?: { content?: string } }[] };
+    const raw = payload.choices?.[0]?.message?.content ?? "";
+    let parsed: { slots?: AiProposedSlot[] } = {};
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error("Réponse IA invalide.");
+    }
+
+    // Validate: only keep slots whose startAt exists in candidates.
+    const allowed = new Set(candidates.slots.map((s) => s.startAt));
+    const slots = (parsed.slots ?? [])
+      .filter((s) => s && typeof s.startAt === "string" && allowed.has(s.startAt))
+      .slice(0, data.maxResults)
+      .map((s) => ({
+        startAt: s.startAt,
+        endAt: s.endAt,
+        reason: typeof s.reason === "string" ? s.reason.slice(0, 300) : "",
+      }));
+
+    return { slots, hasGoogleCalendar: candidates.hasGoogleCalendar, raw };
+  });
+
+/* Internal helper that mirrors findAvailableSlots but can be called from
+ * another server function without the createServerFn RPC overhead. */
+async function findCandidateSlots(
+  userId: string,
+  opts: { durationMinutes: number; daysAhead: number; leadHours: number; maxResults: number },
+): Promise<{ slots: AvailableSlot[]; hasGoogleCalendar: boolean }> {
+  const workStartHour = 8;
+  const workEndHour = 19;
+  const workDays = new Set([1, 2, 3, 4, 5]);
+
+  const now = Date.now();
+  const earliest = now + opts.leadHours * 3600_000;
+  const horizonEnd = now + opts.daysAhead * 86400_000;
+
+  const busy: Busy[] = [];
+  const { data: connections } = await supabaseAdmin
+    .from("google_calendar_connections")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_active", true);
+
+  for (const conn of connections ?? []) {
+    let accessToken = conn.access_token as string;
+    if (new Date(conn.expires_at).getTime() < Date.now() + 60_000) {
+      try {
+        const refreshed = await refreshAccessToken(conn.refresh_token);
+        accessToken = refreshed.accessToken;
+        await supabaseAdmin
+          .from("google_calendar_connections")
+          .update({ access_token: accessToken, expires_at: refreshed.expiresAt })
+          .eq("id", conn.id);
+      } catch { continue; }
+    }
+    try {
+      const res = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
+        method: "POST",
+        headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          timeMin: new Date(now).toISOString(),
+          timeMax: new Date(horizonEnd).toISOString(),
+          items: [{ id: conn.calendar_id || "primary" }],
+        }),
+      });
+      if (!res.ok) continue;
+      const body = (await res.json()) as { calendars?: Record<string, { busy?: { start: string; end: string }[] }> };
+      for (const cal of Object.values(body.calendars ?? {})) {
+        for (const b of cal.busy ?? []) {
+          busy.push({ start: new Date(b.start).getTime(), end: new Date(b.end).getTime() });
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  const { data: localMeetings } = await supabaseAdmin
+    .from("meetings")
+    .select("start_at, end_at, status")
+    .eq("user_id", userId)
+    .neq("status", "cancelled")
+    .gte("end_at", new Date(now).toISOString())
+    .lte("start_at", new Date(horizonEnd).toISOString());
+  for (const m of localMeetings ?? []) {
+    busy.push({ start: new Date(m.start_at).getTime(), end: new Date(m.end_at).getTime() });
+  }
+
+  busy.sort((a, b) => a.start - b.start);
+  const merged: Busy[] = [];
+  for (const b of busy) {
+    const last = merged[merged.length - 1];
+    if (last && b.start <= last.end) last.end = Math.max(last.end, b.end);
+    else merged.push({ ...b });
+  }
+
+  const durationMs = opts.durationMinutes * 60_000;
+  const step = 30 * 60_000;
+  const results: AvailableSlot[] = [];
+  function isBusy(start: number, end: number): boolean {
+    for (const b of merged) {
+      if (b.end <= start) continue;
+      if (b.start >= end) break;
+      return true;
+    }
+    return false;
+  }
+  const startDay = new Date(earliest);
+  startDay.setHours(0, 0, 0, 0);
+  for (let d = 0; d <= opts.daysAhead; d++) {
+    const day = new Date(startDay.getTime() + d * 86400_000);
+    const iso = ((day.getDay() + 6) % 7) + 1;
+    if (!workDays.has(iso)) continue;
+    const dayStart = new Date(day); dayStart.setHours(workStartHour, 0, 0, 0);
+    const dayEnd = new Date(day); dayEnd.setHours(workEndHour, 0, 0, 0);
+    for (let t = dayStart.getTime(); t + durationMs <= dayEnd.getTime(); t += step) {
+      if (t < earliest) continue;
+      const endT = t + durationMs;
+      if (isBusy(t, endT)) continue;
+      const startH = new Date(t).getHours();
+      const period: "morning" | "afternoon" = startH < 12 ? "morning" : "afternoon";
+      const ideal = (startH >= 10 && startH < 12) || (startH >= 14 && startH < 16);
+      let score = 100;
+      if (ideal) score += 50;
+      if (startH < 9 || startH >= 17) score -= 30;
+      score -= d;
+      results.push({ startAt: new Date(t).toISOString(), endAt: new Date(endT).toISOString(), period, score, ideal });
+    }
+  }
+  results.sort((a, b) => b.score - a.score);
+  const picked: AvailableSlot[] = [];
+  for (const s of results) {
+    if (picked.length >= opts.maxResults) break;
+    const ts = new Date(s.startAt).getTime();
+    if (picked.some((p) => Math.abs(new Date(p.startAt).getTime() - ts) < 90 * 60_000)) continue;
+    picked.push(s);
+  }
+  picked.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+  return { slots: picked, hasGoogleCalendar: (connections?.length ?? 0) > 0 };
+}
