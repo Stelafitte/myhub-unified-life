@@ -77,6 +77,7 @@ import {
 } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
+import { RecategorizePopover } from "@/components/inbox/recategorize-popover";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
 import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
 import { useDeleteKey } from "@/hooks/use-delete-key";
@@ -1931,6 +1932,26 @@ function InboxPage() {
                   >
                     <Clock className="h-3.5 w-3.5" />
                   </IconBtn>
+                  <RecategorizePopover
+                    email={{
+                      id: e.id,
+                      ai_theme_id: e.ai_theme_id ?? null,
+                      from_address: e.from_address ?? null,
+                      subject: e.subject ?? null,
+                    }}
+                    themes={themes}
+                    onApplied={(newThemeId, newThemes) => {
+                      setEmails((prev) =>
+                        prev.map((x) =>
+                          x.id === e.id
+                            ? { ...x, ai_theme_id: newThemeId, theme_processed_at: new Date().toISOString() }
+                            : x,
+                        ),
+                      );
+                      if (newThemes) setThemes(newThemes);
+                      void refreshThemes();
+                    }}
+                  />
                 </div>
               </div>
             );
