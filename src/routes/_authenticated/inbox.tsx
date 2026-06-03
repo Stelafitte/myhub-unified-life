@@ -1038,10 +1038,18 @@ function InboxPage() {
         .update({ deleted_at: now })
         .in("id", ids);
       if (error) { toast.error(error.message); return; }
+      for (const id of ids) {
+        const target = emails.find((x) => x.id === id);
+        pushAction(id, target?.account_id, "trash");
+      }
       const undoTrashBulk = async () => {
         const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
         if (err) { toast.error(err.message); return; }
         setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: null } : x)));
+        for (const id of ids) {
+          const target = emails.find((x) => x.id === id);
+          pushAction(id, target?.account_id, "untrash");
+        }
         toast.success("Suppression annulée");
       };
       toast.success(`${ids.length} email(s) dans la corbeille`, {
