@@ -758,6 +758,37 @@ function InboxPage() {
     }
   }, [filtered, isMobileInbox, selectedId]);
 
+  // Fire-and-forget: répercute l'action sur le fournisseur (Gmail/Outlook/IMAP).
+  // En cas d'erreur réseau → on enregistre dans sync_queue pour replay ultérieur.
+  const pushAction = (
+    emailId: string,
+    accountId: string | null | undefined,
+    action: "mark_read" | "mark_unread" | "trash" | "untrash",
+  ) => {
+    if (!accountId) return;
+    void (async () => {
+      try {
+        const { error } = await supabase.functions.invoke("push-email-actions", {
+          body: { email_id: emailId, action, account_id: accountId },
+        });
+        if (error) throw error;
+      } catch (err) {
+        // Silencieux pour l'utilisateur ; on logue + on enfile pour replay offline.
+        console.warn("[push-email-actions] queued for retry", err);
+        if (!user?.id) return;
+        try {
+          await supabase.from("sync_queue").insert({
+            user_id: user.id,
+            entity_type: "email",
+            entity_id: emailId,
+            action: "update",
+            payload: { kind: "push-email-actions", action, account_id: accountId, email_id: emailId },
+          });
+        } catch { /* best effort */ }
+      }
+    })();
+  };
+
   // Mutations (optimistic)
   const patch = async (id: string, updates: Partial<Email>) => {
     setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
@@ -765,7 +796,11 @@ function InboxPage() {
     if (error) toast.error(error.message);
   };
 
-  const toggleRead = (e: Email) => patch(e.id, { is_read: !e.is_read });
+  const toggleRead = (e: Email) => {
+    const next = !e.is_read;
+    void patch(e.id, { is_read: next });
+    pushAction(e.id, e.account_id, next ? "mark_read" : "mark_unread");
+  };
   const toggleStar = (e: Email) => patch(e.id, { is_starred: !e.is_starred });
   const archive = async (e: Email) => {
     const snapshot = e;
@@ -824,6 +859,11 @@ function InboxPage() {
       .update({ deleted_at: now })
       .in("id", idsToDelete);
     if (error) { toast.error(error.message); return; }
+    // Sync provider-side (fire and forget) — pour tous les mails passés à la corbeille.
+    for (const id of idsToDelete) {
+      const target = emails.find((x) => x.id === id);
+      pushAction(id, target?.account_id ?? e.account_id, "trash");
+    }
     const undoTrash = async () => {
       const { error: err } = await supabase
         .from("emails")
@@ -831,6 +871,10 @@ function InboxPage() {
         .in("id", idsToDelete);
       if (err) { toast.error(err.message); return; }
       setEmails((prev) => prev.map((x) => (idsToDelete.includes(x.id) ? { ...x, deleted_at: null } : x)));
+      for (const id of idsToDelete) {
+        const target = emails.find((x) => x.id === id);
+        pushAction(id, target?.account_id ?? e.account_id, "untrash");
+      }
       toast.success("Suppression annulée");
     };
     toast.success(
@@ -853,7 +897,10 @@ function InboxPage() {
       .update({ deleted_at: null })
       .eq("id", e.id);
     if (error) toast.error(error.message);
-    else toast.success("Email restauré");
+    else {
+      pushAction(e.id, e.account_id, "untrash");
+      toast.success("Email restauré");
+    }
   };
 
   const emptyTrash = async () => {
@@ -991,10 +1038,18 @@ function InboxPage() {
         .update({ deleted_at: now })
         .in("id", ids);
       if (error) { toast.error(error.message); return; }
+      for (const id of ids) {
+        const target = emails.find((x) => x.id === id);
+        pushAction(id, target?.account_id, "trash");
+      }
       const undoTrashBulk = async () => {
         const { error: err } = await supabase.from("emails").update({ deleted_at: null }).in("id", ids);
         if (err) { toast.error(err.message); return; }
         setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: null } : x)));
+        for (const id of ids) {
+          const target = emails.find((x) => x.id === id);
+          pushAction(id, target?.account_id, "untrash");
+        }
         toast.success("Suppression annulée");
       };
       toast.success(`${ids.length} email(s) dans la corbeille`, {
@@ -1013,6 +1068,10 @@ function InboxPage() {
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
     if (error) { toast.error(error.message); return; }
+    for (const id of ids) {
+      const target = emails.find((x) => x.id === id);
+      pushAction(id, target?.account_id, read ? "mark_read" : "mark_unread");
+    }
     const undoFn = async () => {
       await Promise.all(
         Array.from(prevByIdMap.entries()).map(([id, val]) =>
@@ -1058,7 +1117,10 @@ function InboxPage() {
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     setReaderOpen(true);
-    if (!e.is_read) patch(e.id, { is_read: true });
+    if (!e.is_read) {
+      void patch(e.id, { is_read: true });
+      pushAction(e.id, e.account_id, "mark_read");
+    }
     // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
     // « Retour » du téléphone ferme l'email et revienne à la liste.
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
