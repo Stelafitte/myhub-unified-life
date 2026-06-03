@@ -600,10 +600,14 @@ function AgendaPage() {
         <div
           className="flex-1 overflow-y-auto"
           onTouchStart={(e) => {
+            // Désactivé en vues week/day : la grille est déjà en scroll horizontal,
+            // sinon un drag latéral se transforme en "semaine précédente/suivante".
+            if (view === "week" || view === "day") return;
             const t = e.touches[0];
             (e.currentTarget as any)._sw = { x: t.clientX, y: t.clientY };
           }}
           onTouchEnd={(e) => {
+            if (view === "week" || view === "day") return;
             const s = (e.currentTarget as any)._sw;
             if (!s) return;
             const t = e.changedTouches[0];
