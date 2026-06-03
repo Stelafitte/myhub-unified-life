@@ -777,6 +777,58 @@ export function MeetingDialog({
               </div>
             </div>
 
+            {/* Préparation : durée + période de recherche (demandé tôt, pilote la recherche de créneaux) */}
+            <div className="rounded-md border p-3 bg-muted/10 space-y-3">
+              <div className="text-sm font-medium">Préparation du créneau</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="m-prep-duration">Durée de la réunion</Label>
+                  <Select
+                    value={String(prepDuration)}
+                    onValueChange={(v) => {
+                      const mins = Number(v);
+                      setPrepDuration(mins);
+                      // Si un début est déjà défini, on aligne la fin sur la nouvelle durée
+                      if (form.start_at) {
+                        const startMs = new Date(fromLocalInput(form.start_at)).getTime();
+                        const endIso = new Date(startMs + mins * 60000).toISOString();
+                        setForm((f) => ({ ...f, end_at: toLocalInput(endIso) }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="m-prep-duration"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="15">15 min</SelectItem>
+                      <SelectItem value="30">30 min</SelectItem>
+                      <SelectItem value="45">45 min</SelectItem>
+                      <SelectItem value="60">1 h</SelectItem>
+                      <SelectItem value="90">1 h 30</SelectItem>
+                      <SelectItem value="120">2 h</SelectItem>
+                      <SelectItem value="180">3 h</SelectItem>
+                      <SelectItem value="240">4 h</SelectItem>
+                      <SelectItem value="480">Journée (8 h)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="m-prep-days">Période de recherche</Label>
+                  <Select value={String(prepDays)} onValueChange={(v) => setPrepDays(Number(v))}>
+                    <SelectTrigger id="m-prep-days"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">7 prochains jours</SelectItem>
+                      <SelectItem value="14">14 prochains jours</SelectItem>
+                      <SelectItem value="30">30 prochains jours</SelectItem>
+                      <SelectItem value="60">60 prochains jours</SelectItem>
+                      <SelectItem value="90">90 prochains jours</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                La recherche de créneaux (manuelle ou IA) utilise vos agendas Google connectés (perso + pro) et vos réunions internes sur cette période.
+              </p>
+            </div>
+
             {/* Poll mode toggle */}
             <div className="flex items-center justify-between rounded-md border p-3 bg-muted/20">
               <div>
