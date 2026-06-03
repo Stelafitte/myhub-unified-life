@@ -501,6 +501,10 @@ function AgendaPage() {
           <Legend color={SOURCE_META.outlook.color} badge="🔷" label="Outlook / Exchange" />
           <Legend color={SOURCE_META.task.color} badge="🟠" label="Tâches MyHub Pro" />
 
+          <div className="mt-4">
+            <GoogleAgendasPanel onChanged={() => runSync(true)} />
+          </div>
+
           <div className="mt-4 space-y-2">
             {accounts.some((a) => a.type === "gmail") ? (
               <Button
