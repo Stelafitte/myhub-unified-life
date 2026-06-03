@@ -459,7 +459,7 @@ export const updateGoogleCalendarConnection = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
     const { id, ...rest } = data;
-    const patch: Record<string, unknown> = { ...rest, updated_at: new Date().toISOString() };
+    const patch = { ...rest, updated_at: new Date().toISOString() };
     const { error } = await supabaseAdmin
       .from("google_calendar_connections")
       .update(patch)
