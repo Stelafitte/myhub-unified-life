@@ -48,6 +48,19 @@ export const Route = createFileRoute("/_authenticated")({
         search: { redirect: location.href },
       });
     }
+
+    // 3) Onboarding gate : forcer /onboarding tant que profiles.onboarding_completed_at
+    //    est null. Ne pas rediriger si l'utilisateur est déjà sur /onboarding.
+    if (!location.pathname.startsWith("/onboarding")) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("onboarding_completed_at")
+        .eq("id", data.session.user.id)
+        .maybeSingle();
+      if (!profile?.onboarding_completed_at) {
+        throw redirect({ to: "/onboarding", replace: true });
+      }
+    }
   },
   component: AuthenticatedLayout,
 });
