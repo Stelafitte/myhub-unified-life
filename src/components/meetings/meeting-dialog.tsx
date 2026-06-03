@@ -1076,7 +1076,7 @@ export function MeetingDialog({
 
             <div>
               <Label htmlFor="m-desc">Description / Ordre du jour</Label>
-              <Textarea id="m-desc" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              <DebouncedTextarea id="m-desc" rows={3} value={form.description} onValueChange={(v) => setForm((f) => ({ ...f, description: v }))} />
             </div>
 
             {user && (
