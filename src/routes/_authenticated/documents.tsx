@@ -229,8 +229,20 @@ function DocumentsPage() {
       .filter((k) => map.has(k))
       .map((k) => ({ key: k as string, docs: map.get(k as string)! }));
   }, [filtered]);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch { return new Set(); }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(Array.from(collapsedGroups))); } catch { /* noop */ }
+  }, [collapsedGroups]);
   const toggleGroup = (k: string) => setCollapsedGroups((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const expandAll = () => setCollapsedGroups(new Set());
+  const collapseAll = () => setCollapsedGroups(new Set(grouped.map((g) => g.key)));
+  const allCollapsed = grouped.length > 0 && grouped.every((g) => collapsedGroups.has(g.key));
 
   const selectionMode = selected.size > 0;
   const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selected.has(d.id));
