@@ -97,6 +97,39 @@ export function useSyncStatus() {
         window.dispatchEvent(new CustomEvent("emails-synced", { detail: { synced: imapCount } }));
       }
 
+      // Calendar sync (Outlook / Google) — only if user enabled it in settings
+      // and frequency != -1 (manual). Failures are silent (background sync).
+      try {
+        const { data: syncSettings } = await supabase
+          .from("sync_settings")
+          .select("source, direction, sync_frequency_minutes")
+          .in("source", ["outlook_calendar", "google_calendar"]);
+        const enabled = (src: string) => {
+          const s = (syncSettings ?? []).find((x) => x.source === src);
+          return s && s.direction !== "disabled" && s.sync_frequency_minutes !== -1;
+        };
+        const calJobs: Promise<unknown>[] = [];
+        if (enabled("outlook_calendar")) {
+          calJobs.push(
+            syncOutlookCalendarEvents({ data: {} }).then(async (r) => {
+              await supabase.from("sync_settings").update({ last_sync_at: new Date().toISOString() }).eq("source", "outlook_calendar");
+              return r;
+            }).catch((e) => console.warn("[sync] outlook_calendar failed", e)),
+          );
+        }
+        if (enabled("google_calendar")) {
+          calJobs.push(
+            syncGoogleCalendarEvents({ data: {} }).then(async (r) => {
+              await supabase.from("sync_settings").update({ last_sync_at: new Date().toISOString() }).eq("source", "google_calendar");
+              return r;
+            }).catch((e) => console.warn("[sync] google_calendar failed", e)),
+          );
+        }
+        if (calJobs.length > 0) await Promise.all(calJobs);
+      } catch (e) {
+        console.warn("[sync] calendar sync skipped", e);
+      }
+
       return { flushed: flushRes.ok, imap: imapCount };
     } finally {
       setSyncing(false);
