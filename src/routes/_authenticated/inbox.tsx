@@ -859,6 +859,11 @@ function InboxPage() {
       .update({ deleted_at: now })
       .in("id", idsToDelete);
     if (error) { toast.error(error.message); return; }
+    // Sync provider-side (fire and forget) — pour tous les mails passés à la corbeille.
+    for (const id of idsToDelete) {
+      const target = emails.find((x) => x.id === id);
+      pushAction(id, target?.account_id ?? e.account_id, "trash");
+    }
     const undoTrash = async () => {
       const { error: err } = await supabase
         .from("emails")
@@ -866,6 +871,10 @@ function InboxPage() {
         .in("id", idsToDelete);
       if (err) { toast.error(err.message); return; }
       setEmails((prev) => prev.map((x) => (idsToDelete.includes(x.id) ? { ...x, deleted_at: null } : x)));
+      for (const id of idsToDelete) {
+        const target = emails.find((x) => x.id === id);
+        pushAction(id, target?.account_id ?? e.account_id, "untrash");
+      }
       toast.success("Suppression annulée");
     };
     toast.success(
