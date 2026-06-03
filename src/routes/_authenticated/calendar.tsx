@@ -685,6 +685,7 @@ function AgendaPage() {
         open={creatingAt !== null}
         onOpenChange={(v) => !v && setCreatingAt(null)}
         accounts={accounts}
+        gcalConnections={gcalConnections}
         userId={user?.id ?? ""}
         defaultDate={creatingAt ?? cursor}
         catColors={catColors}
