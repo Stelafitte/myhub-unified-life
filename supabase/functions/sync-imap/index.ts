@@ -536,6 +536,16 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
             body_text: bodyText,
           }, secLevel, whitelist, blacklist);
 
+          // Bug 2 fix : ne jamais ré-écraser is_read=true côté local par la sync.
+          const { data: existingRow } = await admin
+            .from("emails")
+            .select("is_read")
+            .eq("account_id", account.id)
+            .eq("message_id", messageId)
+            .maybeSingle();
+          const imapIsRead = msg.flags.includes("\\Seen");
+          const finalIsRead = existingRow?.is_read === true ? true : imapIsRead;
+
           const { data: upserted, error: upErr } = await admin.from("emails").upsert({
             account_id: account.id,
             user_id: account.user_id,
@@ -549,7 +559,7 @@ async function syncOne(account: any, admin: any, testOnly?: { server: string; po
             meeting_link: extractMeetingLink(bodyText, parsed.textHtml ?? null),
             has_attachment: parsed.attachments > 0,
             received_at: receivedAt,
-            is_read: msg.flags.includes("\\Seen"),
+            is_read: finalIsRead,
             is_starred: msg.flags.includes("\\Flagged"),
             origin_tag: detectOrigin(to.address, (account.credentials as any)?.email ?? (account.credentials as any)?.username),
             thread_id: headers["in-reply-to"] || null,

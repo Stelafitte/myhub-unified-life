@@ -177,6 +177,10 @@ function InboxPage() {
   const [taskOpen, setTaskOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  // Bug 1 fix : snapshot des IDs non-lus quand on entre dans la vue "Non lus"
+  // pour que les mails ouverts (et passés is_read=true) ne disparaissent pas
+  // de la liste tant qu'on reste sur la vue.
+  const [unreadSnapshot, setUnreadSnapshot] = useState<Set<string> | null>(null);
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
   const listThemesFn = useServerFn(listThemes);
@@ -603,7 +607,13 @@ function InboxPage() {
         if (false) list = list;
       } else {
         list = list.filter((e) => !isSpam(e) && !isPromo(e));
-        if (filter === "unread") list = list.filter((e) => !e.is_read);
+        if (filter === "unread") {
+          // Garde visibles les mails non-lus au moment d'entrer dans la vue,
+          // même si on les ouvre (is_read=true). Les nouveaux non-lus s'ajoutent.
+          list = list.filter((e) =>
+            unreadSnapshot ? unreadSnapshot.has(e.id) || !e.is_read : !e.is_read,
+          );
+        }
         else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
         else if (filter === "starred") list = list.filter((e) => e.is_starred);
         else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
@@ -624,7 +634,21 @@ function InboxPage() {
       );
     }
     return list;
-  }, [emails, filter, query]);
+  }, [emails, filter, query, unreadSnapshot]);
+
+  // Bug 1 fix : capture/relâche le snapshot des non-lus selon la vue active.
+  useEffect(() => {
+    if (filter === "unread") {
+      setUnreadSnapshot(
+        new Set(emails.filter((e) => !e.is_read && !e.deleted_at).map((e) => e.id)),
+      );
+    } else {
+      setUnreadSnapshot(null);
+    }
+    // On capture une seule fois à l'entrée dans la vue ; les nouveaux non-lus
+    // s'affichent grâce à la condition || !e.is_read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
 
   // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
   // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
@@ -789,23 +813,25 @@ function InboxPage() {
       .update({ deleted_at: now })
       .in("id", idsToDelete);
     if (error) { toast.error(error.message); return; }
+    const undoTrash = async () => {
+      const { error: err } = await supabase
+        .from("emails")
+        .update({ deleted_at: null })
+        .in("id", idsToDelete);
+      if (err) { toast.error(err.message); return; }
+      setEmails((prev) => prev.map((x) => (idsToDelete.includes(x.id) ? { ...x, deleted_at: null } : x)));
+      toast.success("Suppression annulée");
+    };
     toast.success(
       idsToDelete.length > 1
         ? `${idsToDelete.length} emails déplacés vers la corbeille`
         : "Email déplacé vers la corbeille",
-    );
-    pushUndo({
-      label: "Mise à la corbeille",
-      run: async () => {
-        const { error: err } = await supabase
-          .from("emails")
-          .update({ deleted_at: null })
-          .in("id", idsToDelete);
-        if (err) throw new Error(err.message);
-        setEmails((prev) => prev.map((x) => (idsToDelete.includes(x.id) ? { ...x, deleted_at: null } : x)));
-        toast.success("Suppression annulée");
+      {
+        duration: 5000,
+        action: { label: "Annuler", onClick: () => { void undoTrash(); } },
       },
-    });
+    );
+    pushUndo({ label: "Mise à la corbeille", run: undoTrash });
   };
 
   const restore = async (e: Email) => {
