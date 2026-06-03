@@ -775,6 +775,18 @@ function DocRow({
           )}
           <div className="hidden sm:flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button size="icon" variant="ghost" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onPreview(); }} title="Aperçu"><Eye className="h-3.5 w-3.5" /></Button>
+            {isSkipped && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-violet-600"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onSubmitToAI(); }}
+                title="Soumettre à l'IA"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            )}
             {doc.storage_path && !doc.local_only && (
               <Button
                 size="icon"
