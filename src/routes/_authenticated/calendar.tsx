@@ -341,6 +341,30 @@ function AgendaPage() {
   const hiddenConns = useHiddenConnections();
   const unified: UnifiedEvent[] = useMemo(() => {
     const items: UnifiedEvent[] = [];
+    // Fenêtre d'expansion des récurrences : 60 jours en arrière → 2 ans en avant
+    const expFrom = addDays(new Date(), -60).getTime();
+    const expTo = addDays(new Date(), 730).getTime();
+
+    const parseRule = (rule: string | null | undefined) => {
+      if (!rule) return null;
+      const parts = rule.split(/[\s;\n]+/).filter(Boolean);
+      const map: Record<string, string> = {};
+      for (const p of parts) {
+        const [k, v] = p.split("=");
+        if (k && v) map[k.toUpperCase()] = v;
+      }
+      const freq = map.FREQ?.toUpperCase();
+      const interval = Math.max(1, parseInt(map.INTERVAL ?? "1", 10) || 1);
+      const count = map.COUNT ? parseInt(map.COUNT, 10) : null;
+      const until = map.UNTIL ? new Date(
+        map.UNTIL.replace(/^(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?(\d{2})?Z?$/,
+          (_m, y, mo, d, h = "00", mi = "00", s = "00") =>
+            `${y}-${mo}-${d}T${h}:${mi}:${s}Z`),
+      ).getTime() : null;
+      if (!freq || !["DAILY", "WEEKLY", "MONTHLY", "YEARLY"].includes(freq)) return null;
+      return { freq, interval, count, until };
+    };
+
     for (const e of events) {
       const connId = (e as { gcal_connection_id?: string | null }).gcal_connection_id ?? null;
       if (connId && hiddenConns.has(connId)) continue;
@@ -349,25 +373,52 @@ function AgendaPage() {
       const meta = isGoogle ? SOURCE_META.gmail : (acc ? SOURCE_META[acc.type] : SOURCE_META.imap);
       const blob = `${e.description ?? ""} ${e.location ?? ""}`;
       const cat = categoryOf(e);
-      items.push({
-        id: `e:${e.id}`,
-        kind: "event",
-        title: e.title,
-        start: new Date(e.start_at),
-        end: new Date(e.end_at),
-        location: e.location,
-        description: e.description,
-        color: e.color || catColors[cat],
-        badge: meta.badge,
-        sourceLabel: acc?.name ?? meta.label,
-        accountId: e.account_id,
-        isAllDay: e.is_all_day,
-        hasVideo: VIDEO_RX.test(blob),
-        category: cat,
-        raw: e,
-      });
+      const baseStart = new Date(e.start_at);
+      const baseEnd = new Date(e.end_at);
+      const duration = baseEnd.getTime() - baseStart.getTime();
+
+      const push = (start: Date, end: Date, suffix = "") => {
+        items.push({
+          id: `e:${e.id}${suffix}`,
+          kind: "event",
+          title: e.title,
+          start,
+          end,
+          location: e.location,
+          description: e.description,
+          color: e.color || catColors[cat],
+          badge: meta.badge,
+          sourceLabel: acc?.name ?? meta.label,
+          accountId: e.account_id,
+          isAllDay: e.is_all_day,
+          hasVideo: VIDEO_RX.test(blob),
+          category: cat,
+          raw: e,
+        });
+      };
+
+      const rule = parseRule(e.recurrence_rule);
+      if (!rule) {
+        push(baseStart, baseEnd);
+        continue;
+      }
+
+      // Génération bornée des occurrences
+      const MAX_OCC = 800;
+      const limit = rule.count ?? MAX_OCC;
+      for (let i = 0; i < Math.min(limit, MAX_OCC); i++) {
+        const s = new Date(baseStart);
+        if (rule.freq === "DAILY") s.setDate(s.getDate() + i * rule.interval);
+        else if (rule.freq === "WEEKLY") s.setDate(s.getDate() + i * 7 * rule.interval);
+        else if (rule.freq === "MONTHLY") s.setMonth(s.getMonth() + i * rule.interval);
+        else if (rule.freq === "YEARLY") s.setFullYear(s.getFullYear() + i * rule.interval);
+        const t = s.getTime();
+        if (rule.until && t > rule.until) break;
+        if (t > expTo) break;
+        if (t < expFrom) continue;
+        push(s, new Date(t + duration), i === 0 ? "" : `:${i}`);
+      }
     }
-    // Les tâches ne sont volontairement pas affichées dans l'agenda
     return items.sort((a, b) => a.start.getTime() - b.start.getTime());
   }, [events, tasks, accById, catColors, hiddenConns]);
 
