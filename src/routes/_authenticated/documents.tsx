@@ -370,19 +370,21 @@ function DocumentsPage() {
                 ))}
               </FilterGroup>
               <div className="mt-2 px-1">
-                <label className="text-[10px] uppercase text-muted-foreground block mb-1">Ignorer fichiers &lt;</label>
+                <label className="text-[10px] uppercase text-muted-foreground block mb-1">Ignorer les fichiers de moins de</label>
                 <div className="flex items-center gap-1.5">
                   <Input
                     type="number"
                     min={0}
                     value={minSizeKb}
                     onChange={(e) => setMinSizeKb(Number(e.target.value))}
-                    onBlur={(e) => saveMinSize(Number(e.target.value))}
                     className="h-7 text-xs"
                   />
-                  <span className="text-xs text-muted-foreground">Ko</span>
+                  <span className="text-xs text-muted-foreground">KB</span>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">S'applique à tous les fichiers (signatures, logos, fragments…).</p>
+                <Button size="sm" variant="outline" className="mt-1.5 h-7 w-full text-xs" onClick={applyMinSizeRule}>
+                  Appliquer la règle
+                </Button>
+                <p className="text-[10px] text-muted-foreground mt-1">Marque les fichiers en-dessous du seuil comme ignorés et restaure ceux qui dépassent.</p>
               </div>
             </div>
 
