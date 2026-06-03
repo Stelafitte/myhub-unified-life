@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter, X, CheckCircle2, Cloud, Sparkles, Wand2 } from "lucide-react";
+import { FolderOpen, Mail, CheckSquare, CalendarClock, Folder, Search, Lock, Trash2, Eye, Link as LinkIcon, Loader2, Filter, X, CheckCircle2, Cloud, Sparkles, Wand2, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,18 +45,20 @@ type DateFilter = "all" | "today" | "week" | "month";
 type SizeFilter = "all" | "heavy";
 type AiFilter = "all" | "unclassified" | "signature" | "facture" | "contrat" | "rapport" | "presentation" | "courrier" | "rh" | "technique" | "image" | "autre";
 
-const AI_CATEGORY_META: Record<string, { label: string; cls: string }> = {
-  facture: { label: "Facture", cls: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" },
-  contrat: { label: "Contrat", cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" },
-  rapport: { label: "Rapport", cls: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300" },
-  presentation: { label: "Présentation", cls: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300" },
-  courrier: { label: "Courrier", cls: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300" },
-  rh: { label: "RH", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" },
-  technique: { label: "Technique", cls: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200" },
-  image: { label: "Image", cls: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:text-fuchsia-300" },
-  signature: { label: "Signature", cls: "bg-muted text-muted-foreground" },
-  autre: { label: "Autre", cls: "bg-muted text-muted-foreground" },
+const AI_CATEGORY_META: Record<string, { label: string; cls: string; border: string; scope: "pro" | "perso" }> = {
+  facture: { label: "Facture", cls: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300", border: "border-l-amber-500", scope: "pro" },
+  contrat: { label: "Contrat", cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300", border: "border-l-blue-500", scope: "pro" },
+  rapport: { label: "Rapport", cls: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300", border: "border-l-violet-500", scope: "pro" },
+  presentation: { label: "Présentation", cls: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300", border: "border-l-pink-500", scope: "pro" },
+  courrier: { label: "Courrier", cls: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300", border: "border-l-sky-500", scope: "perso" },
+  rh: { label: "RH", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300", border: "border-l-emerald-500", scope: "pro" },
+  technique: { label: "Technique", cls: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200", border: "border-l-slate-500", scope: "pro" },
+  image: { label: "Image", cls: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:text-fuchsia-300", border: "border-l-fuchsia-500", scope: "perso" },
+  signature: { label: "Signature", cls: "bg-muted text-muted-foreground", border: "border-l-muted-foreground/40", scope: "perso" },
+  autre: { label: "Autre", cls: "bg-muted text-muted-foreground", border: "border-l-muted-foreground/40", scope: "perso" },
 };
+
+const COLLAPSED_STORAGE_KEY = "myhub:docs:collapsedGroups";
 
 function DocumentsPage() {
   const [docs, setDocs] = useState<DocumentRow[]>([]);
@@ -103,6 +105,40 @@ function DocumentsPage() {
       { user_id: user.id, ai_min_size_kb: clamped },
       { onConflict: "user_id" },
     );
+  }
+
+  async function applyMinSizeRule() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await saveMinSize(minSizeKb);
+    const bytes = minSizeKb * 1024;
+    const reason = `Fichier trop petit (< ${minSizeKb} KB)`;
+    const { data: marked } = await supabase
+      .from("documents")
+      .update({ ai_skipped_reason: reason })
+      .eq("user_id", user.id)
+      .lt("file_size", bytes)
+      .is("ai_skipped_reason", null)
+      .select("id");
+    // Auto-restore docs now above threshold previously skipped for size
+    await supabase
+      .from("documents")
+      .update({ ai_skipped_reason: null, ai_processed_at: null })
+      .eq("user_id", user.id)
+      .gte("file_size", bytes)
+      .like("ai_skipped_reason", "Fichier trop petit%");
+    toast.success(`${marked?.length ?? 0} fichiers marqués comme ignorés`);
+    await load();
+  }
+
+  async function submitDocToAI(d: DocumentRow) {
+    const { error } = await supabase
+      .from("documents")
+      .update({ ai_skipped_reason: null, ai_processed_at: null })
+      .eq("id", d.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Fichier soumis à l'analyse IA");
+    load();
   }
 
   async function classifyNow() {
@@ -193,8 +229,20 @@ function DocumentsPage() {
       .filter((k) => map.has(k))
       .map((k) => ({ key: k as string, docs: map.get(k as string)! }));
   }, [filtered]);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const raw = localStorage.getItem(COLLAPSED_STORAGE_KEY);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch { return new Set(); }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(COLLAPSED_STORAGE_KEY, JSON.stringify(Array.from(collapsedGroups))); } catch { /* noop */ }
+  }, [collapsedGroups]);
   const toggleGroup = (k: string) => setCollapsedGroups((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const expandAll = () => setCollapsedGroups(new Set());
+  const collapseAll = () => setCollapsedGroups(new Set(grouped.map((g) => g.key)));
+  const allCollapsed = grouped.length > 0 && grouped.every((g) => collapsedGroups.has(g.key));
 
   const selectionMode = selected.size > 0;
   const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selected.has(d.id));
@@ -322,19 +370,21 @@ function DocumentsPage() {
                 ))}
               </FilterGroup>
               <div className="mt-2 px-1">
-                <label className="text-[10px] uppercase text-muted-foreground block mb-1">Ignorer fichiers &lt;</label>
+                <label className="text-[10px] uppercase text-muted-foreground block mb-1">Ignorer les fichiers de moins de</label>
                 <div className="flex items-center gap-1.5">
                   <Input
                     type="number"
                     min={0}
                     value={minSizeKb}
                     onChange={(e) => setMinSizeKb(Number(e.target.value))}
-                    onBlur={(e) => saveMinSize(Number(e.target.value))}
                     className="h-7 text-xs"
                   />
-                  <span className="text-xs text-muted-foreground">Ko</span>
+                  <span className="text-xs text-muted-foreground">KB</span>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">S'applique à tous les fichiers (signatures, logos, fragments…).</p>
+                <Button size="sm" variant="outline" className="mt-1.5 h-7 w-full text-xs" onClick={applyMinSizeRule}>
+                  Appliquer la règle
+                </Button>
+                <p className="text-[10px] text-muted-foreground mt-1">Marque les fichiers en-dessous du seuil comme ignorés et restaure ceux qui dépassent.</p>
               </div>
             </div>
 
@@ -409,39 +459,72 @@ function DocumentsPage() {
               </Card>
             ) : (
               <div className="space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+                    <Sparkles className="h-4 w-4" /> Analyse IA
+                  </h2>
+                  <div className="flex gap-1.5">
+                    <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={expandAll} disabled={collapsedGroups.size === 0}>
+                      ⊕ Tout déplier
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={collapseAll} disabled={allCollapsed}>
+                      ⊖ Tout replier
+                    </Button>
+                  </div>
+                </div>
                 {grouped.map(({ key, docs: groupDocs }) => {
-                  const meta = key === "__unclassified"
-                    ? { label: "Non classés", cls: "bg-muted text-muted-foreground" }
-                    : (AI_CATEGORY_META[key] ?? { label: key, cls: "bg-muted text-muted-foreground" });
+                  const baseMeta = key === "__unclassified"
+                    ? { label: "Sans thème", cls: "bg-muted text-muted-foreground", border: "border-l-muted-foreground/40", scope: "perso" as const }
+                    : (AI_CATEGORY_META[key] ?? { label: key, cls: "bg-muted text-muted-foreground", border: "border-l-muted-foreground/40", scope: "perso" as const });
                   const collapsed = collapsedGroups.has(key);
+                  const groupSize = groupDocs.reduce((s, d) => s + (d.file_size ?? 0), 0);
                   return (
-                    <div key={key}>
+                    <div key={key} className="overflow-hidden rounded-md border bg-card">
                       <button
                         onClick={() => toggleGroup(key)}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 mb-1 rounded hover:bg-muted/50 transition-colors text-left"
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-l-4",
+                          baseMeta.border,
+                        )}
+                        style={{ height: 44 }}
                       >
                         <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full", meta.cls)}>{meta.label}</span>
-                        <span className="text-xs text-muted-foreground">{groupDocs.length}</span>
-                        <span className="ml-auto text-xs text-muted-foreground">{collapsed ? "▸" : "▾"}</span>
+                        <span className="text-sm font-semibold">{baseMeta.label}</span>
+                        <span className="text-xs text-muted-foreground">({groupDocs.length})</span>
+                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium", baseMeta.cls)}>{baseMeta.label}</span>
+                        <span className="ml-2 text-[11px] text-muted-foreground">
+                          {baseMeta.scope === "pro" ? "📋 Pro" : "🏠 Perso"}
+                        </span>
+                        <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{groupDocs.length} fichier{groupDocs.length > 1 ? "s" : ""} · {formatBytes(groupSize)}</span>
+                          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </span>
                       </button>
-                      {!collapsed && (
-                        <div className="space-y-1">
-                          {groupDocs.map((d) => (
-                            <DocRow
-                              key={d.id}
-                              doc={d}
-                              selectionMode={selectionMode}
-                              selected={selected.has(d.id)}
-                              onToggleSelect={() => toggleSelect(d.id)}
-                              onPreview={() => selectionMode ? toggleSelect(d.id) : setPreview(d)}
-                              onDelete={() => deleteDoc(d)}
-                              onCopy={() => copyLink(d)}
-                              onSaveToOneDrive={() => setSaveTarget(d)}
-                            />
-                          ))}
+                      <div
+                        className={cn(
+                          "grid transition-[grid-template-rows] duration-200 ease-out",
+                          collapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]",
+                        )}
+                      >
+                        <div className="overflow-hidden">
+                          <div className="divide-y">
+                            {groupDocs.map((d) => (
+                              <DocRow
+                                key={d.id}
+                                doc={d}
+                                selectionMode={selectionMode}
+                                selected={selected.has(d.id)}
+                                onToggleSelect={() => toggleSelect(d.id)}
+                                onPreview={() => selectionMode ? toggleSelect(d.id) : setPreview(d)}
+                                onDelete={() => deleteDoc(d)}
+                                onCopy={() => copyLink(d)}
+                                onSaveToOneDrive={() => setSaveTarget(d)}
+                                onSubmitToAI={() => submitDocToAI(d)}
+                              />
+                            ))}
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}
@@ -502,6 +585,7 @@ function DocRow({
   onDelete,
   onCopy,
   onSaveToOneDrive,
+  onSubmitToAI,
 }: {
   doc: DocumentRow;
   selectionMode: boolean;
@@ -511,7 +595,9 @@ function DocRow({
   onDelete: () => void;
   onCopy: () => void;
   onSaveToOneDrive: () => void;
+  onSubmitToAI: () => void;
 }) {
+  const isSkipped = !!doc.ai_skipped_reason;
 
   const cat = categorize(doc.mime_type, doc.filename);
   const Icon = iconFor(cat);
@@ -618,6 +704,7 @@ function DocRow({
           "relative flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 py-3 bg-background",
           !selected && "hover:bg-muted/50",
           selected && "bg-primary/10",
+          isSkipped && "opacity-50",
           startRef.current?.locked === "h" ? "" : "transition-transform duration-200",
         )}
         style={{ transform: `translateX(${dragX}px)` }}
@@ -657,6 +744,11 @@ function DocRow({
             </span>
           )}
           {doc.is_sensitive && <Badge variant="destructive" className="text-[10px] gap-0.5"><Lock className="h-2.5 w-2.5" />Sensible</Badge>}
+          {isSkipped && (
+            <Badge variant="secondary" className="gap-0.5 bg-muted text-[10px] text-muted-foreground" title={doc.ai_skipped_reason ?? ""}>
+              Ignoré
+            </Badge>
+          )}
           {doc.onedrive_item_id ? (
             doc.onedrive_web_url ? (
               <a
@@ -683,6 +775,18 @@ function DocRow({
           )}
           <div className="hidden sm:flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Button size="icon" variant="ghost" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onPreview(); }} title="Aperçu"><Eye className="h-3.5 w-3.5" /></Button>
+            {isSkipped && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-violet-600"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); onSubmitToAI(); }}
+                title="Soumettre à l'IA"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            )}
             {doc.storage_path && !doc.local_only && (
               <Button
                 size="icon"
