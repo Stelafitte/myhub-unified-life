@@ -8,11 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Download, ShieldAlert, KeyRound, LogOut, Eye, EyeOff } from "lucide-react";
+import { Download, ShieldAlert, KeyRound, LogOut, Eye, EyeOff, Sparkles } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 export function AccountSection() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -243,6 +245,22 @@ export function AccountSection() {
           </Button>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuration initiale</CardTitle>
+          <CardDescription>Relancer l'assistant de mise en route</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            onClick={() => navigate({ to: "/onboarding", search: { force: true } })}
+          >
+            <Sparkles className="mr-2 h-4 w-4" /> Recommencer l'onboarding
+          </Button>
+        </CardContent>
+      </Card>
+
 
       <Card className="border-destructive/50">
         <CardHeader>
