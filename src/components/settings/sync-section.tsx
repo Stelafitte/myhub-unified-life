@@ -17,6 +17,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SYNC_SOURCES, type SyncEntityType } from "@/lib/sync-sources";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useServerFn } from "@tanstack/react-start";
+import { syncOutlookCalendarEvents } from "@/lib/api/outlook-calendar.functions";
+import { syncGoogleCalendarEvents } from "@/lib/api/google-calendar.functions";
 
 type Direction = "push" | "pull" | "bidirectional" | "disabled";
 
