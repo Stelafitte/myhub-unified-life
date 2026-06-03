@@ -634,7 +634,21 @@ function InboxPage() {
       );
     }
     return list;
-  }, [emails, filter, query]);
+  }, [emails, filter, query, unreadSnapshot]);
+
+  // Bug 1 fix : capture/relâche le snapshot des non-lus selon la vue active.
+  useEffect(() => {
+    if (filter === "unread") {
+      setUnreadSnapshot(
+        new Set(emails.filter((e) => !e.is_read && !e.deleted_at).map((e) => e.id)),
+      );
+    } else {
+      setUnreadSnapshot(null);
+    }
+    // On capture une seule fois à l'entrée dans la vue ; les nouveaux non-lus
+    // s'affichent grâce à la condition || !e.is_read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
 
   // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
   // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
