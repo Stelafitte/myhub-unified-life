@@ -314,7 +314,14 @@ function DocumentsPage() {
     }
   }
 
-  const totalSize = docs.reduce((s, d) => s + (d.file_size ?? 0), 0);
+  const totalSize = activeDocs.reduce((s, d) => s + (d.file_size ?? 0), 0);
+
+  async function deleteSkippedDocs() {
+    if (skippedDocs.length === 0) return;
+    if (!confirm(`Supprimer ${skippedDocs.length} document${skippedDocs.length > 1 ? "s" : ""} ignoré${skippedDocs.length > 1 ? "s" : ""} ?`)) return;
+    await performDelete(skippedDocs);
+    load();
+  }
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)] relative">
