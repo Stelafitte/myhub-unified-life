@@ -204,6 +204,8 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
             const endStr = ev.end?.dateTime ?? (ev.end?.date ? `${ev.end.date}T00:00:00Z` : null);
             if (!startStr || !endStr) return null;
             const isAllDay = !!ev.start?.date && !ev.start?.dateTime;
+            const connCategory = (conn as { category?: string }).category === "perso" ? "perso" : "pro";
+            const connColor = (conn as { color?: string | null }).color ?? (connCategory === "perso" ? "#f97316" : "#6366f1");
             return {
               user_id: userId,
               account_id: accountId,
@@ -218,6 +220,8 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
               is_all_day: isAllDay,
               source: "google" as const,
               sync_direction: "pull" as const,
+              category: connCategory,
+              color: connColor,
             };
           })
           .filter((r): r is NonNullable<typeof r> => r !== null);
