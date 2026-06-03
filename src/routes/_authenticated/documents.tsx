@@ -45,18 +45,20 @@ type DateFilter = "all" | "today" | "week" | "month";
 type SizeFilter = "all" | "heavy";
 type AiFilter = "all" | "unclassified" | "signature" | "facture" | "contrat" | "rapport" | "presentation" | "courrier" | "rh" | "technique" | "image" | "autre";
 
-const AI_CATEGORY_META: Record<string, { label: string; cls: string }> = {
-  facture: { label: "Facture", cls: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" },
-  contrat: { label: "Contrat", cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300" },
-  rapport: { label: "Rapport", cls: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300" },
-  presentation: { label: "Présentation", cls: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300" },
-  courrier: { label: "Courrier", cls: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300" },
-  rh: { label: "RH", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300" },
-  technique: { label: "Technique", cls: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200" },
-  image: { label: "Image", cls: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:text-fuchsia-300" },
-  signature: { label: "Signature", cls: "bg-muted text-muted-foreground" },
-  autre: { label: "Autre", cls: "bg-muted text-muted-foreground" },
+const AI_CATEGORY_META: Record<string, { label: string; cls: string; border: string; scope: "pro" | "perso" }> = {
+  facture: { label: "Facture", cls: "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300", border: "border-l-amber-500", scope: "pro" },
+  contrat: { label: "Contrat", cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300", border: "border-l-blue-500", scope: "pro" },
+  rapport: { label: "Rapport", cls: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300", border: "border-l-violet-500", scope: "pro" },
+  presentation: { label: "Présentation", cls: "bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300", border: "border-l-pink-500", scope: "pro" },
+  courrier: { label: "Courrier", cls: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300", border: "border-l-sky-500", scope: "perso" },
+  rh: { label: "RH", cls: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300", border: "border-l-emerald-500", scope: "pro" },
+  technique: { label: "Technique", cls: "bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200", border: "border-l-slate-500", scope: "pro" },
+  image: { label: "Image", cls: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:text-fuchsia-300", border: "border-l-fuchsia-500", scope: "perso" },
+  signature: { label: "Signature", cls: "bg-muted text-muted-foreground", border: "border-l-muted-foreground/40", scope: "perso" },
+  autre: { label: "Autre", cls: "bg-muted text-muted-foreground", border: "border-l-muted-foreground/40", scope: "perso" },
 };
+
+const COLLAPSED_STORAGE_KEY = "myhub:docs:collapsedGroups";
 
 function DocumentsPage() {
   const [docs, setDocs] = useState<DocumentRow[]>([]);
