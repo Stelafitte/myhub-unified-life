@@ -1930,6 +1930,8 @@ function NewEventDialog({
   const [location, setLocation] = useState("");
   const [participants, setParticipants] = useState("");
   const [recurrence, setRecurrence] = useState<string>("none");
+  const [recurrenceUntil, setRecurrenceUntil] = useState<string>("");
+
   const [category, setCategory] = useState<"pro" | "perso">("pro");
   const [color, setColor] = useState<string>(catColors.pro_oneoff);
   const [notes, setNotes] = useState("");
@@ -1970,6 +1972,8 @@ function NewEventDialog({
       setLocation("");
       setParticipants("");
       setRecurrence("none");
+      setRecurrenceUntil("");
+
       setCategory("pro");
       setColor(catColors.pro_oneoff);
       setNotes("");
@@ -1985,11 +1989,18 @@ function NewEventDialog({
     setSaving(true);
     try {
       const acc = accounts.find((a) => a.id === accountId);
-      const rrule =
+      const baseRule =
         recurrence === "none" ? null :
         recurrence === "daily" ? "FREQ=DAILY" :
         recurrence === "weekly" ? "FREQ=WEEKLY" :
         recurrence === "monthly" ? "FREQ=MONTHLY" : null;
+      let rrule = baseRule;
+      if (rrule && recurrenceUntil) {
+        // UNTIL au format YYYYMMDDT235959Z (fin de journée UTC)
+        const until = recurrenceUntil.replace(/-/g, "") + "T235959Z";
+        rrule = `${rrule};UNTIL=${until}`;
+      }
+
 
       const parts = participants
         .split(/[,;\s]+/)
@@ -2165,6 +2176,22 @@ function NewEventDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {recurrence !== "none" && (
+            <div>
+              <Label htmlFor="ev-until">Fin de la récurrence (optionnel)</Label>
+              <Input
+                id="ev-until"
+                type="date"
+                value={recurrenceUntil}
+                onChange={(e) => setRecurrenceUntil(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Laisser vide pour une récurrence sans fin.
+              </p>
+            </div>
+          )}
+
 
           <div>
             <Label htmlFor="ev-notes">Notes</Label>
