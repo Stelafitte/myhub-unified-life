@@ -721,14 +721,14 @@ function PlanOperationPage() {
                               e.dataTransfer.effectAllowed = "move";
                             }}
                             onDragEnd={() => { setDragTaskId(null); setDragOverSection(null); }}
-                            onClick={() => handleBarClick(b)}
+                            onClick={() => tryOpenBar(b)}
                             className={cn(
                               "group flex cursor-grab items-center gap-2 border-b px-3 text-xs hover:bg-accent/50 active:cursor-grabbing",
                               dragTaskId === b.id && "opacity-40",
                               b.status === "done" && "bg-emerald-50/60",
                             )}
                             style={{ height: ROW_H }}
-                            title={`${b.title} — glisser pour changer de section`}
+                            title={`${b.title} — double-cliquer pour ouvrir, glisser pour changer de section`}
                           >
                             <span className={cn("h-2 w-2 shrink-0 rounded-full", b.priority ? PRIORITY_META[b.priority].dot : "bg-muted-foreground")} />
                             <span className="flex-1 truncate">{b.title}</span>
