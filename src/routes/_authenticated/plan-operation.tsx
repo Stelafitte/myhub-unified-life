@@ -472,6 +472,17 @@ function PlanOperationPage() {
     if (b.type === "task") { setEditing(b.raw as Task); setPanelOpen(true); }
   };
 
+  const tryOpenBar = (b: Bar) => {
+    const now = Date.now();
+    const last = lastClickRef.current;
+    if (last && last.id === b.id && now - last.ts < 400) {
+      lastClickRef.current = null;
+      handleBarClick(b);
+    } else {
+      lastClickRef.current = { id: b.id, ts: now };
+    }
+  };
+
   const handleUpdateRange = async (b: Bar, s: Date, e: Date) => {
     if (b.type !== "task") return;
     const payload = { gantt_start: s.toISOString(), gantt_end: e.toISOString(), due_date: e.toISOString() };
