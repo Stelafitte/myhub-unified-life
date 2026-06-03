@@ -855,15 +855,18 @@ function WeekOrDayView({
           </div>
         ))}
       </div>
-      <div className={cn("grid flex-1", days === 1 ? "grid-cols-1 min-w-[280px]" : "grid-cols-7 min-w-[560px]")}>
+      <div className={cn("grid flex-1", days === 1 ? "grid-cols-1 min-w-[280px]" : "grid-cols-7 min-w-[700px]")}>
 
         {dayCols.map((d) => {
           const dayEvents = events.filter((e) => sameDay(e.start, d));
           const isToday = sameDay(d, today);
+          const dayNum = d.getDate();
+          const wd = d.toLocaleDateString("fr-FR", { weekday: "short" }).replace(".", "");
           return (
             <div key={d.toISOString()} className="relative border-r">
-              <div className={cn("flex h-10 items-center justify-center border-b text-xs font-medium", isToday && "bg-primary/10 text-primary")}>
-                {fmtDate(d)}
+              <div className={cn("flex h-10 items-center justify-center gap-1 border-b text-xs font-medium", isToday && "bg-primary/10 text-primary")}>
+                <span className="capitalize">{wd}</span>
+                <span className={cn("inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1", isToday && "bg-primary text-primary-foreground")}>{dayNum}</span>
               </div>
               <div
                 className="relative"
