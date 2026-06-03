@@ -752,7 +752,7 @@ export function MeetingDialog({
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
               <div>
                 <Label htmlFor="m-title">Titre *</Label>
-                <Input id="m-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                <DebouncedInput id="m-title" value={form.title} onValueChange={(v) => setForm((f) => ({ ...f, title: v }))} />
               </div>
               <div>
                 <Label htmlFor="m-imp">Importance</Label>
