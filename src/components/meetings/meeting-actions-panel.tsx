@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Card } from "@/components/ui/card";
@@ -8,15 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CalendarClock, AlertTriangle, ExternalLink, Loader2, CheckCircle2, Circle, Timer } from "lucide-react";
+import { CalendarClock, AlertTriangle, Loader2, CheckCircle2, Circle, Timer } from "lucide-react";
 import { format, isPast, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-export const Route = createFileRoute("/_authenticated/meeting-actions")({
-  component: MeetingActionsPage,
-});
 
 type Task = {
   id: string;
@@ -38,13 +33,13 @@ const STATUS_COLS: { key: Task["status"]; label: string; icon: typeof Circle; to
   { key: "done", label: "Terminé", icon: CheckCircle2, tone: "text-emerald-500" },
 ];
 
-function MeetingActionsPage() {
+export function MeetingActionsPanel({ meetingId }: { meetingId?: string }) {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [links, setLinks] = useState<MTLink[]>([]);
   const [loading, setLoading] = useState(true);
-  const [meetingFilter, setMeetingFilter] = useState<string>("all");
+  const [meetingFilter, setMeetingFilter] = useState<string>(meetingId ?? "all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [showOverdueOnly, setShowOverdueOnly] = useState(false);
@@ -123,15 +118,12 @@ function MeetingActionsPage() {
   };
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-4 p-4">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Actions de réunion</h1>
-          <p className="text-sm text-muted-foreground">
-            {tasks.length} action{tasks.length > 1 ? "s" : ""} issues de vos réunions
-            {overdueCount > 0 && <> · <span className="text-destructive font-medium">{overdueCount} en retard</span></>}
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          {tasks.length} action{tasks.length > 1 ? "s" : ""} issues de vos réunions
+          {overdueCount > 0 && <> · <span className="text-destructive font-medium">{overdueCount} en retard</span></>}
+        </p>
         <Button variant={showOverdueOnly ? "default" : "outline"} size="sm" onClick={() => setShowOverdueOnly((v) => !v)}>
           <AlertTriangle className="h-4 w-4 mr-1" /> En retard {overdueCount > 0 && `(${overdueCount})`}
         </Button>
@@ -139,15 +131,17 @@ function MeetingActionsPage() {
 
       <Card className="p-3 flex flex-wrap gap-2 items-center">
         <Input placeholder="Rechercher…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs h-9" />
-        <Select value={meetingFilter} onValueChange={setMeetingFilter}>
-          <SelectTrigger className="w-[220px] h-9"><SelectValue placeholder="Toutes les réunions" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Toutes les réunions</SelectItem>
-            {meetings.map((m) => (
-              <SelectItem key={m.id} value={m.id}>{m.title}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!meetingId && (
+          <Select value={meetingFilter} onValueChange={setMeetingFilter}>
+            <SelectTrigger className="w-[220px] h-9"><SelectValue placeholder="Toutes les réunions" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les réunions</SelectItem>
+              {meetings.map((m) => (
+                <SelectItem key={m.id} value={m.id}>{m.title}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
           <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Tous les responsables" /></SelectTrigger>
           <SelectContent>
@@ -223,11 +217,10 @@ function TaskCard({ task, meeting, onStatusChange, compact }: {
           <Badge variant={priorityTone as never} className="shrink-0 text-[10px] uppercase">{task.priority}</Badge>
         </div>
         {meeting && (
-          <Link to="/meetings" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <CalendarClock className="h-3 w-3" />
             <span className="truncate">{meeting.title}</span>
-            <ExternalLink className="h-3 w-3" />
-          </Link>
+          </div>
         )}
         <div className="flex flex-wrap items-center gap-2 text-xs">
           {task.due_date && (

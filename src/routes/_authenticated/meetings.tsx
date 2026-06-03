@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { MeetingDialog } from "@/components/meetings/meeting-dialog";
+import { MeetingActionsPanel } from "@/components/meetings/meeting-actions-panel";
 import { downloadIcs } from "@/lib/ics";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
@@ -181,6 +182,7 @@ function MeetingsPage() {
           <TabsTrigger value="invitations">
             Invitations <Badge variant="secondary" className="ml-2">{invitations.length}</Badge>
           </TabsTrigger>
+          <TabsTrigger value="actions">Actions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="upcoming" className="mt-4">
@@ -191,6 +193,9 @@ function MeetingsPage() {
         </TabsContent>
         <TabsContent value="invitations" className="mt-4">
           <MeetingList loading={loading} meetings={invitations} participants={participants} taskCounts={taskCounts} pollsByMeeting={pollsByMeeting} empty="Aucune invitation en attente." onEdit={openEdit} onExport={exportIcs} myEmail={myEmail} onRsvp={rsvp} showRsvp />
+        </TabsContent>
+        <TabsContent value="actions" className="mt-4">
+          <MeetingActionsPanel />
         </TabsContent>
       </Tabs>
 
