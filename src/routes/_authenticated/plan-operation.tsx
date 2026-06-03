@@ -862,6 +862,7 @@ function BarRow({
 }) {
   const [drag, setDrag] = useState<null | { mode: "move" | "resize-l" | "resize-r"; startX: number; origStart: Date; origEnd: Date }>(null);
   const [preview, setPreview] = useState<{ s: Date; e: Date } | null>(null);
+  const barClickRef = useRef<{ ts: number } | null>(null);
 
   const cur = preview ?? { s: bar.start, e: bar.end };
   const left = Math.floor((cur.s.getTime() - start.getTime()) / 86400000) * dayPx;
