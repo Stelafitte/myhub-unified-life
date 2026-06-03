@@ -899,7 +899,8 @@ export function MeetingDialog({
                 </div>
 
                 <SlotFinder
-                  durationMinutes={60}
+                  durationMinutes={prepDuration}
+                  daysAhead={prepDays}
                   onPick={({ startAt, endAt }) => addPollSlot(startAt, endAt)}
                 />
 
