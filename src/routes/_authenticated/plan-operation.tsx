@@ -910,7 +910,18 @@ function BarRow({
           <HoverCard openDelay={250} closeDelay={100}>
             <HoverCardTrigger asChild>
               <div
-                onClick={(ev) => { if (!drag) { ev.stopPropagation(); onClick(); } }}
+                title="Double-cliquer pour ouvrir"
+                onClick={(ev) => {
+                  if (drag) return;
+                  ev.stopPropagation();
+                  const now = Date.now();
+                  if (barClickRef.current && now - barClickRef.current.ts < 400) {
+                    barClickRef.current = null;
+                    onClick();
+                  } else {
+                    barClickRef.current = { ts: now };
+                  }
+                }}
                 onPointerDown={onPointerDown("move")}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
