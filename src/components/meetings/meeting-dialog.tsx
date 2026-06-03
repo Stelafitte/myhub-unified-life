@@ -1041,12 +1041,8 @@ export function MeetingDialog({
                 </div>
 
                 <SlotFinder
-                  durationMinutes={(() => {
-                    if (!form.start_at || !form.end_at) return 60;
-                    const ms = new Date(fromLocalInput(form.end_at)).getTime() - new Date(fromLocalInput(form.start_at)).getTime();
-                    const m = Math.round(ms / 60000);
-                    return m > 0 ? m : 60;
-                  })()}
+                  durationMinutes={prepDuration}
+                  daysAhead={prepDays}
                   onPick={({ startAt, endAt }) => {
                     setForm((f) => ({
                       ...f,
