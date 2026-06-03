@@ -1068,7 +1068,7 @@ export function MeetingDialog({
                 {form.online_provider === "zoom" && (
                   <div>
                     <Label htmlFor="m-zpwd">Mot de passe Zoom (optionnel)</Label>
-                    <Input id="m-zpwd" value={form.zoom_password} onChange={(e) => setForm({ ...form, zoom_password: e.target.value })} />
+                    <DebouncedInput id="m-zpwd" value={form.zoom_password} onValueChange={(v) => setForm((f) => ({ ...f, zoom_password: v }))} />
                   </div>
                 )}
               </div>
