@@ -356,14 +356,19 @@ function AgendaPage() {
       const freq = map.FREQ?.toUpperCase();
       const interval = Math.max(1, parseInt(map.INTERVAL ?? "1", 10) || 1);
       const count = map.COUNT ? parseInt(map.COUNT, 10) : null;
-      const until = map.UNTIL ? new Date(
-        map.UNTIL.replace(/^(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?(\d{2})?Z?$/,
-          (_m, y, mo, d, h = "00", mi = "00", s = "00") =>
-            `${y}-${mo}-${d}T${h}:${mi}:${s}Z`),
-      ).getTime() : null;
+      const toDate = (s: string) => new Date(
+        s.replace(/^(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?(\d{2})?Z?$/,
+          (_m, y, mo, d, h = "00", mi = "00", s2 = "00") =>
+            `${y}-${mo}-${d}T${h}:${mi}:${s2}Z`),
+      ).getTime();
+      const until = map.UNTIL ? toDate(map.UNTIL) : null;
+      const exdates = new Set<number>(
+        (map.EXDATE ? map.EXDATE.split(",").filter(Boolean) : []).map(toDate),
+      );
       if (!freq || !["DAILY", "WEEKLY", "MONTHLY", "YEARLY"].includes(freq)) return null;
-      return { freq, interval, count, until };
+      return { freq, interval, count, until, exdates };
     };
+
 
     for (const e of events) {
       const connId = (e as { gcal_connection_id?: string | null }).gcal_connection_id ?? null;
@@ -416,11 +421,13 @@ function AgendaPage() {
         if (rule.until && t > rule.until) break;
         if (t > expTo) break;
         if (t < expFrom) continue;
+        if (rule.exdates.has(t)) continue;
         push(s, new Date(t + duration), i === 0 ? "" : `:${i}`);
       }
     }
     return items.sort((a, b) => a.start.getTime() - b.start.getTime());
   }, [events, tasks, accById, catColors, hiddenConns]);
+
 
   // Range for current view
   const range = useMemo(() => {
@@ -459,17 +466,52 @@ function AgendaPage() {
     if (ev.kind !== "event") return;
     const dbEv = ev.raw as DbEvent;
     const isRecurring = !!(dbEv.recurrence_rule && dbEv.recurrence_rule.trim().length > 0);
+    const id = dbEv.id;
+
     if (isRecurring) {
-      const ok = confirm(
-        `"${ev.title}" fait partie d'une série récurrente (${dbEv.recurrence_rule}).\n\n` +
-        `OK = supprimer TOUTE la série récurrente.\n` +
+      // 3 choix : occurrence seule / toute la série / annuler
+      const onlyThis = confirm(
+        `"${ev.title}" fait partie d'une série récurrente.\n\n` +
+        `OK = supprimer SEULEMENT cette occurrence (${ev.start.toLocaleString("fr-FR")}).\n` +
+        `Annuler = voir d'autres options.`,
+      );
+      if (onlyThis) {
+        // Ajouter EXDATE à la règle
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const d = ev.start;
+        const exdate = `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
+        const rule = dbEv.recurrence_rule!;
+        const exMatch = rule.match(/(^|;)EXDATE=([^;]*)/i);
+        const newRule = exMatch
+          ? rule.replace(/(^|;)EXDATE=([^;]*)/i, (_m, p1, p2) => `${p1}EXDATE=${p2 ? p2 + "," : ""}${exdate}`)
+          : `${rule};EXDATE=${exdate}`;
+        const prev = events;
+        const next = prev.map((e) => e.id === id ? { ...e, recurrence_rule: newRule } : e);
+        setEvents(next);
+        setSelected(null);
+        cacheReplaceAll("calendar_events", next).catch(() => {});
+        const { error } = await supabase
+          .from("calendar_events")
+          .update({ recurrence_rule: newRule })
+          .eq("id", id);
+        if (error) {
+          toast.error(error.message);
+          setEvents(prev);
+          cacheReplaceAll("calendar_events", prev).catch(() => {});
+        } else {
+          toast.success("Occurrence supprimée");
+        }
+        return;
+      }
+      const all = confirm(
+        `Supprimer TOUTE la série récurrente "${ev.title}" ?\n\n` +
+        `OK = supprimer toutes les occurrences.\n` +
         `Annuler = ne rien supprimer.`,
       );
-      if (!ok) return;
+      if (!all) return;
     } else {
       if (!confirm(`Supprimer "${ev.title}" ?`)) return;
     }
-    const id = dbEv.id;
     // Optimistic update + cache: avoid the cache rehydrate flash that reintroduced the event.
     const prev = events;
     const next = prev.filter((e) => e.id !== id);
@@ -485,6 +527,7 @@ function AgendaPage() {
       cacheReplaceAll("calendar_events", prev).catch(() => {});
     }
   };
+
 
   const moveEvent = async (ev: UnifiedEvent, deltaMin: number) => {
     if (ev.kind !== "event" || deltaMin === 0) return;
