@@ -50,15 +50,29 @@ export const Route = createFileRoute("/_authenticated")({
     }
 
     // 3) Onboarding gate : forcer /onboarding tant que profiles.onboarding_completed_at
-    //    est null. Ne pas rediriger si l'utilisateur est déjà sur /onboarding.
+    //    est null — SAUF si l'utilisateur a déjà au moins un compte configuré
+    //    (cas d'un utilisateur existant qui se reconnecte : on auto-complète).
     if (!location.pathname.startsWith("/onboarding")) {
+      const userId = data.session.user.id;
       const { data: profile } = await supabase
         .from("profiles")
         .select("onboarding_completed_at")
-        .eq("id", data.session.user.id)
+        .eq("id", userId)
         .maybeSingle();
       if (!profile?.onboarding_completed_at) {
-        throw redirect({ to: "/onboarding", replace: true });
+        const { count } = await supabase
+          .from("accounts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId);
+        if ((count ?? 0) > 0) {
+          // Utilisateur existant — on marque l'onboarding comme terminé et on laisse passer.
+          await supabase
+            .from("profiles")
+            .update({ onboarding_completed_at: new Date().toISOString() })
+            .eq("id", userId);
+        } else {
+          throw redirect({ to: "/onboarding", replace: true });
+        }
       }
     }
   },
