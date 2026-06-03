@@ -1004,10 +1004,52 @@ function InboxPage() {
   const bulkMarkRead = async (read: boolean) => {
     const ids = bulkIds();
     if (!ids.length) return;
+    // Snapshot des valeurs avant pour l'annulation
+    const prevByIdMap = new Map(emails.filter((x) => ids.includes(x.id)).map((x) => [x.id, x.is_read] as const));
     setEmails((prev) => prev.map((x) => (checked.has(x.id) ? { ...x, is_read: read } : x)));
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
-    if (error) toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
+    const undoFn = async () => {
+      await Promise.all(
+        Array.from(prevByIdMap.entries()).map(([id, val]) =>
+          supabase.from("emails").update({ is_read: val }).eq("id", id),
+        ),
+      );
+      setEmails((prev) => prev.map((x) => (prevByIdMap.has(x.id) ? { ...x, is_read: prevByIdMap.get(x.id)! } : x)));
+      toast.success("Action annulée");
+    };
+    toast.success(`${ids.length} email(s) marqué(s) ${read ? "lus" : "non lus"}`, {
+      duration: 5000,
+      action: { label: "Annuler", onClick: () => { void undoFn(); } },
+    });
+  };
+
+  // Déplacement groupé vers un thème IA (ou aucun)
+  const bulkSetTheme = async (themeId: string | null) => {
+    const ids = bulkIds();
+    if (!ids.length) return;
+    const prevByIdMap = new Map(
+      emails.filter((x) => ids.includes(x.id)).map((x) => [x.id, x.ai_theme_id ?? null] as const),
+    );
+    setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, ai_theme_id: themeId } : x)));
+    clearChecked();
+    const { error } = await supabase.from("emails").update({ ai_theme_id: themeId }).in("id", ids);
+    if (error) { toast.error(error.message); return; }
+    const themeName = themeId ? (themes.find((t) => t.id === themeId)?.name ?? "ce thème") : "Sans thème";
+    const undoFn = async () => {
+      await Promise.all(
+        Array.from(prevByIdMap.entries()).map(([id, val]) =>
+          supabase.from("emails").update({ ai_theme_id: val }).eq("id", id),
+        ),
+      );
+      setEmails((prev) => prev.map((x) => (prevByIdMap.has(x.id) ? { ...x, ai_theme_id: prevByIdMap.get(x.id)! } : x)));
+      toast.success("Déplacement annulé");
+    };
+    toast.success(`${ids.length} email(s) déplacé(s) vers « ${themeName} »`, {
+      duration: 5000,
+      action: { label: "Annuler", onClick: () => { void undoFn(); } },
+    });
   };
 
   const openEmail = (e: Email) => {
