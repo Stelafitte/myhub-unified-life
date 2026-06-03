@@ -179,17 +179,17 @@ function DocumentsPage() {
 
   const emailsByAccount = useMemo(() => {
     const m = new Map<string | "none", number>();
-    docs.filter((d) => d.source_type === "email").forEach((d) => {
+    activeDocs.filter((d) => d.source_type === "email").forEach((d) => {
       const k = d.account_id ?? "none";
       m.set(k, (m.get(k) ?? 0) + 1);
     });
     return m;
-  }, [docs]);
+  }, [activeDocs]);
 
   const filtered = useMemo(() => {
     const now = Date.now();
     const dayMs = 86400000;
-    return docs.filter((d) => {
+    return activeDocs.filter((d) => {
       if (source.kind === "sensitive" && !d.is_sensitive) return false;
       if (source.kind === "saved" && !d.onedrive_item_id) return false;
       if (source.kind === "unsaved" && d.onedrive_item_id) return false;
@@ -217,7 +217,7 @@ function DocumentsPage() {
       }
       return true;
     });
-  }, [docs, source, typeF, dateF, sizeF, aiF, search]);
+  }, [activeDocs, source, typeF, dateF, sizeF, aiF, search]);
 
   const grouped = useMemo(() => {
     const order = ["facture","contrat","rapport","presentation","courrier","rh","technique","image","autre","signature","__unclassified"] as const;
