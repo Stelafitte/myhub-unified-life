@@ -459,39 +459,72 @@ function DocumentsPage() {
               </Card>
             ) : (
               <div className="space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+                    <Sparkles className="h-4 w-4" /> Analyse IA
+                  </h2>
+                  <div className="flex gap-1.5">
+                    <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={expandAll} disabled={collapsedGroups.size === 0}>
+                      ⊕ Tout déplier
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={collapseAll} disabled={allCollapsed}>
+                      ⊖ Tout replier
+                    </Button>
+                  </div>
+                </div>
                 {grouped.map(({ key, docs: groupDocs }) => {
-                  const meta = key === "__unclassified"
-                    ? { label: "Non classés", cls: "bg-muted text-muted-foreground" }
-                    : (AI_CATEGORY_META[key] ?? { label: key, cls: "bg-muted text-muted-foreground" });
+                  const baseMeta = key === "__unclassified"
+                    ? { label: "Sans thème", cls: "bg-muted text-muted-foreground", border: "border-l-muted-foreground/40", scope: "perso" as const }
+                    : (AI_CATEGORY_META[key] ?? { label: key, cls: "bg-muted text-muted-foreground", border: "border-l-muted-foreground/40", scope: "perso" as const });
                   const collapsed = collapsedGroups.has(key);
+                  const groupSize = groupDocs.reduce((s, d) => s + (d.file_size ?? 0), 0);
                   return (
-                    <div key={key}>
+                    <div key={key} className="overflow-hidden rounded-md border bg-card">
                       <button
                         onClick={() => toggleGroup(key)}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 mb-1 rounded hover:bg-muted/50 transition-colors text-left"
+                        className={cn(
+                          "w-full flex items-center gap-2 px-3 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-l-4",
+                          baseMeta.border,
+                        )}
+                        style={{ height: 44 }}
                       >
                         <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className={cn("text-[11px] font-medium px-2 py-0.5 rounded-full", meta.cls)}>{meta.label}</span>
-                        <span className="text-xs text-muted-foreground">{groupDocs.length}</span>
-                        <span className="ml-auto text-xs text-muted-foreground">{collapsed ? "▸" : "▾"}</span>
+                        <span className="text-sm font-semibold">{baseMeta.label}</span>
+                        <span className="text-xs text-muted-foreground">({groupDocs.length})</span>
+                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium", baseMeta.cls)}>{baseMeta.label}</span>
+                        <span className="ml-2 text-[11px] text-muted-foreground">
+                          {baseMeta.scope === "pro" ? "📋 Pro" : "🏠 Perso"}
+                        </span>
+                        <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{groupDocs.length} fichier{groupDocs.length > 1 ? "s" : ""} · {formatBytes(groupSize)}</span>
+                          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </span>
                       </button>
-                      {!collapsed && (
-                        <div className="space-y-1">
-                          {groupDocs.map((d) => (
-                            <DocRow
-                              key={d.id}
-                              doc={d}
-                              selectionMode={selectionMode}
-                              selected={selected.has(d.id)}
-                              onToggleSelect={() => toggleSelect(d.id)}
-                              onPreview={() => selectionMode ? toggleSelect(d.id) : setPreview(d)}
-                              onDelete={() => deleteDoc(d)}
-                              onCopy={() => copyLink(d)}
-                              onSaveToOneDrive={() => setSaveTarget(d)}
-                            />
-                          ))}
+                      <div
+                        className={cn(
+                          "grid transition-[grid-template-rows] duration-200 ease-out",
+                          collapsed ? "grid-rows-[0fr]" : "grid-rows-[1fr]",
+                        )}
+                      >
+                        <div className="overflow-hidden">
+                          <div className="divide-y">
+                            {groupDocs.map((d) => (
+                              <DocRow
+                                key={d.id}
+                                doc={d}
+                                selectionMode={selectionMode}
+                                selected={selected.has(d.id)}
+                                onToggleSelect={() => toggleSelect(d.id)}
+                                onPreview={() => selectionMode ? toggleSelect(d.id) : setPreview(d)}
+                                onDelete={() => deleteDoc(d)}
+                                onCopy={() => copyLink(d)}
+                                onSaveToOneDrive={() => setSaveTarget(d)}
+                                onSubmitToAI={() => submitDocToAI(d)}
+                              />
+                            ))}
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   );
                 })}
