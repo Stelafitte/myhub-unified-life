@@ -208,32 +208,6 @@ function useLongPress(cb: () => void, ms = 500) {
   };
 }
 
-function usePressToOpen(onOpen: () => void, ms = 400) {
-  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fired = React.useRef(false);
-  const clear = () => {
-    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
-  };
-  return {
-    onPointerDown: (e: React.PointerEvent) => {
-      fired.current = false;
-      timer.current = setTimeout(() => { fired.current = true; onOpen(); }, ms);
-    },
-    onPointerUp: () => { clear(); },
-    onPointerLeave: () => { clear(); },
-    onPointerMove: (e: React.PointerEvent) => {
-      if (timer.current && (Math.abs(e.movementX) > 6 || Math.abs(e.movementY) > 6)) clear();
-    },
-    onClick: (e: React.MouseEvent) => {
-      if (fired.current) {
-        e.stopPropagation();
-        fired.current = false;
-      } else {
-        e.stopPropagation();
-      }
-    },
-  };
-}
 
 
 
