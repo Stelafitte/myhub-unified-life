@@ -523,7 +523,7 @@ function AgendaPage() {
           <Legend color={SOURCE_META.task.color} badge="🟠" label="Tâches MyHub Pro" />
 
           <div className="mt-4">
-            <GoogleAgendasPanel onChanged={() => runSync(true)} />
+            <GoogleAgendasPanel onChanged={() => { reloadConnections(); runSync(true); }} />
           </div>
 
           <div className="mt-4 space-y-2">
