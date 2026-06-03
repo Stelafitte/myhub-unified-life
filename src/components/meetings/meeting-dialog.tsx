@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-input";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -751,7 +752,7 @@ export function MeetingDialog({
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
               <div>
                 <Label htmlFor="m-title">Titre *</Label>
-                <Input id="m-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+                <DebouncedInput id="m-title" value={form.title} onValueChange={(v) => setForm((f) => ({ ...f, title: v }))} />
               </div>
               <div>
                 <Label htmlFor="m-imp">Importance</Label>
@@ -996,7 +997,7 @@ export function MeetingDialog({
             )}
             <div>
               <Label htmlFor="m-loc">Lieu</Label>
-              <Input id="m-loc" placeholder="Salle, adresse…" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+              <DebouncedInput id="m-loc" placeholder="Salle, adresse…" value={form.location} onValueChange={(v) => setForm((f) => ({ ...f, location: v }))} />
             </div>
 
             <div className="flex items-center justify-between rounded-md border p-3">
@@ -1046,11 +1047,11 @@ export function MeetingDialog({
                     Lien de la visio {form.online_provider === "jitsi" && <span className="text-xs text-muted-foreground">(généré)</span>}
                   </Label>
                   <div className="flex gap-2">
-                    <Input
+                    <DebouncedInput
                       id="m-link"
                       placeholder="https://…"
                       value={form.online_link}
-                      onChange={(e) => setForm({ ...form, online_link: e.target.value })}
+                      onValueChange={(v) => setForm((f) => ({ ...f, online_link: v }))}
                     />
                     {form.online_provider === "jitsi" && (
                       <Button type="button" variant="outline" size="icon" onClick={() => setForm({ ...form, online_link: generateJitsiLink() })} title="Régénérer">
@@ -1067,7 +1068,7 @@ export function MeetingDialog({
                 {form.online_provider === "zoom" && (
                   <div>
                     <Label htmlFor="m-zpwd">Mot de passe Zoom (optionnel)</Label>
-                    <Input id="m-zpwd" value={form.zoom_password} onChange={(e) => setForm({ ...form, zoom_password: e.target.value })} />
+                    <DebouncedInput id="m-zpwd" value={form.zoom_password} onValueChange={(v) => setForm((f) => ({ ...f, zoom_password: v }))} />
                   </div>
                 )}
               </div>
@@ -1075,7 +1076,7 @@ export function MeetingDialog({
 
             <div>
               <Label htmlFor="m-desc">Description / Ordre du jour</Label>
-              <Textarea id="m-desc" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              <DebouncedTextarea id="m-desc" rows={3} value={form.description} onValueChange={(v) => setForm((f) => ({ ...f, description: v }))} />
             </div>
 
             {user && (
@@ -1153,12 +1154,12 @@ export function MeetingDialog({
                   )}
                 </div>
               </div>
-              <Textarea
+              <DebouncedTextarea
                 id="m-notes"
                 rows={4}
                 placeholder="Points à aborder, questions, éléments à vérifier…"
                 value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                onValueChange={(v) => setForm((f) => ({ ...f, notes: v }))}
                 onBlur={() => form.id && flushNotesNow()}
               />
               {showHistory && notesHistory.length > 0 && (
