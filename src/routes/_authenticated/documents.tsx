@@ -469,6 +469,17 @@ function DocumentsPage() {
               </Card>
             ) : (
               <div className="space-y-4">
+                {skippedDocs.length > 0 && (
+                  <div className="rounded-md border bg-amber-50 dark:bg-amber-950/20 px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-medium">{skippedDocs.length} document{skippedDocs.length > 1 ? "s" : ""} ignoré{skippedDocs.length > 1 ? "s" : ""}</span>
+                      <span className="text-muted-foreground">— masqué{skippedDocs.length > 1 ? "s" : ""} de la liste</span>
+                    </div>
+                    <Button size="sm" variant="destructive" onClick={deleteSkippedDocs} className="gap-1">
+                      <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                    </Button>
+                  </div>
+                )}
                 <div className="flex items-center justify-between gap-2">
                   <h2 className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
                     <Sparkles className="h-4 w-4" /> Analyse IA
