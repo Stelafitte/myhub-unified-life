@@ -203,6 +203,8 @@ export function MeetingDialog({
     setConfirmedSlotId(null);
     setAcceptedCount(0);
     setOneNoteUrl(null);
+    setPrepDuration(60);
+    setPrepDays(30);
     if (meetingId) {
       setLoading(true);
       (async () => {
