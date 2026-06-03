@@ -585,6 +585,7 @@ function DocRow({
   onDelete,
   onCopy,
   onSaveToOneDrive,
+  onSubmitToAI,
 }: {
   doc: DocumentRow;
   selectionMode: boolean;
@@ -594,7 +595,9 @@ function DocRow({
   onDelete: () => void;
   onCopy: () => void;
   onSaveToOneDrive: () => void;
+  onSubmitToAI: () => void;
 }) {
+  const isSkipped = !!doc.ai_skipped_reason;
 
   const cat = categorize(doc.mime_type, doc.filename);
   const Icon = iconFor(cat);
