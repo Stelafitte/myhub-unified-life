@@ -17,6 +17,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SYNC_SOURCES, type SyncEntityType } from "@/lib/sync-sources";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useServerFn } from "@tanstack/react-start";
+import { syncOutlookCalendarEvents } from "@/lib/api/outlook-calendar.functions";
+import { syncGoogleCalendarEvents } from "@/lib/api/google-calendar.functions";
 
 type Direction = "push" | "pull" | "bidirectional" | "disabled";
 
@@ -40,6 +43,8 @@ const FREQ_OPTIONS = [
 
 export function SyncSection() {
   const { user } = useAuth();
+  const runOutlookCal = useServerFn(syncOutlookCalendarEvents);
+  const runGoogleCal = useServerFn(syncGoogleCalendarEvents);
   const [settings, setSettings] = useState<SyncSetting[] | null>(null);
   const [syncing, setSyncing] = useState<string | null>(null);
 
@@ -78,10 +83,23 @@ export function SyncSection() {
 
   const syncNow = async (source: string, entity: SyncEntityType) => {
     setSyncing(source);
-    await new Promise((r) => setTimeout(r, 1000));
-    await upsert(source, entity, { last_sync_at: new Date().toISOString() });
-    setSyncing(null);
-    toast.success(`${source} synchronisé`);
+    try {
+      if (source === "outlook_calendar") {
+        const res = await runOutlookCal({ data: {} });
+        toast.success(`Outlook Calendar : ${res.synced ?? 0} évén. synchro.`);
+      } else if (source === "google_calendar") {
+        const res = await runGoogleCal({ data: {} });
+        toast.success(`Google Calendar : ${res.synced ?? 0} évén. synchro.`);
+      } else {
+        await new Promise((r) => setTimeout(r, 800));
+        toast.success(`${source} synchronisé`);
+      }
+      await upsert(source, entity, { last_sync_at: new Date().toISOString() });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de la synchronisation");
+    } finally {
+      setSyncing(null);
+    }
   };
 
   if (!settings) {
