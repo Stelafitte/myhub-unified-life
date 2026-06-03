@@ -24,7 +24,6 @@ const baseItems = [
   { title: "Tâches", url: "/tasks", icon: CheckSquare },
   { title: "Agenda", url: "/calendar", icon: Calendar },
   { title: "Réunions", url: "/meetings", icon: CalendarClock },
-  { title: "Actions de réunion", url: "/meeting-actions", icon: ListChecks },
   { title: "Documents", url: "/documents", icon: FolderOpen },
   { title: "Contacts", url: "/contacts", icon: Users },
   { title: "Plan d'opération", url: "/plan-operation", icon: ClipboardList },
