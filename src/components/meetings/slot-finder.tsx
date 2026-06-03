@@ -34,7 +34,7 @@ export function SlotFinder({ durationMinutes, onPick, isSelected, triggerLabel }
 
   // AI proposition dialog state
   const [aiOpen, setAiOpen] = useState(false);
-  const [aiConstraints, setAiConstraints] = useState("");
+  const aiConstraintsRef = useRef<HTMLTextAreaElement>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSlots, setAiSlots] = useState<AiProposedSlot[] | null>(null);
 
