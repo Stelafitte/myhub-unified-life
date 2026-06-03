@@ -2048,19 +2048,18 @@ function NewEventDialog({
             </div>
           </div>
 
-          {recurrence !== "none" && (
-            <div>
-              <Label>Fréquence</Label>
-              <Select value={recurrence} onValueChange={setRecurrence}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Tous les jours</SelectItem>
-                  <SelectItem value="weekly">Toutes les semaines</SelectItem>
-                  <SelectItem value="monthly">Tous les mois</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div>
+            <Label>Récurrence</Label>
+            <Select value={recurrence} onValueChange={setRecurrence}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Aucune (événement unique)</SelectItem>
+                <SelectItem value="daily">Tous les jours</SelectItem>
+                <SelectItem value="weekly">Toutes les semaines</SelectItem>
+                <SelectItem value="monthly">Tous les mois</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           <div>
             <Label htmlFor="ev-notes">Notes</Label>
