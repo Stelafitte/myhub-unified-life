@@ -1154,12 +1154,12 @@ export function MeetingDialog({
                   )}
                 </div>
               </div>
-              <Textarea
+              <DebouncedTextarea
                 id="m-notes"
                 rows={4}
                 placeholder="Points à aborder, questions, éléments à vérifier…"
                 value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                onValueChange={(v) => setForm((f) => ({ ...f, notes: v }))}
                 onBlur={() => form.id && flushNotesNow()}
               />
               {showHistory && notesHistory.length > 0 && (
