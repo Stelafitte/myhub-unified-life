@@ -43,6 +43,50 @@ async function refreshAccessToken(
 }
 
 /* ------------------------------------------------------------------ */
+/* Timezone helpers (DST-aware, server runs UTC)                      */
+/* ------------------------------------------------------------------ */
+
+function tzParts(d: Date, tz: string) {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+    weekday: "short",
+  });
+  const parts = Object.fromEntries(fmt.formatToParts(d).map((p) => [p.type, p.value]));
+  const wdMap: Record<string, number> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+  return {
+    y: Number(parts.year),
+    mo: Number(parts.month),
+    da: Number(parts.day),
+    h: Number(parts.hour) === 24 ? 0 : Number(parts.hour),
+    mi: Number(parts.minute),
+    isoWeekday: wdMap[parts.weekday] ?? 1,
+  };
+}
+
+function parisWallToUtc(y: number, mo: number, da: number, h: number, mi: number, tz: string): Date {
+  const guess = Date.UTC(y, mo - 1, da, h, mi);
+  const back = tzParts(new Date(guess), tz);
+  const wallUtc = Date.UTC(back.y, back.mo - 1, back.da, back.h, back.mi);
+  const offset = wallUtc - guess;
+  return new Date(guess - offset);
+}
+
+function parisMidnight(d: Date, tz: string): Date {
+  const p = tzParts(d, tz);
+  return parisWallToUtc(p.y, p.mo, p.da, 0, 0, tz);
+}
+
+function parisYMD(d: Date, tz: string) {
+  return tzParts(d, tz);
+}
+
+function parisHour(d: Date, tz: string): number {
+  return tzParts(d, tz).h;
+}
+
+/* ------------------------------------------------------------------ */
 /* Slot finder                                                        */
 /* ------------------------------------------------------------------ */
 
