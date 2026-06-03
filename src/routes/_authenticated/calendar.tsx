@@ -1930,6 +1930,8 @@ function NewEventDialog({
   const [location, setLocation] = useState("");
   const [participants, setParticipants] = useState("");
   const [recurrence, setRecurrence] = useState<string>("none");
+  const [recurrenceUntil, setRecurrenceUntil] = useState<string>("");
+
   const [category, setCategory] = useState<"pro" | "perso">("pro");
   const [color, setColor] = useState<string>(catColors.pro_oneoff);
   const [notes, setNotes] = useState("");
