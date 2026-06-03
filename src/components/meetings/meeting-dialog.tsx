@@ -240,6 +240,10 @@ export function MeetingDialog({
             quorum_minimum: (m as { quorum_minimum?: number | null }).quorum_minimum ?? null,
             equipment: ((m as { equipment?: string[] | null }).equipment ?? []) as string[],
           });
+          if (m.start_at && m.end_at) {
+            const mins = Math.round((new Date(m.end_at).getTime() - new Date(m.start_at).getTime()) / 60000);
+            if (mins > 0) setPrepDuration(mins);
+          }
           setOneNoteUrl((m as { onenote_page_url?: string | null }).onenote_page_url ?? null);
           setAcceptedCount(((ps ?? []) as { rsvp_status: string | null }[]).filter((p) => p.rsvp_status === "accepted").length);
           setConfirmedSlotId((m as { confirmed_slot_id?: string | null }).confirmed_slot_id ?? null);
