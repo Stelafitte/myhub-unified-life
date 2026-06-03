@@ -177,6 +177,10 @@ function InboxPage() {
   const [taskOpen, setTaskOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  // Bug 1 fix : snapshot des IDs non-lus quand on entre dans la vue "Non lus"
+  // pour que les mails ouverts (et passés is_read=true) ne disparaissent pas
+  // de la liste tant qu'on reste sur la vue.
+  const [unreadSnapshot, setUnreadSnapshot] = useState<Set<string> | null>(null);
   const classifyFn = useServerFn(classifyPendingEmails);
   const odFoldersFn = useServerFn(listOneDriveFolders);
   const listThemesFn = useServerFn(listThemes);
