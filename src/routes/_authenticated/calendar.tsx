@@ -1787,6 +1787,7 @@ function NewEventDialog({
   open,
   onOpenChange,
   accounts,
+  gcalConnections,
   userId,
   defaultDate,
   catColors,
@@ -1795,6 +1796,7 @@ function NewEventDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   accounts: Account[];
+  gcalConnections: AgendaConnection[];
   userId: string;
   defaultDate: Date;
   catColors: Record<EventCategory, string>;
@@ -1809,6 +1811,12 @@ function NewEventDialog({
       ),
     [accounts],
   );
+  const activeConns = useMemo(
+    () => gcalConnections.filter((c) => c.is_active),
+    [gcalConnections],
+  );
+  const proConn = activeConns.find((c) => c.category === "pro") ?? null;
+  const persoConn = activeConns.find((c) => c.category === "perso") ?? null;
   const [title, setTitle] = useState("");
   const [accountId, setAccountId] = useState<string>("local");
   const [startStr, setStartStr] = useState("");
