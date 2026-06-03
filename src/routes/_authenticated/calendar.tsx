@@ -406,8 +406,19 @@ function AgendaPage() {
 
   const deleteEvent = async (ev: UnifiedEvent) => {
     if (ev.kind !== "event") return;
-    if (!confirm(`Supprimer "${ev.title}" ?`)) return;
-    const id = (ev.raw as DbEvent).id;
+    const dbEv = ev.raw as DbEvent;
+    const isRecurring = !!(dbEv.recurrence_rule && dbEv.recurrence_rule.trim().length > 0);
+    if (isRecurring) {
+      const ok = confirm(
+        `"${ev.title}" fait partie d'une série récurrente (${dbEv.recurrence_rule}).\n\n` +
+        `OK = supprimer TOUTE la série récurrente.\n` +
+        `Annuler = ne rien supprimer.`,
+      );
+      if (!ok) return;
+    } else {
+      if (!confirm(`Supprimer "${ev.title}" ?`)) return;
+    }
+    const id = dbEv.id;
     // Optimistic update + cache: avoid the cache rehydrate flash that reintroduced the event.
     const prev = events;
     const next = prev.filter((e) => e.id !== id);
@@ -416,7 +427,7 @@ function AgendaPage() {
     cacheReplaceAll("calendar_events", next).catch(() => {});
     try {
       await deleteEventFn({ data: { eventId: id } });
-      toast.success("Événement supprimé");
+      toast.success(isRecurring ? "Série récurrente supprimée" : "Événement supprimé");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Suppression impossible");
       setEvents(prev);
