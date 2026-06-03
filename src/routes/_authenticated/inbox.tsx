@@ -713,6 +713,7 @@ function InboxPage() {
         key,
         label: t?.name ?? "Sans thème",
         count: g.emails.length,
+        ids: g.emails.map((e) => e.id),
       });
       if (!collapsed) for (const e of g.emails) out.push({ kind: "email", email: e });
     }
