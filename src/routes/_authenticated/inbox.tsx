@@ -775,9 +775,10 @@ function InboxPage() {
       } catch (err) {
         // Silencieux pour l'utilisateur ; on logue + on enfile pour replay offline.
         console.warn("[push-email-actions] queued for retry", err);
+        if (!user?.id) return;
         try {
           await supabase.from("sync_queue").insert({
-            user_id: user?.id,
+            user_id: user.id,
             entity_type: "email",
             entity_id: emailId,
             action: "update",
