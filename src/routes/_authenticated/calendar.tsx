@@ -1778,8 +1778,12 @@ function NewEventDialog({
   catColors: Record<EventCategory, string>;
   onCreated: () => void;
 }) {
-  const writable = accounts.filter(
-    (a) => a.sync_direction === "bidirectional" || a.sync_direction === "push",
+  const writable = useMemo(
+    () =>
+      accounts.filter(
+        (a) => a.sync_direction === "bidirectional" || a.sync_direction === "push",
+      ),
+    [accounts],
   );
   const [title, setTitle] = useState("");
   const [accountId, setAccountId] = useState<string>("local");
@@ -1810,6 +1814,11 @@ function NewEventDialog({
     setColor(catColors[cat]);
   };
 
+  // N'initialiser les champs QUE lors de l'ouverture du dialog.
+  // Inclure writable / catColors ici relancerait l'effet à chaque frappe
+  // (nouvelles références à chaque rendu) et viderait le titre en boucle,
+  // rendant la création impossible.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (open) {
       const d = new Date(defaultDate);
@@ -1829,7 +1838,7 @@ function NewEventDialog({
       setNotes("");
       setAccountId(writable[0]?.id ?? "local");
     }
-  }, [open, defaultDate, writable, catColors]);
+  }, [open]);
 
   const submit = async () => {
     if (!title.trim() || !startStr) {
