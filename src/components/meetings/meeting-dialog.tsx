@@ -1047,11 +1047,11 @@ export function MeetingDialog({
                     Lien de la visio {form.online_provider === "jitsi" && <span className="text-xs text-muted-foreground">(généré)</span>}
                   </Label>
                   <div className="flex gap-2">
-                    <Input
+                    <DebouncedInput
                       id="m-link"
                       placeholder="https://…"
                       value={form.online_link}
-                      onChange={(e) => setForm({ ...form, online_link: e.target.value })}
+                      onValueChange={(v) => setForm((f) => ({ ...f, online_link: v }))}
                     />
                     {form.online_provider === "jitsi" && (
                       <Button type="button" variant="outline" size="icon" onClick={() => setForm({ ...form, online_link: generateJitsiLink() })} title="Régénérer">
