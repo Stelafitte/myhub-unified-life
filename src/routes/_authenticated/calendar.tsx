@@ -32,8 +32,8 @@ import {
 import { formatBytes } from "@/lib/file-icons";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useServerFn } from "@tanstack/react-start";
-import { startGoogleCalendarOAuth, syncGoogleCalendarEvents, deleteCalendarEvent } from "@/lib/api/google-calendar.functions";
-import { GoogleAgendasPanel, useHiddenConnections } from "@/components/calendar/google-agendas-panel";
+import { startGoogleCalendarOAuth, syncGoogleCalendarEvents, deleteCalendarEvent, listGoogleCalendarConnections } from "@/lib/api/google-calendar.functions";
+import { GoogleAgendasPanel, useHiddenConnections, type AgendaConnection } from "@/components/calendar/google-agendas-panel";
 import { supabase } from "@/integrations/supabase/client";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
@@ -242,6 +242,21 @@ function AgendaPage() {
   const startGcalOAuth = useServerFn(startGoogleCalendarOAuth);
   const syncGcal = useServerFn(syncGoogleCalendarEvents);
   const deleteEventFn = useServerFn(deleteCalendarEvent);
+  const listConns = useServerFn(listGoogleCalendarConnections);
+  const [gcalConnections, setGcalConnections] = useState<AgendaConnection[]>([]);
+  const reloadConnections = async () => {
+    try {
+      const rows = await listConns({});
+      setGcalConnections(rows as AgendaConnection[]);
+    } catch {}
+  };
+  useEffect(() => { if (user) reloadConnections(); }, [user]);
+  useEffect(() => {
+    const h = () => reloadConnections();
+    window.addEventListener("myhub-agenda-visibility-changed", h);
+    return () => window.removeEventListener("myhub-agenda-visibility-changed", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -508,7 +523,7 @@ function AgendaPage() {
           <Legend color={SOURCE_META.task.color} badge="🟠" label="Tâches MyHub Pro" />
 
           <div className="mt-4">
-            <GoogleAgendasPanel onChanged={() => runSync(true)} />
+            <GoogleAgendasPanel onChanged={() => { reloadConnections(); runSync(true); }} />
           </div>
 
           <div className="mt-4 space-y-2">
@@ -670,6 +685,7 @@ function AgendaPage() {
         open={creatingAt !== null}
         onOpenChange={(v) => !v && setCreatingAt(null)}
         accounts={accounts}
+        gcalConnections={gcalConnections}
         userId={user?.id ?? ""}
         defaultDate={creatingAt ?? cursor}
         catColors={catColors}
@@ -1771,6 +1787,7 @@ function NewEventDialog({
   open,
   onOpenChange,
   accounts,
+  gcalConnections,
   userId,
   defaultDate,
   catColors,
@@ -1779,6 +1796,7 @@ function NewEventDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   accounts: Account[];
+  gcalConnections: AgendaConnection[];
   userId: string;
   defaultDate: Date;
   catColors: Record<EventCategory, string>;
@@ -1793,6 +1811,12 @@ function NewEventDialog({
       ),
     [accounts],
   );
+  const activeConns = useMemo(
+    () => gcalConnections.filter((c) => c.is_active),
+    [gcalConnections],
+  );
+  const proConn = activeConns.find((c) => c.category === "pro") ?? null;
+  const persoConn = activeConns.find((c) => c.category === "perso") ?? null;
   const [title, setTitle] = useState("");
   const [accountId, setAccountId] = useState<string>("local");
   const [startStr, setStartStr] = useState("");
@@ -1929,6 +1953,43 @@ function NewEventDialog({
               </p>
             )}
           </div>
+
+          {(proConn || persoConn) && (
+            <div>
+              <Label>Agenda</Label>
+              <Select
+                value={category}
+                onValueChange={(v) => {
+                  const next = v as "pro" | "perso";
+                  setCategory(next);
+                  const conn = next === "perso" ? persoConn : proConn;
+                  const fallback = next === "perso"
+                    ? (recurrence !== "none" ? catColors.perso_recurring : catColors.perso_oneoff)
+                    : (recurrence !== "none" ? catColors.pro_recurring : catColors.pro_oneoff);
+                  setColor(conn?.color ?? fallback);
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pro">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: proConn?.color ?? "#6366f1" }} />
+                      Pro{proConn?.label ? ` — ${proConn.label}` : ""}
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="perso">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: persoConn?.color ?? "#f97316" }} />
+                      Perso{persoConn?.label ? ` — ${persoConn.label}` : ""}
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                L'événement sera synchronisé vers l'agenda Google correspondant.
+              </p>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="ev-title">Titre</Label>
