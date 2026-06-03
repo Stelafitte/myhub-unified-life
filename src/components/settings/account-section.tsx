@@ -14,6 +14,7 @@ import { toast } from "sonner";
 
 export function AccountSection() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
