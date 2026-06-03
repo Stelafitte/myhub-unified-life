@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { listPending, flushQueue } from "@/lib/sync-queue";
+import { syncOutlookCalendarEvents } from "@/lib/api/outlook-calendar.functions";
+import { syncGoogleCalendarEvents } from "@/lib/api/google-calendar.functions";
 
 export type SyncState = "online" | "syncing" | "offline";
 
