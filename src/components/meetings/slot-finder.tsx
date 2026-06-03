@@ -62,7 +62,8 @@ export function SlotFinder({ durationMinutes, onPick, isSelected, triggerLabel }
   }
 
   async function runAi() {
-    if (!aiConstraints.trim()) {
+    const constraints = aiConstraintsRef.current?.value.trim() ?? "";
+    if (!constraints) {
       toast.error("Décrivez vos contraintes pour la proposition IA.");
       return;
     }
@@ -71,7 +72,7 @@ export function SlotFinder({ durationMinutes, onPick, isSelected, triggerLabel }
     try {
       const res = await propose({
         data: {
-          constraints: aiConstraints.trim(),
+          constraints,
           durationMinutes: Math.max(15, Math.min(8 * 60, durationMinutes || 60)),
           daysAhead: 30,
           leadHours: 24,
