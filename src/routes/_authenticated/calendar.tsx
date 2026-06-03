@@ -33,6 +33,7 @@ import { formatBytes } from "@/lib/file-icons";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useServerFn } from "@tanstack/react-start";
 import { startGoogleCalendarOAuth, syncGoogleCalendarEvents, deleteCalendarEvent } from "@/lib/api/google-calendar.functions";
+import { GoogleAgendasPanel, useHiddenConnections } from "@/components/calendar/google-agendas-panel";
 import { supabase } from "@/integrations/supabase/client";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { useAuth } from "@/lib/auth-context";
@@ -316,11 +317,14 @@ function AgendaPage() {
     return m;
   }, [accounts]);
 
+  const hiddenConns = useHiddenConnections();
   const unified: UnifiedEvent[] = useMemo(() => {
     const items: UnifiedEvent[] = [];
     for (const e of events) {
+      const connId = (e as { gcal_connection_id?: string | null }).gcal_connection_id ?? null;
+      if (connId && hiddenConns.has(connId)) continue;
       const acc = e.account_id ? accById.get(e.account_id) : null;
-      const isGoogle = e.source === "google" || (e as any).gcal_connection_id != null;
+      const isGoogle = e.source === "google" || connId != null;
       const meta = isGoogle ? SOURCE_META.gmail : (acc ? SOURCE_META[acc.type] : SOURCE_META.imap);
       const blob = `${e.description ?? ""} ${e.location ?? ""}`;
       const cat = categoryOf(e);
@@ -344,7 +348,7 @@ function AgendaPage() {
     }
     // Les tâches ne sont volontairement pas affichées dans l'agenda
     return items.sort((a, b) => a.start.getTime() - b.start.getTime());
-  }, [events, tasks, accById, catColors]);
+  }, [events, tasks, accById, catColors, hiddenConns]);
 
   // Range for current view
   const range = useMemo(() => {
@@ -496,6 +500,10 @@ function AgendaPage() {
           <Legend color={SOURCE_META.icloud.color} badge="⚫" label="iCloud" />
           <Legend color={SOURCE_META.outlook.color} badge="🔷" label="Outlook / Exchange" />
           <Legend color={SOURCE_META.task.color} badge="🟠" label="Tâches MyHub Pro" />
+
+          <div className="mt-4">
+            <GoogleAgendasPanel onChanged={() => runSync(true)} />
+          </div>
 
           <div className="mt-4 space-y-2">
             {accounts.some((a) => a.type === "gmail") ? (

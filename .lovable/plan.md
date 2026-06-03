@@ -1,86 +1,60 @@
-# Phase 11 — Quorum, salle/matériel, rappels RSVP
+## Objectif
 
-Périmètre strict : `meetings/`, route `/poll/$token`, Paramètres → Réunions. Aucun autre module touché.
+Brancher un 2e agenda Google (`Agenda_SL perso non pro`) à côté de l'agenda Pro déjà connecté, avec :
+- superposition visuelle (Pro = indigo, Perso = orange)
+- sélecteur Pro/Perso partout où on crée un événement / une réunion (défaut = Pro)
+- toutes les recherches/freebusy interrogent les 2 agendas
+- synchro bidirectionnelle des 2
 
-## 1. Base de données (migration)
+## Décision d'archi (Option A retenue)
 
-Nouvelles colonnes sur `meetings` :
-- `equipment` text[] — matériel requis (vidéoprojecteur, micro, etc.)
-- `rsvp_reminder_sent_at` timestamptz — anti-doublon pour le cron
-- `rsvp_reminder_hours_before` int default 24
+Réutiliser la table `google_calendar_connections` existante : 1 ligne = 1 agenda Google. On ajoutera une 2e ligne pour l'agenda Perso, avec le même `refresh_token` que la connexion Pro mais un `calendar_id` différent.
 
-(les colonnes `room` et `quorum_minimum` existent déjà)
+Petite migration nécessaire pour porter la notion Pro/Perso au niveau connexion (et non plus seulement au niveau événement) :
 
-Nouvelle table `meeting_equipment_presets` (user_id, label, icon) — liste personnalisable du matériel.
-GRANTs + RLS `auth.uid() = user_id` standard.
+- `google_calendar_connections.category` (`text`, défaut `'pro'`) — Pro ou Perso
+- `google_calendar_connections.color` (`text`, nullable) — pour la couleur d'affichage
 
-## 2. UI fiche réunion (`meeting-dialog.tsx`)
+Aucune nouvelle table, aucune RLS à changer.
 
-Nouvelle section **"Logistique"** au-dessus de l'agenda :
-- Champ **Salle** (input texte libre + suggestions des dernières salles utilisées)
-- Champ **Quorum minimum** (number, 0 = désactivé)
-- Sélecteur **Matériel** (multi-checkbox à partir des presets utilisateur + bouton "+ Ajouter")
-- Badge dynamique **Quorum** dans l'en-tête : `✅ Quorum atteint (5/3)` ou `⚠️ Quorum non atteint (2/3)` calculé depuis `meeting_participants.rsvp_status='yes'`
+## Étapes
 
-## 3. Paramètres → Réunions (`settings/meetings-section.tsx`)
+### 1. Migration SQL
+Ajout des 2 colonnes ci-dessus sur `google_calendar_connections`. Backfill : ligne existante → `category='pro'`, `color='#6366f1'` (indigo).
 
-Nouvelle carte **"Rappels RSVP"** :
-- Heures avant la réunion (slider 1-72h, défaut 24)
-- Toggle "Activer les rappels automatiques"
+### 2. Serveur — nouvelles server functions (`src/lib/api/google-calendar.functions.ts`)
+- `listGoogleCalendars(connectionId)` → appelle `calendarList` de Google pour lister les agendas disponibles dans le compte connecté. Permet à l'UI de proposer "Agenda_SL perso non pro" dans une liste déroulante.
+- `addGoogleCalendarFromExisting({ sourceConnectionId, calendarId, label, category, color })` → insère une nouvelle ligne dans `google_calendar_connections` qui réutilise le `refresh_token` + `access_token` + `expires_at` de la connexion source, mais avec `calendar_id` distinct. Bidirectionnel par défaut.
+- `updateGoogleConnection({ id, category, color, sync_direction, is_active })` → édition simple.
 
-Nouvelle carte **"Matériel disponible"** :
-- Liste éditable des presets (ajout/suppression d'items avec icône)
+### 3. Serveur — `syncGoogleCalendarEvents` (existant)
+À chaque event upserté, on enrichit avec :
+- `category` = `conn.category`
+- `color` = `conn.color` (sinon défaut selon category)
+Comme ça la vue Agenda affiche automatiquement la bonne couleur sans recalcul côté client.
 
-## 4. Cron rappels RSVP
+### 4. Serveur — `findAvailableSlots` (slot finder) et freebusy
+Déjà multi-connexions : il itère sur toutes les connexions actives. Aucun changement, sauf vérifier que les 2 connexions sont incluses (oui, on lit `is_active=true`).
 
-- Route publique `src/routes/api/public/hooks/rsvp-reminders.ts`
-  - Auth via `apikey` header (anon key)
-  - Sélectionne les réunions à venir où :
-    - `start_at` entre `now() + reminder_hours - 1h` et `now() + reminder_hours`
-    - `rsvp_reminder_sent_at IS NULL`
-    - participants avec `rsvp_status = 'pending'`
-  - Pour chaque participant pending, log un enregistrement (table existante ou simple console.log + marqueur)
-  - Met à jour `rsvp_reminder_sent_at`
-- pg_cron toutes les 30 min appelant cette route
+### 5. UI Agenda (`src/routes/_authenticated/calendar.tsx`)
+- Bouton "Ajouter un autre agenda Google" → ouvre un petit dialog qui appelle `listGoogleCalendars`, laisse choisir l'agenda et le label/catégorie/couleur (préremplis : Perso / orange `#f97316`), puis `addGoogleCalendarFromExisting`.
+- Panneau "Agendas" : affiche les 2 lignes avec switch on/off d'affichage (visibilité) — préférence stockée en `localStorage`.
+- Légende Pro/Perso (pastille couleur).
+- Le formulaire de création d'événement (déjà présent — variable `category`) : on garde le toggle Pro/Perso existant, défaut Pro, mais on l'utilise pour choisir vers quelle `gcal_connection_id` rattacher l'event à la création.
 
-Note : l'envoi email réel passera par l'infra `send-transactional-email` si elle est déjà scaffoldée ; sinon, on prépare le hook et un template `meeting-rsvp-reminder.tsx` prêt à brancher.
+### 6. UI Réunions (`src/components/meetings/meeting-dialog.tsx`)
+Ajouter un petit sélecteur "Agenda cible" (Pro / Perso) en haut du dialog, défaut Pro. La valeur est stockée sur la réunion via le champ `calendar_event_id` → l'événement créé porte la bonne `gcal_connection_id`.
 
-## 5. Synchro temps réel
+### 7. Push vers Google (hors scope ici)
+Le code actuel pousse uniquement les **suppressions** vers Google. La création/modification depuis MyHubPro reste locale (pas implémentée aujourd'hui pour le Pro non plus). On ne l'ajoute donc pas dans ce lot pour rester focus. Conséquence : "bidirectionnel" reste, pour l'instant, du pull + delete pour les 2 agendas, comme aujourd'hui pour le Pro. À traiter dans un lot dédié quand vous le souhaitez.
 
-Pas de nouveau channel ; le badge quorum recalcule sur le hook existant qui charge `meeting_participants`.
+## Détails techniques (résumé)
+- Pas de changement RLS, les policies existantes scopent par `user_id`.
+- Couleurs par défaut : Pro `#6366f1` (indigo-500), Perso `#f97316` (orange-500).
+- Visibilité d'un agenda (afficher/masquer) → `localStorage`, pas de DB.
+- Le sélecteur d'agenda à la création écrit `gcal_connection_id` + `category` sur la ligne `calendar_events`.
 
-## Fichiers touchés
+## Ce qui n'est PAS fait dans ce lot
+- Le push **create/update** vers Google (pas en place aujourd'hui non plus). Si vous voulez aussi que la création/modif depuis MyHubPro arrive dans Google, on l'ajoutera après en lot séparé.
 
-**Créés :**
-- `supabase/migrations/<ts>_meetings_phase11.sql`
-- `src/components/meetings/logistics-section.tsx`
-- `src/components/meetings/quorum-badge.tsx`
-- `src/routes/api/public/hooks/rsvp-reminders.ts`
-
-**Édités :**
-- `src/components/meetings/meeting-dialog.tsx` (intégration LogisticsSection + QuorumBadge)
-- `src/components/settings/meetings-section.tsx` (cartes Rappels RSVP + Matériel)
-- `src/integrations/supabase/types.ts` (auto via migration)
-
-**Non touché** : sync-imap, sync-gmail, autres edge functions, tous les autres modules.
-
-Dis **« go 11 »** pour lancer.
-
-
-## Phase 12 — Intégration OneNote ✅
-- Connecteur Microsoft OneNote lié
-- Migration: meetings.onenote_page_url, onenote_synced_at; meeting_settings.onenote_enabled, onenote_notebook_id, onenote_section_id, onenote_auto_sync
-- src/lib/api/onenote.functions.ts (listNotebooks, listSections, test, syncMeetingToOneNote)
-- src/components/meetings/onenote-sync-button.tsx
-- Carte OneNote dans paramètres réunions (carnet/section, test connexion, auto-sync)
-- Bouton sync dans le header du dialog réunion
-
-
-
-## Phase 13 — Suivi des actions ✅
-- Nouvelle route `/meeting-actions` : kanban + liste transverse des `tasks` liées via `meeting_tasks`
-- Filtres : recherche, réunion, responsable, en retard
-- Changement de statut inline (todo / in_progress / done)
-- Lien direct vers la réunion source, badges priorité/échéance
-- Entrée sidebar "Actions de réunion" (icône ListChecks)
-- Aucune migration DB (réutilise tasks + meeting_tasks existants)
+Confirmez et je l'implémente.

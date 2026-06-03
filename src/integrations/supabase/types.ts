@@ -662,6 +662,8 @@ export type Database = {
         Row: {
           access_token: string
           calendar_id: string
+          category: string
+          color: string | null
           created_at: string
           expires_at: string
           google_email: string | null
@@ -678,6 +680,8 @@ export type Database = {
         Insert: {
           access_token: string
           calendar_id?: string
+          category?: string
+          color?: string | null
           created_at?: string
           expires_at: string
           google_email?: string | null
@@ -694,6 +698,8 @@ export type Database = {
         Update: {
           access_token?: string
           calendar_id?: string
+          category?: string
+          color?: string | null
           created_at?: string
           expires_at?: string
           google_email?: string | null
