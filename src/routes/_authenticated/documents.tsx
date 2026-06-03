@@ -332,7 +332,7 @@ function DocumentsPage() {
       )}>
         <div className="p-3 border-b">
           <Button className="w-full" size="sm" onClick={() => setUploadOpen(true)}>＋ Ajouter un document</Button>
-          <p className="text-xs text-muted-foreground mt-2">{docs.length} fichiers · {formatBytes(totalSize)}</p>
+          <p className="text-xs text-muted-foreground mt-2">{activeDocs.length} fichiers · {formatBytes(totalSize)}</p>
         </div>
         <ScrollArea className="flex-1">
           <div className="p-2 space-y-0.5 text-sm">
