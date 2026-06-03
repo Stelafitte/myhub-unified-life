@@ -120,6 +120,7 @@ function PlanOperationPage() {
   const { user } = useAuth();
   const timelineRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
+  const lastClickRef = useRef<{ id: string; ts: number } | null>(null);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
