@@ -458,20 +458,22 @@ export function EmailComposer({
           )}
         </div>
 
-        <DialogFooter className="sm:justify-between">
-          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={busy}>
-            Annuler
-          </Button>
+        <DialogFooter className="shrink-0 flex-col gap-2 border-t border-border px-6 py-3 sm:flex-row sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={busy}>
+              Annuler
+            </Button>
+            {accountEmail && (
+              <span className="text-[11px] text-muted-foreground">
+                Envoyé depuis <span className="font-medium text-foreground">{accountEmail}</span>
+              </span>
+            )}
+          </div>
           <Button onClick={submit} disabled={busy} className="min-w-[110px]">
             {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Send className="mr-1 h-4 w-4" />}
             Envoyer
           </Button>
         </DialogFooter>
-        {accountEmail && (
-          <div className="px-1 pt-1 text-[11px] text-muted-foreground">
-            Envoyé depuis <span className="font-medium text-foreground">{accountEmail}</span>
-          </div>
-        )}
       </DialogContent>
     </Dialog>
   );
