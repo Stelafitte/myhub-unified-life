@@ -137,6 +137,15 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
         const isRead = !((m.labelIds ?? []).includes("UNREAD"));
         const isStarred = (m.labelIds ?? []).includes("STARRED");
 
+        // Bug 2 fix : ne jamais ré-écraser is_read=true côté local par la sync.
+        const { data: existing } = await admin
+          .from("emails")
+          .select("is_read")
+          .eq("account_id", account.id)
+          .eq("message_id", messageId)
+          .maybeSingle();
+        const finalIsRead = existing?.is_read === true ? true : isRead;
+
         const { data: upserted, error: upErr } = await admin.from("emails").upsert({
           account_id: account.id,
           user_id: account.user_id,
@@ -150,7 +159,7 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
           meeting_link: extractMeetingLink(text, html),
           has_attachment: hasAttach,
           received_at: receivedAt,
-          is_read: isRead,
+          is_read: finalIsRead,
           is_starred: isStarred,
           origin_tag: "gmail",
           thread_id: m.threadId || null,
