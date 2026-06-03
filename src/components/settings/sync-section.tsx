@@ -83,10 +83,23 @@ export function SyncSection() {
 
   const syncNow = async (source: string, entity: SyncEntityType) => {
     setSyncing(source);
-    await new Promise((r) => setTimeout(r, 1000));
-    await upsert(source, entity, { last_sync_at: new Date().toISOString() });
-    setSyncing(null);
-    toast.success(`${source} synchronisé`);
+    try {
+      if (source === "outlook_calendar") {
+        const res = await runOutlookCal({ data: {} });
+        toast.success(`Outlook Calendar : ${res.synced ?? 0} évén. synchro.`);
+      } else if (source === "google_calendar") {
+        const res = await runGoogleCal({ data: {} });
+        toast.success(`Google Calendar : ${res.synced ?? 0} évén. synchro.`);
+      } else {
+        await new Promise((r) => setTimeout(r, 800));
+        toast.success(`${source} synchronisé`);
+      }
+      await upsert(source, entity, { last_sync_at: new Date().toISOString() });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec de la synchronisation");
+    } finally {
+      setSyncing(null);
+    }
   };
 
   if (!settings) {
