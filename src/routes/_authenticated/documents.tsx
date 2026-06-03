@@ -107,6 +107,40 @@ function DocumentsPage() {
     );
   }
 
+  async function applyMinSizeRule() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await saveMinSize(minSizeKb);
+    const bytes = minSizeKb * 1024;
+    const reason = `Fichier trop petit (< ${minSizeKb} KB)`;
+    const { data: marked } = await supabase
+      .from("documents")
+      .update({ ai_skipped_reason: reason })
+      .eq("user_id", user.id)
+      .lt("file_size", bytes)
+      .is("ai_skipped_reason", null)
+      .select("id");
+    // Auto-restore docs now above threshold previously skipped for size
+    await supabase
+      .from("documents")
+      .update({ ai_skipped_reason: null, ai_processed_at: null })
+      .eq("user_id", user.id)
+      .gte("file_size", bytes)
+      .like("ai_skipped_reason", "Fichier trop petit%");
+    toast.success(`${marked?.length ?? 0} fichiers marqués comme ignorés`);
+    await load();
+  }
+
+  async function submitDocToAI(d: DocumentRow) {
+    const { error } = await supabase
+      .from("documents")
+      .update({ ai_skipped_reason: null, ai_processed_at: null })
+      .eq("id", d.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Fichier soumis à l'analyse IA");
+    load();
+  }
+
   async function classifyNow() {
     if (classifying) return;
     setClassifying(true);
