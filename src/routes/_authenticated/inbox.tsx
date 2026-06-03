@@ -607,7 +607,13 @@ function InboxPage() {
         if (false) list = list;
       } else {
         list = list.filter((e) => !isSpam(e) && !isPromo(e));
-        if (filter === "unread") list = list.filter((e) => !e.is_read);
+        if (filter === "unread") {
+          // Garde visibles les mails non-lus au moment d'entrer dans la vue,
+          // même si on les ouvre (is_read=true). Les nouveaux non-lus s'ajoutent.
+          list = list.filter((e) =>
+            unreadSnapshot ? unreadSnapshot.has(e.id) || !e.is_read : !e.is_read,
+          );
+        }
         else if (filter === "attachments") list = list.filter((e) => e.has_attachment);
         else if (filter === "starred") list = list.filter((e) => e.is_starred);
         else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
