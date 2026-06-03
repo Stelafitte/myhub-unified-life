@@ -356,14 +356,19 @@ function AgendaPage() {
       const freq = map.FREQ?.toUpperCase();
       const interval = Math.max(1, parseInt(map.INTERVAL ?? "1", 10) || 1);
       const count = map.COUNT ? parseInt(map.COUNT, 10) : null;
-      const until = map.UNTIL ? new Date(
-        map.UNTIL.replace(/^(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?(\d{2})?Z?$/,
-          (_m, y, mo, d, h = "00", mi = "00", s = "00") =>
-            `${y}-${mo}-${d}T${h}:${mi}:${s}Z`),
-      ).getTime() : null;
+      const toDate = (s: string) => new Date(
+        s.replace(/^(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?(\d{2})?Z?$/,
+          (_m, y, mo, d, h = "00", mi = "00", s2 = "00") =>
+            `${y}-${mo}-${d}T${h}:${mi}:${s2}Z`),
+      ).getTime();
+      const until = map.UNTIL ? toDate(map.UNTIL) : null;
+      const exdates = new Set<number>(
+        (map.EXDATE ? map.EXDATE.split(",").filter(Boolean) : []).map(toDate),
+      );
       if (!freq || !["DAILY", "WEEKLY", "MONTHLY", "YEARLY"].includes(freq)) return null;
-      return { freq, interval, count, until };
+      return { freq, interval, count, until, exdates };
     };
+
 
     for (const e of events) {
       const connId = (e as { gcal_connection_id?: string | null }).gcal_connection_id ?? null;
