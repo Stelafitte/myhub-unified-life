@@ -120,6 +120,7 @@ function PlanOperationPage() {
   const { user } = useAuth();
   const timelineRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
+  const lastClickRef = useRef<{ id: string; ts: number } | null>(null);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -471,6 +472,17 @@ function PlanOperationPage() {
     if (b.type === "task") { setEditing(b.raw as Task); setPanelOpen(true); }
   };
 
+  const tryOpenBar = (b: Bar) => {
+    const now = Date.now();
+    const last = lastClickRef.current;
+    if (last && last.id === b.id && now - last.ts < 400) {
+      lastClickRef.current = null;
+      handleBarClick(b);
+    } else {
+      lastClickRef.current = { id: b.id, ts: now };
+    }
+  };
+
   const handleUpdateRange = async (b: Bar, s: Date, e: Date) => {
     if (b.type !== "task") return;
     const payload = { gantt_start: s.toISOString(), gantt_end: e.toISOString(), due_date: e.toISOString() };
@@ -709,14 +721,14 @@ function PlanOperationPage() {
                               e.dataTransfer.effectAllowed = "move";
                             }}
                             onDragEnd={() => { setDragTaskId(null); setDragOverSection(null); }}
-                            onClick={() => handleBarClick(b)}
+                            onClick={() => tryOpenBar(b)}
                             className={cn(
                               "group flex cursor-grab items-center gap-2 border-b px-3 text-xs hover:bg-accent/50 active:cursor-grabbing",
                               dragTaskId === b.id && "opacity-40",
                               b.status === "done" && "bg-emerald-50/60",
                             )}
                             style={{ height: ROW_H }}
-                            title={`${b.title} — glisser pour changer de section`}
+                            title={`${b.title} — double-cliquer pour ouvrir, glisser pour changer de section`}
                           >
                             <span className={cn("h-2 w-2 shrink-0 rounded-full", b.priority ? PRIORITY_META[b.priority].dot : "bg-muted-foreground")} />
                             <span className="flex-1 truncate">{b.title}</span>
@@ -850,6 +862,7 @@ function BarRow({
 }) {
   const [drag, setDrag] = useState<null | { mode: "move" | "resize-l" | "resize-r"; startX: number; origStart: Date; origEnd: Date }>(null);
   const [preview, setPreview] = useState<{ s: Date; e: Date } | null>(null);
+  const barClickRef = useRef<{ ts: number } | null>(null);
 
   const cur = preview ?? { s: bar.start, e: bar.end };
   const left = Math.floor((cur.s.getTime() - start.getTime()) / 86400000) * dayPx;
@@ -897,7 +910,18 @@ function BarRow({
           <HoverCard openDelay={250} closeDelay={100}>
             <HoverCardTrigger asChild>
               <div
-                onClick={(ev) => { if (!drag) { ev.stopPropagation(); onClick(); } }}
+                title="Double-cliquer pour ouvrir"
+                onClick={(ev) => {
+                  if (drag) return;
+                  ev.stopPropagation();
+                  const now = Date.now();
+                  if (barClickRef.current && now - barClickRef.current.ts < 400) {
+                    barClickRef.current = null;
+                    onClick();
+                  } else {
+                    barClickRef.current = { ts: now };
+                  }
+                }}
                 onPointerDown={onPointerDown("move")}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
