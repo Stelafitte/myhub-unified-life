@@ -246,6 +246,22 @@ export function AccountSection() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuration initiale</CardTitle>
+          <CardDescription>Relancer l'assistant de mise en route</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            variant="outline"
+            onClick={() => navigate({ to: "/onboarding", search: { force: true } })}
+          >
+            <Sparkles className="mr-2 h-4 w-4" /> Recommencer l'onboarding
+          </Button>
+        </CardContent>
+      </Card>
+
+
       <Card className="border-destructive/50">
         <CardHeader>
           <CardTitle className="text-destructive flex items-center gap-2">
