@@ -1632,7 +1632,7 @@ function InboxPage() {
           {checked.size > 0 ? (
             <>
               <span className="font-medium">
-                {checked.size} sélectionné{checked.size > 1 ? "s" : ""}
+                {checked.size} mail{checked.size > 1 ? "s" : ""} sélectionné{checked.size > 1 ? "s" : ""}
               </span>
               <div className="ml-auto flex flex-wrap gap-1">
                 <Button
@@ -1641,7 +1641,7 @@ function InboxPage() {
                   className="h-6 gap-1 px-2"
                   onClick={() => bulkMarkRead(true)}
                 >
-                  <MailOpen className="h-3.5 w-3.5" /> Lu
+                  <MailOpen className="h-3.5 w-3.5" /> Marquer lu
                 </Button>
                 <Button
                   size="sm"
@@ -1649,7 +1649,7 @@ function InboxPage() {
                   className="h-6 gap-1 px-2"
                   onClick={() => bulkMarkRead(false)}
                 >
-                  <Mail className="h-3.5 w-3.5" /> Non lu
+                  <Mail className="h-3.5 w-3.5" /> Marquer non lu
                 </Button>
                 <Button size="sm" variant="ghost" className="h-6 gap-1 px-2" onClick={bulkArchive}>
                   <Archive className="h-3.5 w-3.5" /> Archiver
@@ -1662,8 +1662,29 @@ function InboxPage() {
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Supprimer
                 </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button size="sm" variant="ghost" className="h-6 gap-1 px-2">
+                      <FolderInput className="h-3.5 w-3.5" /> Déplacer
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="max-h-72 w-56 overflow-y-auto">
+                    <DropdownMenuLabel>Déplacer vers un thème</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => bulkSetTheme(null)}>
+                      Sans thème
+                    </DropdownMenuItem>
+                    {themes.length > 0 && <DropdownMenuSeparator />}
+                    {themes.map((t) => (
+                      <DropdownMenuItem key={t.id} onSelect={() => bulkSetTheme(t.id)}>
+                        {t.icon ? <span className="mr-2">{t.icon}</span> : null}
+                        <span className="truncate">{t.name}</span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button size="sm" variant="ghost" className="h-6 px-2" onClick={clearChecked}>
-                  Annuler
+                  ✕ Annuler la sélection
                 </Button>
               </div>
             </>
