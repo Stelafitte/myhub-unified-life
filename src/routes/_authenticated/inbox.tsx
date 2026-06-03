@@ -801,6 +801,7 @@ function InboxPage() {
     void patch(e.id, { is_read: next });
     pushAction(e.id, e.account_id, next ? "mark_read" : "mark_unread");
   };
+  const toggleStar = (e: Email) => patch(e.id, { is_starred: !e.is_starred });
   const archive = async (e: Email) => {
     const snapshot = e;
     setEmails((prev) => prev.filter((x) => x.id !== e.id));
