@@ -210,6 +210,7 @@ function useLongPress(cb: () => void, ms = 500) {
 
 
 
+
 function AgendaPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -220,6 +221,16 @@ function AgendaPage() {
   const [events, setEvents] = useState<DbEvent[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
+  const lastClickRef = React.useRef<{ id: string; time: number } | null>(null);
+  const handleSelectEvent = (e: UnifiedEvent) => {
+    const now = Date.now();
+    if (lastClickRef.current && lastClickRef.current.id === e.id && now - lastClickRef.current.time < 400) {
+      setSelected(e);
+      lastClickRef.current = null;
+    } else {
+      lastClickRef.current = { id: e.id, time: now };
+    }
+  };
   const [catColors, setCatColors] = useState<Record<EventCategory, string>>(() => loadCategoryColors());
   // Touche Suppr : supprime l'événement sélectionné
   useDeleteKey(!!selected, () => { if (selected) deleteEvent(selected); });
@@ -752,13 +763,13 @@ function AgendaPage() {
           }}
         >
           {view === "month" ? (
-            <MonthView cursor={cursor} events={unified} onSelect={setSelected} onPick={setCursor} onLongCreate={openCreate} />
+            <MonthView cursor={cursor} events={unified} onSelect={handleSelectEvent} onPick={setCursor} onLongCreate={openCreate} />
           ) : view === "week" ? (
-            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} onLongCreate={openCreate} />
+            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={handleSelectEvent} onMove={moveEvent} onLongCreate={openCreate} />
           ) : view === "day" ? (
-            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={setSelected} onMove={moveEvent} onLongCreate={openCreate} />
+            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={handleSelectEvent} onMove={moveEvent} onLongCreate={openCreate} />
           ) : (
-            <ListView events={inRange} onSelect={setSelected} />
+            <ListView events={inRange} onSelect={handleSelectEvent} />
           )}
         </div>
 
@@ -1148,7 +1159,7 @@ function WeekOrDayView({
                         {e.location && <div className="mt-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> {e.location}</div>}
                         {e.hasVideo && <div className="mt-1 flex items-center gap-1 text-indigo-500"><Video className="h-3 w-3" /> Visioconférence</div>}
                         {e.description && <p className="mt-2 line-clamp-4 whitespace-pre-wrap opacity-80">{e.description}</p>}
-                        {draggable && <div className="mt-2 text-[10px] text-muted-foreground">Glisser pour déplacer · Cliquer pour ouvrir</div>}
+                        {draggable && <div className="mt-2 text-[10px] text-muted-foreground">Glisser pour déplacer · Double-cliquer pour ouvrir</div>}
                       </HoverCardContent>
                     </HoverCard>
                   );
