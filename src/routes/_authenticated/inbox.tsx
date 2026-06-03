@@ -1105,7 +1105,10 @@ function InboxPage() {
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     setReaderOpen(true);
-    if (!e.is_read) patch(e.id, { is_read: true });
+    if (!e.is_read) {
+      void patch(e.id, { is_read: true });
+      pushAction(e.id, e.account_id, "mark_read");
+    }
     // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
     // « Retour » du téléphone ferme l'email et revienne à la liste.
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
