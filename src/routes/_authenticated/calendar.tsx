@@ -1159,7 +1159,7 @@ function WeekOrDayView({
                         {e.location && <div className="mt-1 flex items-center gap-1"><MapPin className="h-3 w-3" /> {e.location}</div>}
                         {e.hasVideo && <div className="mt-1 flex items-center gap-1 text-indigo-500"><Video className="h-3 w-3" /> Visioconférence</div>}
                         {e.description && <p className="mt-2 line-clamp-4 whitespace-pre-wrap opacity-80">{e.description}</p>}
-                        {draggable && <div className="mt-2 text-[10px] text-muted-foreground">Glisser pour déplacer · Cliquer pour ouvrir</div>}
+                        {draggable && <div className="mt-2 text-[10px] text-muted-foreground">Glisser pour déplacer · Double-cliquer pour ouvrir</div>}
                       </HoverCardContent>
                     </HoverCard>
                   );
