@@ -153,6 +153,10 @@ export function MeetingDialog({
   const [confirmedSlotId, setConfirmedSlotId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
+  // --- Prep: duration + search horizon (asked early, drives slot search) ---
+  const [prepDuration, setPrepDuration] = useState<number>(60);
+  const [prepDays, setPrepDays] = useState<number>(30);
+
   async function loadAttachments(id: string) {
     const [{ data }, { data: shared }] = await Promise.all([
       supabase
