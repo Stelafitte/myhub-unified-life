@@ -1972,6 +1972,8 @@ function NewEventDialog({
       setLocation("");
       setParticipants("");
       setRecurrence("none");
+      setRecurrenceUntil("");
+
       setCategory("pro");
       setColor(catColors.pro_oneoff);
       setNotes("");
