@@ -163,15 +163,18 @@ function DocumentsPage() {
   }
 
 
+  const activeDocs = useMemo(() => docs.filter((d) => !d.ai_skipped_reason), [docs]);
+  const skippedDocs = useMemo(() => docs.filter((d) => !!d.ai_skipped_reason), [docs]);
+
   const counts = useMemo(() => {
-    const c = { all: docs.length, email: 0, task: 0, meeting: 0, manual: 0, sensitive: 0, saved: 0, unsaved: 0 } as Record<string, number>;
-    for (const d of docs) {
+    const c = { all: activeDocs.length, email: 0, task: 0, meeting: 0, manual: 0, sensitive: 0, saved: 0, unsaved: 0 } as Record<string, number>;
+    for (const d of activeDocs) {
       c[d.source_type] = (c[d.source_type] ?? 0) + 1;
       if (d.is_sensitive) c.sensitive += 1;
       if (d.onedrive_item_id) c.saved += 1; else c.unsaved += 1;
     }
     return c;
-  }, [docs]);
+  }, [activeDocs]);
 
 
   const emailsByAccount = useMemo(() => {
