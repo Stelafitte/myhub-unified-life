@@ -1060,6 +1060,10 @@ function InboxPage() {
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_read: read }).in("id", ids);
     if (error) { toast.error(error.message); return; }
+    for (const id of ids) {
+      const target = emails.find((x) => x.id === id);
+      pushAction(id, target?.account_id, read ? "mark_read" : "mark_unread");
+    }
     const undoFn = async () => {
       await Promise.all(
         Array.from(prevByIdMap.entries()).map(([id, val]) =>
