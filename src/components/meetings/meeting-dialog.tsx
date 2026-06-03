@@ -153,6 +153,10 @@ export function MeetingDialog({
   const [confirmedSlotId, setConfirmedSlotId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
+  // --- Prep: duration + search horizon (asked early, drives slot search) ---
+  const [prepDuration, setPrepDuration] = useState<number>(60);
+  const [prepDays, setPrepDays] = useState<number>(30);
+
   async function loadAttachments(id: string) {
     const [{ data }, { data: shared }] = await Promise.all([
       supabase
@@ -199,6 +203,8 @@ export function MeetingDialog({
     setConfirmedSlotId(null);
     setAcceptedCount(0);
     setOneNoteUrl(null);
+    setPrepDuration(60);
+    setPrepDays(30);
     if (meetingId) {
       setLoading(true);
       (async () => {
@@ -234,6 +240,10 @@ export function MeetingDialog({
             quorum_minimum: (m as { quorum_minimum?: number | null }).quorum_minimum ?? null,
             equipment: ((m as { equipment?: string[] | null }).equipment ?? []) as string[],
           });
+          if (m.start_at && m.end_at) {
+            const mins = Math.round((new Date(m.end_at).getTime() - new Date(m.start_at).getTime()) / 60000);
+            if (mins > 0) setPrepDuration(mins);
+          }
           setOneNoteUrl((m as { onenote_page_url?: string | null }).onenote_page_url ?? null);
           setAcceptedCount(((ps ?? []) as { rsvp_status: string | null }[]).filter((p) => p.rsvp_status === "accepted").length);
           setConfirmedSlotId((m as { confirmed_slot_id?: string | null }).confirmed_slot_id ?? null);
@@ -767,6 +777,58 @@ export function MeetingDialog({
               </div>
             </div>
 
+            {/* Préparation : durée + période de recherche (demandé tôt, pilote la recherche de créneaux) */}
+            <div className="rounded-md border p-3 bg-muted/10 space-y-3">
+              <div className="text-sm font-medium">Préparation du créneau</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="m-prep-duration">Durée de la réunion</Label>
+                  <Select
+                    value={String(prepDuration)}
+                    onValueChange={(v) => {
+                      const mins = Number(v);
+                      setPrepDuration(mins);
+                      // Si un début est déjà défini, on aligne la fin sur la nouvelle durée
+                      if (form.start_at) {
+                        const startMs = new Date(fromLocalInput(form.start_at)).getTime();
+                        const endIso = new Date(startMs + mins * 60000).toISOString();
+                        setForm((f) => ({ ...f, end_at: toLocalInput(endIso) }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="m-prep-duration"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="15">15 min</SelectItem>
+                      <SelectItem value="30">30 min</SelectItem>
+                      <SelectItem value="45">45 min</SelectItem>
+                      <SelectItem value="60">1 h</SelectItem>
+                      <SelectItem value="90">1 h 30</SelectItem>
+                      <SelectItem value="120">2 h</SelectItem>
+                      <SelectItem value="180">3 h</SelectItem>
+                      <SelectItem value="240">4 h</SelectItem>
+                      <SelectItem value="480">Journée (8 h)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="m-prep-days">Période de recherche</Label>
+                  <Select value={String(prepDays)} onValueChange={(v) => setPrepDays(Number(v))}>
+                    <SelectTrigger id="m-prep-days"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">7 prochains jours</SelectItem>
+                      <SelectItem value="14">14 prochains jours</SelectItem>
+                      <SelectItem value="30">30 prochains jours</SelectItem>
+                      <SelectItem value="60">60 prochains jours</SelectItem>
+                      <SelectItem value="90">90 prochains jours</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                La recherche de créneaux (manuelle ou IA) utilise vos agendas Google connectés (perso + pro) et vos réunions internes sur cette période.
+              </p>
+            </div>
+
             {/* Poll mode toggle */}
             <div className="flex items-center justify-between rounded-md border p-3 bg-muted/20">
               <div>
@@ -837,7 +899,8 @@ export function MeetingDialog({
                 </div>
 
                 <SlotFinder
-                  durationMinutes={60}
+                  durationMinutes={prepDuration}
+                  daysAhead={prepDays}
                   onPick={({ startAt, endAt }) => addPollSlot(startAt, endAt)}
                 />
 
@@ -978,12 +1041,8 @@ export function MeetingDialog({
                 </div>
 
                 <SlotFinder
-                  durationMinutes={(() => {
-                    if (!form.start_at || !form.end_at) return 60;
-                    const ms = new Date(fromLocalInput(form.end_at)).getTime() - new Date(fromLocalInput(form.start_at)).getTime();
-                    const m = Math.round(ms / 60000);
-                    return m > 0 ? m : 60;
-                  })()}
+                  durationMinutes={prepDuration}
+                  daysAhead={prepDays}
                   onPick={({ startAt, endAt }) => {
                     setForm((f) => ({
                       ...f,

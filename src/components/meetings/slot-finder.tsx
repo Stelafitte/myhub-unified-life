@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 type Props = {
   /** Duration to look for, in minutes. */
   durationMinutes: number;
+  /** Search horizon in days (default 30). */
+  daysAhead?: number;
   /** Called when the user picks a slot. ISO strings. */
   onPick: (slot: { startAt: string; endAt: string }) => void;
   /** Optional: allow picking multiple slots (returns true to keep selected style) */
@@ -24,7 +26,7 @@ type Props = {
   triggerLabel?: string;
 };
 
-export function SlotFinder({ durationMinutes, onPick, isSelected, triggerLabel }: Props) {
+export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected, triggerLabel }: Props) {
   const find = useServerFn(findAvailableSlots);
   const propose = useServerFn(aiProposeSlots);
 
@@ -44,7 +46,7 @@ export function SlotFinder({ durationMinutes, onPick, isSelected, triggerLabel }
       const res = await find({
         data: {
           durationMinutes: Math.max(15, Math.min(8 * 60, durationMinutes || 60)),
-          daysAhead: 30,
+          daysAhead,
           leadHours: 24,
           maxResults: 5,
         },
@@ -74,7 +76,7 @@ export function SlotFinder({ durationMinutes, onPick, isSelected, triggerLabel }
         data: {
           constraints,
           durationMinutes: Math.max(15, Math.min(8 * 60, durationMinutes || 60)),
-          daysAhead: 30,
+          daysAhead,
           leadHours: 24,
           maxResults: 5,
         },
