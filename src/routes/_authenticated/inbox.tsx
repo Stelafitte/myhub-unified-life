@@ -758,6 +758,36 @@ function InboxPage() {
     }
   }, [filtered, isMobileInbox, selectedId]);
 
+  // Fire-and-forget: répercute l'action sur le fournisseur (Gmail/Outlook/IMAP).
+  // En cas d'erreur réseau → on enregistre dans sync_queue pour replay ultérieur.
+  const pushAction = (
+    emailId: string,
+    accountId: string | null | undefined,
+    action: "mark_read" | "mark_unread" | "trash" | "untrash",
+  ) => {
+    if (!accountId) return;
+    void (async () => {
+      try {
+        const { error } = await supabase.functions.invoke("push-email-actions", {
+          body: { email_id: emailId, action, account_id: accountId },
+        });
+        if (error) throw error;
+      } catch (err) {
+        // Silencieux pour l'utilisateur ; on logue + on enfile pour replay offline.
+        console.warn("[push-email-actions] queued for retry", err);
+        try {
+          await supabase.from("sync_queue").insert({
+            user_id: user?.id,
+            entity_type: "email",
+            entity_id: emailId,
+            action: "update",
+            payload: { kind: "push-email-actions", action, account_id: accountId, email_id: emailId },
+          });
+        } catch { /* best effort */ }
+      }
+    })();
+  };
+
   // Mutations (optimistic)
   const patch = async (id: string, updates: Partial<Email>) => {
     setEmails((prev) => prev.map((e) => (e.id === id ? { ...e, ...updates } : e)));
@@ -765,8 +795,11 @@ function InboxPage() {
     if (error) toast.error(error.message);
   };
 
-  const toggleRead = (e: Email) => patch(e.id, { is_read: !e.is_read });
-  const toggleStar = (e: Email) => patch(e.id, { is_starred: !e.is_starred });
+  const toggleRead = (e: Email) => {
+    const next = !e.is_read;
+    void patch(e.id, { is_read: next });
+    pushAction(e.id, e.account_id, next ? "mark_read" : "mark_unread");
+  };
   const archive = async (e: Email) => {
     const snapshot = e;
     setEmails((prev) => prev.filter((x) => x.id !== e.id));
