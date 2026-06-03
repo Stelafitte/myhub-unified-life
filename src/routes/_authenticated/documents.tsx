@@ -744,6 +744,11 @@ function DocRow({
             </span>
           )}
           {doc.is_sensitive && <Badge variant="destructive" className="text-[10px] gap-0.5"><Lock className="h-2.5 w-2.5" />Sensible</Badge>}
+          {isSkipped && (
+            <Badge variant="secondary" className="gap-0.5 bg-muted text-[10px] text-muted-foreground" title={doc.ai_skipped_reason ?? ""}>
+              Ignoré
+            </Badge>
+          )}
           {doc.onedrive_item_id ? (
             doc.onedrive_web_url ? (
               <a
