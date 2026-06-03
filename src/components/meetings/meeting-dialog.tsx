@@ -997,7 +997,7 @@ export function MeetingDialog({
             )}
             <div>
               <Label htmlFor="m-loc">Lieu</Label>
-              <Input id="m-loc" placeholder="Salle, adresse…" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+              <DebouncedInput id="m-loc" placeholder="Salle, adresse…" value={form.location} onValueChange={(v) => setForm((f) => ({ ...f, location: v }))} />
             </div>
 
             <div className="flex items-center justify-between rounded-md border p-3">
