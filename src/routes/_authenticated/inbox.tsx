@@ -31,7 +31,16 @@ import {
   RefreshCw,
   Loader2,
   Undo2,
+  FolderInput,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
 import { AiSuggestionsPanel } from "@/components/inbox/ai-suggestions-panel";
