@@ -242,6 +242,21 @@ function AgendaPage() {
   const startGcalOAuth = useServerFn(startGoogleCalendarOAuth);
   const syncGcal = useServerFn(syncGoogleCalendarEvents);
   const deleteEventFn = useServerFn(deleteCalendarEvent);
+  const listConns = useServerFn(listGoogleCalendarConnections);
+  const [gcalConnections, setGcalConnections] = useState<AgendaConnection[]>([]);
+  const reloadConnections = async () => {
+    try {
+      const rows = await listConns({});
+      setGcalConnections(rows as AgendaConnection[]);
+    } catch {}
+  };
+  useEffect(() => { if (user) reloadConnections(); }, [user]);
+  useEffect(() => {
+    const h = () => reloadConnections();
+    window.addEventListener("myhub-agenda-visibility-changed", h);
+    return () => window.removeEventListener("myhub-agenda-visibility-changed", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
