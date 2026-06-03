@@ -2166,6 +2166,22 @@ function NewEventDialog({
             </Select>
           </div>
 
+          {recurrence !== "none" && (
+            <div>
+              <Label htmlFor="ev-until">Fin de la récurrence (optionnel)</Label>
+              <Input
+                id="ev-until"
+                type="date"
+                value={recurrenceUntil}
+                onChange={(e) => setRecurrenceUntil(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Laisser vide pour une récurrence sans fin.
+              </p>
+            </div>
+          )}
+
+
           <div>
             <Label htmlFor="ev-notes">Notes</Label>
             <Textarea id="ev-notes" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
