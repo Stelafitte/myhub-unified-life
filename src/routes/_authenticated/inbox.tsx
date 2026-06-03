@@ -949,20 +949,21 @@ function InboxPage() {
     clearChecked();
     const { error } = await supabase.from("emails").update({ is_archived: true }).in("id", ids);
     if (error) { toast.error(error.message); return; }
-    toast.success(`${ids.length} email(s) archivé(s)`);
-    pushUndo({
-      label: "Archivage groupé",
-      run: async () => {
-        const { error: err } = await supabase.from("emails").update({ is_archived: false }).in("id", ids);
-        if (err) throw new Error(err.message);
-        setEmails((prev) => {
-          const known = new Set(prev.map((x) => x.id));
-          const missing = snapshots.filter((s) => !known.has(s.id));
-          return [...missing, ...prev];
-        });
-        toast.success("Archivage annulé");
-      },
+    const undoArchive = async () => {
+      const { error: err } = await supabase.from("emails").update({ is_archived: false }).in("id", ids);
+      if (err) { toast.error(err.message); return; }
+      setEmails((prev) => {
+        const known = new Set(prev.map((x) => x.id));
+        const missing = snapshots.filter((s) => !known.has(s.id));
+        return [...missing, ...prev];
+      });
+      toast.success("Archivage annulé");
+    };
+    toast.success(`${ids.length} email(s) archivé(s)`, {
+      duration: 5000,
+      action: { label: "Annuler", onClick: () => { void undoArchive(); } },
     });
+    pushUndo({ label: "Archivage groupé", run: undoArchive });
   };
   const bulkDelete = async () => {
     const ids = bulkIds();
