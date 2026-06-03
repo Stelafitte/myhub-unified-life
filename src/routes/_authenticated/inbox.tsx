@@ -1702,12 +1702,30 @@ function InboxPage() {
           )}
           {displayItems.map((item) => {
             if (item.kind === "header") {
+              const allInTheme = item.ids.length > 0 && item.ids.every((id) => checked.has(id));
+              const someInTheme = !allInTheme && item.ids.some((id) => checked.has(id));
               return (
                 <li
                   key={`h:${item.key}`}
                   onClick={() => toggleTheme(item.key)}
                   className="sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20"
                 >
+                  <input
+                    type="checkbox"
+                    checked={allInTheme}
+                    ref={(el) => { if (el) el.indeterminate = someInTheme; }}
+                    onClick={(ev) => ev.stopPropagation()}
+                    onChange={(ev) => {
+                      setChecked((prev) => {
+                        const next = new Set(prev);
+                        if (ev.target.checked) item.ids.forEach((id) => next.add(id));
+                        else item.ids.forEach((id) => next.delete(id));
+                        return next;
+                      });
+                    }}
+                    className="h-3.5 w-3.5 shrink-0 cursor-pointer"
+                    title="Sélectionner ce thème"
+                  />
                   {collapsedThemes.has(item.key) ? (
                     <ChevronRight className="h-3 w-3 text-primary" />
                   ) : (
