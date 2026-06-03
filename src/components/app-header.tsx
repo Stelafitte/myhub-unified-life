@@ -1,5 +1,5 @@
 // MyHub Pro v1.0
-import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2, Plus, CheckSquare } from "lucide-react";
+import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2, Plus, CheckSquare, Search, X } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -9,7 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useTaskPanel } from "@/lib/task-panel-context";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function AppHeader() {
   const { theme, toggle } = useTheme();
@@ -58,6 +58,9 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b bg-background/80 px-2 sm:gap-3 sm:px-4 backdrop-blur">
       <SidebarTrigger className="h-9 w-9 shrink-0 border border-border/60 bg-muted/40 text-foreground hover:bg-muted [&_svg]:!size-5" />
+
+      <GlobalSearchBar />
+
       <div className="flex-1" />
 
       <button
@@ -97,5 +100,56 @@ export function AppHeader() {
         <AvatarFallback className="text-xs">{initials}</AvatarFallback>
       </Avatar>
     </header>
+  );
+}
+
+function GlobalSearchBar() {
+  const navigate = useNavigate();
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = value.trim();
+    if (q.length < 2) {
+      toast.error("Saisissez au moins 2 caractères");
+      return;
+    }
+    navigate({ to: "/search", search: { q } });
+  };
+
+  const clear = () => {
+    setValue("");
+    inputRef.current?.focus();
+  };
+
+  return (
+    <form onSubmit={onSubmit} className="mx-1 flex w-full max-w-[500px] flex-1 items-center sm:mx-3">
+      <div className="relative w-full">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          ref={inputRef}
+          type="search"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="Rechercher dans MyHub Pro…"
+          aria-label="Recherche globale"
+          className="h-9 w-full rounded-md border border-border/60 bg-muted/40 pl-8 pr-20 text-sm text-foreground placeholder:text-muted-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={clear}
+            aria-label="Effacer"
+            className="absolute right-12 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+        <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-border/60 bg-background/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline-block">
+          Entrée
+        </kbd>
+      </div>
+    </form>
   );
 }
