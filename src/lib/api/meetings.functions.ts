@@ -231,25 +231,23 @@ export const findAvailableSlots = createServerFn({ method: "POST" })
     }
 
     const workDays = new Set(data.workDays);
-    const startDay = new Date(earliest);
-    startDay.setHours(0, 0, 0, 0);
+    const TZ = "Europe/Paris";
+    const startDay = parisMidnight(new Date(earliest), TZ);
 
     for (let d = 0; d <= data.daysAhead; d++) {
-      const day = new Date(startDay.getTime() + d * 86400_000);
-      const iso = ((day.getDay() + 6) % 7) + 1; // 1..7 (Mon..Sun)
-      if (!workDays.has(iso)) continue;
+      const dayRef = new Date(startDay.getTime() + d * 86400_000 + 12 * 3600_000);
+      const { y, mo, da, isoWeekday } = parisYMD(dayRef, TZ);
+      if (!workDays.has(isoWeekday)) continue;
 
-      const dayStart = new Date(day);
-      dayStart.setHours(data.workStartHour, 0, 0, 0);
-      const dayEnd = new Date(day);
-      dayEnd.setHours(clamp(data.workEndHour, 1, 24), 0, 0, 0);
+      const dayStartMs = parisWallToUtc(y, mo, da, data.workStartHour, 0, TZ).getTime();
+      const dayEndMs = parisWallToUtc(y, mo, da, clamp(data.workEndHour, 1, 24), 0, TZ).getTime();
 
-      for (let t = dayStart.getTime(); t + durationMs <= dayEnd.getTime(); t += step) {
+      for (let t = dayStartMs; t + durationMs <= dayEndMs; t += step) {
         if (t < earliest) continue;
         const endT = t + durationMs;
         if (isBusy(t, endT)) continue;
 
-        const startH = new Date(t).getHours();
+        const startH = parisHour(new Date(t), TZ);
         const period: "morning" | "afternoon" = startH < 12 ? "morning" : "afternoon";
         // Ideal windows: 10-12 and 14-16
         const ideal = (startH >= 10 && startH < 12) || (startH >= 14 && startH < 16);
