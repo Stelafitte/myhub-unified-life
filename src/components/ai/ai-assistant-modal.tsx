@@ -185,6 +185,24 @@ export function AiAssistantModal({
     toggleMatchPreview(match.id);
   };
 
+  const SOURCE_LABEL: Record<EntityKind, string> = {
+    email: "Inbox", task: "Tâches", event: "Agenda", meeting: "Réunions", document: "Plan d'opération", contact: "Contacts",
+  };
+
+  const openInSource = (kind: EntityKind, id: string, date?: string | null) => {
+    onOpenChange(false);
+    setEmailPreviewId(null);
+    setEntityPreview(null);
+    setTimeout(() => {
+      if (kind === "email") navigate({ to: "/inbox", search: { emailId: id } as any });
+      else if (kind === "task") navigate({ to: "/tasks", search: { taskId: id } as any });
+      else if (kind === "event") navigate({ to: "/calendar", search: { eventId: id, eventAt: date ?? undefined } as any });
+      else if (kind === "meeting") navigate({ to: "/meetings", search: { meetingId: id } as any });
+      else if (kind === "document") navigate({ to: "/plan-operation", search: { documentId: id } as any });
+      else if (kind === "contact") navigate({ to: "/contacts", search: { contactId: id } as any });
+    }, 50);
+  };
+
   const proposeFor = async (turn: Turn, kind: ProposedAction["kind"]) => {
     setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, proposing: true } : t));
     try {
