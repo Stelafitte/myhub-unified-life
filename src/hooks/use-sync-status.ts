@@ -7,7 +7,9 @@ import { syncGoogleCalendarEvents } from "@/lib/api/google-calendar.functions";
 export type SyncState = "online" | "syncing" | "offline";
 
 export function useSyncStatus() {
-  const [online, setOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  // Always start `true` on first render to match SSR; the effect below syncs
+  // with `navigator.onLine` after hydration to avoid mismatch errors.
+  const [online, setOnline] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [pending, setPending] = useState(0);
 
