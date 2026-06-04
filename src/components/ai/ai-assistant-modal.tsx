@@ -306,12 +306,16 @@ export function AiAssistantModal({
                         {t.result.matches.map((m: AnyMatch) => {
                           const checked = t.selectedMatches.has(m.id);
                           const Icon = KIND_ICON[m.kind] ?? Mail;
-                          const open = () => {
-                            onOpenChange(false);
-                            if (m.kind === "email") navigate({ to: "/inbox", search: { emailId: m.id } as any });
-                            else if (m.kind === "event") navigate({ to: "/calendar", search: { eventId: m.id, eventAt: m.date ?? undefined } as any });
-                            else if (m.kind === "meeting") navigate({ to: "/meetings", search: { meetingId: m.id } as any });
-                            else navigate({ to: KIND_ROUTE[m.kind] as any });
+                          const buildHref = () => {
+                            const qs = new URLSearchParams();
+                            if (m.kind === "email") { qs.set("emailId", m.id); return `/inbox?${qs}`; }
+                            if (m.kind === "event") { qs.set("eventId", m.id); if (m.date) qs.set("eventAt", m.date); return `/calendar?${qs}`; }
+                            if (m.kind === "meeting") { qs.set("meetingId", m.id); return `/meetings?${qs}`; }
+                            return KIND_ROUTE[m.kind];
+                          };
+                          const open = (e: React.MouseEvent) => {
+                            e.preventDefault();
+                            window.open(buildHref(), "_blank", "noopener,noreferrer");
                           };
                           return (
                             <div key={m.id} className="flex items-start gap-2 px-3 py-2 hover:bg-muted/30">
