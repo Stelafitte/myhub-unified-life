@@ -1228,10 +1228,13 @@ function InboxPage() {
 
 
   return (
-    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
+    <div
+      ref={layoutRef}
+      className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6"
+    >
       {/* LEFT — filters */}
       <aside
-        style={isMobileInbox ? undefined : { width: leftW }}
+        style={isMobileInbox ? undefined : { width: desktopLeftW }}
         className={cn(
           "shrink-0 flex-col border-r bg-card",
           isMobileInbox
@@ -2157,9 +2160,7 @@ function InboxPage() {
 
       {/* RIGHT — reader (full overlay on mobile when selected) */}
       <aside
-        style={{
-          width: winW >= 1024 ? Math.min(rightW, Math.max(360, winW - leftW - 380)) : undefined,
-        }}
+        style={winW >= 1024 ? { width: desktopRightW } : undefined}
         className={cn(
           "min-w-0 shrink-0 flex-col bg-card lg:flex lg:relative lg:inset-auto lg:z-auto",
           selected && (!isMobileInbox || readerOpen) ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
