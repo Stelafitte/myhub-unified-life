@@ -15,13 +15,13 @@ import { sendEmail } from "@/lib/api/email-send.functions";
 import { toast } from "sonner";
 
 const ARCHIVE_KEY = "ai-assistant-archives";
-type Archive = { id: string; title: string; savedAt: number; turns: Turn[] };
+type ArchivedChat = { id: string; title: string; savedAt: number; turns: Turn[] };
 
-function loadArchives(): Archive[] {
+function loadArchives(): ArchivedChat[] {
   if (typeof window === "undefined") return [];
   try { return JSON.parse(localStorage.getItem(ARCHIVE_KEY) || "[]"); } catch { return []; }
 }
-function saveArchives(a: Archive[]) {
+function saveArchives(a: ArchivedChat[]) {
   try { localStorage.setItem(ARCHIVE_KEY, JSON.stringify(a.slice(0, 30))); } catch {}
 }
 
@@ -73,7 +73,7 @@ export function AiAssistantModal({
   const [prompt, setPrompt] = useState(initialPrompt ?? "");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
-  const [archives, setArchives] = useState<Archive[]>([]);
+  const [archives, setArchives] = useState<ArchivedChat[]>([]);
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const sendFn = useServerFn(sendEmail);
@@ -93,7 +93,7 @@ export function AiAssistantModal({
     toast.success("Conversation archivée");
     newConversation();
   };
-  const restoreArchive = (a: Archive) => {
+  const restoreArchive = (a: ArchivedChat) => {
     setTurns(a.turns.map(t => ({ ...t, selectedMatches: new Set(Array.isArray(t.selectedMatches as any) ? (t.selectedMatches as any) : []) })));
   };
   const deleteArchive = (id: string) => {
