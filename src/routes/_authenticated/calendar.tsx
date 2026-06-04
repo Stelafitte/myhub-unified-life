@@ -553,6 +553,29 @@ function AgendaPage() {
     else { toast.success("Événement déplacé"); load(); }
   };
 
+  const resizeEvent = async (ev: UnifiedEvent, edge: "start" | "end", deltaMin: number) => {
+    if (ev.kind !== "event" || deltaMin === 0) return;
+    let newStart = new Date(ev.start);
+    let newEnd = new Date(ev.end);
+    if (edge === "start") {
+      newStart = new Date(ev.start.getTime() + deltaMin * 60000);
+      if (newStart.getTime() >= newEnd.getTime() - 5 * 60000) {
+        newStart = new Date(newEnd.getTime() - 15 * 60000);
+      }
+    } else {
+      newEnd = new Date(ev.end.getTime() + deltaMin * 60000);
+      if (newEnd.getTime() <= newStart.getTime() + 5 * 60000) {
+        newEnd = new Date(newStart.getTime() + 15 * 60000);
+      }
+    }
+    const { error } = await supabase
+      .from("calendar_events")
+      .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() })
+      .eq("id", (ev.raw as DbEvent).id);
+    if (error) toast.error(error.message);
+    else { toast.success("Plage horaire modifiée"); load(); }
+  };
+
   const shareEvent = (ev: UnifiedEvent) => {
     const subject = encodeURIComponent(`Invitation : ${ev.title}`);
     const lines = [
