@@ -267,6 +267,22 @@ export function AiAssistantModal({
                   </button>
                   <div className="max-w-[80%] rounded-2xl bg-primary text-primary-foreground px-4 py-2 text-sm whitespace-pre-wrap">{t.prompt}</div>
                 </div>
+                {t.mode === "chat" ? (
+                  <>
+                    {t.chatReply === null && t.error === null && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />Réflexion en cours…
+                      </div>
+                    )}
+                    {t.error && <div className="text-sm text-destructive">{t.error}</div>}
+                    {t.chatReply && (
+                      <div className="rounded-2xl border bg-card px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed max-w-[85%]">
+                        {t.chatReply}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
                 {t.result === null && t.error === null && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />Recherche en cours…
