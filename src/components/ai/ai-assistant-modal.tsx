@@ -87,7 +87,8 @@ export function AiAssistantModal({
   const archiveConversation = () => {
     if (turns.length === 0) { toast.info("Rien à archiver."); return; }
     const title = turns[0]?.prompt.slice(0, 60) || "Conversation";
-    const next = [{ id: crypto.randomUUID(), title, savedAt: Date.now(), turns }, ...archives];
+    const serializable = turns.map(t => ({ ...t, selectedMatches: Array.from(t.selectedMatches) as any }));
+    const next = [{ id: crypto.randomUUID(), title, savedAt: Date.now(), turns: serializable as any }, ...archives];
     setArchives(next); saveArchives(next);
     toast.success("Conversation archivée");
     newConversation();
