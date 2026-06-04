@@ -486,7 +486,7 @@ type AiReaderAccount = {
   credentials?: Record<string, unknown> | null;
 };
 
-function AiEmailReaderDialog({ emailId, open, onOpenChange }: { emailId: string | null; open: boolean; onOpenChange: (v: boolean) => void }) {
+function AiEmailReaderDialog({ emailId, open, onOpenChange, onOpenInSource }: { emailId: string | null; open: boolean; onOpenChange: (v: boolean) => void; onOpenInSource?: (id: string) => void }) {
   const [email, setEmail] = useState<CachedEmail | null>(null);
   const [accounts, setAccounts] = useState<AiReaderAccount[]>([]);
   const [userId, setUserId] = useState("");
