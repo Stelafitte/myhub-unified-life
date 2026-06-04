@@ -83,6 +83,7 @@ export function AiAssistantModal({
   const [archives, setArchives] = useState<ArchivedChat[]>([]);
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
   const [emailPreviewId, setEmailPreviewId] = useState<string | null>(null);
+  const [entityPreview, setEntityPreview] = useState<{ kind: EntityKind; id: string } | null>(null);
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const chatFn = useServerFn(aiChat);
@@ -90,6 +91,7 @@ export function AiAssistantModal({
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const closeEmailPreview = useCallback((v: boolean) => { if (!v) setEmailPreviewId(null); }, []);
+  const closeEntityPreview = useCallback((v: boolean) => { if (!v) setEntityPreview(null); }, []);
 
   useEffect(() => { if (open) { setTimeout(() => inputRef.current?.focus(), 60); setArchives(loadArchives()); } }, [open]);
   useEffect(() => { if (initialPrompt && open) setPrompt(initialPrompt); }, [initialPrompt, open]);
