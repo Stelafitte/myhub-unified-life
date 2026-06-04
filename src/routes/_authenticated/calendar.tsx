@@ -789,9 +789,9 @@ function AgendaPage() {
           {view === "month" ? (
             <MonthView cursor={cursor} events={unified} onSelect={handleSelectEvent} onPick={setCursor} onLongCreate={openCreate} />
           ) : view === "week" ? (
-            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={handleSelectEvent} onMove={moveEvent} onLongCreate={openCreate} />
+            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={handleSelectEvent} onMove={moveEvent} onResize={resizeEvent} onLongCreate={openCreate} />
           ) : view === "day" ? (
-            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={handleSelectEvent} onMove={moveEvent} onLongCreate={openCreate} />
+            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={handleSelectEvent} onMove={moveEvent} onResize={resizeEvent} onLongCreate={openCreate} />
           ) : (
             <ListView events={inRange} onSelect={handleSelectEvent} />
           )}
