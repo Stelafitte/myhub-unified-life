@@ -56,7 +56,7 @@ Réponds UNIQUEMENT en JSON valide :
   "actions": [ { "type": "...", "label": "libellé court FR", "args": {...} } ]
 }
 Tu peux planifier plusieurs actions. Si la demande est vague, propose au moins
-une recherche de mail pertinente.`;
+une recherche de mail pertinente.${userPromptsBlock}`;
 
     const ctx = `Tâche : ${data.taskTitle ?? "(sans titre)"}
 Description : ${(data.taskDescription ?? "").slice(0, 600)}
