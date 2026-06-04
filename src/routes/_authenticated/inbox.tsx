@@ -383,7 +383,7 @@ function InboxPage() {
   useEffect(() => {
     const node = layoutRef.current;
     if (!node) return;
-    const update = () => setLayoutW(node.clientWidth);
+    const update = () => setLayoutW(node.getBoundingClientRect().width);
     update();
     const observer = new ResizeObserver(update);
     observer.observe(node);
@@ -393,7 +393,7 @@ function InboxPage() {
     e.preventDefault();
     const startX = e.clientX;
     const startW = which === "left" ? desktopLeftW : desktopRightW;
-    const startLayoutW = layoutRef.current?.clientWidth || layoutWidth;
+    const startLayoutW = layoutRef.current?.getBoundingClientRect().width || layoutWidth;
     const startLeftW = desktopLeftW;
     const onMove = (ev: MouseEvent) => {
       const dx = ev.clientX - startX;
@@ -1208,7 +1208,7 @@ function InboxPage() {
     }
     // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
     // « Retour » du téléphone ferme l'email et revienne à la liste.
-    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+    if (isMobileInbox) {
       try {
         window.history.pushState({ inboxReader: true }, "");
       } catch { /* ignore */ }
@@ -1231,18 +1231,27 @@ function InboxPage() {
   return (
     <div
       ref={layoutRef}
-      className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6"
+      style={
+        isMobileInbox
+          ? undefined
+          : {
+              gridTemplateColumns: `${desktopLeftW}px 4px minmax(${INBOX_MIN_LIST_W}px, 1fr) 4px ${desktopRightW}px`,
+            }
+      }
+      className={cn(
+        "-mx-3 -my-3 h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6",
+        isMobileInbox ? "flex" : "grid",
+      )}
     >
       {/* LEFT — filters */}
       <aside
-        style={isMobileInbox ? undefined : { width: desktopLeftW }}
         className={cn(
-          "shrink-0 flex-col border-r bg-card",
+          "min-w-0 overflow-hidden flex-col border-r bg-card",
           isMobileInbox
             ? mobileView === "sidebar"
               ? "flex w-full"
               : "hidden"
-            : "hidden md:flex",
+            : "flex",
         )}
       >
         <div className="border-b p-4">
@@ -1362,7 +1371,7 @@ function InboxPage() {
                 key={a.id}
                 onClick={() => setFilter(`account:${a.id}`)}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                  "flex w-full items-center justify-start gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
                   filter === `account:${a.id}` ? "bg-accent" : "hover:bg-accent/50",
                 )}
               >
@@ -1434,7 +1443,7 @@ function InboxPage() {
                               key={t.id}
                               onClick={() => setFilter(`theme:${t.id}`)}
                               className={cn(
-                                "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors",
+                                "flex w-full items-center justify-start gap-2 rounded-md px-2 py-1 text-left transition-colors",
                                 active ? "bg-accent" : "hover:bg-accent/50",
                               )}
                               title={t.description ?? t.name}
@@ -1460,7 +1469,7 @@ function InboxPage() {
                           key={t.id}
                           onClick={() => setFilter(`theme:${t.id}`)}
                           className={cn(
-                            "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                            "flex w-full items-center justify-start gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
                             active ? "bg-accent" : "hover:bg-accent/50",
                           )}
                           title={t.description ?? t.name}
@@ -1524,7 +1533,7 @@ function InboxPage() {
             <button
               onClick={() => setFilter("theme:__none__")}
               className={cn(
-                "mt-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                "mt-1 flex w-full items-center justify-start gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
                 filter === "theme:__none__" ? "bg-accent" : "hover:bg-accent/50",
               )}
             >
@@ -1548,7 +1557,10 @@ function InboxPage() {
       {/* left resizer */}
       <div
         onMouseDown={startDrag("left")}
-        className="hidden w-1 shrink-0 cursor-col-resize bg-border/30 hover:bg-primary/40 md:block"
+        className={cn(
+          "w-1 min-w-0 cursor-col-resize bg-border/30 hover:bg-primary/40",
+          isMobileInbox && "hidden",
+        )}
         title="Glisser pour redimensionner"
       />
 
@@ -1585,7 +1597,7 @@ function InboxPage() {
               onClick={() => {
                 setFilter("all");
                 setAiRanking(false);
-                if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                if (isMobileInbox) {
                   setSelectedId(null);
                 }
               }}
@@ -1613,7 +1625,7 @@ function InboxPage() {
                 // reste affichée, notamment sur mobile).
                 if (v === "all" || v.startsWith("account:")) setAiRanking(false);
                 // Sur mobile, fermer le lecteur plein écran pour afficher la liste
-                if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                if (isMobileInbox) {
                   setSelectedId(null);
                 }
               }}
@@ -2155,16 +2167,22 @@ function InboxPage() {
       {/* right resizer */}
       <div
         onMouseDown={startDrag("right")}
-        className="hidden w-1 shrink-0 cursor-col-resize bg-border/30 hover:bg-primary/40 lg:block"
+        className={cn(
+          "w-1 min-w-0 cursor-col-resize bg-border/30 hover:bg-primary/40",
+          isMobileInbox && "hidden",
+        )}
         title="Glisser pour redimensionner"
       />
 
       {/* RIGHT — reader (full overlay on mobile when selected) */}
       <aside
-        style={winW >= 1024 ? { width: desktopRightW } : undefined}
         className={cn(
-          "min-w-0 shrink-0 flex-col bg-card lg:flex lg:relative lg:inset-auto lg:z-auto",
-          selected && (!isMobileInbox || readerOpen) ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
+          "min-w-0 overflow-hidden flex-col bg-card",
+          isMobileInbox
+            ? selected && readerOpen
+              ? "fixed inset-0 z-40 flex"
+              : "hidden"
+            : "relative inset-auto z-auto flex",
         )}
       >
         {selected && (
@@ -2258,7 +2276,7 @@ function FilterRow({
         active ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
       )}
     >
-      <button onClick={onClick} className="flex flex-1 items-center gap-2 min-w-0">
+      <button onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2 text-left">
         <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground">
           {icon}
         </span>
