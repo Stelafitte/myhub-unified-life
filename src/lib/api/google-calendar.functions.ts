@@ -127,15 +127,27 @@ function buildGooglePayload(ev: {
   if (ev.is_all_day) {
     payload.start = { date: new Date(ev.start_at).toISOString().slice(0, 10) };
     payload.end = { date: new Date(ev.end_at).toISOString().slice(0, 10) };
+  } else if (ev.recurrence_rule) {
+    // Google REQUIRES timeZone on start/end for recurring events,
+    // otherwise the API returns 400 "Missing time zone definition for recurring event".
+    payload.start = { dateTime: new Date(ev.start_at).toISOString(), timeZone: "UTC" };
+    payload.end = { dateTime: new Date(ev.end_at).toISOString(), timeZone: "UTC" };
   } else {
     payload.start = { dateTime: new Date(ev.start_at).toISOString() };
     payload.end = { dateTime: new Date(ev.end_at).toISOString() };
   }
   if (ev.recurrence_rule) {
-    const r = ev.recurrence_rule.startsWith("RRULE:")
-      ? ev.recurrence_rule
-      : `RRULE:${ev.recurrence_rule}`;
-    payload.recurrence = [r];
+    let raw = ev.recurrence_rule.trim();
+    if (raw.toUpperCase().startsWith("RRULE:")) raw = raw.slice(6);
+    // Normalize UNTIL=YYYY-MM-DD or YYYYMMDD → YYYYMMDDTHHMMSSZ (Google rejects naïve values)
+    raw = raw.replace(/UNTIL=([^;]+)/i, (_m, v: string) => {
+      const cleaned = v.replace(/[-:]/g, "").trim();
+      if (/^\d{8}$/.test(cleaned)) return `UNTIL=${cleaned}T235959Z`;
+      if (/^\d{8}T\d{6}$/.test(cleaned)) return `UNTIL=${cleaned}Z`;
+      if (/^\d{8}T\d{6}Z$/.test(cleaned)) return `UNTIL=${cleaned}`;
+      return `UNTIL=${v}`;
+    });
+    payload.recurrence = [`RRULE:${raw}`];
   }
   return payload;
 }
