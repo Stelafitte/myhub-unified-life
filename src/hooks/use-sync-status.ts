@@ -20,6 +20,7 @@ export function useSyncStatus() {
 
   useEffect(() => {
     refreshPending();
+    if (typeof navigator !== "undefined") setOnline(navigator.onLine);
     const on = () => setOnline(true);
     const off = () => setOnline(false);
     const ch = () => refreshPending();
