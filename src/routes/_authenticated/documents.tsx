@@ -162,6 +162,42 @@ function DocumentsPage() {
     }
   }
 
+  async function reclassifyAll() {
+    if (classifying) return;
+    if (!confirm("Réinitialiser la classification IA de tous les documents et la relancer avec les prompts actuels ?")) return;
+    setClassifying(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      // Reset uniquement les docs non ignorés (on conserve le skip "petit fichier" / sensible)
+      const { error: upErr } = await supabase
+        .from("documents")
+        .update({ ai_processed_at: null, ai_category: null, ai_priority: null, ai_summary: null })
+        .eq("user_id", user.id)
+        .is("ai_skipped_reason", null);
+      if (upErr) { toast.error(upErr.message); return; }
+      toast.info("Reclassement en cours…");
+      let totalP = 0, totalS = 0, iter = 0;
+      // Boucle tant que le serveur renvoie des docs traités (batch de 15)
+      while (iter < 20) {
+        const res = await runClassify();
+        if ("error" in res && res.error) { toast.error(res.error); break; }
+        const p = (res as { processed?: number }).processed ?? 0;
+        const sk = (res as { skipped?: number }).skipped ?? 0;
+        totalP += p; totalS += sk;
+        if (p === 0 && sk === 0) break;
+        iter++;
+      }
+      toast.success(`Reclassement terminé : ${totalP} classé(s), ${totalS} ignoré(s)`);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Échec reclassement");
+    } finally {
+      setClassifying(false);
+    }
+  }
+
+
 
   const activeDocs = useMemo(() => docs.filter((d) => !d.ai_skipped_reason), [docs]);
   const skippedDocs = useMemo(() => docs.filter((d) => !!d.ai_skipped_reason), [docs]);
@@ -419,6 +455,12 @@ function DocumentsPage() {
             <Button variant="outline" size="sm" onClick={classifyNow} disabled={classifying} className="gap-1.5">
               {classifying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
               <span className="hidden sm:inline">Classer IA</span>
+            </Button>
+          )}
+          {!selectionMode && (
+            <Button variant="outline" size="sm" onClick={reclassifyAll} disabled={classifying} className="gap-1.5" title="Réinitialise et reclasse tous les documents avec les prompts actuels">
+              <Wand2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Tout reclasser</span>
             </Button>
           )}
           {!selectionMode && filtered.length > 0 && (
