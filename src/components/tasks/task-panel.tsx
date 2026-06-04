@@ -12,6 +12,7 @@ import { downloadAsBlob, getSignedUrl, sha256, storagePath, uploadToStorage, typ
 import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
 import { EmailComposer, type ComposerAttachment, type ComposerInitial } from "@/components/inbox/email-composer";
 import { formatBytes } from "@/lib/file-icons";
+import { TaskAutomationSection } from "@/components/tasks/task-automation-section";
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
@@ -1304,6 +1305,17 @@ export function TaskPanel({
               <Send className="mr-2 h-4 w-4" />
               {preparingEmail ? "Préparation de l'email…" : "Envoyer par email (PJ + brouillon IA)"}
             </Button>
+
+
+            <TaskAutomationSection
+              taskTitle={title}
+              taskDescription={description}
+              currentEmailId={emailId}
+              onAttachEmail={(id) => setEmailId(id)}
+              onAppendComment={(text) =>
+                setComments((prev) => (prev ? `${prev}\n\n${text}` : text))
+              }
+            />
 
             <div className="sticky bottom-0 -mx-6 flex gap-2 border-t bg-background px-6 py-3">
               <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
