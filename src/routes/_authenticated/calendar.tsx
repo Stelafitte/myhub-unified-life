@@ -1603,11 +1603,11 @@ function EventDetail({
       </header>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-4 text-sm">
-        <div>
-          <div className="text-xs font-medium text-muted-foreground">Quand</div>
-          <div>{fmtDate(event.start)}</div>
-          <div>{fmtTime(event.start)} – {fmtTime(event.end)}</div>
-        </div>
+        <EventWhenEditor
+          event={event}
+          canEdit={canEdit}
+          onSaved={() => onUpdated?.()}
+        />
 
         {event.location && (
           <div>
