@@ -114,6 +114,8 @@ export const aiAssistantQuery = createServerFn({ method: "POST" })
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
 
     const today = new Date().toISOString();
+    const generalPrompts = await loadActivePrompts(supabase, userId, ["general"]);
+    const promptBlock = buildPromptBlock(generalPrompts);
     const sys = `Tu transformes une demande utilisateur en critères de recherche structurés sur la plateforme MyHub Pro.
 Date de référence : ${today}
 Tu DOIS répondre UNIQUEMENT en JSON valide avec ce schéma exact :
@@ -137,7 +139,7 @@ Règles de choix d'entité :
 - "événement", "agenda", "calendrier" -> events
 - "réunion", "rendez-vous", "rdv", "meeting" -> meetings
 - "document", "fichier", "pj", "pièce jointe" -> documents
-- Sinon, choisis l'entité la plus probable, jamais "auto" dans la réponse finale.`;
+- Sinon, choisis l'entité la plus probable, jamais "auto" dans la réponse finale.${promptBlock}`;
 
     const extracted = await callGateway(key, {
       model: "google/gemini-3-flash-preview",
