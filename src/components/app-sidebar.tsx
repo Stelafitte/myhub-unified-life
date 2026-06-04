@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useIsAdmin } from "@/lib/use-role";
 import { cn } from "@/lib/utils";
+import { useNavOrder } from "@/lib/use-nav-order";
 
 const baseItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -30,11 +31,14 @@ const baseItems = [
   { title: "Stats", url: "/stats", icon: BarChart3 },
 ] as const;
 
+const DEFAULT_ORDER = baseItems.map((i) => i.url);
+
 export function AppSidebar() {
   const pathname = useRouterState({ select: (r) => r.location.pathname });
   const { isAdmin } = useIsAdmin();
   const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
+  const { order } = useNavOrder(DEFAULT_ORDER);
   const closeIfMobile = () => {
     if (isMobile) setOpenMobile(false);
   };
@@ -43,11 +47,15 @@ export function AppSidebar() {
     if (isMobile) setOpenMobile(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, isMobile]);
+  const orderedBase = order
+    .map((url) => baseItems.find((i) => i.url === url))
+    .filter((i): i is (typeof baseItems)[number] => Boolean(i));
   const items = [
-    ...baseItems,
+    ...orderedBase,
     { title: "Paramètres", url: "/settings", icon: Settings } as const,
     ...(isAdmin ? [{ title: "Administration", url: "/admin", icon: Shield } as const] : []),
   ];
+
 
 
   return (

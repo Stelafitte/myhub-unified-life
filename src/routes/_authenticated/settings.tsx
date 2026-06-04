@@ -14,6 +14,7 @@ import { ContactsSection } from "@/components/settings/contacts-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
 import { AiSection } from "@/components/settings/ai-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
+import { NavigationSection } from "@/components/settings/navigation-section";
 
 
 
@@ -47,6 +48,7 @@ function SettingsPage() {
           <TabsTrigger value="meetings">🗓️ Réunions</TabsTrigger>
           <TabsTrigger value="plan">📋 Plan d'opération</TabsTrigger>
           <TabsTrigger value="documents">📁 Documents</TabsTrigger>
+          <TabsTrigger value="navigation">🧭 Navigation</TabsTrigger>
           <TabsTrigger value="security">🔒 Sécurité</TabsTrigger>
           <TabsTrigger value="preferences">🎨 Apparence</TabsTrigger>
           <TabsTrigger value="advanced">⚙️ Avancé</TabsTrigger>
@@ -63,9 +65,11 @@ function SettingsPage() {
         <TabsContent value="meetings"><MeetingsSection /></TabsContent>
         <TabsContent value="plan"><PlanOperationSection /></TabsContent>
         <TabsContent value="documents"><DocumentsSection /></TabsContent>
+        <TabsContent value="navigation"><NavigationSection /></TabsContent>
         <TabsContent value="security"><SecuritySection /></TabsContent>
         <TabsContent value="preferences"><PreferencesSection /></TabsContent>
         <TabsContent value="advanced"><BackendSection /></TabsContent>
+
       </Tabs>
     </div>
   );
