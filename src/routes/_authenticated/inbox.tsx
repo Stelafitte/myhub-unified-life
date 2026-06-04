@@ -113,6 +113,10 @@ type Filter =
   | "theme:__none__";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
+  validateSearch: (s: Record<string, unknown>): { emailId?: string; open?: string } => ({
+    emailId: typeof s.emailId === "string" ? s.emailId : undefined,
+    open: typeof s.open === "string" ? s.open : undefined,
+  }),
   component: InboxPage,
 });
 
