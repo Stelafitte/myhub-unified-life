@@ -379,18 +379,36 @@ function InboxPage() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+  useEffect(() => {
+    const node = layoutRef.current;
+    if (!node) return;
+    const update = () => setLayoutW(node.clientWidth);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   const startDrag = (which: "left" | "right") => (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
-    const startW = which === "left" ? leftW : rightW;
+    const startW = which === "left" ? desktopLeftW : desktopRightW;
+    const startLayoutW = layoutRef.current?.clientWidth || layoutWidth;
+    const startLeftW = desktopLeftW;
     const onMove = (ev: MouseEvent) => {
       const dx = ev.clientX - startX;
       if (which === "left") {
-        const w = Math.min(500, Math.max(200, startW + dx));
+        const maxLeft = Math.max(
+          INBOX_MIN_LEFT_W,
+          startLayoutW - INBOX_MIN_LIST_W - INBOX_MIN_READER_W - INBOX_RESIZERS_W,
+        );
+        const w = Math.min(maxLeft, Math.max(INBOX_MIN_LEFT_W, startW + dx));
         setLeftW(w);
       } else {
-        const maxW = Math.max(360, window.innerWidth - leftW - 380);
-        const w = Math.min(maxW, Math.max(320, startW - dx));
+        const maxRight = Math.max(
+          INBOX_MIN_READER_W,
+          startLayoutW - startLeftW - INBOX_MIN_LIST_W - INBOX_RESIZERS_W,
+        );
+        const w = Math.min(maxRight, Math.max(INBOX_MIN_READER_W, startW - dx));
         setRightW(w);
       }
     };
@@ -398,14 +416,6 @@ function InboxPage() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
       document.body.style.cursor = "";
-      localStorage.setItem(
-        "inbox:leftW",
-        String(which === "left" ? (document.documentElement.dataset._lw ?? leftW) : leftW),
-      );
-      localStorage.setItem(
-        "inbox:rightW",
-        String(which === "right" ? (document.documentElement.dataset._rw ?? rightW) : rightW),
-      );
     };
     document.body.style.cursor = "col-resize";
     window.addEventListener("mousemove", onMove);
