@@ -94,6 +94,11 @@ type Account = {
 
 type Email = CachedEmail;
 
+const INBOX_MIN_LEFT_W = 200;
+const INBOX_MIN_LIST_W = 300;
+const INBOX_MIN_READER_W = 360;
+const INBOX_RESIZERS_W = 8;
+
 type Filter =
   | "all"
   | "unread"
@@ -312,8 +317,23 @@ function InboxPage() {
   const [winW, setWinW] = useState<number>(() =>
     typeof window !== "undefined" ? window.innerWidth : 600,
   );
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const [layoutW, setLayoutW] = useState(0);
 
   const isMobileInbox = winW < 1024;
+  const layoutWidth = layoutW || winW;
+  const desktopLeftW = isMobileInbox
+    ? leftW
+    : Math.min(
+        leftW,
+        Math.max(INBOX_MIN_LEFT_W, layoutWidth - INBOX_MIN_LIST_W - INBOX_MIN_READER_W - INBOX_RESIZERS_W),
+      );
+  const desktopRightW = isMobileInbox
+    ? rightW
+    : Math.min(
+        rightW,
+        Math.max(INBOX_MIN_READER_W, layoutWidth - desktopLeftW - INBOX_MIN_LIST_W - INBOX_RESIZERS_W),
+      );
   const [readerOpen, setReaderOpen] = useState(false);
   // Mobile navigation: 'sidebar' (boîtes / thèmes IA) ↔ 'list' (liste des mails)
   const [mobileView, setMobileView] = useState<"sidebar" | "list">("sidebar");
