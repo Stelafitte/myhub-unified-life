@@ -33,10 +33,13 @@ export type AutomationAction = z.infer<typeof ActionSchema>;
 export type AutomationPlan = z.infer<typeof PlanSchema>;
 
 export const planTaskAutomation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => InputSchema.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
+    const { supabase, userId } = context as { supabase: unknown; userId: string };
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["task_create"]);
 
     const sys = `Tu es un assistant qui transforme la demande d'un utilisateur en un plan
 d'actions automatiques exécutables sur une tâche.
