@@ -235,7 +235,7 @@ function PromptDialog({
         toast.error(`${f.name}: dépasse 10 Mo`);
         continue;
       }
-      const path = `ai-prompts/${user.id}/${crypto.randomUUID()}-${f.name}`;
+      const path = `${user.id}/ai-prompts/${crypto.randomUUID()}-${f.name}`;
       const { error } = await supabase.storage.from("documents").upload(path, f, {
         contentType: f.type || undefined,
       });
