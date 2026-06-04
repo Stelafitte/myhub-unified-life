@@ -442,6 +442,138 @@ export function AiAssistantModal({
   );
 }
 
+type AiReaderAccount = {
+  id: string;
+  name: string;
+  type: string;
+  color: string | null;
+  icon: string | null;
+  credentials?: Record<string, unknown> | null;
+};
+
+function AiEmailReaderDialog({ emailId, open, onOpenChange }: { emailId: string | null; open: boolean; onOpenChange: (v: boolean) => void }) {
+  const [email, setEmail] = useState<CachedEmail | null>(null);
+  const [accounts, setAccounts] = useState<AiReaderAccount[]>([]);
+  const [userId, setUserId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [taskOpen, setTaskOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+
+  useEffect(() => {
+    if (!open || !emailId) return;
+    let cancelled = false;
+    setLoading(true);
+    setEmail(null);
+    (async () => {
+      const [{ data: auth }, { data: mail, error }, { data: accs }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from("emails").select("*").eq("id", emailId).maybeSingle(),
+        supabase.from("accounts").select("id,name,type,color,icon,credentials").order("created_at"),
+      ]);
+      if (cancelled) return;
+      setUserId(auth.user?.id ?? "");
+      setAccounts((accs as AiReaderAccount[]) ?? []);
+      if (error || !mail) {
+        toast.error("Mail introuvable");
+        onOpenChange(false);
+      } else {
+        const loaded = mail as CachedEmail;
+        setEmail(loaded);
+        if (!loaded.is_read) {
+          setEmail({ ...loaded, is_read: true });
+          void supabase.from("emails").update({ is_read: true }).eq("id", loaded.id);
+          pushEmailAction(loaded.id, loaded.account_id, "mark_read");
+        }
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [emailId, open, onOpenChange]);
+
+  const patchEmail = async (updates: Partial<CachedEmail>) => {
+    if (!email) return;
+    setEmail({ ...email, ...updates });
+    const { error } = await supabase.from("emails").update(updates).eq("id", email.id);
+    if (error) toast.error(error.message);
+  };
+  const archiveEmail = async () => {
+    if (!email) return;
+    const { error } = await supabase.from("emails").update({ is_archived: true }).eq("id", email.id);
+    if (error) toast.error(error.message);
+    else { toast.success("Email archivé"); onOpenChange(false); }
+  };
+  const deleteEmail = async () => {
+    if (!email) return;
+    const now = new Date().toISOString();
+    const { error } = email.deleted_at
+      ? await supabase.from("emails").delete().eq("id", email.id)
+      : await supabase.from("emails").update({ deleted_at: now }).eq("id", email.id);
+    if (error) toast.error(error.message);
+    else {
+      if (!email.deleted_at) pushEmailAction(email.id, email.account_id, "trash");
+      toast.success(email.deleted_at ? "Email supprimé définitivement" : "Email déplacé vers la corbeille");
+      onOpenChange(false);
+    }
+  };
+  const restoreEmail = async () => {
+    if (!email) return;
+    await patchEmail({ deleted_at: null });
+    pushEmailAction(email.id, email.account_id, "untrash");
+    toast.success("Email restauré");
+  };
+  const markSpam = async (asSpam: boolean) => {
+    if (!email) return;
+    await patchEmail(asSpam ? { spam_label: "spam", spam_score: 100, spam_reason: "Marqué manuellement" } : { spam_label: "legit", spam_score: 0, spam_reason: "Non indésirable (utilisateur)" });
+    toast.success(asSpam ? "Marqué comme indésirable" : "Marqué comme légitime");
+  };
+  const postpone = async () => {
+    if (!email) return;
+    const labels = Array.from(new Set([...(email.labels ?? []), "task-todo"]));
+    await patchEmail({ labels });
+    toast.success("Ajouté aux demandes de tâches à traiter");
+  };
+  const openComposer = (init: ComposerInitial) => {
+    setComposerInitial(init);
+    setComposerOpen(true);
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex h-[88vh] max-w-4xl flex-col overflow-hidden p-0 gap-0">
+          <DialogHeader className="border-b px-4 py-3">
+            <DialogTitle className="text-sm">Contenu du mail</DialogTitle>
+          </DialogHeader>
+          {loading || !email ? (
+            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Chargement du mail…
+            </div>
+          ) : (
+            <AiEmailReader
+              email={email}
+              account={accounts.find((a) => a.id === email.account_id)}
+              userId={userId}
+              onStar={() => patchEmail({ is_starred: !email.is_starred })}
+              onArchive={archiveEmail}
+              onDelete={deleteEmail}
+              onRestore={email.deleted_at ? restoreEmail : undefined}
+              onCreateTask={() => setTaskOpen(true)}
+              onPostpone={postpone}
+              onCompose={openComposer}
+              onMarkSpam={markSpam}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      {email && (
+        <CreateTaskFromEmailDialog open={taskOpen} onOpenChange={setTaskOpen} email={email} userId={userId} />
+      )}
+      <EmailComposer open={composerOpen} onOpenChange={setComposerOpen} accounts={accounts} initial={composerInitial} />
+    </>
+  );
+}
+
 function BulkBar({ items, onRunAll, onRunSelected }: { items: ActionItem[]; onRunAll: () => void; onRunSelected: () => void }) {
   const pending = items.filter(i => i.status === "pending").length;
   const hasMail = items.some(i => i.action.kind === "reply_email" || i.action.kind === "forward_email");
