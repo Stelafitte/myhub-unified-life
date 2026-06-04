@@ -445,7 +445,17 @@ export type ProposedAction =
   | { id: string; kind: "create_contact"; draft: z.infer<typeof ContactDraftSchema> }
   | { id: string; kind: "save_document"; sourceEmailId: string | null; draft: z.infer<typeof DocumentDraftSchema> };
 
-export type ProposeResult = { actions: ProposedAction[]; warning: string | null };
+export type ProposeResult = { actions: ProposedAction[]; warning: string | null; activePrompts: { title: string; target: string }[] };
+
+const ACTION_TARGETS: Record<string, string[]> = {
+  reply_email: ["general", "email_reply"],
+  forward_email: ["general", "email_reply"],
+  create_task: ["general", "task_create"],
+  create_event: ["general", "meeting"],
+  create_meeting: ["general", "meeting"],
+  create_contact: ["general"],
+  save_document: ["general", "document"],
+};
 
 async function aiJson(key: string, schema: z.ZodTypeAny, sys: string, user: string, fallback: any): Promise<any> {
   try {
@@ -468,6 +478,9 @@ export const aiProposeActions = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
+
+    const activePrompts = await loadActivePrompts(supabase, userId, ACTION_TARGETS[data.action] ?? ["general"]);
+    const promptBlock = buildPromptBlock(activePrompts);
 
     const actions: ProposedAction[] = [];
     let warning: string | null = null;
