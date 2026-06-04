@@ -73,14 +73,35 @@ export function AiAssistantModal({
   const [prompt, setPrompt] = useState(initialPrompt ?? "");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
+  const [archives, setArchives] = useState<Archive[]>([]);
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const sendFn = useServerFn(sendEmail);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 60); }, [open]);
+  useEffect(() => { if (open) { setTimeout(() => inputRef.current?.focus(), 60); setArchives(loadArchives()); } }, [open]);
   useEffect(() => { if (initialPrompt && open) setPrompt(initialPrompt); }, [initialPrompt, open]);
+
+  const newConversation = () => { setTurns([]); setPrompt(""); setTimeout(() => inputRef.current?.focus(), 50); };
+  const archiveConversation = () => {
+    if (turns.length === 0) { toast.info("Rien à archiver."); return; }
+    const title = turns[0]?.prompt.slice(0, 60) || "Conversation";
+    const next = [{ id: crypto.randomUUID(), title, savedAt: Date.now(), turns }, ...archives];
+    setArchives(next); saveArchives(next);
+    toast.success("Conversation archivée");
+    newConversation();
+  };
+  const restoreArchive = (a: Archive) => {
+    setTurns(a.turns.map(t => ({ ...t, selectedMatches: new Set(Array.isArray(t.selectedMatches as any) ? (t.selectedMatches as any) : []) })));
+  };
+  const deleteArchive = (id: string) => {
+    const next = archives.filter(a => a.id !== id);
+    setArchives(next); saveArchives(next);
+  };
+  const removeTurn = (turnId: string) => {
+    setTurns(ts => ts.filter(t => t.id !== turnId));
+  };
 
   const submit = async () => {
     const q = prompt.trim();
