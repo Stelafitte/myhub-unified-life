@@ -1756,12 +1756,11 @@ function EventDetail({
               <Users className="h-3 w-3" /> Participants
             </div>
             <div className="mb-2 flex gap-1">
-              <Input
-                placeholder="email@exemple.com"
+              <ContactEmailAutocomplete
                 value={newPartEmail}
-                onChange={(e) => setNewPartEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addParticipant())}
-                className="h-8 text-sm"
+                onChange={setNewPartEmail}
+                onEnter={() => void addParticipant()}
+                placeholder="Nom ou email…"
               />
               <Button type="button" size="sm" variant="outline" onClick={addParticipant}>Ajouter</Button>
             </div>
