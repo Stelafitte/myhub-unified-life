@@ -464,11 +464,13 @@ export function AiAssistantModal({
           emailId={emailPreviewId}
           open={!!emailPreviewId}
           onOpenChange={closeEmailPreview}
+          onOpenInSource={(id) => openInSource("email", id)}
         />
         <AiEntityPreviewDialog
           entity={entityPreview}
           open={!!entityPreview}
           onOpenChange={closeEntityPreview}
+          onOpenInSource={(e) => openInSource(e.kind, e.id)}
         />
       </DialogContent>
     </Dialog>
