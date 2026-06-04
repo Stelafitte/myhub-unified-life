@@ -61,7 +61,7 @@ Réponds UNIQUEMENT en JSON valide :
 Règles:
 - 3 max par liste, factuel, jamais verbeux.
 - "origin.refId" DOIT correspondre EXACTEMENT à un id fourni dans le contexte si la suggestion/alerte porte sur cet élément. Sinon mets origin.type = "none".
-- "origin.label" = sujet du mail / titre de la tâche correspondant.`;
+- "origin.label" = sujet du mail / titre de la tâche correspondant.${userPromptsBlock}`;
 
     const user = `Mails non lus: ${data.unreadCount}
 Mails urgents (id | sujet | expéditeur):
