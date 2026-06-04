@@ -1208,7 +1208,7 @@ function InboxPage() {
     }
     // Sur mobile/tablette : empile une entrée d'historique pour que le bouton
     // « Retour » du téléphone ferme l'email et revienne à la liste.
-    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+    if (isMobileInbox) {
       try {
         window.history.pushState({ inboxReader: true }, "");
       } catch { /* ignore */ }
@@ -1231,18 +1231,27 @@ function InboxPage() {
   return (
     <div
       ref={layoutRef}
-      className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6"
+      style={
+        isMobileInbox
+          ? undefined
+          : {
+              gridTemplateColumns: `${desktopLeftW}px 4px minmax(${INBOX_MIN_LIST_W}px, 1fr) 4px ${desktopRightW}px`,
+            }
+      }
+      className={cn(
+        "-mx-3 -my-3 h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6",
+        isMobileInbox ? "flex" : "grid",
+      )}
     >
       {/* LEFT — filters */}
       <aside
-        style={isMobileInbox ? undefined : { width: desktopLeftW }}
         className={cn(
-          "shrink-0 flex-col border-r bg-card",
+          "min-w-0 overflow-hidden flex-col border-r bg-card",
           isMobileInbox
             ? mobileView === "sidebar"
               ? "flex w-full"
               : "hidden"
-            : "hidden md:flex",
+            : "flex",
         )}
       >
         <div className="border-b p-4">
