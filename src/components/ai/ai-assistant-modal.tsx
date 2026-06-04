@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { aiAssistantQuery, aiProposeActions, type AiAssistantResult, type ProposedAction } from "@/lib/api/ai-assistant.functions";
-import { ActionCard } from "@/components/ai/action-card";
+import { ActionCard, executeAction } from "@/components/ai/action-card";
+import { sendEmail } from "@/lib/api/email-send.functions";
 import { toast } from "sonner";
 
 type Status = "pending" | "running" | "done" | "error";
