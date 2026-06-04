@@ -1371,7 +1371,7 @@ function InboxPage() {
                 key={a.id}
                 onClick={() => setFilter(`account:${a.id}`)}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                  "flex w-full items-center justify-start gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
                   filter === `account:${a.id}` ? "bg-accent" : "hover:bg-accent/50",
                 )}
               >
@@ -1443,7 +1443,7 @@ function InboxPage() {
                               key={t.id}
                               onClick={() => setFilter(`theme:${t.id}`)}
                               className={cn(
-                                "flex w-full items-center gap-2 rounded-md px-2 py-1 text-left transition-colors",
+                                "flex w-full items-center justify-start gap-2 rounded-md px-2 py-1 text-left transition-colors",
                                 active ? "bg-accent" : "hover:bg-accent/50",
                               )}
                               title={t.description ?? t.name}
@@ -1469,7 +1469,7 @@ function InboxPage() {
                           key={t.id}
                           onClick={() => setFilter(`theme:${t.id}`)}
                           className={cn(
-                            "flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                            "flex w-full items-center justify-start gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
                             active ? "bg-accent" : "hover:bg-accent/50",
                           )}
                           title={t.description ?? t.name}
@@ -1533,7 +1533,7 @@ function InboxPage() {
             <button
               onClick={() => setFilter("theme:__none__")}
               className={cn(
-                "mt-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
+                "mt-1 flex w-full items-center justify-start gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
                 filter === "theme:__none__" ? "bg-accent" : "hover:bg-accent/50",
               )}
             >
