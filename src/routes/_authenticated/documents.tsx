@@ -457,6 +457,12 @@ function DocumentsPage() {
               <span className="hidden sm:inline">Classer IA</span>
             </Button>
           )}
+          {!selectionMode && (
+            <Button variant="outline" size="sm" onClick={reclassifyAll} disabled={classifying} className="gap-1.5" title="Réinitialise et reclasse tous les documents avec les prompts actuels">
+              <Wand2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Tout reclasser</span>
+            </Button>
+          )}
           {!selectionMode && filtered.length > 0 && (
             <Button variant="outline" size="sm" onClick={selectAllFiltered} className="hidden sm:inline-flex">
               Sélectionner
