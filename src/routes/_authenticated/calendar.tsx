@@ -569,7 +569,7 @@ function AgendaPage() {
       .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() })
       .eq("id", (ev.raw as DbEvent).id);
     if (error) toast.error(error.message);
-    else { toast.success("Événement déplacé"); load(); }
+    else { toast.success("Événement déplacé"); load(); requestAutoSync(); }
   };
 
   const resizeEvent = async (ev: UnifiedEvent, edge: "start" | "end", deltaMin: number) => {
@@ -592,7 +592,7 @@ function AgendaPage() {
       .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() })
       .eq("id", (ev.raw as DbEvent).id);
     if (error) toast.error(error.message);
-    else { toast.success("Plage horaire modifiée"); load(); }
+    else { toast.success("Plage horaire modifiée"); load(); requestAutoSync(); }
   };
 
   const shareEvent = (ev: UnifiedEvent) => {
@@ -2292,6 +2292,7 @@ function NewEventDialog({
         parts.length > 0 ? `Participants invités : ${parts.join(", ")}` : "",
       ].filter(Boolean).join("\n\n");
 
+      const targetConn = category === "perso" ? persoConn : proConn;
       const { error } = await supabase.from("calendar_events").insert({
         user_id: userId,
         account_id: accountId === "local" ? null : accountId,
@@ -2306,6 +2307,7 @@ function NewEventDialog({
         color,
         source: toCalendarSource(acc?.type),
         sync_direction: acc?.sync_direction ?? "bidirectional",
+        gcal_connection_id: targetConn?.id ?? null,
       });
       if (error) throw error;
 
