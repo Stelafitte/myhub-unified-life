@@ -1175,6 +1175,13 @@ function WeekOrDayView({
                   const h = Math.max(20, ((clampedEnd - clampedStart) / 60) * ROW_H);
                   const dy = dragOffset?.id === e.id ? dragOffset.dy : 0;
                   const draggable = !!onMove && e.kind === "event";
+                  const resizable = !!onResize && e.kind === "event";
+                  const rz = resizeState?.id === e.id ? resizeState : null;
+                  const previewTop = top + dy + (rz?.edge === "start" ? rz.dy : 0);
+                  const previewHeight = Math.max(
+                    20,
+                    h + (rz?.edge === "end" ? rz.dy : 0) - (rz?.edge === "start" ? rz.dy : 0),
+                  );
                   const lay = layout.get(e.id) ?? { col: 0, cols: 1 };
                   const widthPct = 100 / lay.cols;
                   const leftPct = lay.col * widthPct;
@@ -1188,22 +1195,40 @@ function WeekOrDayView({
                           className={cn(
                             "absolute select-none overflow-hidden rounded-md p-1 text-left text-[10px] text-white shadow-sm transition-transform hover:scale-[1.01]",
                             draggable && "cursor-grab active:cursor-grabbing",
-                            dy !== 0 && "opacity-80 ring-2 ring-primary",
+                            (dy !== 0 || rz) && "opacity-80 ring-2 ring-primary",
                           )}
                           style={{
-                            top: top + dy,
-                            height: h,
+                            top: previewTop,
+                            height: previewHeight,
                             background: e.color,
                             left: `calc(${leftPct}% + 2px)`,
                             width: `calc(${widthPct}% - 4px)`,
                           }}
                         >
+                          {resizable && (
+                            <div
+                              onMouseDown={startResize(e, "start")}
+                              onTouchStart={startResize(e, "start")}
+                              onClick={(ev) => ev.stopPropagation()}
+                              className="absolute left-0 right-0 top-0 z-10 h-1.5 cursor-ns-resize hover:bg-white/40"
+                              title="Glisser pour modifier l'heure de début"
+                            />
+                          )}
                           <div className="flex items-center gap-1 truncate font-semibold">
                             <span>{e.badge}</span> {e.title}
                           </div>
                           <div className="opacity-90">{fmtTime(e.start)} – {fmtTime(e.end)}</div>
                           {e.location && <div className="flex items-center gap-0.5 truncate opacity-90"><MapPin className="h-2.5 w-2.5" />{e.location}</div>}
                           {e.hasVideo && <div className="flex items-center gap-0.5 opacity-90"><Video className="h-2.5 w-2.5" /> Visio</div>}
+                          {resizable && (
+                            <div
+                              onMouseDown={startResize(e, "end")}
+                              onTouchStart={startResize(e, "end")}
+                              onClick={(ev) => ev.stopPropagation()}
+                              className="absolute bottom-0 left-0 right-0 z-10 h-1.5 cursor-ns-resize hover:bg-white/40"
+                              title="Glisser pour modifier l'heure de fin"
+                            />
+                          )}
                         </div>
                       </HoverCardTrigger>
                       <HoverCardContent side="right" className="w-72 text-xs">
