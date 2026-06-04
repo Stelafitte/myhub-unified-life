@@ -30,6 +30,7 @@ import {
   type DocumentRow,
 } from "@/lib/documents";
 import { formatBytes } from "@/lib/file-icons";
+import { ContactEmailAutocomplete } from "@/components/contacts/contact-email-autocomplete";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useServerFn } from "@tanstack/react-start";
 import { startGoogleCalendarOAuth, syncGoogleCalendarEvents, deleteCalendarEvent, listGoogleCalendarConnections } from "@/lib/api/google-calendar.functions";
@@ -1755,12 +1756,11 @@ function EventDetail({
               <Users className="h-3 w-3" /> Participants
             </div>
             <div className="mb-2 flex gap-1">
-              <Input
-                placeholder="email@exemple.com"
+              <ContactEmailAutocomplete
                 value={newPartEmail}
-                onChange={(e) => setNewPartEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addParticipant())}
-                className="h-8 text-sm"
+                onChange={setNewPartEmail}
+                onEnter={() => void addParticipant()}
+                placeholder="Nom ou email…"
               />
               <Button type="button" size="sm" variant="outline" onClick={addParticipant}>Ajouter</Button>
             </div>
