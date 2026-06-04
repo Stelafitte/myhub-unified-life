@@ -125,11 +125,11 @@ function buildGooglePayload(ev: {
     location: ev.location ?? undefined,
   };
   if (ev.is_all_day) {
-    payload.start = { date: ev.start_at.slice(0, 10) };
-    payload.end = { date: ev.end_at.slice(0, 10) };
+    payload.start = { date: new Date(ev.start_at).toISOString().slice(0, 10) };
+    payload.end = { date: new Date(ev.end_at).toISOString().slice(0, 10) };
   } else {
-    payload.start = { dateTime: ev.start_at };
-    payload.end = { dateTime: ev.end_at };
+    payload.start = { dateTime: new Date(ev.start_at).toISOString() };
+    payload.end = { dateTime: new Date(ev.end_at).toISOString() };
   }
   if (ev.recurrence_rule) {
     const r = ev.recurrence_rule.startsWith("RRULE:")
@@ -154,6 +154,7 @@ async function pushLocalEventsForConnection(
     calendar_id: string | null;
     last_sync_at: string | null;
     sync_direction: string;
+    category?: string | null;
   },
   accessToken: string,
 ): Promise<number> {
@@ -162,13 +163,25 @@ async function pushLocalEventsForConnection(
   const calendarId = encodeURIComponent(conn.calendar_id || "primary");
   let pushed = 0;
 
-  const { data: toCreate } = await supabaseAdmin
+  // Les événements créés dans le Hub n'ont pas toujours encore de lien Google :
+  // on les rattache à l'agenda actif de même catégorie avant le push.
+  await supabaseAdmin
+    .from("calendar_events")
+    .update({ gcal_connection_id: conn.id, sync_direction: conn.sync_direction as "bidirectional" | "pull" | "push" })
+    .eq("user_id", conn.user_id)
+    .eq("category", conn.category === "perso" ? "perso" : "pro")
+    .is("account_id", null)
+    .is("gcal_connection_id", null)
+    .is("google_event_id", null);
+
+  const { data: toCreate, error: createLoadErr } = await supabaseAdmin
     .from("calendar_events")
     .select("id, title, description, location, start_at, end_at, is_all_day, recurrence_rule")
     .eq("user_id", conn.user_id)
     .eq("gcal_connection_id", conn.id)
     .is("google_event_id", null)
     .limit(100);
+  if (createLoadErr) throw new Error(`Failed to load local events to push: ${createLoadErr.message}`);
 
   for (const ev of toCreate ?? []) {
     const payload = buildGooglePayload(ev);
@@ -190,10 +203,11 @@ async function pushLocalEventsForConnection(
       }
       const body = (await res.json()) as { id?: string };
       if (body.id) {
-        await supabaseAdmin
+        const { error: markErr } = await supabaseAdmin
           .from("calendar_events")
-          .update({ google_event_id: body.id, external_id: body.id, source: "google" })
+          .update({ google_event_id: body.id, external_id: body.id, source: "google", sync_direction: "bidirectional" })
           .eq("id", ev.id);
+        if (markErr) throw new Error(`Failed to mark Google event as synced: ${markErr.message}`);
         pushed++;
       }
     } catch (e) {
@@ -202,7 +216,7 @@ async function pushLocalEventsForConnection(
   }
 
   if (conn.last_sync_at) {
-    const { data: toUpdate } = await supabaseAdmin
+    const { data: toUpdate, error: updateLoadErr } = await supabaseAdmin
       .from("calendar_events")
       .select("id, google_event_id, title, description, location, start_at, end_at, is_all_day, recurrence_rule")
       .eq("user_id", conn.user_id)
@@ -210,6 +224,7 @@ async function pushLocalEventsForConnection(
       .not("google_event_id", "is", null)
       .gt("updated_at", conn.last_sync_at)
       .limit(100);
+    if (updateLoadErr) throw new Error(`Failed to load edited events to push: ${updateLoadErr.message}`);
 
     for (const ev of toUpdate ?? []) {
       if (!ev.google_event_id) continue;
@@ -292,6 +307,7 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
             calendar_id: conn.calendar_id,
             last_sync_at: conn.last_sync_at,
             sync_direction: conn.sync_direction,
+            category: conn.category,
           },
           accessToken,
         );

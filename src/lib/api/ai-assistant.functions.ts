@@ -195,20 +195,67 @@ async function searchTasks(supabase: any, userId: string, c: z.infer<typeof Crit
 
 async function searchEvents(supabase: any, userId: string, c: z.infer<typeof CriteriaSchema>): Promise<AnyMatch[]> {
   const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains].map(clean).filter(Boolean)).slice(0, 12);
+  const fromMs = c.date_from ? new Date(c.date_from).getTime() : null;
+  const toMs = c.date_to ? new Date(c.date_to).getTime() : null;
+  const horizonMs = Date.now() + 730 * 86400_000;
+  const parseRule = (rule: string | null | undefined) => {
+    if (!rule) return null;
+    const map: Record<string, string> = {};
+    for (const p of rule.split(/[\s;\n]+/).filter(Boolean)) {
+      const [k, v] = p.replace(/^RRULE:/i, "").split("=");
+      if (k && v) map[k.toUpperCase()] = v;
+    }
+    const freq = map.FREQ?.toUpperCase();
+    if (!freq || !["DAILY", "WEEKLY", "MONTHLY", "YEARLY"].includes(freq)) return null;
+    const toDate = (s: string) => new Date(s.replace(/^(\d{4})(\d{2})(\d{2})T?(\d{2})?(\d{2})?(\d{2})?Z?$/, (_m, y, mo, d, h = "00", mi = "00", sec = "00") => `${y}-${mo}-${d}T${h}:${mi}:${sec}Z`)).getTime();
+    return {
+      freq,
+      interval: Math.max(1, parseInt(map.INTERVAL ?? "1", 10) || 1),
+      count: map.COUNT ? Math.max(1, parseInt(map.COUNT, 10) || 1) : null,
+      until: map.UNTIL ? toDate(map.UNTIL) : null,
+      exdates: new Set((map.EXDATE ? map.EXDATE.split(",").filter(Boolean) : []).map(toDate)),
+    };
+  };
+  const matchingOccurrenceStart = (r: any): string | null => {
+    if (!fromMs && !toMs) return r.start_at;
+    const start = new Date(r.start_at).getTime();
+    const end = new Date(r.end_at).getTime();
+    const duration = Math.max(0, end - start);
+    const rule = parseRule(r.recurrence_rule);
+    if (!rule) return (!fromMs || end >= fromMs) && (!toMs || start <= toMs) ? r.start_at : null;
+    const limit = Math.min(rule.count ?? 800, 800);
+    const maxTo = Math.min(toMs ?? horizonMs, horizonMs);
+    for (let i = 0; i < limit; i++) {
+      const s = new Date(start);
+      if (rule.freq === "DAILY") s.setUTCDate(s.getUTCDate() + i * rule.interval);
+      else if (rule.freq === "WEEKLY") s.setUTCDate(s.getUTCDate() + i * 7 * rule.interval);
+      else if (rule.freq === "MONTHLY") s.setUTCMonth(s.getUTCMonth() + i * rule.interval);
+      else if (rule.freq === "YEARLY") s.setUTCFullYear(s.getUTCFullYear() + i * rule.interval);
+      const t = s.getTime();
+      if (rule.until && t > rule.until) break;
+      if (t > maxTo) break;
+      if (rule.exdates.has(t)) continue;
+      if ((!fromMs || t + duration >= fromMs) && (!toMs || t <= toMs)) return new Date(t).toISOString();
+    }
+    return null;
+  };
   const runQuery = async (useFrags: boolean) => {
     let q = supabase
       .from("calendar_events")
-      .select("id,title,description,start_at,end_at,location,category,gcal_connection_id")
+      .select("id,title,description,start_at,end_at,location,category,gcal_connection_id,recurrence_rule")
       .eq("user_id", userId)
       .order("start_at", { ascending: false })
-      .limit(Math.max(c.limit, 100));
+      .limit(Math.max(c.limit * 5, 200));
     if (useFrags && frags.length > 0) q = q.or(orClause(["title", "description", "location"], frags));
     if (c.category) q = q.eq("category", c.category);
-    if (c.date_from) q = q.gte("start_at", c.date_from);
+    if (c.date_from) q = q.or(`start_at.gte.${c.date_from},recurrence_rule.not.is.null`);
     if (c.date_to) q = q.lte("start_at", c.date_to);
     const { data, error } = await q;
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? [])
+      .map((r: any) => ({ ...r, match_start_at: matchingOccurrenceStart(r) }))
+      .filter((r: any) => !!r.match_start_at)
+      .slice(0, Math.max(c.limit, 100));
   };
   let rows = await runQuery(true);
   // Agenda local consolidé MyHub Pro : si le filtre mots-clés ne ramène rien mais qu'on a
@@ -222,7 +269,7 @@ async function searchEvents(supabase: any, userId: string, c: z.infer<typeof Cri
     title: r.title ?? "(événement)",
     subtitle: r.location ?? null,
     snippet: (r.description ?? "").slice(0, 280),
-    date: r.start_at, badge: r.category ?? null,
+    date: r.match_start_at ?? r.start_at, badge: r.category ?? null,
   }));
 }
 
