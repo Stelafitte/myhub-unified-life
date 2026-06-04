@@ -283,6 +283,22 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
         }
       }
 
+      // Bidirectional: push local changes BEFORE pulling remote ones
+      try {
+        await pushLocalEventsForConnection(
+          {
+            id: conn.id,
+            user_id: userId,
+            calendar_id: conn.calendar_id,
+            last_sync_at: conn.last_sync_at,
+            sync_direction: conn.sync_direction,
+          },
+          accessToken,
+        );
+      } catch (e) {
+        console.warn("Push to Google failed for connection", conn.id, e);
+      }
+
       // Fetch events: from 30 days ago to 180 days ahead
       const timeMin = new Date(Date.now() - 30 * 86400_000).toISOString();
       const timeMax = new Date(Date.now() + 180 * 86400_000).toISOString();
