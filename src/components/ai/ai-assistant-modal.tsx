@@ -444,6 +444,11 @@ export function AiAssistantModal({
           open={!!emailPreviewId}
           onOpenChange={closeEmailPreview}
         />
+        <AiEntityPreviewDialog
+          entity={entityPreview}
+          open={!!entityPreview}
+          onOpenChange={closeEntityPreview}
+        />
       </DialogContent>
     </Dialog>
   );
