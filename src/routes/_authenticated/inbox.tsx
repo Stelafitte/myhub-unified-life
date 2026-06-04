@@ -1597,7 +1597,7 @@ function InboxPage() {
               onClick={() => {
                 setFilter("all");
                 setAiRanking(false);
-                if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                if (isMobileInbox) {
                   setSelectedId(null);
                 }
               }}
@@ -1625,7 +1625,7 @@ function InboxPage() {
                 // reste affichée, notamment sur mobile).
                 if (v === "all" || v.startsWith("account:")) setAiRanking(false);
                 // Sur mobile, fermer le lecteur plein écran pour afficher la liste
-                if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                if (isMobileInbox) {
                   setSelectedId(null);
                 }
               }}
