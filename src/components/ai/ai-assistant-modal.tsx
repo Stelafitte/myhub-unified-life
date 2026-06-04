@@ -179,11 +179,43 @@ export function AiAssistantModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl p-0 gap-0 h-[88vh] flex flex-col">
-        <DialogHeader className="px-6 py-4 border-b flex-row items-center justify-between space-y-0">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <DialogTitle>Assistant IA</DialogTitle>
+        <DialogHeader className="px-6 py-4 border-b flex-row items-center justify-between space-y-0 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles className="h-5 w-5 text-primary shrink-0" />
+            <DialogTitle className="truncate">Assistant IA</DialogTitle>
             <ActivePromptsBadge turns={turns} onOpenSettings={() => { onOpenChange(false); navigate({ to: "/settings", search: { tab: "ai" } as any }); }} />
+          </div>
+          <div className="flex items-center gap-1 mr-6">
+            <Button size="sm" variant="ghost" onClick={newConversation} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs">
+              <Plus className="h-3.5 w-3.5" />Nouvelle
+            </Button>
+            <Button size="sm" variant="ghost" onClick={archiveConversation} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs">
+              <Archive className="h-3.5 w-3.5" />Archiver
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => { if (turns.length === 0) return; if (confirm("Supprimer cette conversation ?")) newConversation(); }} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive">
+              <Trash2 className="h-3.5 w-3.5" />Supprimer
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs"><History className="h-3.5 w-3.5" />Archives ({archives.length})</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-auto">
+                <DropdownMenuLabel>Conversations archivées</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {archives.length === 0 && <div className="px-2 py-3 text-xs text-muted-foreground">Aucune archive</div>}
+                {archives.map(a => (
+                  <DropdownMenuItem key={a.id} className="flex items-start gap-2" onSelect={(e) => { e.preventDefault(); restoreArchive(a); }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium truncate">{a.title}</div>
+                      <div className="text-[10px] text-muted-foreground">{new Date(a.savedAt).toLocaleString("fr-FR")}</div>
+                    </div>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); deleteArchive(a.id); }} className="p-1 hover:bg-destructive/10 rounded text-destructive shrink-0">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </DialogHeader>
 
