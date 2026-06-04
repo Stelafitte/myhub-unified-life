@@ -861,6 +861,13 @@ function AiEntityPreviewDialog({ entity, open, onOpenChange, onOpenInSource }: {
         <ScrollArea className="max-h-[70vh] pr-2">
           {renderBody()}
         </ScrollArea>
+        {entity && onOpenInSource && (
+          <div className="flex justify-end border-t pt-3">
+            <Button size="sm" variant="outline" onClick={() => onOpenInSource(entity)}>
+              Ouvrir dans l'application
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
