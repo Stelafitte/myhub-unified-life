@@ -1,60 +1,73 @@
-## Objectif
+# Assistant IA global dans la barre de recherche
 
-Brancher un 2e agenda Google (`Agenda_SL perso non pro`) à côté de l'agenda Pro déjà connecté, avec :
-- superposition visuelle (Pro = indigo, Perso = orange)
-- sélecteur Pro/Perso partout où on crée un événement / une réunion (défaut = Pro)
-- toutes les recherches/freebusy interrogent les 2 agendas
-- synchro bidirectionnelle des 2
+Ajout d'un bouton **IA** à droite de la recherche globale qui ouvre une grande fenêtre de conversation. L'IA comprend une demande structurée, interroge les données de la plateforme (mails, contacts, tâches, événements, réunions, documents), affiche les résultats et propose des **actions** modifiables individuellement ou exécutables en lot.
 
-## Décision d'archi (Option A retenue)
+Livré par étapes pour valider chaque brique avant la suivante.
 
-Réutiliser la table `google_calendar_connections` existante : 1 ligne = 1 agenda Google. On ajoutera une 2e ligne pour l'agenda Perso, avec le même `refresh_token` que la connexion Pro mais un `calendar_id` différent.
+---
 
-Petite migration nécessaire pour porter la notion Pro/Perso au niveau connexion (et non plus seulement au niveau événement) :
+## Phase 1 — Fondations (UI + recherche mails)
 
-- `google_calendar_connections.category` (`text`, défaut `'pro'`) — Pro ou Perso
-- `google_calendar_connections.color` (`text`, nullable) — pour la couleur d'affichage
+**Objectif** : pouvoir poser une question en langage naturel et obtenir une liste de mails pertinents + un résumé IA.
 
-Aucune nouvelle table, aucune RLS à changer.
+- Bouton **Sparkles "IA"** dans `GlobalSearch` (à droite du champ).
+- Modale large (max-w-5xl, hauteur ~85vh) avec :
+  - zone de prompt multi-ligne en haut,
+  - zone de résultats / conversation au centre,
+  - barre d'actions proposées en bas (vide pour l'instant).
+- ServerFn `aiAssistantQuery` (TanStack `createServerFn`) qui :
+  - reçoit le prompt + contexte (route active, filtres),
+  - appelle Lovable AI (`google/gemini-3-flash-preview`) avec tool calling,
+  - tool `search_emails(query, from?, theme?, dateRange?)` → SELECT sur `emails`,
+  - retourne `{ summary, matches: Email[], proposedActions: [] }`.
+- Exemple validé : *"trouve les mails de Ternacle traitant d'IDEAL"*.
 
-## Étapes
+## Phase 2 — Catalogue d'actions + édition
 
-### 1. Migration SQL
-Ajout des 2 colonnes ci-dessus sur `google_calendar_connections`. Backfill : ligne existante → `category='pro'`, `color='#6366f1'` (indigo).
+**Objectif** : transformer les résultats en actions concrètes éditables.
 
-### 2. Serveur — nouvelles server functions (`src/lib/api/google-calendar.functions.ts`)
-- `listGoogleCalendars(connectionId)` → appelle `calendarList` de Google pour lister les agendas disponibles dans le compte connecté. Permet à l'UI de proposer "Agenda_SL perso non pro" dans une liste déroulante.
-- `addGoogleCalendarFromExisting({ sourceConnectionId, calendarId, label, category, color })` → insère une nouvelle ligne dans `google_calendar_connections` qui réutilise le `refresh_token` + `access_token` + `expires_at` de la connexion source, mais avec `calendar_id` distinct. Bidirectionnel par défaut.
-- `updateGoogleConnection({ id, category, color, sync_direction, is_active })` → édition simple.
+- Type unifié `ProposedAction` :
+  ```
+  reply_email | forward_email | bulk_reply | bulk_forward
+  | create_task | create_event | create_meeting
+  | create_contact | save_document
+  ```
+- Chaque action est rendue dans une carte avec :
+  - champs éditables (destinataire, objet, corps, date, durée, thème…),
+  - bouton **Exécuter**,
+  - case à cocher pour sélection multiple.
+- Barre d'actions groupées : **Tout exécuter / Exécuter sélection / Tout rejeter**.
+- Pour les réponses mail : l'IA pré-rédige un brouillon par mail, modifiable avant envoi.
+- Exemple validé : *"traite les mails de demande d'info du DIU d'échocardiographie et propose-moi les réponses adaptées"* → N cartes `reply_email` éditables, exécution une par une ou en lot.
 
-### 3. Serveur — `syncGoogleCalendarEvents` (existant)
-À chaque event upserté, on enrichit avec :
-- `category` = `conn.category`
-- `color` = `conn.color` (sinon défaut selon category)
-Comme ça la vue Agenda affiche automatiquement la bonne couleur sans recalcul côté client.
+## Phase 3 — Extension aux autres entités
 
-### 4. Serveur — `findAvailableSlots` (slot finder) et freebusy
-Déjà multi-connexions : il itère sur toutes les connexions actives. Aucun changement, sauf vérifier que les 2 connexions sont incluses (oui, on lit `is_active=true`).
+**Objectif** : l'IA peut chercher / agir sur tout le périmètre.
 
-### 5. UI Agenda (`src/routes/_authenticated/calendar.tsx`)
-- Bouton "Ajouter un autre agenda Google" → ouvre un petit dialog qui appelle `listGoogleCalendars`, laisse choisir l'agenda et le label/catégorie/couleur (préremplis : Perso / orange `#f97316`), puis `addGoogleCalendarFromExisting`.
-- Panneau "Agendas" : affiche les 2 lignes avec switch on/off d'affichage (visibilité) — préférence stockée en `localStorage`.
-- Légende Pro/Perso (pastille couleur).
-- Le formulaire de création d'événement (déjà présent — variable `category`) : on garde le toggle Pro/Perso existant, défaut Pro, mais on l'utilise pour choisir vers quelle `gcal_connection_id` rattacher l'event à la création.
+- Tools serveur supplémentaires : `search_contacts`, `search_tasks`, `search_events`, `search_meetings`, `search_documents`.
+- Tools d'exécution : `do_create_task`, `do_create_event`, `do_create_meeting`, `do_create_contact`, `do_save_document`, `do_send_reply`, `do_forward`.
+- Chaque exécution respecte les RLS (serverFn protégée par `requireSupabaseAuth`) et retourne un statut visible dans la carte (succès / erreur / lien vers l'objet créé).
 
-### 6. UI Réunions (`src/components/meetings/meeting-dialog.tsx`)
-Ajouter un petit sélecteur "Agenda cible" (Pro / Perso) en haut du dialog, défaut Pro. La valeur est stockée sur la réunion via le champ `calendar_event_id` → l'événement créé porte la bonne `gcal_connection_id`.
+## Phase 4 — Prompts associés à chaque outil
 
-### 7. Push vers Google (hors scope ici)
-Le code actuel pousse uniquement les **suppressions** vers Google. La création/modification depuis MyHubPro reste locale (pas implémentée aujourd'hui pour le Pro non plus). On ne l'ajoute donc pas dans ce lot pour rester focus. Conséquence : "bidirectionnel" reste, pour l'instant, du pull + delete pour les 2 agendas, comme aujourd'hui pour le Pro. À traiter dans un lot dédié quand vous le souhaitez.
+**Objectif** : enrichir l'IA avec les `ai_prompts` déjà stockés en base.
 
-## Détails techniques (résumé)
-- Pas de changement RLS, les policies existantes scopent par `user_id`.
-- Couleurs par défaut : Pro `#6366f1` (indigo-500), Perso `#f97316` (orange-500).
-- Visibilité d'un agenda (afficher/masquer) → `localStorage`, pas de DB.
-- Le sélecteur d'agenda à la création écrit `gcal_connection_id` + `category` sur la ligne `calendar_events`.
+- Lecture de `ai_prompts` filtrés par `target` (général + outil en cours).
+- Injection automatique en system prompt pour orienter le ton / les règles métier.
+- Indicateur visible "prompts actifs : N" dans la modale, avec lien vers Réglages > IA.
 
-## Ce qui n'est PAS fait dans ce lot
-- Le push **create/update** vers Google (pas en place aujourd'hui non plus). Si vous voulez aussi que la création/modif depuis MyHubPro arrive dans Google, on l'ajoutera après en lot séparé.
+---
 
-Confirmez et je l'implémente.
+## Détails techniques
+
+- **Backend** : `src/lib/ai-assistant.functions.ts` (createServerFn + middleware Supabase auth). Modèle par défaut `google/gemini-3-flash-preview` via le helper existant `createLovableAiGatewayProvider`. Tool-calling avec `stopWhen: stepCountIs(50)`.
+- **Frontend** :
+  - `src/components/ai/ai-assistant-modal.tsx` (modale large, conversation, actions),
+  - `src/components/ai/action-card.tsx` (rendu + édition par type d'action),
+  - bouton ajouté dans `src/components/global-search.tsx`.
+- **Sécurité** : toutes les lectures/écritures passent par le client Supabase authentifié (RLS appliquée comme l'utilisateur). Aucune action n'est exécutée sans clic explicite.
+- **Pas de migration DB** nécessaire en Phase 1–3 ; Phase 4 réutilise `ai_prompts` existant.
+
+---
+
+**Je propose de commencer par la Phase 1 dès validation**, puis d'enchaîner les phases en validant le rendu à chaque étape. Confirme-moi le go (ou ajuste l'ordre des phases) et je démarre.
