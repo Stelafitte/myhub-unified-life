@@ -262,6 +262,8 @@ export function AiAssistantModal({
                           const open = () => {
                             onOpenChange(false);
                             if (m.kind === "email") navigate({ to: "/inbox", search: { emailId: m.id } as any });
+                            else if (m.kind === "event") navigate({ to: "/calendar", search: { eventId: m.id } as any });
+                            else if (m.kind === "meeting") navigate({ to: "/meetings", search: { meetingId: m.id } as any });
                             else navigate({ to: KIND_ROUTE[m.kind] as any });
                           };
                           return (

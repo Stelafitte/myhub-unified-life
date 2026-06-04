@@ -65,6 +65,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    eventId: typeof search.eventId === "string" ? search.eventId : undefined,
+  }),
   component: AgendaPage,
 });
 
@@ -232,6 +235,8 @@ function AgendaPage() {
       lastClickRef.current = { id: e.id, time: now };
     }
   };
+  const search = Route.useSearch();
+  const handledDeepLinkRef = React.useRef<string | null>(null);
   const [catColors, setCatColors] = useState<Record<EventCategory, string>>(() => loadCategoryColors());
   // Touche Suppr : supprime l'événement sélectionné
   useDeleteKey(!!selected, () => { if (selected) deleteEvent(selected); });
@@ -456,6 +461,20 @@ function AgendaPage() {
     () => unified.filter((e) => e.end >= range.from && e.start <= range.to),
     [unified, range],
   );
+
+  // Deep-link depuis recherche IA / globale : ?eventId=...
+  React.useEffect(() => {
+    const id = search.eventId;
+    if (!id || handledDeepLinkRef.current === id) return;
+    const base = events.find((e) => e.id === id);
+    if (!base) return;
+    handledDeepLinkRef.current = id;
+    setCursor(startOfDay(new Date(base.start_at)));
+    setView(isMobile ? "list" : "day");
+    const match = unified.find((x) => x.id === id || x.id.startsWith(id + "+"));
+    if (match) setSelected(match);
+    navigate({ to: "/calendar", search: {} as any, replace: true });
+  }, [search.eventId, events, unified, isMobile, navigate]);
 
   const nav = (dir: -1 | 0 | 1) => {
     if (dir === 0) return setCursor(startOfDay(new Date()));

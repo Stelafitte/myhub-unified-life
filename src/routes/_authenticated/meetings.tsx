@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, useMemo } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useState, useMemo, useRef } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CalendarClock, Video, MapPin, Users as UsersIcon, CheckCircle2, XCircle, Clock, HelpCircle, Loader2, Mail, Download, Pencil, BarChart3, AlarmClock, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
@@ -17,6 +17,9 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_authenticated/meetings")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    meetingId: typeof search.meetingId === "string" ? search.meetingId : undefined,
+  }),
   component: MeetingsPage,
 });
 
@@ -116,6 +119,19 @@ function MeetingsPage() {
     window.addEventListener("online", onOnline);
     return () => window.removeEventListener("online", onOnline);
   }, [load]);
+
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const handledDeepLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = search.meetingId;
+    if (!id || handledDeepLinkRef.current === id) return;
+    if (!meetings.some((m) => m.id === id)) return;
+    handledDeepLinkRef.current = id;
+    setEditId(id);
+    setDialogOpen(true);
+    navigate({ to: "/meetings", search: {} as any, replace: true });
+  }, [search.meetingId, meetings, navigate]);
 
   const now = useMemo(() => new Date(), []);
   const upcoming = meetings.filter((m) => new Date(m.end_at) >= now && m.status !== "cancelled");
