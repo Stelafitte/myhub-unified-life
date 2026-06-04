@@ -106,7 +106,7 @@ Procédure obligatoire avant toute proposition de créneau :
 4. Respecter les heures ouvrées par défaut (lun-ven, 9h-19h) sauf indication contraire dans l'email.
 5. Si tu proposes un créneau de ta propre initiative, ajouter "(créneau vérifié libre dans mon agenda)".
 
-Les réponses doivent être en français, signées avec "Cordialement".`;
+Les réponses doivent être en français, signées avec "Cordialement".${await loadActivePromptsBlock(supabase, userId, ["email_reply"])}`;
 
     const user = `Sujet: ${e.subject ?? ""}
 De: ${e.from_name ?? ""} <${e.from_address ?? ""}>
