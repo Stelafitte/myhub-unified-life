@@ -468,6 +468,66 @@ export function TaskAutomationSection({
           )}
         </div>
       )}
+
+      <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewing(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-4 pt-4 pb-2 border-b">
+            <DialogTitle className="text-sm truncate">
+              {viewing?.subject || "(sans sujet)"}
+            </DialogTitle>
+            <div className="text-[11px] text-muted-foreground truncate">
+              {viewing?.from_name || viewing?.from_address}
+              {viewing?.received_at && ` · ${new Date(viewing.received_at).toLocaleString()}`}
+            </div>
+          </DialogHeader>
+
+          {viewing && (
+            <EmailAttachmentsPanel
+              emailId={viewing.id}
+              fromAddress={viewing.from_address}
+              subject={viewing.subject}
+            />
+          )}
+
+          <div className="flex-1 overflow-auto px-4 py-3">
+            {viewLoading && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Chargement du message…
+              </div>
+            )}
+            {!viewLoading && viewBody && (
+              viewBody.body_html ? (
+                <EmailHtmlFrame html={viewBody.body_html} />
+              ) : (
+                <pre className="whitespace-pre-wrap text-xs text-foreground">
+                  {viewBody.body_text ?? "(vide)"}
+                </pre>
+              )
+            )}
+          </div>
+
+          <div className="border-t px-4 py-2 flex justify-end gap-2">
+            {viewing && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={currentEmailId === viewing.id}
+                onClick={() => {
+                  onAttachEmail(viewing.id);
+                  toast.success("Mail attaché à la tâche (PJ inclus)");
+                }}
+              >
+                <Paperclip className="mr-1 h-3.5 w-3.5" />
+                {currentEmailId === viewing?.id ? "Attaché" : "Attacher à la tâche"}
+              </Button>
+            )}
+            <Button type="button" size="sm" variant="ghost" onClick={() => setViewing(null)}>
+              Fermer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
