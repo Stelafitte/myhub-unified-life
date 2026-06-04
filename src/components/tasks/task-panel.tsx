@@ -542,7 +542,9 @@ export function TaskPanel({
     if (!user) return;
     setSaving(true);
 
-    const finalSection = newSection.trim() || section;
+    const selectedTheme = opThemes.find((t) => t.id === themeId);
+    const finalSection = selectedTheme?.name || newSection.trim() || section || "Autre";
+
     const tags = [
       ...tagsText
         .split(",")
@@ -1133,33 +1135,9 @@ export function TaskPanel({
               </div>
             </label>
 
-            <div>
-              <Label>Section / projet</Label>
-              <div className="flex gap-2">
-                <Select value={section} onValueChange={setSection}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sectionsAll.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Input
-                className="mt-2"
-                placeholder="…ou créer une nouvelle section"
-                value={newSection}
-                onChange={(e) => setNewSection(e.target.value)}
-              />
-            </div>
-
             <div className="space-y-2 rounded-md border bg-muted/20 p-3">
               <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                Plan d'opération — Thème / Sous-thème
+                Thème / Sous-thème
               </Label>
               <div className="flex gap-2">
                 <Select
@@ -1205,6 +1183,7 @@ export function TaskPanel({
                 </Button>
               </div>
             </div>
+
 
             <div>
               <Label htmlFor="t-tags">Tags (séparés par des virgules)</Label>
