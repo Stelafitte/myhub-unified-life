@@ -412,8 +412,9 @@ RÈGLES IMPORTANTES :
       try {
         const sumResp = await callGateway(key, {
           model: "google/gemini-3-flash-preview",
+          max_tokens: 2000,
           messages: [
-            { role: "system", content: `Tu résumes une liste de résultats issus de la recherche multi-entités MyHub Pro. Réponds en français, 2 à 4 phrases courtes, factuel et utile. Mentionne les regroupements pertinents (expéditeur, sujet, période). Ne propose pas d'actions.${promptBlock}` },
+            { role: "system", content: `Tu résumes une liste de résultats issus de la recherche multi-entités MyHub Pro. Réponds en français, de manière complète mais concise (4 à 8 phrases au besoin). Mentionne les regroupements pertinents (expéditeur, sujet, période, type d'entité). Termine toujours par une phrase complète — ne tronque jamais ta réponse. Ne propose pas d'actions.${promptBlock}` },
             { role: "user", content: `Demande : ${data.prompt}\nIntention détectée : ${parsed.user_intent}\nEntités cherchées : ${entities.join(", ")}\n\nRésultats (${allMatches.length}) :\n${sample}` },
           ],
         });
