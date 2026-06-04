@@ -57,7 +57,7 @@ SPAM/PROMO (très important):
 - promo: newsletter, publicité commerciale, offre promotionnelle (même légitime)
 - spam: courrier non sollicité, arnaque évidente, contenu douteux
 - phishing: hameçonnage (faux expéditeur, lien suspect, urgence factice, demande de mot de passe/paiement)
-- spam_score = confiance (0=sûr legit, 100=sûr indésirable)${trustedSenders ? `\n\nEXPÉDITEURS DE CONFIANCE (toujours legit):\n${trustedSenders}` : ""}${hints ? `\n\nPRÉFÉRENCES APPRISES de l'utilisateur (à respecter en priorité):\n${hints}` : ""}`;
+- spam_score = confiance (0=sûr legit, 100=sûr indésirable)${trustedSenders ? `\n\nEXPÉDITEURS DE CONFIANCE (toujours legit):\n${trustedSenders}` : ""}${hints ? `\n\nPRÉFÉRENCES APPRISES de l'utilisateur (à respecter en priorité):\n${hints}` : ""}${userPromptsBlock}`;
 
   const user = `Sujet: ${e.subject ?? ""}
 De: ${e.from_name ?? ""} <${e.from_address ?? ""}>
