@@ -41,6 +41,7 @@ async function classifyOne(
   e: Row,
   hints: string,
   trustedSenders: string,
+  userPromptsBlock: string,
 ): Promise<ClassifyResult | null> {
   const sys = `Tu classes des emails. Réponds UNIQUEMENT en JSON valide:
 {"priority":"urgent|important|normal|low","category":"action|rendez-vous|document|facturation|rh|info|newsletter","summary":"résumé en 1-2 phrases (max 200 caractères), français","spam_label":"legit|promo|spam|phishing","spam_score":0-100,"spam_reason":"raison courte en français (max 80 caractères)"}
