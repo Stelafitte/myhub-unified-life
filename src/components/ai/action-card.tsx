@@ -24,7 +24,7 @@ const KIND_META: Record<ProposedAction["kind"], { label: string; Icon: any }> = 
   save_document: { label: "Enregistrer un document", Icon: FileText },
 };
 
-async function executeAction(a: ProposedAction, sendFn: ReturnType<typeof useServerFn<typeof sendEmail>>): Promise<string> {
+export async function executeAction(a: ProposedAction, sendFn: ReturnType<typeof useServerFn<typeof sendEmail>>): Promise<string> {
   const { data: u } = await supabase.auth.getUser();
   const userId = u.user?.id;
   if (!userId) throw new Error("Non connecté");
