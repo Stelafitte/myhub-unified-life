@@ -194,14 +194,15 @@ async function searchTasks(supabase: any, userId: string, c: z.infer<typeof Crit
 }
 
 async function searchEvents(supabase: any, userId: string, c: z.infer<typeof CriteriaSchema>): Promise<AnyMatch[]> {
-  const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains].map(clean).filter(Boolean)).slice(0, 8);
+  const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains].map(clean).filter(Boolean)).slice(0, 12);
   let q = supabase
     .from("calendar_events")
     .select("id,title,description,start_at,end_at,location,category")
     .eq("user_id", userId)
     .order("start_at", { ascending: false })
-    .limit(Math.max(c.limit, 60));
+    .limit(Math.max(c.limit, 80));
   if (frags.length > 0) q = q.or(orClause(["title", "description", "location"], frags));
+  if (c.category) q = q.eq("category", c.category);
   if (c.date_from) q = q.gte("start_at", c.date_from);
   if (c.date_to) q = q.lte("start_at", c.date_to);
   const { data: rows, error } = await q;
