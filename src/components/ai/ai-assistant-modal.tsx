@@ -426,7 +426,13 @@ export function AiAssistantModal({
                     {/* Action cards */}
                     {t.actions.length > 0 && (
                       <div className="space-y-3 pt-2">
-                        <BulkBar items={t.actions} onRunAll={() => runBulk(t, "all")} onRunSelected={() => runBulk(t, "selected")} />
+                        <BulkBar
+                          items={t.actions}
+                          onRunAll={() => runBulk(t, "all")}
+                          onRunSelected={() => runBulk(t, "selected")}
+                          onToggleAll={(v) => setTurns(ts => ts.map(x => x.id !== t.id ? x : { ...x, actions: x.actions.map(a => ({ ...a, selected: v } as any)) }))}
+                        />
+
                         {t.actions.map((it) => (
                           <ActionCard
                             key={it.action.id}
