@@ -195,19 +195,29 @@ async function searchTasks(supabase: any, userId: string, c: z.infer<typeof Crit
 
 async function searchEvents(supabase: any, userId: string, c: z.infer<typeof CriteriaSchema>): Promise<AnyMatch[]> {
   const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains].map(clean).filter(Boolean)).slice(0, 12);
-  let q = supabase
-    .from("calendar_events")
-    .select("id,title,description,start_at,end_at,location,category")
-    .eq("user_id", userId)
-    .order("start_at", { ascending: false })
-    .limit(Math.max(c.limit, 80));
-  if (frags.length > 0) q = q.or(orClause(["title", "description", "location"], frags));
-  if (c.category) q = q.eq("category", c.category);
-  if (c.date_from) q = q.gte("start_at", c.date_from);
-  if (c.date_to) q = q.lte("start_at", c.date_to);
-  const { data: rows, error } = await q;
-  if (error) throw new Error(error.message);
-  return (rows ?? []).map((r: any) => ({
+  const runQuery = async (useFrags: boolean) => {
+    let q = supabase
+      .from("calendar_events")
+      .select("id,title,description,start_at,end_at,location,category,gcal_connection_id")
+      .eq("user_id", userId)
+      .order("start_at", { ascending: false })
+      .limit(Math.max(c.limit, 100));
+    if (useFrags && frags.length > 0) q = q.or(orClause(["title", "description", "location"], frags));
+    if (c.category) q = q.eq("category", c.category);
+    if (c.date_from) q = q.gte("start_at", c.date_from);
+    if (c.date_to) q = q.lte("start_at", c.date_to);
+    const { data, error } = await q;
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  };
+  let rows = await runQuery(true);
+  // Agenda local consolidé MyHub Pro : si le filtre mots-clés ne ramène rien mais qu'on a
+  // une catégorie ou une plage de dates, on retombe sur tous les événements correspondants
+  // (les 2 agendas Google sont déjà fusionnés dans calendar_events via gcal_connection_id).
+  if (rows.length === 0 && (c.category || c.date_from || c.date_to)) {
+    rows = await runQuery(false);
+  }
+  return rows.map((r: any) => ({
     id: r.id, kind: "event" as const,
     title: r.title ?? "(événement)",
     subtitle: r.location ?? null,
