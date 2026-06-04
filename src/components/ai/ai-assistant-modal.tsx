@@ -370,6 +370,8 @@ export function AiAssistantModal({
                     )}
                   </div>
                 )}
+                  </>
+                )}
               </div>
             ))}
           </div>
