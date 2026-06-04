@@ -1244,17 +1244,38 @@ function InboxPage() {
   useEffect(() => {
     if (!requestedEmailId) return;
     if (handledDeepLinkRef.current === requestedEmailId) return;
-    if (emails.length === 0) return;
     const target = emails.find((e) => e.id === requestedEmailId);
-    if (!target) {
-      // Email pas (encore) dans la liste : on retente quand `emails` change.
+    if (target) {
+      handledDeepLinkRef.current = requestedEmailId;
+      setFilter("all");
+      setQuery("");
+      navigate({ to: "/inbox", search: {}, replace: true });
+      openEmail(target);
       return;
     }
+    // Pas dans la liste actuelle (archivé, hors limite, autre filtre…) :
+    // on récupère le mail directement par son id et on l'injecte.
+    if (emails.length === 0) return; // attendre le 1er chargement
     handledDeepLinkRef.current = requestedEmailId;
-    setFilter("all");
-    setQuery("");
-    navigate({ to: "/inbox", search: {}, replace: true });
-    openEmail(target);
+    (async () => {
+      const { data, error } = await supabase
+        .from("emails")
+        .select("*")
+        .eq("id", requestedEmailId)
+        .maybeSingle();
+      if (error || !data) {
+        handledDeepLinkRef.current = null;
+        toast.error("Mail introuvable");
+        navigate({ to: "/inbox", search: {}, replace: true });
+        return;
+      }
+      const fetched = data as Email;
+      setEmails((prev) => (prev.some((x) => x.id === fetched.id) ? prev : [fetched, ...prev]));
+      setFilter("all");
+      setQuery("");
+      navigate({ to: "/inbox", search: {}, replace: true });
+      openEmail(fetched);
+    })();
   }, [requestedEmailId, emails, navigate]);
 
 
