@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Sparkles, Loader2, Search, Mail, FileText, Paperclip, Check, ChevronRight,
-  Play, Pencil, Trash2, Plus, X,
+  Play, Pencil, Trash2, Plus, X, Eye,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { planTaskAutomation, type AutomationAction } from "@/lib/api/task-automation.functions";
+import { EmailHtmlFrame } from "@/components/inbox/email-html-frame";
+import { EmailAttachmentsPanel } from "@/components/inbox/email-attachments-panel";
 
 type EmailHit = {
   id: string;
@@ -67,6 +70,27 @@ export function TaskAutomationSection({
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [steps, setSteps] = useState<RunStep[]>([]);
   const [reply, setReply] = useState<string>("");
+  const [viewing, setViewing] = useState<EmailHit | null>(null);
+  const [viewBody, setViewBody] = useState<{ body_html: string | null; body_text: string | null; to_address: string | null } | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
+
+  useEffect(() => {
+    if (!viewing) { setViewBody(null); return; }
+    let cancelled = false;
+    setViewLoading(true);
+    (async () => {
+      const { data } = await supabase
+        .from("emails")
+        .select("body_html,body_text,to_address")
+        .eq("id", viewing.id)
+        .maybeSingle();
+      if (!cancelled) {
+        setViewBody(data ?? { body_html: null, body_text: null, to_address: null });
+        setViewLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [viewing]);
 
   // Load saved prompts for this task
   useEffect(() => {
@@ -402,19 +426,31 @@ export function TaskAutomationSection({
                                 )}
                               </div>
                             </div>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={attached ? "secondary" : "outline"}
-                              className="h-6 px-2 text-[11px]"
-                              disabled={attached}
-                              onClick={() => {
-                                onAttachEmail(e.id);
-                                toast.success("Mail attaché à la tâche (PJ inclus)");
-                              }}
-                            >
-                              {attached ? "Attaché" : "Attacher"}
-                            </Button>
+                            <div className="flex shrink-0 gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={() => setViewing(e)}
+                                title="Ouvrir le mail et ses pièces jointes"
+                              >
+                                <Eye className="mr-1 h-3 w-3" /> Ouvrir
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={attached ? "secondary" : "outline"}
+                                className="h-6 px-2 text-[11px]"
+                                disabled={attached}
+                                onClick={() => {
+                                  onAttachEmail(e.id);
+                                  toast.success("Mail attaché à la tâche (PJ inclus)");
+                                }}
+                              >
+                                {attached ? "Attaché" : "Attacher"}
+                              </Button>
+                            </div>
                           </li>
                         );
                       })}
@@ -432,6 +468,66 @@ export function TaskAutomationSection({
           )}
         </div>
       )}
+
+      <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewing(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-4 pt-4 pb-2 border-b">
+            <DialogTitle className="text-sm truncate">
+              {viewing?.subject || "(sans sujet)"}
+            </DialogTitle>
+            <div className="text-[11px] text-muted-foreground truncate">
+              {viewing?.from_name || viewing?.from_address}
+              {viewing?.received_at && ` · ${new Date(viewing.received_at).toLocaleString()}`}
+            </div>
+          </DialogHeader>
+
+          {viewing && (
+            <EmailAttachmentsPanel
+              emailId={viewing.id}
+              fromAddress={viewing.from_address}
+              subject={viewing.subject}
+            />
+          )}
+
+          <div className="flex-1 overflow-auto px-4 py-3">
+            {viewLoading && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Chargement du message…
+              </div>
+            )}
+            {!viewLoading && viewBody && (
+              viewBody.body_html ? (
+                <EmailHtmlFrame html={viewBody.body_html} />
+              ) : (
+                <pre className="whitespace-pre-wrap text-xs text-foreground">
+                  {viewBody.body_text ?? "(vide)"}
+                </pre>
+              )
+            )}
+          </div>
+
+          <div className="border-t px-4 py-2 flex justify-end gap-2">
+            {viewing && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={currentEmailId === viewing.id}
+                onClick={() => {
+                  onAttachEmail(viewing.id);
+                  toast.success("Mail attaché à la tâche (PJ inclus)");
+                }}
+              >
+                <Paperclip className="mr-1 h-3.5 w-3.5" />
+                {currentEmailId === viewing?.id ? "Attaché" : "Attacher à la tâche"}
+              </Button>
+            )}
+            <Button type="button" size="sm" variant="ghost" onClick={() => setViewing(null)}>
+              Fermer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
