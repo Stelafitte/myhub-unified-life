@@ -215,7 +215,7 @@ Règles:
 - "path" doit correspondre EXACTEMENT à un chemin fourni (respecte casse, accents, /).
 - Si l'historique utilisateur contient un dossier déjà utilisé pour un contexte similaire (même thème ou même expéditeur), il doit être en tête avec un score élevé.
 - Préfère un dossier précis à un dossier générique quand c'est cohérent.
-- score = confiance globale.`;
+- score = confiance globale.${await loadActivePromptsBlock(supabase, userId, ["document"])}`;
 
     const user = `Fichier: ${data.filename}${data.mimeType ? ` (${data.mimeType})` : ""}
 Sujet email: ${data.subject ?? "—"}
