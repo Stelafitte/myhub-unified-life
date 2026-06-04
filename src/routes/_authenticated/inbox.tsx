@@ -322,7 +322,7 @@ function InboxPage() {
   const [layoutW, setLayoutW] = useState(0);
 
   const layoutWidth = layoutW || winW;
-  const isMobileInbox = layoutWidth < INBOX_COMPACT_W;
+  const isMobileInbox = winW < 1200 || layoutWidth < INBOX_COMPACT_W;
   const desktopLeftW = isMobileInbox
     ? leftW
     : Math.min(
