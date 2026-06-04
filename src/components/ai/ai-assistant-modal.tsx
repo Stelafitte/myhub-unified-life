@@ -149,7 +149,7 @@ export function AiAssistantModal({
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             <DialogTitle>Assistant IA</DialogTitle>
-            <Badge variant="secondary" className="ml-2 text-[10px]">Phase 2 · Recherche + Actions</Badge>
+            <Badge variant="secondary" className="ml-2 text-[10px]">Phase 3 · Recherche multi-entités</Badge>
           </div>
         </DialogHeader>
 
