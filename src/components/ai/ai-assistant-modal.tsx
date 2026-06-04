@@ -350,12 +350,15 @@ export function AiAssistantModal({
 
 function BulkBar({ items, onRunAll, onRunSelected }: { items: ActionItem[]; onRunAll: () => void; onRunSelected: () => void }) {
   const pending = items.filter(i => i.status === "pending").length;
+  const hasMail = items.some(i => i.action.kind === "reply_email" || i.action.kind === "forward_email");
+  const allMail = items.length > 0 && items.every(i => i.action.kind === "reply_email" || i.action.kind === "forward_email");
+  const label = allMail ? "Envoyer" : hasMail ? "Envoyer / Exécuter" : "Exécuter";
   return (
     <div className="flex items-center gap-2 text-xs">
       <Badge variant="outline">{items.length} action(s) · {pending} en attente</Badge>
       <div className="ml-auto flex gap-2">
-        <Button size="sm" variant="outline" onClick={onRunSelected} disabled={pending === 0} className="h-7"><Play className="h-3.5 w-3.5 mr-1" />Exécuter sélection</Button>
-        <Button size="sm" onClick={onRunAll} disabled={pending === 0} className="h-7"><Play className="h-3.5 w-3.5 mr-1" />Tout exécuter</Button>
+        <Button size="sm" variant="outline" onClick={onRunSelected} disabled={pending === 0} className="h-7"><Play className="h-3.5 w-3.5 mr-1" />{label} sélection</Button>
+        <Button size="sm" onClick={onRunAll} disabled={pending === 0} className="h-7"><Play className="h-3.5 w-3.5 mr-1" />Tout {label.toLowerCase()}</Button>
       </div>
     </div>
   );
