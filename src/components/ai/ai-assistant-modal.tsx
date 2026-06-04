@@ -377,20 +377,34 @@ export function AiAssistantModal({
           </div>
         </ScrollArea>
 
-        <div className="border-t p-3 flex items-end gap-2">
-          <Textarea
-            ref={inputRef}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading) submit(); } }}
-            placeholder="Ex : trouve les mails de Ternacle traitant d'IDEAL"
-            rows={2}
-            className="resize-none"
-            disabled={loading}
-          />
-          <Button onClick={submit} disabled={loading || prompt.trim().length < 2} size="icon" className="h-10 w-10 shrink-0">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
+        <div className="border-t p-3 space-y-2">
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-muted-foreground mr-1">Mode :</span>
+            <button type="button" onClick={() => setMode("search")} className={`px-2.5 py-1 rounded-full border transition ${mode === "search" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 hover:bg-muted text-foreground/80"}`}>
+              🔍 Rechercher
+            </button>
+            <button type="button" onClick={() => setMode("chat")} className={`px-2.5 py-1 rounded-full border transition ${mode === "chat" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 hover:bg-muted text-foreground/80"}`}>
+              💬 Discuter
+            </button>
+            <span className="text-[10px] text-muted-foreground ml-2 hidden sm:inline">
+              {mode === "search" ? "Cherche dans vos données et propose des actions." : "Discussion libre avec contexte des recherches précédentes."}
+            </span>
+          </div>
+          <div className="flex items-end gap-2">
+            <Textarea
+              ref={inputRef}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading) submit(); } }}
+              placeholder={mode === "search" ? "Ex : mes rdv perso, mails de Ternacle…" : "Ex : pourquoi tu n'as pas trouvé mes rdv kiné ?"}
+              rows={2}
+              className="resize-none"
+              disabled={loading}
+            />
+            <Button onClick={submit} disabled={loading || prompt.trim().length < 2} size="icon" className="h-10 w-10 shrink-0">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
