@@ -188,6 +188,9 @@ function groupThemes(
 
 function InboxPage() {
   const { user } = useAuth();
+  const search = useSearch({ from: "/_authenticated/inbox" });
+  const navigate = useNavigate();
+  const requestedEmailId = search.emailId ?? search.open ?? null;
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [emails, setEmails] = useState<Email[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
