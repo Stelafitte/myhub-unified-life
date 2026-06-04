@@ -351,7 +351,7 @@ Règles strictes :
 4. Si aucun créneau ne respecte les disponibilités ET les contraintes, renvoie {"slots":[]} — ne propose surtout pas un créneau approximatif.
 5. Classe les retenus du meilleur au moins bon, max ${data.maxResults}.
 
-Réponds UNIQUEMENT en JSON valide, sans markdown : {"slots":[{"startAt":"ISO exact copié","endAt":"ISO exact copié","reason":"courte explication en français citant la disponibilité/contrainte respectée"}]}.`;
+Réponds UNIQUEMENT en JSON valide, sans markdown : {"slots":[{"startAt":"ISO exact copié","endAt":"ISO exact copié","reason":"courte explication en français citant la disponibilité/contrainte respectée"}]}.${userPromptsBlock}`;
 
     const user = `Date d'aujourd'hui (Paris) : ${today}\n\nTexte utilisateur (contraintes et disponibilités à analyser) :\n"""\n${data.constraints}\n"""\n\nCréneaux libres candidats (heures en Europe/Paris) :\n${slotList}`;
 
