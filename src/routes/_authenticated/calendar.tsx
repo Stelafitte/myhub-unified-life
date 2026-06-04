@@ -19,7 +19,7 @@ import {
   Mail,
 } from "lucide-react";
 import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
-import { Sparkles, Upload, FileText, ListTodo, Send } from "lucide-react";
+import { Sparkles, Upload, FileText, ListTodo, Send, Minus } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   getSignedUrl,
