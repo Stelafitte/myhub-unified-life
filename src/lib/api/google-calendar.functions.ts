@@ -110,6 +110,136 @@ type GEvent = {
   colorId?: string;
 };
 
+function buildGooglePayload(ev: {
+  title: string;
+  description: string | null;
+  location: string | null;
+  start_at: string;
+  end_at: string;
+  is_all_day: boolean;
+  recurrence_rule: string | null;
+}): Record<string, unknown> {
+  const payload: Record<string, unknown> = {
+    summary: ev.title,
+    description: ev.description ?? undefined,
+    location: ev.location ?? undefined,
+  };
+  if (ev.is_all_day) {
+    payload.start = { date: ev.start_at.slice(0, 10) };
+    payload.end = { date: ev.end_at.slice(0, 10) };
+  } else {
+    payload.start = { dateTime: ev.start_at };
+    payload.end = { dateTime: ev.end_at };
+  }
+  if (ev.recurrence_rule) {
+    const r = ev.recurrence_rule.startsWith("RRULE:")
+      ? ev.recurrence_rule
+      : `RRULE:${ev.recurrence_rule}`;
+    payload.recurrence = [r];
+  }
+  return payload;
+}
+
+/**
+ * Push local-only events (or locally-edited events) to Google Calendar.
+ * - Events with gcal_connection_id set but no google_event_id → POST (create on Google).
+ * - Events whose updated_at is newer than the connection's last_sync_at and that
+ *   already have a google_event_id → PATCH (update on Google).
+ * Returns the count of events successfully pushed.
+ */
+async function pushLocalEventsForConnection(
+  conn: {
+    id: string;
+    user_id: string;
+    calendar_id: string | null;
+    last_sync_at: string | null;
+    sync_direction: string;
+  },
+  accessToken: string,
+): Promise<number> {
+  if (conn.sync_direction === "pull") return 0;
+
+  const calendarId = encodeURIComponent(conn.calendar_id || "primary");
+  let pushed = 0;
+
+  const { data: toCreate } = await supabaseAdmin
+    .from("calendar_events")
+    .select("id, title, description, location, start_at, end_at, is_all_day, recurrence_rule")
+    .eq("user_id", conn.user_id)
+    .eq("gcal_connection_id", conn.id)
+    .is("google_event_id", null)
+    .limit(100);
+
+  for (const ev of toCreate ?? []) {
+    const payload = buildGooglePayload(ev);
+    try {
+      const res = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!res.ok) {
+        console.warn("Google create failed", res.status, await res.text().catch(() => ""));
+        continue;
+      }
+      const body = (await res.json()) as { id?: string };
+      if (body.id) {
+        await supabaseAdmin
+          .from("calendar_events")
+          .update({ google_event_id: body.id, external_id: body.id, source: "google" })
+          .eq("id", ev.id);
+        pushed++;
+      }
+    } catch (e) {
+      console.warn("Google create error", e);
+    }
+  }
+
+  if (conn.last_sync_at) {
+    const { data: toUpdate } = await supabaseAdmin
+      .from("calendar_events")
+      .select("id, google_event_id, title, description, location, start_at, end_at, is_all_day, recurrence_rule")
+      .eq("user_id", conn.user_id)
+      .eq("gcal_connection_id", conn.id)
+      .not("google_event_id", "is", null)
+      .gt("updated_at", conn.last_sync_at)
+      .limit(100);
+
+    for (const ev of toUpdate ?? []) {
+      if (!ev.google_event_id) continue;
+      const payload = buildGooglePayload(ev);
+      try {
+        const res = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(ev.google_event_id)}`,
+          {
+            method: "PATCH",
+            headers: {
+              authorization: `Bearer ${accessToken}`,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+        if (!res.ok) {
+          console.warn("Google patch failed", res.status, await res.text().catch(() => ""));
+          continue;
+        }
+        pushed++;
+      } catch (e) {
+        console.warn("Google patch error", e);
+      }
+    }
+  }
+
+  return pushed;
+}
+
 export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({}).optional())
