@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
-import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History } from "lucide-react";
+import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History, Reply, ReplyAll, Star, Clock, Shield, ShieldOff, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { aiAssistantQuery, aiProposeActions, aiChat, type AiAssistantResult, type ProposedAction, type AnyMatch, type EntityKind } from "@/lib/api/ai-assistant.functions";
 import { ActionCard, executeAction } from "@/components/ai/action-card";
 import { sendEmail } from "@/lib/api/email-send.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { EmailHtmlFrame } from "@/components/inbox/email-html-frame";
+import { EmailAttachmentsPanel } from "@/components/inbox/email-attachments-panel";
+import { AiSuggestionsPanel } from "@/components/inbox/ai-suggestions-panel";
+import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
+import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
+import type { CachedEmail } from "@/lib/inbox-cache";
 import { toast } from "sonner";
 
 const ARCHIVE_KEY = "ai-assistant-archives";
@@ -75,12 +82,14 @@ export function AiAssistantModal({
   const [loading, setLoading] = useState(false);
   const [archives, setArchives] = useState<ArchivedChat[]>([]);
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
+  const [emailPreviewId, setEmailPreviewId] = useState<string | null>(null);
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const chatFn = useServerFn(aiChat);
   const sendFn = useServerFn(sendEmail);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const closeEmailPreview = useCallback((v: boolean) => { if (!v) setEmailPreviewId(null); }, []);
 
   useEffect(() => { if (open) { setTimeout(() => inputRef.current?.focus(), 60); setArchives(loadArchives()); } }, [open]);
   useEffect(() => { if (initialPrompt && open) setPrompt(initialPrompt); }, [initialPrompt, open]);
@@ -160,6 +169,14 @@ export function AiAssistantModal({
       next.has(mid) ? next.delete(mid) : next.add(mid);
       return next;
     });
+  };
+
+  const openMatchPreview = (match: AnyMatch) => {
+    if (match.kind === "email") {
+      setEmailPreviewId(match.id);
+      return;
+    }
+    toggleMatchPreview(match.id);
   };
 
   const proposeFor = async (turn: Turn, kind: ProposedAction["kind"]) => {
@@ -317,7 +334,7 @@ export function AiAssistantModal({
                             <div key={m.id} className="px-3 py-2 hover:bg-muted/30">
                               <div className="flex items-start gap-2">
                                 <Checkbox checked={checked} onCheckedChange={() => toggleMatch(t.id, m.id)} className="mt-1" />
-                                <button type="button" onClick={() => toggleMatchPreview(m.id)} className="flex items-start gap-2 flex-1 min-w-0 text-left">
+                                <button type="button" onClick={() => openMatchPreview(m)} className="flex items-start gap-2 flex-1 min-w-0 text-left">
                                   <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
@@ -416,8 +433,237 @@ export function AiAssistantModal({
             </Button>
           </div>
         </div>
+        <AiEmailReaderDialog
+          emailId={emailPreviewId}
+          open={!!emailPreviewId}
+          onOpenChange={closeEmailPreview}
+        />
       </DialogContent>
     </Dialog>
+  );
+}
+
+type AiReaderAccount = {
+  id: string;
+  name: string;
+  type: string;
+  color: string | null;
+  icon: string | null;
+  credentials?: Record<string, unknown> | null;
+};
+
+function AiEmailReaderDialog({ emailId, open, onOpenChange }: { emailId: string | null; open: boolean; onOpenChange: (v: boolean) => void }) {
+  const [email, setEmail] = useState<CachedEmail | null>(null);
+  const [accounts, setAccounts] = useState<AiReaderAccount[]>([]);
+  const [userId, setUserId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [taskOpen, setTaskOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+
+  useEffect(() => {
+    if (!open || !emailId) return;
+    let cancelled = false;
+    setLoading(true);
+    setEmail(null);
+    (async () => {
+      const [{ data: auth }, { data: mail, error }, { data: accs }] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from("emails").select("*").eq("id", emailId).maybeSingle(),
+        supabase.from("accounts").select("id,name,type,color,icon,credentials").order("created_at"),
+      ]);
+      if (cancelled) return;
+      setUserId(auth.user?.id ?? "");
+      setAccounts((accs as AiReaderAccount[]) ?? []);
+      if (error || !mail) {
+        toast.error("Mail introuvable");
+        onOpenChange(false);
+      } else {
+        const loaded = mail as CachedEmail;
+        setEmail(loaded);
+        if (!loaded.is_read) {
+          setEmail({ ...loaded, is_read: true });
+          void supabase.from("emails").update({ is_read: true }).eq("id", loaded.id);
+          pushEmailAction(loaded.id, loaded.account_id, "mark_read");
+        }
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [emailId, open, onOpenChange]);
+
+  const patchEmail = async (updates: Partial<CachedEmail>) => {
+    if (!email) return;
+    setEmail({ ...email, ...updates });
+    const { error } = await supabase.from("emails").update(updates).eq("id", email.id);
+    if (error) toast.error(error.message);
+  };
+  const archiveEmail = async () => {
+    if (!email) return;
+    const { error } = await supabase.from("emails").update({ is_archived: true }).eq("id", email.id);
+    if (error) toast.error(error.message);
+    else { toast.success("Email archivé"); onOpenChange(false); }
+  };
+  const deleteEmail = async () => {
+    if (!email) return;
+    const now = new Date().toISOString();
+    const { error } = email.deleted_at
+      ? await supabase.from("emails").delete().eq("id", email.id)
+      : await supabase.from("emails").update({ deleted_at: now }).eq("id", email.id);
+    if (error) toast.error(error.message);
+    else {
+      if (!email.deleted_at) pushEmailAction(email.id, email.account_id, "trash");
+      toast.success(email.deleted_at ? "Email supprimé définitivement" : "Email déplacé vers la corbeille");
+      onOpenChange(false);
+    }
+  };
+  const restoreEmail = async () => {
+    if (!email) return;
+    await patchEmail({ deleted_at: null });
+    pushEmailAction(email.id, email.account_id, "untrash");
+    toast.success("Email restauré");
+  };
+  const markSpam = async (asSpam: boolean) => {
+    if (!email) return;
+    await patchEmail(asSpam ? { spam_label: "spam", spam_score: 100, spam_reason: "Marqué manuellement" } : { spam_label: "legit", spam_score: 0, spam_reason: "Non indésirable (utilisateur)" });
+    toast.success(asSpam ? "Marqué comme indésirable" : "Marqué comme légitime");
+  };
+  const postpone = async () => {
+    if (!email) return;
+    const labels = Array.from(new Set([...(email.labels ?? []), "task-todo"]));
+    await patchEmail({ labels });
+    toast.success("Ajouté aux demandes de tâches à traiter");
+  };
+  const openComposer = (init: ComposerInitial) => {
+    setComposerInitial(init);
+    setComposerOpen(true);
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex h-[88vh] max-w-4xl flex-col overflow-hidden p-0 gap-0">
+          <DialogHeader className="border-b px-4 py-3">
+            <DialogTitle className="text-sm">Contenu du mail</DialogTitle>
+          </DialogHeader>
+          {loading || !email ? (
+            <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Chargement du mail…
+            </div>
+          ) : (
+            <AiEmailReader
+              email={email}
+              account={accounts.find((a) => a.id === email.account_id)}
+              userId={userId}
+              onStar={() => patchEmail({ is_starred: !email.is_starred })}
+              onArchive={archiveEmail}
+              onDelete={deleteEmail}
+              onRestore={email.deleted_at ? restoreEmail : undefined}
+              onCreateTask={() => setTaskOpen(true)}
+              onPostpone={postpone}
+              onCompose={openComposer}
+              onMarkSpam={markSpam}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      {email && (
+        <CreateTaskFromEmailDialog open={taskOpen} onOpenChange={setTaskOpen} email={email} userId={userId} />
+      )}
+      <EmailComposer open={composerOpen} onOpenChange={setComposerOpen} accounts={accounts} initial={composerInitial} />
+    </>
+  );
+}
+
+function pushEmailAction(emailId: string, accountId: string | null | undefined, action: "mark_read" | "trash" | "untrash") {
+  if (!accountId) return;
+  void supabase.functions.invoke("push-email-actions", { body: { email_id: emailId, action, account_id: accountId } });
+}
+
+function AiEmailReader({
+  email,
+  account,
+  userId,
+  onStar,
+  onArchive,
+  onDelete,
+  onRestore,
+  onCreateTask,
+  onPostpone,
+  onCompose,
+  onMarkSpam,
+}: {
+  email: CachedEmail;
+  account?: AiReaderAccount;
+  userId: string;
+  onStar: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+  onRestore?: () => void;
+  onCreateTask: () => void;
+  onPostpone: () => void;
+  onCompose: (init: ComposerInitial) => void;
+  onMarkSpam: (asSpam: boolean) => void;
+}) {
+  const isSpamEmail = email.spam_label === "spam" || email.spam_label === "phishing";
+  const isPostponed = (email.labels ?? []).includes("task-todo");
+  const dateStr = email.received_at ? new Date(email.received_at).toLocaleString("fr-FR") : "";
+  const sender = email.from_name ? `${email.from_name} <${email.from_address}>` : (email.from_address ?? "");
+  const quoted = () => `\n\n\nLe ${dateStr}, ${sender} a écrit :\n${(email.body_text ?? "").split("\n").map((l) => "> " + l).join("\n")}`;
+  const refs = email.message_id ? `<${email.message_id}>` : undefined;
+  const subjReply = email.subject?.startsWith("Re:") ? email.subject : `Re: ${email.subject ?? ""}`;
+  const subjFwd = email.subject?.startsWith("Fwd:") ? email.subject : `Fwd: ${email.subject ?? ""}`;
+  const reply = (all: boolean) => onCompose({ mode: all ? "replyAll" : "reply", defaultAccountId: email.account_id, to: email.from_address ?? "", cc: all ? (email.to_address ?? "") : undefined, subject: subjReply, body: quoted(), inReplyTo: refs, references: refs });
+  const forward = () => onCompose({ mode: "forward", defaultAccountId: email.account_id, subject: subjFwd, body: `\n\n---------- Message transféré ----------\nDe: ${sender}\nDate: ${email.received_at ?? ""}\nSujet: ${email.subject ?? ""}\nÀ: ${email.to_address ?? ""}\n\n${email.body_text ?? ""}` });
+
+  return (
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto">
+      <header className="border-b p-4">
+        <div className="mb-2 flex min-w-0 items-center gap-2">
+          {account && <Badge style={{ background: account.color ?? undefined }} className="border-0">{account.icon} {account.name}</Badge>}
+          <button onClick={onStar} className="ml-auto text-muted-foreground hover:text-foreground" title="Étoiler">
+            <Star className={`h-4 w-4 ${email.is_starred ? "fill-current text-primary" : ""}`} />
+          </button>
+        </div>
+        <h2 className="break-words text-base font-semibold">{email.subject || "(sans objet)"}</h2>
+        <div className="mt-2 space-y-0.5 break-words text-xs text-muted-foreground">
+          <div><span className="font-medium text-foreground">De :</span> <span className="break-all">{sender}</span></div>
+          <div><span className="font-medium text-foreground">À :</span> <span className="break-all">{email.to_address}</span></div>
+          <div><span className="font-medium text-foreground">Date :</span> {dateStr}</div>
+        </div>
+        <div className="mt-3 flex min-w-0 flex-wrap gap-1">
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => reply(false)}><Reply className="h-3 w-3" /> Répondre</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => reply(true)}><ReplyAll className="h-3 w-3" /> Tous</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={forward}><Forward className="h-3 w-3" /> Transférer</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}><Archive className="h-3 w-3" /> Archiver</Button>
+          {onRestore && <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onRestore}><RefreshCw className="h-3 w-3" /> Restaurer</Button>}
+          <Button size="sm" variant="outline" className="h-7 gap-1 text-destructive" onClick={onDelete}><Trash2 className="h-3 w-3" /> {email.deleted_at ? "Suppr. définitive" : "Suppr."}</Button>
+          <Button size="sm" className="h-7 gap-1" onClick={onCreateTask}><Plus className="h-3 w-3" /> Créer tâche</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onPostpone} disabled={isPostponed}><Clock className="h-3 w-3" /> {isPostponed ? "Déjà reportée" : "Reporter"}</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => onMarkSpam(!isSpamEmail)}>{isSpamEmail ? <Shield className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />} {isSpamEmail ? "Pas indésirable" : "Indésirable"}</Button>
+        </div>
+      </header>
+      {email.is_sensitive ? (
+        <div className="border-b bg-destructive/10 px-4 py-3 text-xs text-destructive">
+          Email marqué sensible : {email.sensitive_reason ?? "motif inconnu"}. Les suggestions IA sont désactivées.
+        </div>
+      ) : null}
+      {email.has_attachment && <EmailAttachmentsPanel emailId={email.id} fromAddress={email.from_address} subject={email.subject} />}
+      <div className="min-w-0 max-w-full p-4 text-sm">
+        {email.body_html ? <EmailHtmlFrame html={email.body_html} /> : <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed [overflow-wrap:anywhere]">{email.body_text ?? "(vide)"}</pre>}
+      </div>
+      {!email.is_sensitive && (
+        <AiSuggestionsPanel
+          emailId={email.id}
+          fromAddress={email.from_address}
+          subject={email.subject}
+          userId={userId}
+          onCreateTask={onCreateTask}
+          onArchive={onArchive}
+          onUseReply={(text) => onCompose({ mode: "reply", defaultAccountId: email.account_id, to: email.from_address ?? "", subject: subjReply, body: text + quoted(), inReplyTo: refs, references: refs })}
+        />
+      )}
+    </div>
   );
 }
 
