@@ -17,6 +17,9 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 
 export const Route = createFileRoute("/_authenticated/meetings")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    meetingId: typeof search.meetingId === "string" ? search.meetingId : undefined,
+  }),
   component: MeetingsPage,
 });
 
