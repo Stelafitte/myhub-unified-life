@@ -178,6 +178,10 @@ export function AiAssistantModal({
       setEmailPreviewId(match.id);
       return;
     }
+    if (match.kind === "task" || match.kind === "event" || match.kind === "meeting" || match.kind === "document") {
+      setEntityPreview({ kind: match.kind, id: match.id });
+      return;
+    }
     toggleMatchPreview(match.id);
   };
 
