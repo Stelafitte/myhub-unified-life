@@ -263,8 +263,13 @@ export function ActionCard({
       {error && <div className="text-xs text-destructive">{error}</div>}
 
       <div className="flex justify-end">
-        <Button size="sm" onClick={run} disabled={status === "running" || status === "done"}>
-          {status === "running" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Exécuter"}
+        <Button size="sm" onClick={run} disabled={status === "running" || status === "done"} className="gap-1.5">
+          {status === "running" ? <Loader2 className="h-4 w-4 animate-spin" /> : (
+            <>
+              {(action.kind === "reply_email" || action.kind === "forward_email") ? <Mail className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+              {action.kind === "reply_email" ? "Envoyer la réponse" : action.kind === "forward_email" ? "Transférer" : "Exécuter"}
+            </>
+          )}
         </Button>
       </div>
     </div>
