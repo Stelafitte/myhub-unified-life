@@ -2354,7 +2354,7 @@ function Reader({
       body: `\n\n---------- Message transféré ----------\nDe: ${email.from_name ?? ""} <${email.from_address ?? ""}>\nDate: ${email.received_at ?? ""}\nSujet: ${email.subject ?? ""}\nÀ: ${email.to_address ?? ""}\n\n${email.body_text ?? ""}`,
     });
   return (
-    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-x-hidden overflow-y-auto">
+    <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-x-hidden overflow-y-scroll [scrollbar-gutter:stable]">
       <header className="min-w-0 border-b p-3 sm:p-4">
         <div className="mb-2 flex min-w-0 items-center gap-2">
           {account && (
