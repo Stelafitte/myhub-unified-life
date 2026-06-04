@@ -56,6 +56,7 @@ export function AiAssistantModal({
   const [loading, setLoading] = useState(false);
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
+  const sendFn = useServerFn(sendEmail);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
