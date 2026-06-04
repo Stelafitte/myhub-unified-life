@@ -102,7 +102,10 @@ export function AiAssistantModal({
   const proposeFor = async (turn: Turn, kind: ProposedAction["kind"]) => {
     setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, proposing: true } : t));
     try {
-      const matchIds = Array.from(turn.selectedMatches);
+      // Only feed email IDs into propose (the server fn queries the emails table).
+      const matchIds = Array.from(turn.selectedMatches).filter(id =>
+        turn.result?.matches.find(m => m.id === id)?.kind === "email"
+      );
       const res = await propose({ data: { prompt: turn.prompt, action: kind, matchIds } });
       setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, actions: [...t.actions, ...res.actions.map(a => ({ action: a, status: "pending" as Status }))] } : t));
       if (res.actions.length === 0) toast.info("Aucune action générée.");
