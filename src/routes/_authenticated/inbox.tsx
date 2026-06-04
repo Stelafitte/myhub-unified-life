@@ -2276,7 +2276,7 @@ function FilterRow({
         active ? "bg-accent text-foreground" : "text-foreground/80 hover:bg-accent/50",
       )}
     >
-      <button onClick={onClick} className="flex flex-1 items-center gap-2 min-w-0">
+      <button onClick={onClick} className="flex min-w-0 flex-1 items-center gap-2 text-left">
         <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground">
           {icon}
         </span>
