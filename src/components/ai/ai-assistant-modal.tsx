@@ -360,17 +360,19 @@ function BulkBar({ items, onRunAll, onRunSelected }: { items: ActionItem[]; onRu
   const pending = items.filter(i => i.status === "pending").length;
   const hasMail = items.some(i => i.action.kind === "reply_email" || i.action.kind === "forward_email");
   const allMail = items.length > 0 && items.every(i => i.action.kind === "reply_email" || i.action.kind === "forward_email");
-  const label = allMail ? "Envoyer" : hasMail ? "Envoyer / Exécuter" : "Exécuter";
+  const sendLabel = allMail ? "Envoyer" : hasMail ? "Envoyer / Exécuter" : "Exécuter";
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <Badge variant="outline">{items.length} action(s) · {pending} en attente</Badge>
+    <div className="sticky top-0 z-10 flex items-center gap-2 text-xs bg-primary/10 border border-primary/30 rounded-lg px-3 py-2">
+      <Badge variant="outline" className="bg-background">{items.length} action(s) · {pending} en attente</Badge>
+      <span className="text-muted-foreground hidden sm:inline">Envoi individuel sur chaque carte, ou groupé ici →</span>
       <div className="ml-auto flex gap-2">
-        <Button size="sm" variant="outline" onClick={onRunSelected} disabled={pending === 0} className="h-7"><Play className="h-3.5 w-3.5 mr-1" />{label} sélection</Button>
-        <Button size="sm" onClick={onRunAll} disabled={pending === 0} className="h-7"><Play className="h-3.5 w-3.5 mr-1" />Tout {label.toLowerCase()}</Button>
+        <Button size="sm" variant="outline" onClick={onRunSelected} disabled={pending === 0} className="h-8"><Play className="h-3.5 w-3.5 mr-1" />{sendLabel} la sélection</Button>
+        <Button size="sm" onClick={onRunAll} disabled={pending === 0} className="h-8"><Play className="h-3.5 w-3.5 mr-1" />Tout {sendLabel.toLowerCase()}</Button>
       </div>
     </div>
   );
 }
+
 
 function ActivePromptsBadge({ turns, onOpenSettings }: { turns: Turn[]; onOpenSettings: () => void }) {
   const map = new Map<string, { title: string; target: string }>();
