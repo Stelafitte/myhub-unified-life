@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useLocation } from "@tanstack/react-router";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AppHeader } from "@/components/app-header";
@@ -80,6 +80,9 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthenticatedLayout() {
+  const location = useLocation();
+  const isInbox = location.pathname.endsWith("/inbox");
+
   return (
     <SecureVaultProvider>
       <TaskPanelProvider>
@@ -90,7 +93,7 @@ function AuthenticatedLayout() {
               <AppHeader />
               <SessionExpiredBanner />
               <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-scroll p-3 [scrollbar-gutter:stable] sm:p-4 md:p-6">
-                <div className="mx-auto w-full max-w-[1400px] min-w-0">
+                <div className={isInbox ? "w-full min-w-0" : "mx-auto w-full max-w-[1400px] min-w-0"}>
                   <Outlet />
                 </div>
               </main>
