@@ -1253,8 +1253,8 @@ function InboxPage() {
     handledDeepLinkRef.current = requestedEmailId;
     setFilter("all");
     setQuery("");
-    openEmail(target);
     navigate({ to: "/inbox", search: {}, replace: true });
+    openEmail(target);
   }, [requestedEmailId, emails, navigate]);
 
 
