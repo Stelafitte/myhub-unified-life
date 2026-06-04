@@ -1224,6 +1224,174 @@ function ListView({ events, onSelect }: { events: UnifiedEvent[]; onSelect: (e: 
   );
 }
 
+// ---------- WHEN EDITOR ----------
+function toLocalDateInput(d: Date): string {
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function toLocalTimeInput(d: Date): string {
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function combineLocal(dateStr: string, timeStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [hh, mm] = timeStr.split(":").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0, 0, 0);
+}
+
+function EventWhenEditor({
+  event,
+  canEdit,
+  onSaved,
+}: {
+  event: UnifiedEvent;
+  canEdit: boolean;
+  onSaved: () => void;
+}) {
+  const [startDate, setStartDate] = useState(() => toLocalDateInput(event.start));
+  const [startTime, setStartTime] = useState(() => toLocalTimeInput(event.start));
+  const [endDate, setEndDate] = useState(() => toLocalDateInput(event.end));
+  const [endTime, setEndTime] = useState(() => toLocalTimeInput(event.end));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setStartDate(toLocalDateInput(event.start));
+    setStartTime(toLocalTimeInput(event.start));
+    setEndDate(toLocalDateInput(event.end));
+    setEndTime(toLocalTimeInput(event.end));
+  }, [event.id, event.start.getTime(), event.end.getTime()]);
+
+  const persist = async (s: Date, e: Date) => {
+    if (event.kind !== "event") return;
+    if (e.getTime() <= s.getTime()) {
+      toast.error("La fin doit être après le début");
+      return;
+    }
+    const id = (event.raw as DbEvent).id;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("calendar_events")
+        .update({ start_at: s.toISOString(), end_at: e.toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+      onSaved();
+      requestAutoSync();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const commit = () => {
+    const s = combineLocal(startDate, startTime);
+    const e = combineLocal(endDate, endTime);
+    void persist(s, e);
+  };
+
+  const adjustEnd = (deltaMin: number) => {
+    const s = combineLocal(startDate, startTime);
+    const e = new Date(combineLocal(endDate, endTime).getTime() + deltaMin * 60_000);
+    if (e.getTime() <= s.getTime()) {
+      toast.error("Durée minimale 5 min");
+      return;
+    }
+    setEndDate(toLocalDateInput(e));
+    setEndTime(toLocalTimeInput(e));
+    void persist(s, e);
+  };
+
+  const adjustStart = (deltaMin: number) => {
+    const s = new Date(combineLocal(startDate, startTime).getTime() + deltaMin * 60_000);
+    const e = combineLocal(endDate, endTime);
+    if (e.getTime() <= s.getTime()) {
+      toast.error("Durée minimale 5 min");
+      return;
+    }
+    setStartDate(toLocalDateInput(s));
+    setStartTime(toLocalTimeInput(s));
+    void persist(s, e);
+  };
+
+  if (!canEdit) {
+    return (
+      <div>
+        <div className="text-xs font-medium text-muted-foreground">Quand</div>
+        <div>{fmtDate(event.start)}</div>
+        <div>{fmtTime(event.start)} – {fmtTime(event.end)}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-medium text-muted-foreground">Quand</div>
+      <div className="grid grid-cols-[auto_1fr_1fr_auto_auto] items-center gap-1.5">
+        <span className="text-[11px] text-muted-foreground">Début</span>
+        <Input
+          type="date"
+          value={startDate}
+          disabled={saving}
+          onChange={(e) => setStartDate(e.target.value)}
+          onBlur={commit}
+          className="h-8 text-xs"
+        />
+        <Input
+          type="time"
+          value={startTime}
+          disabled={saving}
+          onChange={(e) => setStartTime(e.target.value)}
+          onBlur={commit}
+          className="h-8 text-xs"
+        />
+        <Button type="button" variant="outline" size="icon" className="h-8 w-8" disabled={saving} onClick={() => adjustStart(-15)} title="Avancer le début de 15 min">
+          <Minus className="h-3.5 w-3.5" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" className="h-8 w-8" disabled={saving} onClick={() => adjustStart(15)} title="Retarder le début de 15 min">
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+
+        <span className="text-[11px] text-muted-foreground">Fin</span>
+        <Input
+          type="date"
+          value={endDate}
+          disabled={saving}
+          onChange={(e) => setEndDate(e.target.value)}
+          onBlur={commit}
+          className="h-8 text-xs"
+        />
+        <Input
+          type="time"
+          value={endTime}
+          disabled={saving}
+          onChange={(e) => setEndTime(e.target.value)}
+          onBlur={commit}
+          className="h-8 text-xs"
+        />
+        <Button type="button" variant="outline" size="icon" className="h-8 w-8" disabled={saving} onClick={() => adjustEnd(-15)} title="Réduire de 15 min">
+          <Minus className="h-3.5 w-3.5" />
+        </Button>
+        <Button type="button" variant="outline" size="icon" className="h-8 w-8" disabled={saving} onClick={() => adjustEnd(15)} title="Prolonger de 15 min">
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {[15, 30, 60].map((m) => (
+          <Button key={`p${m}`} type="button" variant="ghost" size="sm" className="h-6 px-2 text-[10px]" disabled={saving} onClick={() => adjustEnd(m)}>
+            +{m}min
+          </Button>
+        ))}
+        {[15, 30, 60].map((m) => (
+          <Button key={`m${m}`} type="button" variant="ghost" size="sm" className="h-6 px-2 text-[10px]" disabled={saving} onClick={() => adjustEnd(-m)}>
+            −{m}min
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---------- EVENT DETAIL PANEL ----------
 function EventDetail({
   event,
