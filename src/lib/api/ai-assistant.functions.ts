@@ -323,14 +323,17 @@ Tu DOIS répondre UNIQUEMENT en JSON valide avec ce schéma exact :
   "date_to": "ISO8601 ou null",
   "unread_only": true|false,
   "status": "todo|in_progress|done|null (tâches)",
+  "category": "perso|pro|null (events uniquement)",
   "limit": 30,
   "user_intent": "résumé clair en 1 phrase"
 }
 RÈGLES IMPORTANTES :
-- "entities" peut contenir PLUSIEURS valeurs si la demande est ambiguë ou trans-domaines (ex: "tout sur Ternacle" → ["emails","contacts","tasks","documents"]).
-- Privilégie la PRÉCISION dans subject/body/from_contains (1-3 fragments courts) et la LARGEUR dans keywords (synonymes, formes alternatives, accents/sans accents).
-- N'invente pas de dates : ne renseigne date_from/date_to QUE si l'utilisateur le précise (semaine, mois, "hier", etc.).
-- Mapping entités : mail/email/courriel/expéditeur → emails ; contact/personne/téléphone → contacts ; tâche/todo/à faire → tasks ; événement/agenda → events ; réunion/rdv/meeting → meetings ; document/fichier/pj → documents.${promptBlock}`;
+- "entities" peut contenir PLUSIEURS valeurs si la demande est ambiguë ou trans-domaines.
+- Mapping entités : mail/email/courriel/expéditeur → emails ; contact/personne/téléphone → contacts ; tâche/todo/à faire → tasks ; événement/agenda/rdv/rendez-vous → events (ET meetings si visio/réunion).
+- CATÉGORIE : "perso"/"personnel"/"privé"/"perso non pro" → category="perso" ; "pro"/"professionnel"/"travail" → category="pro". Si la demande est générique (ex: "mes rdv perso", "tous mes événements personnels"), LAISSE keywords/subject_contains/body_contains VIDES — le filtre category seul ramène tous les événements de la catégorie. N'ajoute des mots-clés QUE si l'utilisateur cible un sujet précis (ex: "rdv kiné", "rdv chez le médecin").
+- Synonymes médicaux/perso utiles si l'utilisateur évoque la santé : kiné, kinésithérapie, kinesi, renfo, balneo, balnéo, médecin, dentiste, ostéo, ostéopathe, RDV médical, consultation, infirmière, biologie, radio, IRM.
+- Privilégie la PRÉCISION dans subject/body/from_contains et la LARGEUR dans keywords (synonymes, accents/sans accents).
+- N'invente pas de dates : ne renseigne date_from/date_to QUE si l'utilisateur le précise.${promptBlock}`;
 
     const extracted = await callGateway(key, {
       model: "google/gemini-2.5-pro",
