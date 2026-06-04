@@ -383,7 +383,7 @@ function InboxPage() {
   useEffect(() => {
     const node = layoutRef.current;
     if (!node) return;
-    const update = () => setLayoutW(node.clientWidth);
+    const update = () => setLayoutW(node.getBoundingClientRect().width);
     update();
     const observer = new ResizeObserver(update);
     observer.observe(node);
@@ -393,7 +393,7 @@ function InboxPage() {
     e.preventDefault();
     const startX = e.clientX;
     const startW = which === "left" ? desktopLeftW : desktopRightW;
-    const startLayoutW = layoutRef.current?.clientWidth || layoutWidth;
+    const startLayoutW = layoutRef.current?.getBoundingClientRect().width || layoutWidth;
     const startLeftW = desktopLeftW;
     const onMove = (ev: MouseEvent) => {
       const dx = ev.clientX - startX;

@@ -89,7 +89,7 @@ function AuthenticatedLayout() {
             <div className="flex min-w-0 flex-1 flex-col">
               <AppHeader />
               <SessionExpiredBanner />
-              <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6">
+              <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-scroll p-3 [scrollbar-gutter:stable] sm:p-4 md:p-6">
                 <div className="mx-auto w-full max-w-[1400px] min-w-0">
                   <Outlet />
                 </div>
