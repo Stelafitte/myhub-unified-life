@@ -106,6 +106,8 @@ export const classifyPendingDocuments = createServerFn({ method: "POST" })
     if (error) return { processed: 0, skipped: 0, error: error.message };
     if (!rows || rows.length === 0) return { processed: 0, skipped: 0 };
 
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["document"]);
+
     let processed = 0;
     let skipped = 0;
     const now = new Date().toISOString();
@@ -124,7 +126,7 @@ export const classifyPendingDocuments = createServerFn({ method: "POST" })
         skipped++;
         continue;
       }
-      const result = await classifyOne(key, r);
+      const result = await classifyOne(key, r, userPromptsBlock);
       if (result) {
         await supabase.from("documents").update({
           ai_processed_at: now,
