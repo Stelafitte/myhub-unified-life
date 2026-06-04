@@ -542,7 +542,9 @@ export function TaskPanel({
     if (!user) return;
     setSaving(true);
 
-    const finalSection = newSection.trim() || section;
+    const selectedTheme = opThemes.find((t) => t.id === themeId);
+    const finalSection = selectedTheme?.name || newSection.trim() || section || "Autre";
+
     const tags = [
       ...tagsText
         .split(",")
