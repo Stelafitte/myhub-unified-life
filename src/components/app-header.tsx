@@ -1,5 +1,6 @@
 // MyHub Pro v1.0
-import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2, Plus, CheckSquare, Search, X } from "lucide-react";
+import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2, Plus, CheckSquare, Search, X, Sparkles } from "lucide-react";
+import { AiAssistantModal } from "@/components/ai/ai-assistant-modal";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -106,6 +107,8 @@ export function AppHeader() {
 function GlobalSearchBar() {
   const navigate = useNavigate();
   const [value, setValue] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiSeed, setAiSeed] = useState<string | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const onSubmit = (e: React.FormEvent) => {
@@ -123,33 +126,53 @@ function GlobalSearchBar() {
     inputRef.current?.focus();
   };
 
+  const openAi = () => {
+    setAiSeed(value.trim().length >= 2 ? value.trim() : undefined);
+    setAiOpen(true);
+  };
+
   return (
-    <form onSubmit={onSubmit} className="mx-1 flex w-full max-w-[500px] flex-1 items-center sm:mx-3">
-      <div className="relative w-full">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          ref={inputRef}
-          type="search"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Rechercher dans MyHub Pro…"
-          aria-label="Recherche globale"
-          className="h-9 w-full rounded-md border border-border/60 bg-muted/40 pl-8 pr-20 text-sm text-foreground placeholder:text-muted-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40"
-        />
-        {value && (
-          <button
-            type="button"
-            onClick={clear}
-            aria-label="Effacer"
-            className="absolute right-12 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-        <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-border/60 bg-background/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline-block">
-          Entrée
-        </kbd>
-      </div>
-    </form>
+    <>
+      <form onSubmit={onSubmit} className="mx-1 flex w-full max-w-[560px] flex-1 items-center gap-1.5 sm:mx-3">
+        <div className="relative w-full">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            ref={inputRef}
+            type="search"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Rechercher dans MyHub Pro…"
+            aria-label="Recherche globale"
+            className="h-9 w-full rounded-md border border-border/60 bg-muted/40 pl-8 pr-20 text-sm text-foreground placeholder:text-muted-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40"
+          />
+          {value && (
+            <button
+              type="button"
+              onClick={clear}
+              aria-label="Effacer"
+              className="absolute right-12 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+          <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-border/60 bg-background/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground sm:inline-block">
+            Entrée
+          </kbd>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={openAi}
+          aria-label="Assistant IA"
+          title="Assistant IA"
+          className="h-9 gap-1.5 shrink-0 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+        >
+          <Sparkles className="h-4 w-4" />
+          <span className="hidden sm:inline text-xs font-semibold">IA</span>
+        </Button>
+      </form>
+      <AiAssistantModal open={aiOpen} onOpenChange={setAiOpen} initialPrompt={aiSeed} />
+    </>
   );
 }
