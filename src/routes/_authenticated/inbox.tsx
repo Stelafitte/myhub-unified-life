@@ -1809,7 +1809,7 @@ function InboxPage() {
             <span className="text-muted-foreground">Sélectionner pour actions groupées</span>
           )}
         </div>
-        <ul className="flex-1 divide-y overflow-y-auto">
+        <ul className="flex-1 divide-y overflow-y-scroll [scrollbar-gutter:stable]">
           {filtered.length === 0 && (
             <li className="p-6 text-center text-sm text-muted-foreground sm:p-10">
               {emails.length === 0
