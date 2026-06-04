@@ -22,39 +22,59 @@ type Priority = (typeof PRIORITIES)[number];
 type DocRow = {
   id: string;
   filename: string;
+  original_filename: string | null;
   mime_type: string | null;
   file_size: number;
   source_type: string;
+  source_id: string | null;
   description: string | null;
+};
+
+type SourceContext = {
+  subject?: string | null;
+  from_address?: string | null;
+  from_name?: string | null;
+  snippet?: string | null;
 };
 
 async function classifyOne(
   key: string,
   d: DocRow,
   userPromptsBlock: string,
+  ctx: SourceContext | null,
 ): Promise<{ category: Category; priority: Priority; summary: string } | null> {
   const sys = `Tu classes des documents bureautiques. Réponds UNIQUEMENT en JSON valide:
 {"category":"facture|contrat|rapport|presentation|courrier|rh|technique|image|signature|autre","priority":"urgent|important|normal|low","summary":"résumé en 1 phrase (max 160 caractères), français"}
 
-CATÉGORIES:
-- facture: facture, devis, reçu, note de frais
-- contrat: contrat, convention, accord, NDA
-- rapport: rapport, étude, analyse, compte-rendu
-- presentation: slides, pitch deck
-- courrier: lettre, email exporté, correspondance
-- rh: CV, fiche de paie, attestation, contrat de travail
-- technique: doc technique, spec, plan, schéma
+CATÉGORIES (élargies — utilise tout indice du nom de fichier OU de l'email source) :
+- facture: facture, invoice, receipt, reçu, devis, quote, estimate, note de frais, billing, statement, payment, paiement
+- contrat: contrat, contract, convention, agreement, accord, NDA, avenant
+- rapport: rapport, report, étude, analyse, compte-rendu, audit, bilan
+- presentation: slides, pitch deck, présentation, keynote
+- courrier: lettre, courrier, email exporté, correspondance
+- rh: CV, resume, fiche de paie, payslip, attestation, contrat de travail
+- technique: doc technique, spec, plan, schéma, manuel, notice
 - image: photo, illustration, capture d'écran utile
 - signature: image de signature email, logo de pied de mail, bannière promotionnelle sans intérêt
 - autre: ne correspond à rien
 
-PRIORITÉ basée sur l'importance probable du document.${userPromptsBlock}`;
+Examine le nom de fichier, l'extension, l'expéditeur et le sujet de l'email source si fourni. Les mots-clés peuvent être en français OU en anglais.
+PRIORITÉ basée sur l'importance probable du document.${userPromptsBlock}
 
-  const user = `Nom: ${d.filename}
-Type MIME: ${d.mime_type ?? "inconnu"}
-Taille: ${Math.round(d.file_size / 1024)} Ko
-Source: ${d.source_type}
-${d.description ? `Description: ${d.description}` : ""}`;
+IMPORTANT : si les "Instructions personnalisées de l'utilisateur" ci-dessus donnent des règles de classement (mots-clés, expéditeurs, catégories), elles PRIMENT sur tes propres heuristiques.`;
+
+  const lines = [
+    `Nom: ${d.filename}`,
+    d.original_filename && d.original_filename !== d.filename ? `Nom original: ${d.original_filename}` : null,
+    `Type MIME: ${d.mime_type ?? "inconnu"}`,
+    `Taille: ${Math.round(d.file_size / 1024)} Ko`,
+    `Source: ${d.source_type}`,
+    d.description ? `Description: ${d.description}` : null,
+    ctx?.from_address ? `Email expéditeur: ${ctx.from_name ? `${ctx.from_name} <${ctx.from_address}>` : ctx.from_address}` : null,
+    ctx?.subject ? `Email sujet: ${ctx.subject}` : null,
+    ctx?.snippet ? `Email extrait: ${ctx.snippet.slice(0, 400)}` : null,
+  ].filter(Boolean);
+  const user = lines.join("\n");
 
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
