@@ -462,6 +462,20 @@ function AgendaPage() {
     [unified, range],
   );
 
+  // Deep-link depuis recherche IA / globale : ?eventId=...
+  React.useEffect(() => {
+    const id = search.eventId;
+    if (!id || handledDeepLinkRef.current === id) return;
+    const base = events.find((e) => e.id === id);
+    if (!base) return;
+    handledDeepLinkRef.current = id;
+    setCursor(startOfDay(new Date(base.start_at)));
+    setView(isMobile ? "list" : "day");
+    const match = unified.find((x) => x.id === id || x.id.startsWith(id + "+"));
+    if (match) setSelected(match);
+    navigate({ to: "/calendar", search: {} as any, replace: true });
+  }, [search.eventId, events, unified, isMobile, navigate]);
+
   const nav = (dir: -1 | 0 | 1) => {
     if (dir === 0) return setCursor(startOfDay(new Date()));
     const step = view === "day" ? 1 : view === "week" ? 7 : view === "month" ? 30 : 7;
