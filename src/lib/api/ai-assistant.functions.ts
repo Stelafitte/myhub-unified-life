@@ -630,3 +630,41 @@ Réponds UNIQUEMENT en JSON ${data.action === "create_meeting"
 
     return { actions, warning, activePrompts: activePrompts.map((p) => ({ title: p.title, target: p.target })) };
   });
+
+// ============================================================================
+// Phase 3 — Chat conversationnel libre (sans recherche)
+// ============================================================================
+
+const ChatMsgSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().max(8000),
+});
+
+const ChatInput = z.object({
+  messages: z.array(ChatMsgSchema).min(1).max(40),
+  contextSummary: z.string().max(6000).optional().nullable(),
+});
+
+export type AiChatResult = { reply: string; activePrompts: { title: string; target: string }[] };
+
+export const aiChat = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => ChatInput.parse(d))
+  .handler(async ({ data, context }): Promise<AiChatResult> => {
+    const { supabase, userId } = context;
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("LOVABLE_API_KEY manquant");
+
+    const generalPrompts = await loadActivePrompts(supabase, userId, ["general"]);
+    const promptBlock = buildPromptBlock(generalPrompts);
+
+    const sys = `Tu es l'assistant IA conversationnel de MyHub Pro. Tu réponds en français, de manière claire, utile et concise. Tu peux discuter librement avec l'utilisateur : répondre à ses questions, expliquer pourquoi une recherche a (ou n'a pas) abouti, donner des conseils, suggérer comment reformuler une demande, ou aider à apprendre/améliorer le système. Si l'utilisateur veut sauvegarder une instruction durable, dis-lui d'aller dans Réglages > IA > Prompts pour l'enregistrer comme prompt actif. Tu n'as PAS accès direct aux données : si l'utilisateur te demande de chercher des emails/événements/contacts, invite-le à utiliser le mode "Rechercher" (bouton 🔍 en haut du composer).${data.contextSummary ? "\n\nContexte de la dernière recherche :\n" + data.contextSummary : ""}${promptBlock}`;
+
+    const resp = await callGateway(key, {
+      model: "google/gemini-3-flash-preview",
+      max_tokens: 2000,
+      messages: [{ role: "system", content: sys }, ...data.messages],
+    });
+    const reply = resp?.choices?.[0]?.message?.content ?? "(pas de réponse)";
+    return { reply, activePrompts: generalPrompts.map((p) => ({ title: p.title, target: p.target })) };
+  });
