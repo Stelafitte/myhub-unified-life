@@ -320,7 +320,7 @@ export function AiAssistantModal({
                           return (
                             <div key={m.id} className="flex items-start gap-2 px-3 py-2 hover:bg-muted/30">
                               <Checkbox checked={checked} onCheckedChange={() => toggleMatch(t.id, m.id)} className="mt-1" />
-                              <button type="button" onClick={open} className="flex items-start gap-2 flex-1 min-w-0 text-left">
+                              <a href={buildHref()} target="_blank" rel="noopener noreferrer" onClick={open} className="flex items-start gap-2 flex-1 min-w-0 text-left">
                                 <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
@@ -332,7 +332,7 @@ export function AiAssistantModal({
                                   {m.snippet && <div className="text-xs text-muted-foreground truncate">{m.snippet}</div>}
                                 </div>
                                 <ChevronRight className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
-                              </button>
+                              </a>
                             </div>
                           );
                         })}
