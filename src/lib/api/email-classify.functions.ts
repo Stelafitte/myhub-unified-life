@@ -157,9 +157,11 @@ export const classifyPendingEmails = createServerFn({ method: "POST" })
     if (error) return { processed: 0, error: error.message };
     if (!rows || rows.length === 0) return { processed: 0 };
 
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["email_classify"]);
+
     let processed = 0;
     for (const r of rows as Row[]) {
-      const result = await classifyOne(key, r, hints, trustedSenders);
+      const result = await classifyOne(key, r, hints, trustedSenders, userPromptsBlock);
 
       const from = (r.from_address ?? "").toLowerCase();
       const isWhitelisted = whitelist.some((w) => from.includes(w.toLowerCase()));
