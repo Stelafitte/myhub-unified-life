@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, useMemo } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useState, useMemo, useRef } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CalendarClock, Video, MapPin, Users as UsersIcon, CheckCircle2, XCircle, Clock, HelpCircle, Loader2, Mail, Download, Pencil, BarChart3, AlarmClock, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
