@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
-import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History } from "lucide-react";
+import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History, Reply, ReplyAll, Star, Clock, Shield, ShieldOff, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,13 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { aiAssistantQuery, aiProposeActions, aiChat, type AiAssistantResult, type ProposedAction, type AnyMatch, type EntityKind } from "@/lib/api/ai-assistant.functions";
 import { ActionCard, executeAction } from "@/components/ai/action-card";
 import { sendEmail } from "@/lib/api/email-send.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { EmailHtmlFrame } from "@/components/inbox/email-html-frame";
+import { EmailAttachmentsPanel } from "@/components/inbox/email-attachments-panel";
+import { AiSuggestionsPanel } from "@/components/inbox/ai-suggestions-panel";
+import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
+import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
+import type { CachedEmail } from "@/lib/inbox-cache";
 import { toast } from "sonner";
 
 const ARCHIVE_KEY = "ai-assistant-archives";
@@ -75,6 +82,7 @@ export function AiAssistantModal({
   const [loading, setLoading] = useState(false);
   const [archives, setArchives] = useState<ArchivedChat[]>([]);
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
+  const [emailPreviewId, setEmailPreviewId] = useState<string | null>(null);
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const chatFn = useServerFn(aiChat);
@@ -160,6 +168,14 @@ export function AiAssistantModal({
       next.has(mid) ? next.delete(mid) : next.add(mid);
       return next;
     });
+  };
+
+  const openMatchPreview = (match: AnyMatch) => {
+    if (match.kind === "email") {
+      setEmailPreviewId(match.id);
+      return;
+    }
+    toggleMatchPreview(match.id);
   };
 
   const proposeFor = async (turn: Turn, kind: ProposedAction["kind"]) => {
@@ -317,7 +333,7 @@ export function AiAssistantModal({
                             <div key={m.id} className="px-3 py-2 hover:bg-muted/30">
                               <div className="flex items-start gap-2">
                                 <Checkbox checked={checked} onCheckedChange={() => toggleMatch(t.id, m.id)} className="mt-1" />
-                                <button type="button" onClick={() => toggleMatchPreview(m.id)} className="flex items-start gap-2 flex-1 min-w-0 text-left">
+                                <button type="button" onClick={() => openMatchPreview(m)} className="flex items-start gap-2 flex-1 min-w-0 text-left">
                                   <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2">
@@ -416,6 +432,11 @@ export function AiAssistantModal({
             </Button>
           </div>
         </div>
+        <AiEmailReaderDialog
+          emailId={emailPreviewId}
+          open={!!emailPreviewId}
+          onOpenChange={(v) => { if (!v) setEmailPreviewId(null); }}
+        />
       </DialogContent>
     </Dialog>
   );
