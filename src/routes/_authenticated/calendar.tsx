@@ -30,6 +30,7 @@ import {
   type DocumentRow,
 } from "@/lib/documents";
 import { formatBytes } from "@/lib/file-icons";
+import { ContactEmailAutocomplete } from "@/components/contacts/contact-email-autocomplete";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { useServerFn } from "@tanstack/react-start";
 import { startGoogleCalendarOAuth, syncGoogleCalendarEvents, deleteCalendarEvent, listGoogleCalendarConnections } from "@/lib/api/google-calendar.functions";
