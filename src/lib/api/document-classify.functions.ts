@@ -31,6 +31,7 @@ type DocRow = {
 async function classifyOne(
   key: string,
   d: DocRow,
+  userPromptsBlock: string,
 ): Promise<{ category: Category; priority: Priority; summary: string } | null> {
   const sys = `Tu classes des documents bureautiques. Réponds UNIQUEMENT en JSON valide:
 {"category":"facture|contrat|rapport|presentation|courrier|rh|technique|image|signature|autre","priority":"urgent|important|normal|low","summary":"résumé en 1 phrase (max 160 caractères), français"}
