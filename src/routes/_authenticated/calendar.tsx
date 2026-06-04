@@ -1501,6 +1501,108 @@ function EventWhenEditor({
   );
 }
 
+// ---------- RECURRENCE EDITOR ----------
+function RecurrenceEditor({
+  eventId,
+  rule,
+  onSaved,
+}: {
+  eventId: string;
+  rule: string | null;
+  onSaved: () => void;
+}) {
+  const parsed = React.useMemo(() => {
+    const map: Record<string, string> = {};
+    (rule ?? "").split(/[;\s]+/).filter(Boolean).forEach((p) => {
+      const [k, v] = p.split("=");
+      if (k && v) map[k.toUpperCase()] = v;
+    });
+    const freq = (map.FREQ ?? "WEEKLY").toUpperCase();
+    let until = "";
+    if (map.UNTIL) {
+      const m = map.UNTIL.match(/^(\d{4})(\d{2})(\d{2})/);
+      if (m) until = `${m[1]}-${m[2]}-${m[3]}`;
+    }
+    return { freq, until };
+  }, [rule]);
+
+  const [freq, setFreq] = useState<string>(parsed.freq);
+  const [until, setUntil] = useState<string>(parsed.until);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setFreq(parsed.freq);
+    setUntil(parsed.until);
+  }, [parsed.freq, parsed.until]);
+
+  const persist = async (nextFreq: string, nextUntil: string) => {
+    let next = `FREQ=${nextFreq}`;
+    if (nextUntil) {
+      const u = nextUntil.replace(/-/g, "") + "T235959Z";
+      next += `;UNTIL=${u}`;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("calendar_events")
+        .update({ recurrence_rule: next })
+        .eq("id", eventId);
+      if (error) throw error;
+      toast.success("Récurrence mise à jour");
+      onSaved();
+      requestAutoSync();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-medium text-muted-foreground">Récurrence</div>
+      <Select
+        value={freq}
+        onValueChange={(v) => { setFreq(v); void persist(v, until); }}
+        disabled={saving}
+      >
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="DAILY">Tous les jours</SelectItem>
+          <SelectItem value="WEEKLY">Toutes les semaines</SelectItem>
+          <SelectItem value="MONTHLY">Tous les mois</SelectItem>
+          <SelectItem value="YEARLY">Tous les ans</SelectItem>
+        </SelectContent>
+      </Select>
+      <div>
+        <Label htmlFor="ev-edit-until" className="text-xs">Fin de la récurrence (optionnel)</Label>
+        <div className="flex gap-2">
+          <Input
+            id="ev-edit-until"
+            type="date"
+            value={until}
+            disabled={saving}
+            onChange={(e) => setUntil(e.target.value)}
+            onBlur={() => { if (until !== parsed.until) void persist(freq, until); }}
+          />
+          {until && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={saving}
+              onClick={() => { setUntil(""); void persist(freq, ""); }}
+            >
+              Effacer
+            </Button>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">Laisser vide pour une récurrence sans fin.</p>
+      </div>
+    </div>
+  );
+}
+
 // ---------- EVENT DETAIL PANEL ----------
 function EventDetail({
   event,
