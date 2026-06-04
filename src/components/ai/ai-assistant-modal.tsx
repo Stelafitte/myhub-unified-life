@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
 import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History, Reply, ReplyAll, Star, Clock, Shield, ShieldOff, RefreshCw } from "lucide-react";
@@ -89,6 +89,7 @@ export function AiAssistantModal({
   const sendFn = useServerFn(sendEmail);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const closeEmailPreview = useCallback((v: boolean) => { if (!v) setEmailPreviewId(null); }, []);
 
   useEffect(() => { if (open) { setTimeout(() => inputRef.current?.focus(), 60); setArchives(loadArchives()); } }, [open]);
   useEffect(() => { if (initialPrompt && open) setPrompt(initialPrompt); }, [initialPrompt, open]);
@@ -435,7 +436,7 @@ export function AiAssistantModal({
         <AiEmailReaderDialog
           emailId={emailPreviewId}
           open={!!emailPreviewId}
-          onOpenChange={(v) => { if (!v) setEmailPreviewId(null); }}
+          onOpenChange={closeEmailPreview}
         />
       </DialogContent>
     </Dialog>
