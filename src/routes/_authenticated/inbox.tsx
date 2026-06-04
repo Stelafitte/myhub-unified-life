@@ -98,6 +98,7 @@ const INBOX_MIN_LEFT_W = 200;
 const INBOX_MIN_LIST_W = 300;
 const INBOX_MIN_READER_W = 360;
 const INBOX_RESIZERS_W = 8;
+const INBOX_COMPACT_W = INBOX_MIN_LEFT_W + INBOX_MIN_LIST_W + INBOX_MIN_READER_W + INBOX_RESIZERS_W;
 
 type Filter =
   | "all"
@@ -320,8 +321,8 @@ function InboxPage() {
   const layoutRef = useRef<HTMLDivElement>(null);
   const [layoutW, setLayoutW] = useState(0);
 
-  const isMobileInbox = winW < 1024;
   const layoutWidth = layoutW || winW;
+  const isMobileInbox = layoutWidth < INBOX_COMPACT_W;
   const desktopLeftW = isMobileInbox
     ? leftW
     : Math.min(
