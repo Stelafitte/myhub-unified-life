@@ -73,11 +73,13 @@ export function AiAssistantModal({
   initialPrompt?: string;
 }) {
   const [prompt, setPrompt] = useState(initialPrompt ?? "");
+  const [mode, setMode] = useState<"search" | "chat">("search");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
   const [archives, setArchives] = useState<ArchivedChat[]>([]);
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
+  const chatFn = useServerFn(aiChat);
   const sendFn = useServerFn(sendEmail);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -96,7 +98,7 @@ export function AiAssistantModal({
     newConversation();
   };
   const restoreArchive = (a: ArchivedChat) => {
-    setTurns(a.turns.map(t => ({ ...t, selectedMatches: new Set(Array.isArray(t.selectedMatches as any) ? (t.selectedMatches as any) : []) })));
+    setTurns(a.turns.map(t => ({ ...t, mode: t.mode ?? "search", chatReply: t.chatReply ?? null, selectedMatches: new Set(Array.isArray(t.selectedMatches as any) ? (t.selectedMatches as any) : []) })));
   };
   const deleteArchive = (id: string) => {
     const next = archives.filter(a => a.id !== id);
@@ -111,11 +113,30 @@ export function AiAssistantModal({
     if (q.length < 2) return;
     setLoading(true);
     const id = crypto.randomUUID();
-    setTurns((t) => [...t, { id, prompt: q, result: null, error: null, selectedMatches: new Set(), actions: [], proposing: false }]);
+    const currentMode = mode;
+    setTurns((t) => [...t, { id, mode: currentMode, prompt: q, result: null, chatReply: null, error: null, selectedMatches: new Set(), actions: [], proposing: false }]);
     setPrompt("");
     try {
-      const res = await run({ data: { prompt: q, contextRoute: window.location.pathname } });
-      setTurns((t) => t.map((x) => (x.id === id ? { ...x, result: res, selectedMatches: new Set(res.matches.map(m => m.id)) } : x)));
+      if (currentMode === "chat") {
+        // Build conversation history from previous turns (any mode)
+        const history: { role: "user" | "assistant"; content: string }[] = [];
+        for (const t of turns) {
+          history.push({ role: "user", content: t.prompt });
+          const reply = t.chatReply ?? t.result?.summary ?? "";
+          if (reply) history.push({ role: "assistant", content: reply.slice(0, 4000) });
+        }
+        history.push({ role: "user", content: q });
+        // Optional context: last search summary + top matches
+        const last = [...turns].reverse().find(t => t.result);
+        const ctx = last?.result
+          ? `Dernière recherche: "${last.prompt}"\nRésumé: ${last.result.summary.slice(0, 1500)}\nRésultats (${last.result.matches.length}): ${last.result.matches.slice(0, 8).map(m => `[${m.kind}] ${m.title}`).join(" ; ")}`
+          : null;
+        const res = await chatFn({ data: { messages: history, contextSummary: ctx } });
+        setTurns((t) => t.map((x) => (x.id === id ? { ...x, chatReply: res.reply } : x)));
+      } else {
+        const res = await run({ data: { prompt: q, contextRoute: window.location.pathname } });
+        setTurns((t) => t.map((x) => (x.id === id ? { ...x, result: res, selectedMatches: new Set(res.matches.map(m => m.id)) } : x)));
+      }
     } catch (e: any) {
       const msg = e?.message ?? "Erreur IA";
       setTurns((t) => t.map((x) => (x.id === id ? { ...x, error: msg } : x)));
