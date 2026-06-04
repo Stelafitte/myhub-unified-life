@@ -1234,6 +1234,27 @@ function InboxPage() {
     return () => window.removeEventListener("popstate", onPop);
   }, [readerOpen]);
 
+  // Deep-link : ?emailId=... (Recherche globale, Assistant IA…) → ouvrir l'email
+  // dès que la liste est chargée. On force le filtre à « all » pour s'assurer
+  // que l'email est visible, puis on nettoie l'URL.
+  const handledDeepLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!requestedEmailId) return;
+    if (handledDeepLinkRef.current === requestedEmailId) return;
+    if (emails.length === 0) return;
+    const target = emails.find((e) => e.id === requestedEmailId);
+    if (!target) {
+      // Email pas (encore) dans la liste : on retente quand `emails` change.
+      return;
+    }
+    handledDeepLinkRef.current = requestedEmailId;
+    setFilter("all");
+    setQuery("");
+    openEmail(target);
+    navigate({ to: "/inbox", search: {}, replace: true });
+  }, [requestedEmailId, emails, navigate]);
+
+
 
   return (
     <div
