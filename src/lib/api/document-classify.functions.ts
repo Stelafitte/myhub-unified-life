@@ -118,7 +118,7 @@ export const classifyPendingDocuments = createServerFn({ method: "POST" })
 
     const { data: rows, error } = await supabase
       .from("documents")
-      .select("id,filename,mime_type,file_size,source_type,description")
+      .select("id,filename,original_filename,mime_type,file_size,source_type,source_id,description")
       .eq("user_id", userId)
       .is("ai_processed_at", null)
       .order("created_at", { ascending: false })
@@ -127,6 +127,28 @@ export const classifyPendingDocuments = createServerFn({ method: "POST" })
     if (!rows || rows.length === 0) return { processed: 0, skipped: 0 };
 
     const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["document"]);
+
+    // Pré-charge le contexte des emails sources en un seul appel
+    const emailIds = Array.from(new Set(
+      (rows as DocRow[])
+        .filter((r) => r.source_type === "email" && r.source_id)
+        .map((r) => r.source_id as string),
+    ));
+    const emailCtx = new Map<string, SourceContext>();
+    if (emailIds.length > 0) {
+      const { data: emails } = await supabase
+        .from("emails")
+        .select("id,subject,from_address,from_name,body_text")
+        .in("id", emailIds);
+      for (const e of (emails ?? []) as Array<{ id: string; subject: string | null; from_address: string | null; from_name: string | null; body_text: string | null }>) {
+        emailCtx.set(e.id, {
+          subject: e.subject,
+          from_address: e.from_address,
+          from_name: e.from_name,
+          snippet: e.body_text,
+        });
+      }
+    }
 
     let processed = 0;
     let skipped = 0;
@@ -146,7 +168,8 @@ export const classifyPendingDocuments = createServerFn({ method: "POST" })
         skipped++;
         continue;
       }
-      const result = await classifyOne(key, r, userPromptsBlock);
+      const ctx = r.source_id ? emailCtx.get(r.source_id) ?? null : null;
+      const result = await classifyOne(key, r, userPromptsBlock, ctx);
       if (result) {
         await supabase.from("documents").update({
           ai_processed_at: now,
