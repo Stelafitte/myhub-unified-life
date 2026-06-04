@@ -426,19 +426,31 @@ export function TaskAutomationSection({
                                 )}
                               </div>
                             </div>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant={attached ? "secondary" : "outline"}
-                              className="h-6 px-2 text-[11px]"
-                              disabled={attached}
-                              onClick={() => {
-                                onAttachEmail(e.id);
-                                toast.success("Mail attaché à la tâche (PJ inclus)");
-                              }}
-                            >
-                              {attached ? "Attaché" : "Attacher"}
-                            </Button>
+                            <div className="flex shrink-0 gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px]"
+                                onClick={() => setViewing(e)}
+                                title="Ouvrir le mail et ses pièces jointes"
+                              >
+                                <Eye className="mr-1 h-3 w-3" /> Ouvrir
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={attached ? "secondary" : "outline"}
+                                className="h-6 px-2 text-[11px]"
+                                disabled={attached}
+                                onClick={() => {
+                                  onAttachEmail(e.id);
+                                  toast.success("Mail attaché à la tâche (PJ inclus)");
+                                }}
+                              >
+                                {attached ? "Attaché" : "Attacher"}
+                              </Button>
+                            </div>
                           </li>
                         );
                       })}
