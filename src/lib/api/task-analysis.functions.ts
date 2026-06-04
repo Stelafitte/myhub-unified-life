@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 import { z } from "zod";
 
 const InputSchema = z.object({
@@ -17,10 +19,13 @@ const ResultSchema = z.object({
 });
 
 export const analyzeTaskText = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => InputSchema.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
+    const { supabase, userId } = context as { supabase: unknown; userId: string };
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["task_create"]);
 
     const today = new Date().toISOString();
     const sys = `Tu es un assistant qui analyse le texte brut d'une tâche pour en extraire les métadonnées structurées.
@@ -41,7 +46,7 @@ Règles :
 - Si une période est mentionnée (du X au Y), gantt_start = date début, due_date = date fin.
 - Déduis la priorité : urgent si deadline < 3 jours ou langage urgent, high si < 7 jours, sinon medium/low.
 - Choisis la section en fonction du contexte professionnel mentionné.
-- N'invente rien. Mets null si tu n'es pas sûr.`;
+- N'invente rien. Mets null si tu n'es pas sûr.${userPromptsBlock}`;
 
     const user = `Texte de la tâche :
 ${data.text.slice(0, 3000)}`;
