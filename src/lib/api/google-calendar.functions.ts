@@ -273,6 +273,7 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
     }
 
     let totalSynced = 0;
+    let totalPushed = 0;
 
     for (const conn of connections) {
       // Calendar events are tied to gcal_connection_id directly — we do NOT
@@ -300,7 +301,7 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
 
       // Bidirectional: push local changes BEFORE pulling remote ones
       try {
-        await pushLocalEventsForConnection(
+        totalPushed += await pushLocalEventsForConnection(
           {
             id: conn.id,
             user_id: userId,
@@ -411,7 +412,7 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
         .eq("id", conn.id);
     }
 
-    return { synced: totalSynced, connections: connections.length };
+    return { synced: totalSynced, pushed: totalPushed, connections: connections.length };
   });
 
 /**
