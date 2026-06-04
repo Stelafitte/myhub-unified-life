@@ -185,6 +185,24 @@ export function AiAssistantModal({
     toggleMatchPreview(match.id);
   };
 
+  const SOURCE_LABEL: Record<EntityKind, string> = {
+    email: "Inbox", task: "Tâches", event: "Agenda", meeting: "Réunions", document: "Plan d'opération", contact: "Contacts",
+  };
+
+  const openInSource = (kind: EntityKind, id: string, date?: string | null) => {
+    onOpenChange(false);
+    setEmailPreviewId(null);
+    setEntityPreview(null);
+    setTimeout(() => {
+      if (kind === "email") navigate({ to: "/inbox", search: { emailId: id } as any });
+      else if (kind === "task") navigate({ to: "/tasks", search: { taskId: id } as any });
+      else if (kind === "event") navigate({ to: "/calendar", search: { eventId: id, eventAt: date ?? undefined } as any });
+      else if (kind === "meeting") navigate({ to: "/meetings", search: { meetingId: id } as any });
+      else if (kind === "document") navigate({ to: "/plan-operation", search: { documentId: id } as any });
+      else if (kind === "contact") navigate({ to: "/contacts", search: { contactId: id } as any });
+    }, 50);
+  };
+
   const proposeFor = async (turn: Turn, kind: ProposedAction["kind"]) => {
     setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, proposing: true } : t));
     try {
@@ -355,11 +373,14 @@ export function AiAssistantModal({
                                 </button>
                               </div>
                               {expanded && (
-                                <div className="ml-8 mt-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-foreground/90 space-y-1">
+                                <div className="ml-8 mt-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-foreground/90 space-y-2">
                                   <div className="font-medium">{m.title}</div>
                                   {m.date && <div className="text-muted-foreground">Date : {new Date(m.date).toLocaleString("fr-FR")}</div>}
                                   {m.subtitle && <div>{m.subtitle}</div>}
                                   {m.snippet && <div className="text-muted-foreground whitespace-pre-wrap">{m.snippet}</div>}
+                                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openInSource(m.kind, m.id, m.date)}>
+                                    Ouvrir dans {SOURCE_LABEL[m.kind]}
+                                  </Button>
                                 </div>
                               )}
                             </div>
@@ -443,11 +464,13 @@ export function AiAssistantModal({
           emailId={emailPreviewId}
           open={!!emailPreviewId}
           onOpenChange={closeEmailPreview}
+          onOpenInSource={(id) => openInSource("email", id)}
         />
         <AiEntityPreviewDialog
           entity={entityPreview}
           open={!!entityPreview}
           onOpenChange={closeEntityPreview}
+          onOpenInSource={(e) => openInSource(e.kind, e.id)}
         />
       </DialogContent>
     </Dialog>
@@ -463,7 +486,7 @@ type AiReaderAccount = {
   credentials?: Record<string, unknown> | null;
 };
 
-function AiEmailReaderDialog({ emailId, open, onOpenChange }: { emailId: string | null; open: boolean; onOpenChange: (v: boolean) => void }) {
+function AiEmailReaderDialog({ emailId, open, onOpenChange, onOpenInSource }: { emailId: string | null; open: boolean; onOpenChange: (v: boolean) => void; onOpenInSource?: (id: string) => void }) {
   const [email, setEmail] = useState<CachedEmail | null>(null);
   const [accounts, setAccounts] = useState<AiReaderAccount[]>([]);
   const [userId, setUserId] = useState("");
@@ -555,7 +578,14 @@ function AiEmailReaderDialog({ emailId, open, onOpenChange }: { emailId: string 
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex h-[88vh] max-w-4xl flex-col overflow-hidden p-0 gap-0">
           <DialogHeader className="border-b px-4 py-3">
-            <DialogTitle className="text-sm">Contenu du mail</DialogTitle>
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle className="text-sm">Contenu du mail</DialogTitle>
+              {email && onOpenInSource && (
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onOpenInSource(email.id)}>
+                  Ouvrir dans Inbox
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           {loading || !email ? (
             <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
@@ -719,7 +749,7 @@ function ActivePromptsBadge({ turns, onOpenSettings }: { turns: Turn[]; onOpenSe
 
 type EntityRef = { kind: EntityKind; id: string };
 
-function AiEntityPreviewDialog({ entity, open, onOpenChange }: { entity: EntityRef | null; open: boolean; onOpenChange: (v: boolean) => void }) {
+function AiEntityPreviewDialog({ entity, open, onOpenChange, onOpenInSource }: { entity: EntityRef | null; open: boolean; onOpenChange: (v: boolean) => void; onOpenInSource?: (e: EntityRef) => void }) {
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -838,6 +868,13 @@ function AiEntityPreviewDialog({ entity, open, onOpenChange }: { entity: EntityR
         <ScrollArea className="max-h-[70vh] pr-2">
           {renderBody()}
         </ScrollArea>
+        {entity && onOpenInSource && (
+          <div className="flex justify-end border-t pt-3">
+            <Button size="sm" variant="outline" onClick={() => onOpenInSource(entity)}>
+              Ouvrir dans l'application
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
