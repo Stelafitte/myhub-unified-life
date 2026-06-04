@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 
 const PRIORITIES = ["urgent", "important", "normal", "low"] as const;
 const CATEGORIES = [
