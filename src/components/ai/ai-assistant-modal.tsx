@@ -28,9 +28,6 @@ function saveArchives(a: ArchivedChat[]) {
 const KIND_ICON: Record<EntityKind, any> = {
   email: Mail, contact: User, task: CheckSquare, event: CalendarPlus, meeting: Users, document: FileBox,
 };
-const KIND_ROUTE: Record<EntityKind, string> = {
-  email: "/inbox", contact: "/contacts", task: "/tasks", event: "/calendar", meeting: "/meetings", document: "/documents",
-};
 
 type Status = "pending" | "running" | "done" | "error";
 type ActionItem = { action: ProposedAction; status: Status; message?: string };
@@ -77,6 +74,7 @@ export function AiAssistantModal({
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
   const [archives, setArchives] = useState<ArchivedChat[]>([]);
+  const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const chatFn = useServerFn(aiChat);
@@ -154,6 +152,14 @@ export function AiAssistantModal({
       s.has(mid) ? s.delete(mid) : s.add(mid);
       return { ...t, selectedMatches: s };
     }));
+  };
+
+  const toggleMatchPreview = (mid: string) => {
+    setExpandedMatches(current => {
+      const next = new Set(current);
+      next.has(mid) ? next.delete(mid) : next.add(mid);
+      return next;
+    });
   };
 
   const proposeFor = async (turn: Turn, kind: ProposedAction["kind"]) => {
