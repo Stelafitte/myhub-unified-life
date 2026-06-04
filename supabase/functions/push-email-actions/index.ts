@@ -235,12 +235,16 @@ async function pushImap(account: any, messageId: string, action: Action): Promis
       } else if (action === "mark_unread") {
         await imap.cmd(`UID STORE ${uid} -FLAGS (\\Seen)`);
       } else if (action === "trash") {
-        const cp = await imap.cmd(`UID COPY ${uid} Trash`);
-        if (!cp.ok) {
-          // Some servers use INBOX.Trash
-          const cp2 = await imap.cmd(`UID COPY ${uid} INBOX.Trash`);
-          if (!cp2.ok) throw new Error("UID COPY Trash failed");
+        const trashBox = await findTrashMailbox(imap);
+        const candidates = trashBox
+          ? [trashBox]
+          : ["Trash", "INBOX.Trash", "[Gmail]/Trash", "Corbeille", "INBOX.Corbeille", "Deleted", "Deleted Items", "INBOX.Deleted", "INBOX.Deleted Messages"];
+        let copied = false;
+        for (const box of candidates) {
+          const cp = await imap.cmd(`UID COPY ${uid} "${escapeImap(box)}"`);
+          if (cp.ok) { copied = true; break; }
         }
+        if (!copied) throw new Error("UID COPY Trash failed (no compatible Trash mailbox found)");
         await imap.cmd(`UID STORE ${uid} +FLAGS (\\Deleted)`);
         await imap.cmd("EXPUNGE");
       }
