@@ -117,6 +117,21 @@ export function AiAssistantModal({
     setTurns(ts => ts.map(t => t.id !== turnId ? t : { ...t, actions: t.actions.filter(a => a.action.id !== actionId) }));
   };
 
+  const runBulk = async (turn: Turn, mode: "all" | "selected") => {
+    const targets = turn.actions.filter(it => it.status === "pending" && (mode === "all" || ((it as any).selected !== false)));
+    for (const it of targets) {
+      updateAction(turn.id, it.action.id, { status: "running" });
+      try {
+        const msg = await executeAction(it.action, sendFn);
+        updateAction(turn.id, it.action.id, { status: "done", message: msg });
+      } catch (e: any) {
+        updateAction(turn.id, it.action.id, { status: "error", message: e?.message ?? "Erreur" });
+      }
+    }
+    if (targets.length > 0) toast.success(`${targets.length} action(s) traitée(s)`);
+  };
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl p-0 gap-0 h-[88vh] flex flex-col">
