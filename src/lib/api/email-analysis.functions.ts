@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 import { z } from "zod";
 
 const InputSchema = z.object({
@@ -21,10 +23,13 @@ const ResultSchema = z.object({
 });
 
 export const analyzeEmailForTask = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => InputSchema.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
+    const { supabase, userId } = context as { supabase: unknown; userId: string };
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["task_create", "email_reply"]);
 
     const today = new Date().toISOString();
     const sys = `Tu es un assistant qui analyse un email pour créer une tâche actionnable.
@@ -41,7 +46,7 @@ Tu DOIS répondre UNIQUEMENT en JSON valide avec ce schéma exact :
   "event_end": "ISO8601 ou null",
   "event_title": "titre de l'événement ou null"
 }
-Détecte une date/heure de réunion explicite pour has_event=true.`;
+Détecte une date/heure de réunion explicite pour has_event=true.${userPromptsBlock}`;
 
     const user = `Sujet : ${data.subject ?? ""}
 De : ${data.from ?? ""}
@@ -74,7 +79,6 @@ ${(data.body ?? "").slice(0, 4000)}`;
     const raw = json?.choices?.[0]?.message?.content ?? "{}";
     let parsed: unknown;
     try { parsed = JSON.parse(raw); } catch { parsed = {}; }
-    // Fill defaults defensively
     const safe = ResultSchema.parse({
       title: (parsed as { title?: string }).title ?? data.subject ?? "Nouvelle tâche",
       summary: (parsed as { summary?: string }).summary ?? "",
