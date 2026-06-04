@@ -574,6 +574,98 @@ function AiEmailReaderDialog({ emailId, open, onOpenChange }: { emailId: string 
   );
 }
 
+function pushEmailAction(emailId: string, accountId: string | null | undefined, action: "mark_read" | "trash" | "untrash") {
+  if (!accountId) return;
+  void supabase.functions.invoke("push-email-actions", { body: { email_id: emailId, action, account_id: accountId } });
+}
+
+function AiEmailReader({
+  email,
+  account,
+  userId,
+  onStar,
+  onArchive,
+  onDelete,
+  onRestore,
+  onCreateTask,
+  onPostpone,
+  onCompose,
+  onMarkSpam,
+}: {
+  email: CachedEmail;
+  account?: AiReaderAccount;
+  userId: string;
+  onStar: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+  onRestore?: () => void;
+  onCreateTask: () => void;
+  onPostpone: () => void;
+  onCompose: (init: ComposerInitial) => void;
+  onMarkSpam: (asSpam: boolean) => void;
+}) {
+  const isSpamEmail = email.spam_label === "spam" || email.spam_label === "phishing";
+  const isPostponed = (email.labels ?? []).includes("task-todo");
+  const dateStr = email.received_at ? new Date(email.received_at).toLocaleString("fr-FR") : "";
+  const sender = email.from_name ? `${email.from_name} <${email.from_address}>` : (email.from_address ?? "");
+  const quoted = () => `\n\n\nLe ${dateStr}, ${sender} a écrit :\n${(email.body_text ?? "").split("\n").map((l) => "> " + l).join("\n")}`;
+  const refs = email.message_id ? `<${email.message_id}>` : undefined;
+  const subjReply = email.subject?.startsWith("Re:") ? email.subject : `Re: ${email.subject ?? ""}`;
+  const subjFwd = email.subject?.startsWith("Fwd:") ? email.subject : `Fwd: ${email.subject ?? ""}`;
+  const reply = (all: boolean) => onCompose({ mode: all ? "replyAll" : "reply", defaultAccountId: email.account_id, to: email.from_address ?? "", cc: all ? (email.to_address ?? "") : undefined, subject: subjReply, body: quoted(), inReplyTo: refs, references: refs });
+  const forward = () => onCompose({ mode: "forward", defaultAccountId: email.account_id, subject: subjFwd, body: `\n\n---------- Message transféré ----------\nDe: ${sender}\nDate: ${email.received_at ?? ""}\nSujet: ${email.subject ?? ""}\nÀ: ${email.to_address ?? ""}\n\n${email.body_text ?? ""}` });
+
+  return (
+    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-y-auto">
+      <header className="border-b p-4">
+        <div className="mb-2 flex min-w-0 items-center gap-2">
+          {account && <Badge style={{ background: account.color ?? undefined }} className="border-0">{account.icon} {account.name}</Badge>}
+          <button onClick={onStar} className="ml-auto text-muted-foreground hover:text-foreground" title="Étoiler">
+            <Star className={`h-4 w-4 ${email.is_starred ? "fill-current text-primary" : ""}`} />
+          </button>
+        </div>
+        <h2 className="break-words text-base font-semibold">{email.subject || "(sans objet)"}</h2>
+        <div className="mt-2 space-y-0.5 break-words text-xs text-muted-foreground">
+          <div><span className="font-medium text-foreground">De :</span> <span className="break-all">{sender}</span></div>
+          <div><span className="font-medium text-foreground">À :</span> <span className="break-all">{email.to_address}</span></div>
+          <div><span className="font-medium text-foreground">Date :</span> {dateStr}</div>
+        </div>
+        <div className="mt-3 flex min-w-0 flex-wrap gap-1">
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => reply(false)}><Reply className="h-3 w-3" /> Répondre</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => reply(true)}><ReplyAll className="h-3 w-3" /> Tous</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={forward}><Forward className="h-3 w-3" /> Transférer</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onArchive}><Archive className="h-3 w-3" /> Archiver</Button>
+          {onRestore && <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onRestore}><RefreshCw className="h-3 w-3" /> Restaurer</Button>}
+          <Button size="sm" variant="outline" className="h-7 gap-1 text-destructive" onClick={onDelete}><Trash2 className="h-3 w-3" /> {email.deleted_at ? "Suppr. définitive" : "Suppr."}</Button>
+          <Button size="sm" className="h-7 gap-1" onClick={onCreateTask}><Plus className="h-3 w-3" /> Créer tâche</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onPostpone} disabled={isPostponed}><Clock className="h-3 w-3" /> {isPostponed ? "Déjà reportée" : "Reporter"}</Button>
+          <Button size="sm" variant="outline" className="h-7 gap-1" onClick={() => onMarkSpam(!isSpamEmail)}>{isSpamEmail ? <Shield className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />} {isSpamEmail ? "Pas indésirable" : "Indésirable"}</Button>
+        </div>
+      </header>
+      {email.is_sensitive ? (
+        <div className="border-b bg-destructive/10 px-4 py-3 text-xs text-destructive">
+          Email marqué sensible : {email.sensitive_reason ?? "motif inconnu"}. Les suggestions IA sont désactivées.
+        </div>
+      ) : null}
+      {email.has_attachment && <EmailAttachmentsPanel emailId={email.id} fromAddress={email.from_address} subject={email.subject} />}
+      <div className="min-w-0 max-w-full p-4 text-sm">
+        {email.body_html ? <EmailHtmlFrame html={email.body_html} /> : <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed [overflow-wrap:anywhere]">{email.body_text ?? "(vide)"}</pre>}
+      </div>
+      {!email.is_sensitive && (
+        <AiSuggestionsPanel
+          emailId={email.id}
+          fromAddress={email.from_address}
+          subject={email.subject}
+          userId={userId}
+          onCreateTask={onCreateTask}
+          onArchive={onArchive}
+          onUseReply={(text) => onCompose({ mode: "reply", defaultAccountId: email.account_id, to: email.from_address ?? "", subject: subjReply, body: text + quoted(), inReplyTo: refs, references: refs })}
+        />
+      )}
+    </div>
+  );
+}
+
 function BulkBar({ items, onRunAll, onRunSelected }: { items: ActionItem[]; onRunAll: () => void; onRunSelected: () => void }) {
   const pending = items.filter(i => i.status === "pending").length;
   const hasMail = items.some(i => i.action.kind === "reply_email" || i.action.kind === "forward_email");
