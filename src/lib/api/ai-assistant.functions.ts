@@ -106,6 +106,198 @@ function clean(s: string) {
   return s.replace(/[,()%]/g, "").trim();
 }
 
+// ─────────────────────────── Helpers de recherche par entité ───────────────────────────
+
+function uniq<T>(arr: T[]): T[] { return Array.from(new Set(arr)); }
+function orClause(fields: string[], fragments: string[]): string {
+  const parts: string[] = [];
+  for (const fr of fragments) {
+    for (const f of fields) parts.push(`${f}.ilike.%${fr}%`);
+  }
+  return parts.join(",");
+}
+
+async function searchEmails(supabase: any, userId: string, c: z.infer<typeof CriteriaSchema>): Promise<AnyMatch[]> {
+  const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains].map(clean).filter(Boolean)).slice(0, 8);
+  const fromFrags = uniq(c.from_contains.map(clean).filter(Boolean)).slice(0, 6);
+  let q = supabase
+    .from("emails")
+    .select("id,subject,from_address,from_name,received_at,is_read,ai_category,body_text")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("received_at", { ascending: false })
+    .limit(Math.max(c.limit, 60));
+  const orParts: string[] = [];
+  if (fromFrags.length > 0) orParts.push(orClause(["from_address", "from_name"], fromFrags));
+  if (frags.length > 0) orParts.push(orClause(["subject", "body_text", "from_name", "from_address"], frags));
+  const orStr = orParts.filter(Boolean).join(",");
+  if (orStr) q = q.or(orStr);
+  if (c.unread_only) q = q.eq("is_read", false);
+  if (c.date_from) q = q.gte("received_at", c.date_from);
+  if (c.date_to) q = q.lte("received_at", c.date_to);
+  const { data: rows, error } = await q;
+  if (error) throw new Error(error.message);
+  return (rows ?? []).map((r: any) => ({
+    id: r.id, kind: "email" as const,
+    title: r.subject ?? "(sans objet)",
+    subtitle: r.from_name ?? r.from_address ?? null,
+    snippet: (r.body_text ?? "").slice(0, 280),
+    date: r.received_at, badge: r.ai_category ?? null,
+    raw: r,
+  }));
+}
+
+async function searchContacts(supabase: any, userId: string, c: z.infer<typeof CriteriaSchema>): Promise<AnyMatch[]> {
+  const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains, ...c.from_contains].map(clean).filter(Boolean)).slice(0, 8);
+  let q = supabase
+    .from("contacts")
+    .select("id,first_name,last_name,email,phone,organization,role,notes,updated_at")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false })
+    .limit(Math.max(c.limit, 60));
+  if (frags.length > 0) q = q.or(orClause(["first_name", "last_name", "organization", "role", "notes"], frags));
+  const { data: rows, error } = await q;
+  if (error) throw new Error(error.message);
+  return (rows ?? []).map((r: any) => {
+    const name = [r.first_name, r.last_name].filter(Boolean).join(" ").trim() || (r.email?.[0] ?? "(contact)");
+    return {
+      id: r.id, kind: "contact" as const,
+      title: name,
+      subtitle: r.organization ?? r.role ?? null,
+      snippet: [r.email?.join(", "), r.phone?.join(", "), r.notes].filter(Boolean).join(" · ").slice(0, 280),
+      date: r.updated_at, badge: r.role ?? null,
+    };
+  });
+}
+
+async function searchTasks(supabase: any, userId: string, c: z.infer<typeof CriteriaSchema>): Promise<AnyMatch[]> {
+  const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains].map(clean).filter(Boolean)).slice(0, 8);
+  let q = supabase
+    .from("tasks")
+    .select("id,title,description,priority,status,due_date,updated_at,tags")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false })
+    .limit(Math.max(c.limit, 60));
+  if (frags.length > 0) q = q.or(orClause(["title", "description"], frags));
+  if (c.status && ["todo", "in_progress", "done"].includes(c.status)) q = q.eq("status", c.status as any);
+  if (c.date_from) q = q.gte("due_date", c.date_from);
+  if (c.date_to) q = q.lte("due_date", c.date_to);
+  const { data: rows, error } = await q;
+  if (error) throw new Error(error.message);
+  return (rows ?? []).map((r: any) => ({
+    id: r.id, kind: "task" as const,
+    title: r.title ?? "(tâche)",
+    subtitle: r.status ?? null,
+    snippet: (r.description ?? "").slice(0, 280),
+    date: r.due_date ?? r.updated_at, badge: r.priority ?? null,
+  }));
+}
+
+async function searchEvents(supabase: any, userId: string, c: z.infer<typeof CriteriaSchema>): Promise<AnyMatch[]> {
+  const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains].map(clean).filter(Boolean)).slice(0, 8);
+  let q = supabase
+    .from("calendar_events")
+    .select("id,title,description,start_at,end_at,location,category")
+    .eq("user_id", userId)
+    .order("start_at", { ascending: false })
+    .limit(Math.max(c.limit, 60));
+  if (frags.length > 0) q = q.or(orClause(["title", "description", "location"], frags));
+  if (c.date_from) q = q.gte("start_at", c.date_from);
+  if (c.date_to) q = q.lte("start_at", c.date_to);
+  const { data: rows, error } = await q;
+  if (error) throw new Error(error.message);
+  return (rows ?? []).map((r: any) => ({
+    id: r.id, kind: "event" as const,
+    title: r.title ?? "(événement)",
+    subtitle: r.location ?? null,
+    snippet: (r.description ?? "").slice(0, 280),
+    date: r.start_at, badge: r.category ?? null,
+  }));
+}
+
+async function searchMeetings(supabase: any, userId: string, c: z.infer<typeof CriteriaSchema>): Promise<AnyMatch[]> {
+  const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains].map(clean).filter(Boolean)).slice(0, 8);
+  let q = supabase
+    .from("meetings")
+    .select("id,title,description,start_at,end_at,location,status,is_online")
+    .eq("user_id", userId)
+    .order("start_at", { ascending: false })
+    .limit(Math.max(c.limit, 60));
+  if (frags.length > 0) q = q.or(orClause(["title", "description", "location"], frags));
+  if (c.date_from) q = q.gte("start_at", c.date_from);
+  if (c.date_to) q = q.lte("start_at", c.date_to);
+  const { data: rows, error } = await q;
+  if (error) throw new Error(error.message);
+  return (rows ?? []).map((r: any) => ({
+    id: r.id, kind: "meeting" as const,
+    title: r.title ?? "(réunion)",
+    subtitle: r.is_online ? "En ligne" : (r.location ?? null),
+    snippet: (r.description ?? "").slice(0, 280),
+    date: r.start_at, badge: r.status ?? null,
+  }));
+}
+
+async function searchDocuments(supabase: any, userId: string, c: z.infer<typeof CriteriaSchema>): Promise<AnyMatch[]> {
+  const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains].map(clean).filter(Boolean)).slice(0, 8);
+  let q = supabase
+    .from("documents")
+    .select("id,filename,original_filename,description,ai_category,ai_summary,mime_type,created_at,source_type")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(Math.max(c.limit, 60));
+  if (frags.length > 0) q = q.or(orClause(["filename", "original_filename", "description", "ai_summary"], frags));
+  if (c.date_from) q = q.gte("created_at", c.date_from);
+  if (c.date_to) q = q.lte("created_at", c.date_to);
+  const { data: rows, error } = await q;
+  if (error) throw new Error(error.message);
+  return (rows ?? []).map((r: any) => ({
+    id: r.id, kind: "document" as const,
+    title: r.original_filename ?? r.filename ?? "(document)",
+    subtitle: r.mime_type ?? r.source_type ?? null,
+    snippet: (r.ai_summary ?? r.description ?? "").slice(0, 280),
+    date: r.created_at, badge: r.ai_category ?? null,
+  }));
+}
+
+const RerankSchema = z.object({
+  keep_ids: z.array(z.string()).default([]),
+  reasoning: z.string().default(""),
+});
+
+async function rerankWithAi(key: string, prompt: string, candidates: AnyMatch[], targetLimit: number): Promise<AnyMatch[]> {
+  if (candidates.length <= 5) return candidates;
+  const list = candidates.slice(0, 80).map((m, i) => {
+    const d = m.date ? new Date(m.date).toLocaleDateString("fr-FR") : "";
+    return `${i + 1}. [${m.kind}|${m.id}] ${d} ${m.title}${m.subtitle ? " — " + m.subtitle : ""} ${m.snippet ? "→ " + m.snippet.slice(0, 140) : ""}`;
+  }).join("\n");
+  try {
+    const resp = await callGateway(key, {
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        {
+          role: "system",
+          content: `Tu filtres une liste de résultats pour ne garder que ceux RÉELLEMENT pertinents pour la demande utilisateur. Réponds UNIQUEMENT en JSON {"keep_ids":["id1","id2",...],"reasoning":"..."}. Garde max ${targetLimit} ids. Sois strict : exclus tout ce qui n'a pas de rapport clair avec la demande (même si un mot-clé matche par hasard). Conserve l'ordre de pertinence (le plus pertinent en premier).`,
+        },
+        {
+          role: "user",
+          content: `Demande utilisateur :\n"""${prompt}"""\n\nCandidats (entité|id puis date, titre, sous-titre, extrait) :\n${list}\n\nRends les ids à conserver, ordonnés par pertinence.`,
+        },
+      ],
+      response_format: { type: "json_object" },
+    });
+    const raw = resp?.choices?.[0]?.message?.content ?? "{}";
+    const parsed = RerankSchema.parse(JSON.parse(raw));
+    const keep = new Set(parsed.keep_ids);
+    if (keep.size === 0) return candidates.slice(0, targetLimit);
+    const ordered = parsed.keep_ids
+      .map((id) => candidates.find((c) => c.id === id))
+      .filter(Boolean) as AnyMatch[];
+    return ordered.slice(0, targetLimit);
+  } catch {
+    return candidates.slice(0, targetLimit);
+  }
+}
+
 export const aiAssistantQuery = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Input.parse(d))
@@ -121,29 +313,26 @@ export const aiAssistantQuery = createServerFn({ method: "POST" })
 Date de référence : ${today}
 Tu DOIS répondre UNIQUEMENT en JSON valide avec ce schéma exact :
 {
-  "entity": "emails" | "contacts" | "tasks" | "events" | "meetings" | "documents" | "auto",
-  "keywords": ["mots-clés généraux"],
+  "entities": ["emails"|"contacts"|"tasks"|"events"|"meetings"|"documents", ...],
+  "keywords": ["mots-clés généraux et synonymes utiles"],
   "from_contains": ["fragments d'expéditeur (emails uniquement)"],
-  "subject_contains": ["fragments de sujet/titre"],
-  "body_contains": ["fragments dans le corps/description/notes"],
+  "subject_contains": ["fragments précis de sujet/titre"],
+  "body_contains": ["fragments précis dans le corps/description/notes"],
   "date_from": "ISO8601 ou null",
   "date_to": "ISO8601 ou null",
   "unread_only": true|false,
   "status": "todo|in_progress|done|null (tâches)",
   "limit": 30,
-  "user_intent": "résumé en 1 phrase"
+  "user_intent": "résumé clair en 1 phrase"
 }
-Règles de choix d'entité :
-- "mail", "email", "courriel", "expéditeur" -> emails
-- "contact", "personne", "téléphone", "adresse" -> contacts
-- "tâche", "todo", "à faire", "priorité" -> tasks
-- "événement", "agenda", "calendrier" -> events
-- "réunion", "rendez-vous", "rdv", "meeting" -> meetings
-- "document", "fichier", "pj", "pièce jointe" -> documents
-- Sinon, choisis l'entité la plus probable, jamais "auto" dans la réponse finale.${promptBlock}`;
+RÈGLES IMPORTANTES :
+- "entities" peut contenir PLUSIEURS valeurs si la demande est ambiguë ou trans-domaines (ex: "tout sur Ternacle" → ["emails","contacts","tasks","documents"]).
+- Privilégie la PRÉCISION dans subject/body/from_contains (1-3 fragments courts) et la LARGEUR dans keywords (synonymes, formes alternatives, accents/sans accents).
+- N'invente pas de dates : ne renseigne date_from/date_to QUE si l'utilisateur le précise (semaine, mois, "hier", etc.).
+- Mapping entités : mail/email/courriel/expéditeur → emails ; contact/personne/téléphone → contacts ; tâche/todo/à faire → tasks ; événement/agenda → events ; réunion/rdv/meeting → meetings ; document/fichier/pj → documents.${promptBlock}`;
 
     const extracted = await callGateway(key, {
-      model: "google/gemini-3-flash-preview",
+      model: "google/gemini-2.5-pro",
       messages: [
         { role: "system", content: sys },
         { role: "user", content: data.prompt },
@@ -159,223 +348,84 @@ Règles de choix d'entité :
       parsed = CriteriaSchema.parse({});
     }
 
-    let entity: Entity = (parsed.entity === "auto" ? "emails" : parsed.entity) as Entity;
-    if (data.forceEntity && data.forceEntity !== "auto") entity = data.forceEntity as Entity;
+    // Détermine les entités à interroger
+    let entities: Entity[] = parsed.entities.length > 0 ? parsed.entities : ["emails"];
+    if (data.forceEntity && data.forceEntity !== "auto") entities = [data.forceEntity as Entity];
+    entities = uniq(entities);
 
-    const matches: AnyMatch[] = [];
+    let allMatches: AnyMatch[] = [];
     const emailMatches: AiAssistantMatch[] = [];
     let warning: string | null = null;
 
-    const allFragments = [...parsed.keywords, ...parsed.subject_contains, ...parsed.body_contains].map(clean).filter(Boolean);
+    const SEARCHERS: Record<Entity, (s: any, u: string, c: any) => Promise<AnyMatch[]>> = {
+      emails: searchEmails, contacts: searchContacts, tasks: searchTasks,
+      events: searchEvents, meetings: searchMeetings, documents: searchDocuments,
+    };
 
     try {
-      if (entity === "emails") {
-        let q = supabase
-          .from("emails")
-          .select("id,subject,from_address,from_name,received_at,is_read,ai_category,body_text")
-          .eq("user_id", userId)
-          .is("deleted_at", null)
-          .order("received_at", { ascending: false })
-          .limit(parsed.limit);
-
-        const orParts: string[] = [];
-        for (const f of parsed.from_contains.map(clean).filter(Boolean)) {
-          orParts.push(`from_address.ilike.%${f}%`);
-          orParts.push(`from_name.ilike.%${f}%`);
-        }
-        if (orParts.length > 0) q = q.or(orParts.join(","));
-        if (parsed.unread_only) q = q.eq("is_read", false);
-        if (parsed.date_from) q = q.gte("received_at", parsed.date_from);
-        if (parsed.date_to) q = q.lte("received_at", parsed.date_to);
-        for (const s of parsed.subject_contains.map(clean).filter(Boolean)) q = q.ilike("subject", `%${s}%`);
-        if (parsed.body_contains.length > 0) {
-          const b = clean(parsed.body_contains[0]);
-          if (b) q = q.ilike("body_text", `%${b}%`);
-        }
-        const { data: rows, error } = await q;
-        if (error) throw new Error(error.message);
-        for (const r of rows ?? []) {
-          const snippet = ((r as any).body_text ?? "").slice(0, 240);
-          emailMatches.push({
-            id: r.id, subject: r.subject, from_address: r.from_address, from_name: r.from_name,
-            received_at: r.received_at, is_read: !!r.is_read, ai_category: r.ai_category ?? null, snippet,
-          });
-          matches.push({
-            id: r.id, kind: "email",
-            title: r.subject ?? "(sans objet)",
-            subtitle: r.from_name ?? r.from_address ?? null,
-            snippet, date: r.received_at, badge: r.ai_category ?? null,
-            raw: r,
-          });
-        }
-      } else if (entity === "contacts") {
-        let q = supabase
-          .from("contacts")
-          .select("id,first_name,last_name,email,phone,organization,role,notes,updated_at")
-          .eq("user_id", userId)
-          .order("updated_at", { ascending: false })
-          .limit(parsed.limit);
-        const orParts: string[] = [];
-        for (const f of allFragments) {
-          orParts.push(`first_name.ilike.%${f}%`);
-          orParts.push(`last_name.ilike.%${f}%`);
-          orParts.push(`organization.ilike.%${f}%`);
-          orParts.push(`role.ilike.%${f}%`);
-          orParts.push(`notes.ilike.%${f}%`);
-        }
-        if (orParts.length > 0) q = q.or(orParts.join(","));
-        const { data: rows, error } = await q;
-        if (error) throw new Error(error.message);
-        for (const r of rows ?? []) {
-          const name = [r.first_name, r.last_name].filter(Boolean).join(" ").trim() || (r.email?.[0] ?? "(contact)");
-          matches.push({
-            id: r.id, kind: "contact",
-            title: name,
-            subtitle: r.organization ?? r.role ?? null,
-            snippet: [r.email?.join(", "), r.phone?.join(", "), r.notes].filter(Boolean).join(" · ").slice(0, 240),
-            date: r.updated_at, badge: r.role ?? null,
-          });
-        }
-      } else if (entity === "tasks") {
-        let q = supabase
-          .from("tasks")
-          .select("id,title,description,priority,status,due_date,updated_at,tags")
-          .eq("user_id", userId)
-          .order("updated_at", { ascending: false })
-          .limit(parsed.limit);
-        const orParts: string[] = [];
-        for (const f of allFragments) {
-          orParts.push(`title.ilike.%${f}%`);
-          orParts.push(`description.ilike.%${f}%`);
-        }
-        if (orParts.length > 0) q = q.or(orParts.join(","));
-        if (parsed.status && ["todo", "in_progress", "done"].includes(parsed.status)) q = q.eq("status", parsed.status as any);
-        if (parsed.date_from) q = q.gte("due_date", parsed.date_from);
-        if (parsed.date_to) q = q.lte("due_date", parsed.date_to);
-        const { data: rows, error } = await q;
-        if (error) throw new Error(error.message);
-        for (const r of rows ?? []) {
-          matches.push({
-            id: r.id, kind: "task",
-            title: r.title ?? "(tâche)",
-            subtitle: r.status ?? null,
-            snippet: (r.description ?? "").slice(0, 240),
-            date: r.due_date ?? r.updated_at, badge: r.priority ?? null,
-          });
-        }
-      } else if (entity === "events") {
-        let q = supabase
-          .from("calendar_events")
-          .select("id,title,description,start_at,end_at,location,category")
-          .eq("user_id", userId)
-          .order("start_at", { ascending: false })
-          .limit(parsed.limit);
-        const orParts: string[] = [];
-        for (const f of allFragments) {
-          orParts.push(`title.ilike.%${f}%`);
-          orParts.push(`description.ilike.%${f}%`);
-          orParts.push(`location.ilike.%${f}%`);
-        }
-        if (orParts.length > 0) q = q.or(orParts.join(","));
-        if (parsed.date_from) q = q.gte("start_at", parsed.date_from);
-        if (parsed.date_to) q = q.lte("start_at", parsed.date_to);
-        const { data: rows, error } = await q;
-        if (error) throw new Error(error.message);
-        for (const r of rows ?? []) {
-          matches.push({
-            id: r.id, kind: "event",
-            title: r.title ?? "(événement)",
-            subtitle: r.location ?? null,
-            snippet: (r.description ?? "").slice(0, 240),
-            date: r.start_at, badge: r.category ?? null,
-          });
-        }
-      } else if (entity === "meetings") {
-        let q = supabase
-          .from("meetings")
-          .select("id,title,description,start_at,end_at,location,status,is_online")
-          .eq("user_id", userId)
-          .order("start_at", { ascending: false })
-          .limit(parsed.limit);
-        const orParts: string[] = [];
-        for (const f of allFragments) {
-          orParts.push(`title.ilike.%${f}%`);
-          orParts.push(`description.ilike.%${f}%`);
-          orParts.push(`location.ilike.%${f}%`);
-        }
-        if (orParts.length > 0) q = q.or(orParts.join(","));
-        if (parsed.date_from) q = q.gte("start_at", parsed.date_from);
-        if (parsed.date_to) q = q.lte("start_at", parsed.date_to);
-        const { data: rows, error } = await q;
-        if (error) throw new Error(error.message);
-        for (const r of rows ?? []) {
-          matches.push({
-            id: r.id, kind: "meeting",
-            title: r.title ?? "(réunion)",
-            subtitle: r.is_online ? "En ligne" : (r.location ?? null),
-            snippet: (r.description ?? "").slice(0, 240),
-            date: r.start_at, badge: r.status ?? null,
-          });
-        }
-      } else if (entity === "documents") {
-        let q = supabase
-          .from("documents")
-          .select("id,filename,original_filename,description,ai_category,ai_summary,mime_type,created_at,source_type")
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false })
-          .limit(parsed.limit);
-        const orParts: string[] = [];
-        for (const f of allFragments) {
-          orParts.push(`filename.ilike.%${f}%`);
-          orParts.push(`original_filename.ilike.%${f}%`);
-          orParts.push(`description.ilike.%${f}%`);
-          orParts.push(`ai_summary.ilike.%${f}%`);
-        }
-        if (orParts.length > 0) q = q.or(orParts.join(","));
-        if (parsed.date_from) q = q.gte("created_at", parsed.date_from);
-        if (parsed.date_to) q = q.lte("created_at", parsed.date_to);
-        const { data: rows, error } = await q;
-        if (error) throw new Error(error.message);
-        for (const r of rows ?? []) {
-          matches.push({
-            id: r.id, kind: "document",
-            title: r.original_filename ?? r.filename ?? "(document)",
-            subtitle: r.mime_type ?? r.source_type ?? null,
-            snippet: (r.ai_summary ?? r.description ?? "").slice(0, 240),
-            date: r.created_at, badge: r.ai_category ?? null,
-          });
-        }
-      }
+      const results = await Promise.all(entities.map((e) => SEARCHERS[e](supabase, userId, parsed).catch((err) => {
+        warning = err?.message ?? "Erreur de recherche";
+        return [] as AnyMatch[];
+      })));
+      allMatches = results.flat();
     } catch (e: any) {
       warning = e?.message ?? "Erreur de recherche";
     }
 
-    // Summary
+    // Re-ranking IA : élimine les faux positifs des ilike
+    if (allMatches.length > 5) {
+      allMatches = await rerankWithAi(key, data.prompt, allMatches, parsed.limit);
+    }
+
+    // Back-compat : alimente emailMatches pour Phase 2
+    for (const m of allMatches) {
+      if (m.kind === "email" && m.raw) {
+        emailMatches.push({
+          id: m.id,
+          subject: m.raw.subject ?? null,
+          from_address: m.raw.from_address ?? null,
+          from_name: m.raw.from_name ?? null,
+          received_at: m.raw.received_at ?? null,
+          snippet: (m.raw.body_text ?? "").slice(0, 240),
+          is_read: !!m.raw.is_read,
+          ai_category: m.raw.ai_category ?? null,
+        });
+      }
+    }
+
+    const entity: Entity = (allMatches[0]?.kind === "contact" ? "contacts"
+      : allMatches[0]?.kind === "task" ? "tasks"
+      : allMatches[0]?.kind === "event" ? "events"
+      : allMatches[0]?.kind === "meeting" ? "meetings"
+      : allMatches[0]?.kind === "document" ? "documents"
+      : "emails") as Entity;
+
+    // Résumé
     let summary = "";
-    if (matches.length === 0) {
-      summary = `Aucun résultat (${entity}) pour votre demande. Affinez les critères ou élargissez la période.`;
+    if (allMatches.length === 0) {
+      summary = `Aucun résultat trouvé pour : "${parsed.user_intent || data.prompt}". Essayez de reformuler, d'élargir la période ou les mots-clés.`;
     } else {
-      const sample = matches.slice(0, 15).map((m, i) => {
+      const sample = allMatches.slice(0, 15).map((m, i) => {
         const d = m.date ? new Date(m.date).toLocaleDateString("fr-FR") : "";
-        return `${i + 1}. [${d}] ${m.title}${m.subtitle ? " — " + m.subtitle : ""}\n   ${m.snippet.slice(0, 160)}`;
+        return `${i + 1}. [${m.kind}][${d}] ${m.title}${m.subtitle ? " — " + m.subtitle : ""}\n   ${m.snippet.slice(0, 160)}`;
       }).join("\n");
       try {
         const sumResp = await callGateway(key, {
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: `Tu résumes une liste de résultats (${entity}) pour répondre à une demande utilisateur. Réponds en français, 2 à 4 phrases courtes, factuel. Pas de proposition d'actions.${promptBlock}` },
-            { role: "user", content: `Demande : ${data.prompt}\n\nRésultats (${matches.length}) :\n${sample}` },
+            { role: "system", content: `Tu résumes une liste de résultats issus de la recherche multi-entités MyHub Pro. Réponds en français, 2 à 4 phrases courtes, factuel et utile. Mentionne les regroupements pertinents (expéditeur, sujet, période). Ne propose pas d'actions.${promptBlock}` },
+            { role: "user", content: `Demande : ${data.prompt}\nIntention détectée : ${parsed.user_intent}\nEntités cherchées : ${entities.join(", ")}\n\nRésultats (${allMatches.length}) :\n${sample}` },
           ],
         });
-        summary = sumResp?.choices?.[0]?.message?.content ?? `${matches.length} résultat(s) trouvé(s).`;
+        summary = sumResp?.choices?.[0]?.message?.content ?? `${allMatches.length} résultat(s) trouvé(s).`;
       } catch (e: any) {
-        summary = `${matches.length} résultat(s) trouvé(s).`;
+        summary = `${allMatches.length} résultat(s) trouvé(s).`;
         warning = warning ?? e?.message ?? null;
       }
     }
 
     return {
-      summary, criteria: parsed, entity, matches, emailMatches, warning,
+      summary, criteria: parsed, entity, matches: allMatches, emailMatches, warning,
       activePrompts: generalPrompts.map((p) => ({ title: p.title, target: p.target })),
     };
   });
