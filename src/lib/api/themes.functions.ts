@@ -289,7 +289,7 @@ ${(r.body_text ?? "").slice(0, 1500)}`;
             body: JSON.stringify({
               model: "google/gemini-3-flash-preview",
               messages: [
-                { role: "system", content: CLASSIFY_SYS },
+                { role: "system", content: CLASSIFY_SYS + userPromptsBlock },
                 { role: "user", content: user },
               ],
               response_format: { type: "json_object" },
