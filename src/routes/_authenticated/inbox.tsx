@@ -770,6 +770,9 @@ function InboxPage() {
 
   // Quand le filtre change, sur mobile on revient à la liste ; sur desktop on garde le panneau de lecture rempli.
   useEffect(() => {
+    // Si un deep-link (?emailId=…) est en cours de traitement, on ne réinitialise pas
+    // le lecteur — sinon l'email demandé serait fermé juste après ouverture.
+    if (requestedEmailId) return;
     if (isMobileInbox) {
       setReaderOpen(false);
       setSelectedId(null);
