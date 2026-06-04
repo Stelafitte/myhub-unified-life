@@ -290,3 +290,23 @@ function BulkBar({ items, onRunAll, onRunSelected }: { items: ActionItem[]; onRu
   );
 }
 
+function ActivePromptsBadge({ turns, onOpenSettings }: { turns: Turn[]; onOpenSettings: () => void }) {
+  const map = new Map<string, { title: string; target: string }>();
+  for (const t of turns) {
+    for (const p of t.result?.activePrompts ?? []) map.set(`${p.target}::${p.title}`, p);
+  }
+  const list = Array.from(map.values());
+  const tooltip = list.length === 0 ? "Aucun prompt actif (configurable dans Réglages > IA)" : list.map((p) => `• ${p.title} (${p.target})`).join("\n");
+  return (
+    <button
+      type="button"
+      onClick={onOpenSettings}
+      title={tooltip}
+      className="ml-2 text-[10px] inline-flex items-center gap-1 rounded-full border bg-muted/40 hover:bg-muted px-2 py-0.5 text-foreground/80"
+    >
+      <Sparkles className="h-3 w-3" /> Prompts actifs : {list.length}
+    </button>
+  );
+}
+
+
