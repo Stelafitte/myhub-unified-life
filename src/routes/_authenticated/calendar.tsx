@@ -592,7 +592,7 @@ function AgendaPage() {
       .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() })
       .eq("id", (ev.raw as DbEvent).id);
     if (error) toast.error(error.message);
-    else { toast.success("Plage horaire modifiée"); load(); }
+    else { toast.success("Plage horaire modifiée"); load(); requestAutoSync(); }
   };
 
   const shareEvent = (ev: UnifiedEvent) => {
