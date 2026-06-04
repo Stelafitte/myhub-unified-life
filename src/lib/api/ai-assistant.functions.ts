@@ -59,7 +59,32 @@ export type AiAssistantResult = {
   /** Emails-only legacy view kept for Phase 2 action proposals */
   emailMatches: AiAssistantMatch[];
   warning: string | null;
+  activePrompts: { title: string; target: string }[];
 };
+
+async function loadActivePrompts(
+  supabase: any,
+  userId: string,
+  targets: string[],
+): Promise<{ title: string; target: string; content: string }[]> {
+  try {
+    const { data } = await supabase
+      .from("ai_prompts")
+      .select("title,target,content")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .in("target", targets);
+    return (data ?? []).filter((p: any) => (p.content ?? "").trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function buildPromptBlock(prompts: { title: string; target: string; content: string }[]): string {
+  if (prompts.length === 0) return "";
+  const lines = prompts.map((p) => `# ${p.title} (${p.target})\n${p.content.trim()}`);
+  return `\n\n--- Instructions personnalisées de l'utilisateur (à respecter en priorité) ---\n${lines.join("\n\n")}\n--- Fin des instructions personnalisées ---`;
+}
 
 async function callGateway(key: string, body: unknown) {
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -89,6 +114,8 @@ export const aiAssistantQuery = createServerFn({ method: "POST" })
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
 
     const today = new Date().toISOString();
+    const generalPrompts = await loadActivePrompts(supabase, userId, ["general"]);
+    const promptBlock = buildPromptBlock(generalPrompts);
     const sys = `Tu transformes une demande utilisateur en critères de recherche structurés sur la plateforme MyHub Pro.
 Date de référence : ${today}
 Tu DOIS répondre UNIQUEMENT en JSON valide avec ce schéma exact :
@@ -112,7 +139,7 @@ Règles de choix d'entité :
 - "événement", "agenda", "calendrier" -> events
 - "réunion", "rendez-vous", "rdv", "meeting" -> meetings
 - "document", "fichier", "pj", "pièce jointe" -> documents
-- Sinon, choisis l'entité la plus probable, jamais "auto" dans la réponse finale.`;
+- Sinon, choisis l'entité la plus probable, jamais "auto" dans la réponse finale.${promptBlock}`;
 
     const extracted = await callGateway(key, {
       model: "google/gemini-3-flash-preview",
@@ -335,7 +362,7 @@ Règles de choix d'entité :
         const sumResp = await callGateway(key, {
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: `Tu résumes une liste de résultats (${entity}) pour répondre à une demande utilisateur. Réponds en français, 2 à 4 phrases courtes, factuel. Pas de proposition d'actions.` },
+            { role: "system", content: `Tu résumes une liste de résultats (${entity}) pour répondre à une demande utilisateur. Réponds en français, 2 à 4 phrases courtes, factuel. Pas de proposition d'actions.${promptBlock}` },
             { role: "user", content: `Demande : ${data.prompt}\n\nRésultats (${matches.length}) :\n${sample}` },
           ],
         });
@@ -346,7 +373,10 @@ Règles de choix d'entité :
       }
     }
 
-    return { summary, criteria: parsed, entity, matches, emailMatches, warning };
+    return {
+      summary, criteria: parsed, entity, matches, emailMatches, warning,
+      activePrompts: generalPrompts.map((p) => ({ title: p.title, target: p.target })),
+    };
   });
 
 // ============================================================================
@@ -415,7 +445,17 @@ export type ProposedAction =
   | { id: string; kind: "create_contact"; draft: z.infer<typeof ContactDraftSchema> }
   | { id: string; kind: "save_document"; sourceEmailId: string | null; draft: z.infer<typeof DocumentDraftSchema> };
 
-export type ProposeResult = { actions: ProposedAction[]; warning: string | null };
+export type ProposeResult = { actions: ProposedAction[]; warning: string | null; activePrompts: { title: string; target: string }[] };
+
+const ACTION_TARGETS: Record<string, string[]> = {
+  reply_email: ["general", "email_reply"],
+  forward_email: ["general", "email_reply"],
+  create_task: ["general", "task_create"],
+  create_event: ["general", "meeting"],
+  create_meeting: ["general", "meeting"],
+  create_contact: ["general"],
+  save_document: ["general", "document"],
+};
 
 async function aiJson(key: string, schema: z.ZodTypeAny, sys: string, user: string, fallback: any): Promise<any> {
   try {
@@ -439,6 +479,9 @@ export const aiProposeActions = createServerFn({ method: "POST" })
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
 
+    const activePrompts = await loadActivePrompts(supabase, userId, ACTION_TARGETS[data.action] ?? ["general"]);
+    const promptBlock = buildPromptBlock(activePrompts);
+
     const actions: ProposedAction[] = [];
     let warning: string | null = null;
 
@@ -459,7 +502,7 @@ export const aiProposeActions = createServerFn({ method: "POST" })
 
     if (data.action === "reply_email") {
       for (const e of emails) {
-        const sys = `Tu rédiges en français une réponse professionnelle à un email. Réponds UNIQUEMENT en JSON {"subject":"Re: ...","body":"..."}. Le corps doit être court, factuel, sans signature (ajoutée auto). Termine par "Cordialement,".`;
+        const sys = `Tu rédiges en français une réponse professionnelle à un email. Réponds UNIQUEMENT en JSON {"subject":"Re: ...","body":"..."}. Le corps doit être court, factuel, sans signature (ajoutée auto). Termine par "Cordialement,".${promptBlock}`;
         const usr = `Demande de l'utilisateur : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}\n\nMail à traiter :\nDe : ${e.from_name ?? ""} <${e.from_address ?? ""}>\nObjet : ${e.subject ?? ""}\n\n${(e.body_text ?? "").slice(0, 4000)}`;
         const draft = await aiJson(key, ReplyDraftSchema, sys, usr, { subject: `Re: ${e.subject ?? ""}`, body: "" });
         if (!draft.subject) draft.subject = `Re: ${e.subject ?? ""}`;
@@ -477,7 +520,7 @@ export const aiProposeActions = createServerFn({ method: "POST" })
       }
     } else if (data.action === "forward_email") {
       for (const e of emails) {
-        const sys = `Tu rédiges en français un court message d'introduction pour transférer un email. Réponds UNIQUEMENT en JSON {"subject":"Fwd: ...","body":"..."}.`;
+        const sys = `Tu rédiges en français un court message d'introduction pour transférer un email. Réponds UNIQUEMENT en JSON {"subject":"Fwd: ...","body":"..."}.${promptBlock}`;
         const usr = `Demande : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}\n\nMail à transférer :\nDe : ${e.from_name ?? ""} <${e.from_address ?? ""}>\nObjet : ${e.subject ?? ""}\n\n${(e.body_text ?? "").slice(0, 2000)}`;
         const draft = await aiJson(key, ReplyDraftSchema, sys, usr, { subject: `Fwd: ${e.subject ?? ""}`, body: "" });
         const quoted = `\n\n---------- Message transféré ----------\nDe : ${e.from_name ?? ""} <${e.from_address ?? ""}>\nObjet : ${e.subject ?? ""}\n\n${(e.body_text ?? "").slice(0, 8000)}`;
@@ -496,7 +539,7 @@ export const aiProposeActions = createServerFn({ method: "POST" })
     } else if (data.action === "create_task") {
       const sources = emails.length > 0 ? emails : [null];
       for (const e of sources) {
-        const sys = `Tu crées une tâche à faire. Réponds UNIQUEMENT en JSON {"title":"...","description":"...","priority":"low|medium|high","due_date":"ISO8601 ou null"}. Titre court (< 80 car).`;
+        const sys = `Tu crées une tâche à faire. Réponds UNIQUEMENT en JSON {"title":"...","description":"...","priority":"low|medium|high","due_date":"ISO8601 ou null"}. Titre court (< 80 car).${promptBlock}`;
         const usr = `Demande : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}` + (e ? `\n\nÀ partir du mail :\nDe : ${e.from_name ?? ""}\nObjet : ${e.subject ?? ""}\n${(e.body_text ?? "").slice(0, 2000)}` : "");
         const draft = await aiJson(key, TaskDraftSchema, sys, usr, { title: data.prompt.slice(0, 80), description: "", priority: "medium", due_date: null });
         actions.push({ id: crypto.randomUUID(), kind: "create_task", sourceEmailId: e?.id ?? null, draft });
@@ -505,7 +548,7 @@ export const aiProposeActions = createServerFn({ method: "POST" })
       const sys = `Tu crées un ${data.action === "create_meeting" ? "rendez-vous (réunion)" : "événement de calendrier"}. Date de référence : ${new Date().toISOString()}.
 Réponds UNIQUEMENT en JSON ${data.action === "create_meeting"
   ? '{"title":"...","description":"...","start_at":"ISO8601","end_at":"ISO8601","location":null,"category":"pro","is_online":true,"participants":[{"name":"","email":""}]}'
-  : '{"title":"...","description":"...","start_at":"ISO8601","end_at":"ISO8601","location":null,"category":"pro"}'}. Durée par défaut 30 min, heures ouvrées.`;
+  : '{"title":"...","description":"...","start_at":"ISO8601","end_at":"ISO8601","location":null,"category":"pro"}'}. Durée par défaut 30 min, heures ouvrées.${promptBlock}`;
       const usr = `Demande : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}`;
       if (data.action === "create_meeting") {
         const draft = await aiJson(key, MeetingDraftSchema, sys, usr, { title: data.prompt.slice(0, 80), description: "", start_at: null, end_at: null, location: null, category: "pro", is_online: true, participants: [] });
@@ -515,19 +558,19 @@ Réponds UNIQUEMENT en JSON ${data.action === "create_meeting"
         actions.push({ id: crypto.randomUUID(), kind: "create_event", draft });
       }
     } else if (data.action === "create_contact") {
-      const sys = `Tu crées une fiche contact. Réponds UNIQUEMENT en JSON {"first_name":"","last_name":"","email":[],"phone":[],"organization":null,"role":null,"notes":null}.`;
+      const sys = `Tu crées une fiche contact. Réponds UNIQUEMENT en JSON {"first_name":"","last_name":"","email":[],"phone":[],"organization":null,"role":null,"notes":null}.${promptBlock}`;
       const usr = `Demande : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}` + (emails[0] ? `\n\nMail source :\nDe : ${emails[0].from_name ?? ""} <${emails[0].from_address ?? ""}>\nObjet : ${emails[0].subject ?? ""}\n${(emails[0].body_text ?? "").slice(0, 2000)}` : "");
       const draft = await aiJson(key, ContactDraftSchema, sys, usr, { first_name: "", last_name: "", email: [], phone: [], organization: null, role: null, notes: null });
       actions.push({ id: crypto.randomUUID(), kind: "create_contact", draft });
     } else if (data.action === "save_document") {
       const sources = emails.length > 0 ? emails : [null];
       for (const e of sources) {
-        const sys = `Tu génères une note textuelle à archiver. Réponds UNIQUEMENT en JSON {"filename":"nom.txt","description":"...","content":"texte"}. Filename court avec extension .txt ou .md.`;
+        const sys = `Tu génères une note textuelle à archiver. Réponds UNIQUEMENT en JSON {"filename":"nom.txt","description":"...","content":"texte"}. Filename court avec extension .txt ou .md.${promptBlock}`;
         const usr = `Demande : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}` + (e ? `\n\nSource (mail) :\nDe : ${e.from_name ?? ""}\nObjet : ${e.subject ?? ""}\n${(e.body_text ?? "").slice(0, 6000)}` : "");
         const draft = await aiJson(key, DocumentDraftSchema, sys, usr, { filename: "note.txt", description: data.prompt.slice(0, 200), content: "" });
         actions.push({ id: crypto.randomUUID(), kind: "save_document", sourceEmailId: e?.id ?? null, draft });
       }
     }
 
-    return { actions, warning };
+    return { actions, warning, activePrompts: activePrompts.map((p) => ({ title: p.title, target: p.target })) };
   });
