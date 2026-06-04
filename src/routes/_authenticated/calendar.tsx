@@ -67,6 +67,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/calendar")({
   validateSearch: (search: Record<string, unknown>) => ({
     eventId: typeof search.eventId === "string" ? search.eventId : undefined,
+    eventAt: typeof search.eventAt === "string" ? search.eventAt : undefined,
   }),
   component: AgendaPage,
 });
@@ -465,16 +466,23 @@ function AgendaPage() {
   // Deep-link depuis recherche IA / globale : ?eventId=...
   React.useEffect(() => {
     const id = search.eventId;
-    if (!id || handledDeepLinkRef.current === id) return;
+    const eventAt = search.eventAt;
+    if (!id) return;
+    const marker = eventAt ? `${id}:${eventAt}` : id;
+    if (handledDeepLinkRef.current === marker) return;
     const base = events.find((e) => e.id === id);
     if (!base) return;
-    handledDeepLinkRef.current = id;
-    setCursor(startOfDay(new Date(base.start_at)));
+    handledDeepLinkRef.current = marker;
+    const target = eventAt ? new Date(eventAt) : new Date(base.start_at);
+    setCursor(startOfDay(target));
     setView(isMobile ? "list" : "day");
-    const match = unified.find((x) => x.id === id || x.id.startsWith(id + "+"));
+    const targetTime = target.getTime();
+    const match = unified
+      .filter((x) => x.kind === "event" && (x.raw as DbEvent).id === id)
+      .sort((a, b) => Math.abs(a.start.getTime() - targetTime) - Math.abs(b.start.getTime() - targetTime))[0];
     if (match) setSelected(match);
     navigate({ to: "/calendar", search: {} as any, replace: true });
-  }, [search.eventId, events, unified, isMobile, navigate]);
+  }, [search.eventId, search.eventAt, events, unified, isMobile, navigate]);
 
   const nav = (dir: -1 | 0 | 1) => {
     if (dir === 0) return setCursor(startOfDay(new Date()));

@@ -100,8 +100,8 @@ export function useSyncStatus() {
         window.dispatchEvent(new CustomEvent("emails-synced", { detail: { synced: imapCount } }));
       }
 
-      // Calendar sync (Outlook / Google) — only if user enabled it in settings
-      // and frequency != -1 (manual). Failures are silent (background sync).
+      // Calendar sync (Outlook / Google). If no sync_settings row exists yet,
+      // Google remains enabled by default so Hub events still push upstream.
       try {
         const { data: syncSettings } = await supabase
           .from("sync_settings")
@@ -109,7 +109,8 @@ export function useSyncStatus() {
           .in("source", ["outlook_calendar", "google_calendar"]);
         const enabled = (src: string) => {
           const s = (syncSettings ?? []).find((x) => x.source === src);
-          return s && s.direction !== "disabled" && s.sync_frequency_minutes !== -1;
+          if (!s) return src === "google_calendar";
+          return s.direction !== "disabled" && s.sync_frequency_minutes !== -1;
         };
         const calJobs: Promise<unknown>[] = [];
         if (enabled("outlook_calendar")) {
