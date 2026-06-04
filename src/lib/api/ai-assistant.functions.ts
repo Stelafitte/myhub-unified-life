@@ -362,7 +362,7 @@ Règles de choix d'entité :
         const sumResp = await callGateway(key, {
           model: "google/gemini-3-flash-preview",
           messages: [
-            { role: "system", content: `Tu résumes une liste de résultats (${entity}) pour répondre à une demande utilisateur. Réponds en français, 2 à 4 phrases courtes, factuel. Pas de proposition d'actions.` },
+            { role: "system", content: `Tu résumes une liste de résultats (${entity}) pour répondre à une demande utilisateur. Réponds en français, 2 à 4 phrases courtes, factuel. Pas de proposition d'actions.${promptBlock}` },
             { role: "user", content: `Demande : ${data.prompt}\n\nRésultats (${matches.length}) :\n${sample}` },
           ],
         });
@@ -373,7 +373,10 @@ Règles de choix d'entité :
       }
     }
 
-    return { summary, criteria: parsed, entity, matches, emailMatches, warning };
+    return {
+      summary, criteria: parsed, entity, matches, emailMatches, warning,
+      activePrompts: generalPrompts.map((p) => ({ title: p.title, target: p.target })),
+    };
   });
 
 // ============================================================================
