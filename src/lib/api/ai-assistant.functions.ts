@@ -502,7 +502,7 @@ export const aiProposeActions = createServerFn({ method: "POST" })
 
     if (data.action === "reply_email") {
       for (const e of emails) {
-        const sys = `Tu rédiges en français une réponse professionnelle à un email. Réponds UNIQUEMENT en JSON {"subject":"Re: ...","body":"..."}. Le corps doit être court, factuel, sans signature (ajoutée auto). Termine par "Cordialement,".`;
+        const sys = `Tu rédiges en français une réponse professionnelle à un email. Réponds UNIQUEMENT en JSON {"subject":"Re: ...","body":"..."}. Le corps doit être court, factuel, sans signature (ajoutée auto). Termine par "Cordialement,".${promptBlock}`;
         const usr = `Demande de l'utilisateur : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}\n\nMail à traiter :\nDe : ${e.from_name ?? ""} <${e.from_address ?? ""}>\nObjet : ${e.subject ?? ""}\n\n${(e.body_text ?? "").slice(0, 4000)}`;
         const draft = await aiJson(key, ReplyDraftSchema, sys, usr, { subject: `Re: ${e.subject ?? ""}`, body: "" });
         if (!draft.subject) draft.subject = `Re: ${e.subject ?? ""}`;
@@ -520,7 +520,7 @@ export const aiProposeActions = createServerFn({ method: "POST" })
       }
     } else if (data.action === "forward_email") {
       for (const e of emails) {
-        const sys = `Tu rédiges en français un court message d'introduction pour transférer un email. Réponds UNIQUEMENT en JSON {"subject":"Fwd: ...","body":"..."}.`;
+        const sys = `Tu rédiges en français un court message d'introduction pour transférer un email. Réponds UNIQUEMENT en JSON {"subject":"Fwd: ...","body":"..."}.${promptBlock}`;
         const usr = `Demande : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}\n\nMail à transférer :\nDe : ${e.from_name ?? ""} <${e.from_address ?? ""}>\nObjet : ${e.subject ?? ""}\n\n${(e.body_text ?? "").slice(0, 2000)}`;
         const draft = await aiJson(key, ReplyDraftSchema, sys, usr, { subject: `Fwd: ${e.subject ?? ""}`, body: "" });
         const quoted = `\n\n---------- Message transféré ----------\nDe : ${e.from_name ?? ""} <${e.from_address ?? ""}>\nObjet : ${e.subject ?? ""}\n\n${(e.body_text ?? "").slice(0, 8000)}`;
@@ -539,7 +539,7 @@ export const aiProposeActions = createServerFn({ method: "POST" })
     } else if (data.action === "create_task") {
       const sources = emails.length > 0 ? emails : [null];
       for (const e of sources) {
-        const sys = `Tu crées une tâche à faire. Réponds UNIQUEMENT en JSON {"title":"...","description":"...","priority":"low|medium|high","due_date":"ISO8601 ou null"}. Titre court (< 80 car).`;
+        const sys = `Tu crées une tâche à faire. Réponds UNIQUEMENT en JSON {"title":"...","description":"...","priority":"low|medium|high","due_date":"ISO8601 ou null"}. Titre court (< 80 car).${promptBlock}`;
         const usr = `Demande : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}` + (e ? `\n\nÀ partir du mail :\nDe : ${e.from_name ?? ""}\nObjet : ${e.subject ?? ""}\n${(e.body_text ?? "").slice(0, 2000)}` : "");
         const draft = await aiJson(key, TaskDraftSchema, sys, usr, { title: data.prompt.slice(0, 80), description: "", priority: "medium", due_date: null });
         actions.push({ id: crypto.randomUUID(), kind: "create_task", sourceEmailId: e?.id ?? null, draft });
@@ -548,7 +548,7 @@ export const aiProposeActions = createServerFn({ method: "POST" })
       const sys = `Tu crées un ${data.action === "create_meeting" ? "rendez-vous (réunion)" : "événement de calendrier"}. Date de référence : ${new Date().toISOString()}.
 Réponds UNIQUEMENT en JSON ${data.action === "create_meeting"
   ? '{"title":"...","description":"...","start_at":"ISO8601","end_at":"ISO8601","location":null,"category":"pro","is_online":true,"participants":[{"name":"","email":""}]}'
-  : '{"title":"...","description":"...","start_at":"ISO8601","end_at":"ISO8601","location":null,"category":"pro"}'}. Durée par défaut 30 min, heures ouvrées.`;
+  : '{"title":"...","description":"...","start_at":"ISO8601","end_at":"ISO8601","location":null,"category":"pro"}'}. Durée par défaut 30 min, heures ouvrées.${promptBlock}`;
       const usr = `Demande : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}`;
       if (data.action === "create_meeting") {
         const draft = await aiJson(key, MeetingDraftSchema, sys, usr, { title: data.prompt.slice(0, 80), description: "", start_at: null, end_at: null, location: null, category: "pro", is_online: true, participants: [] });
@@ -558,19 +558,19 @@ Réponds UNIQUEMENT en JSON ${data.action === "create_meeting"
         actions.push({ id: crypto.randomUUID(), kind: "create_event", draft });
       }
     } else if (data.action === "create_contact") {
-      const sys = `Tu crées une fiche contact. Réponds UNIQUEMENT en JSON {"first_name":"","last_name":"","email":[],"phone":[],"organization":null,"role":null,"notes":null}.`;
+      const sys = `Tu crées une fiche contact. Réponds UNIQUEMENT en JSON {"first_name":"","last_name":"","email":[],"phone":[],"organization":null,"role":null,"notes":null}.${promptBlock}`;
       const usr = `Demande : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}` + (emails[0] ? `\n\nMail source :\nDe : ${emails[0].from_name ?? ""} <${emails[0].from_address ?? ""}>\nObjet : ${emails[0].subject ?? ""}\n${(emails[0].body_text ?? "").slice(0, 2000)}` : "");
       const draft = await aiJson(key, ContactDraftSchema, sys, usr, { first_name: "", last_name: "", email: [], phone: [], organization: null, role: null, notes: null });
       actions.push({ id: crypto.randomUUID(), kind: "create_contact", draft });
     } else if (data.action === "save_document") {
       const sources = emails.length > 0 ? emails : [null];
       for (const e of sources) {
-        const sys = `Tu génères une note textuelle à archiver. Réponds UNIQUEMENT en JSON {"filename":"nom.txt","description":"...","content":"texte"}. Filename court avec extension .txt ou .md.`;
+        const sys = `Tu génères une note textuelle à archiver. Réponds UNIQUEMENT en JSON {"filename":"nom.txt","description":"...","content":"texte"}. Filename court avec extension .txt ou .md.${promptBlock}`;
         const usr = `Demande : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}` + (e ? `\n\nSource (mail) :\nDe : ${e.from_name ?? ""}\nObjet : ${e.subject ?? ""}\n${(e.body_text ?? "").slice(0, 6000)}` : "");
         const draft = await aiJson(key, DocumentDraftSchema, sys, usr, { filename: "note.txt", description: data.prompt.slice(0, 200), content: "" });
         actions.push({ id: crypto.randomUUID(), kind: "save_document", sourceEmailId: e?.id ?? null, draft });
       }
     }
 
-    return { actions, warning };
+    return { actions, warning, activePrompts: activePrompts.map((p) => ({ title: p.title, target: p.target })) };
   });
