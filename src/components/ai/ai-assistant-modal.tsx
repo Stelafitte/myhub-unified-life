@@ -237,8 +237,11 @@ export function AiAssistantModal({
 
           <div className="space-y-8">
             {turns.map((t) => (
-              <div key={t.id} className="space-y-3">
-                <div className="flex justify-end">
+              <div key={t.id} className="space-y-3 group">
+                <div className="flex justify-end items-start gap-2">
+                  <button type="button" onClick={() => removeTurn(t.id)} title="Fermer cet échange" className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted text-muted-foreground mt-1">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                   <div className="max-w-[80%] rounded-2xl bg-primary text-primary-foreground px-4 py-2 text-sm whitespace-pre-wrap">{t.prompt}</div>
                 </div>
                 {t.result === null && t.error === null && (
