@@ -260,7 +260,7 @@ export type ProposedAction =
 
 export type ProposeResult = { actions: ProposedAction[]; warning: string | null };
 
-async function aiJson<T>(key: string, schema: z.ZodType<T>, sys: string, user: string, fallback: T): Promise<T> {
+async function aiJson(key: string, schema: z.ZodTypeAny, sys: string, user: string, fallback: any): Promise<any> {
   try {
     const resp = await callGateway(key, {
       model: "google/gemini-3-flash-preview",
