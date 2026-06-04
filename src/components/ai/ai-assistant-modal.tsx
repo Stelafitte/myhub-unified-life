@@ -311,34 +311,34 @@ export function AiAssistantModal({
                       <div className="border rounded-lg divide-y bg-card">
                         {t.result.matches.map((m: AnyMatch) => {
                           const checked = t.selectedMatches.has(m.id);
+                          const expanded = expandedMatches.has(m.id);
                           const Icon = KIND_ICON[m.kind] ?? Mail;
-                          const buildHref = () => {
-                            const qs = new URLSearchParams();
-                            if (m.kind === "email") { qs.set("emailId", m.id); return `/inbox?${qs}`; }
-                            if (m.kind === "event") { qs.set("eventId", m.id); if (m.date) qs.set("eventAt", m.date); return `/calendar?${qs}`; }
-                            if (m.kind === "meeting") { qs.set("meetingId", m.id); return `/meetings?${qs}`; }
-                            return KIND_ROUTE[m.kind];
-                          };
-                          const open = (e: React.MouseEvent) => {
-                            e.preventDefault();
-                            window.open(buildHref(), "_blank", "noopener,noreferrer");
-                          };
                           return (
-                            <div key={m.id} className="flex items-start gap-2 px-3 py-2 hover:bg-muted/30">
-                              <Checkbox checked={checked} onCheckedChange={() => toggleMatch(t.id, m.id)} className="mt-1" />
-                              <a href={buildHref()} target="_blank" rel="noopener noreferrer" onClick={open} className="flex items-start gap-2 flex-1 min-w-0 text-left">
-                                <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium truncate">{m.title}</span>
-                                    {m.date && <span className="text-[11px] text-muted-foreground shrink-0">{new Date(m.date).toLocaleDateString("fr-FR")}</span>}
-                                    {m.badge && <Badge variant="secondary" className="text-[10px] shrink-0">{m.badge}</Badge>}
+                            <div key={m.id} className="px-3 py-2 hover:bg-muted/30">
+                              <div className="flex items-start gap-2">
+                                <Checkbox checked={checked} onCheckedChange={() => toggleMatch(t.id, m.id)} className="mt-1" />
+                                <button type="button" onClick={() => toggleMatchPreview(m.id)} className="flex items-start gap-2 flex-1 min-w-0 text-left">
+                                  <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium truncate">{m.title}</span>
+                                      {m.date && <span className="text-[11px] text-muted-foreground shrink-0">{new Date(m.date).toLocaleDateString("fr-FR")}</span>}
+                                      {m.badge && <Badge variant="secondary" className="text-[10px] shrink-0">{m.badge}</Badge>}
+                                    </div>
+                                    {m.subtitle && <div className="text-xs text-muted-foreground truncate">{m.subtitle}</div>}
+                                    {m.snippet && <div className="text-xs text-muted-foreground truncate">{m.snippet}</div>}
                                   </div>
-                                  {m.subtitle && <div className="text-xs text-muted-foreground truncate">{m.subtitle}</div>}
-                                  {m.snippet && <div className="text-xs text-muted-foreground truncate">{m.snippet}</div>}
+                                  <ChevronRight className={`h-4 w-4 mt-1 text-muted-foreground shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                                </button>
+                              </div>
+                              {expanded && (
+                                <div className="ml-8 mt-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-foreground/90 space-y-1">
+                                  <div className="font-medium">{m.title}</div>
+                                  {m.date && <div className="text-muted-foreground">Date : {new Date(m.date).toLocaleString("fr-FR")}</div>}
+                                  {m.subtitle && <div>{m.subtitle}</div>}
+                                  {m.snippet && <div className="text-muted-foreground whitespace-pre-wrap">{m.snippet}</div>}
                                 </div>
-                                <ChevronRight className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
-                              </a>
+                              )}
                             </div>
                           );
                         })}
