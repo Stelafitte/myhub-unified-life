@@ -373,11 +373,14 @@ export function AiAssistantModal({
                                 </button>
                               </div>
                               {expanded && (
-                                <div className="ml-8 mt-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-foreground/90 space-y-1">
+                                <div className="ml-8 mt-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-foreground/90 space-y-2">
                                   <div className="font-medium">{m.title}</div>
                                   {m.date && <div className="text-muted-foreground">Date : {new Date(m.date).toLocaleString("fr-FR")}</div>}
                                   {m.subtitle && <div>{m.subtitle}</div>}
                                   {m.snippet && <div className="text-muted-foreground whitespace-pre-wrap">{m.snippet}</div>}
+                                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openInSource(m.kind, m.id, m.date)}>
+                                    Ouvrir dans {SOURCE_LABEL[m.kind]}
+                                  </Button>
                                 </div>
                               )}
                             </div>
