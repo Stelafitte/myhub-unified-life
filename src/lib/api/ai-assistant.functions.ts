@@ -59,7 +59,32 @@ export type AiAssistantResult = {
   /** Emails-only legacy view kept for Phase 2 action proposals */
   emailMatches: AiAssistantMatch[];
   warning: string | null;
+  activePrompts: { title: string; target: string }[];
 };
+
+async function loadActivePrompts(
+  supabase: any,
+  userId: string,
+  targets: string[],
+): Promise<{ title: string; target: string; content: string }[]> {
+  try {
+    const { data } = await supabase
+      .from("ai_prompts")
+      .select("title,target,content")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .in("target", targets);
+    return (data ?? []).filter((p: any) => (p.content ?? "").trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function buildPromptBlock(prompts: { title: string; target: string; content: string }[]): string {
+  if (prompts.length === 0) return "";
+  const lines = prompts.map((p) => `# ${p.title} (${p.target})\n${p.content.trim()}`);
+  return `\n\n--- Instructions personnalisées de l'utilisateur (à respecter en priorité) ---\n${lines.join("\n\n")}\n--- Fin des instructions personnalisées ---`;
+}
 
 async function callGateway(key: string, body: unknown) {
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
