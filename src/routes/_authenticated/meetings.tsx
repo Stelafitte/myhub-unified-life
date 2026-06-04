@@ -120,6 +120,19 @@ function MeetingsPage() {
     return () => window.removeEventListener("online", onOnline);
   }, [load]);
 
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const handledDeepLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = search.meetingId;
+    if (!id || handledDeepLinkRef.current === id) return;
+    if (!meetings.some((m) => m.id === id)) return;
+    handledDeepLinkRef.current = id;
+    setEditId(id);
+    setDialogOpen(true);
+    navigate({ to: "/meetings", search: {} as any, replace: true });
+  }, [search.meetingId, meetings, navigate]);
+
   const now = useMemo(() => new Date(), []);
   const upcoming = meetings.filter((m) => new Date(m.end_at) >= now && m.status !== "cancelled");
   const past = meetings.filter((m) => new Date(m.end_at) < now || m.status === "completed");
