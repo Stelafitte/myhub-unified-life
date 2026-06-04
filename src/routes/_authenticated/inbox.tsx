@@ -2520,11 +2520,7 @@ function Reader({
 
       <div className="min-w-0 max-w-full p-3 text-sm sm:p-4">
         {email.body_html ? (
-          <div
-            className="prose prose-sm max-w-none break-words dark:prose-invert [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:table-fixed"
-            style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
-            dangerouslySetInnerHTML={{ __html: email.body_html }}
-          />
+          <EmailHtmlFrame html={email.body_html} />
         ) : (
           <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed [overflow-wrap:anywhere]">
             {email.body_text ?? "(vide)"}
