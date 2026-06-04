@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { AiPromptsManager } from "./ai-prompts-manager";
 
 type AiPrefs = {
   provider: "lovable-default" | "gpt-4o-mini" | "claude-haiku" | "claude-sonnet";
