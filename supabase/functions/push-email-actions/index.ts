@@ -199,6 +199,33 @@ async function findUidByMessageId(imap: MiniImap, messageId: string): Promise<nu
   return null;
 }
 
+// Discover the Trash mailbox via LIST (RFC 6154 \Trash special-use, then common names).
+async function findTrashMailbox(imap: MiniImap): Promise<string | null> {
+  // Try special-use extension first.
+  const r = await imap.cmd(`LIST (SPECIAL-USE) "" "*"`);
+  if (r.ok) {
+    for (const ln of r.lines) {
+      if (/\\Trash\b/i.test(ln)) {
+        // * LIST (\HasNoChildren \Trash) "/" "Corbeille"
+        const m = ln.match(/"([^"]+)"\s*$/) || ln.match(/\s(\S+)\s*$/);
+        if (m) return m[1];
+      }
+    }
+  }
+  // Fallback: LIST all and match common names.
+  const r2 = await imap.cmd(`LIST "" "*"`);
+  if (r2.ok) {
+    const known = ["Trash", "INBOX.Trash", "Corbeille", "INBOX.Corbeille", "[Gmail]/Trash", "Deleted Items", "Deleted", "INBOX.Deleted", "INBOX.Deleted Messages"];
+    for (const ln of r2.lines) {
+      const m = ln.match(/"([^"]+)"\s*$/) || ln.match(/\s(\S+)\s*$/);
+      if (!m) continue;
+      const name = m[1];
+      if (known.some((k) => k.toLowerCase() === name.toLowerCase())) return name;
+    }
+  }
+  return null;
+}
+
 async function pushImap(account: any, messageId: string, action: Action): Promise<void> {
   const creds = account.credentials ?? {};
   const host = creds.server || creds.host;
@@ -215,9 +242,10 @@ async function pushImap(account: any, messageId: string, action: Action): Promis
     if (!login.ok) throw new Error("LOGIN failed");
 
     if (action === "untrash") {
-      // Source = Trash, target = INBOX
-      const sel = await imap.cmd("SELECT Trash");
-      if (!sel.ok) throw new Error("SELECT Trash failed");
+      // Source = Trash (discovered), target = INBOX
+      const trashBox = (await findTrashMailbox(imap)) ?? "Trash";
+      const sel = await imap.cmd(`SELECT "${escapeImap(trashBox)}"`);
+      if (!sel.ok) throw new Error(`SELECT ${trashBox} failed`);
       const uid = await findUidByMessageId(imap, messageId);
       if (!uid) return;
       const cp = await imap.cmd(`UID COPY ${uid} INBOX`);
