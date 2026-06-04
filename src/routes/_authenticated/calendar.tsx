@@ -1926,6 +1926,14 @@ function EventDetail({
           </div>
         )}
 
+        {canEdit && currentCat.endsWith("recurring") && (
+          <RecurrenceEditor
+            eventId={dbEv.id}
+            rule={dbEv.recurrence_rule ?? null}
+            onSaved={() => onUpdated?.()}
+          />
+        )}
+
         {event.kind === "event" && (
           <div>
             <div className="mb-1 text-xs font-medium text-muted-foreground">Importance</div>
