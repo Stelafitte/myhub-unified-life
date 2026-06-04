@@ -578,7 +578,14 @@ function AiEmailReaderDialog({ emailId, open, onOpenChange, onOpenInSource }: { 
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex h-[88vh] max-w-4xl flex-col overflow-hidden p-0 gap-0">
           <DialogHeader className="border-b px-4 py-3">
-            <DialogTitle className="text-sm">Contenu du mail</DialogTitle>
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle className="text-sm">Contenu du mail</DialogTitle>
+              {email && onOpenInSource && (
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onOpenInSource(email.id)}>
+                  Ouvrir dans Inbox
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           {loading || !email ? (
             <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
