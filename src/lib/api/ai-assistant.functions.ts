@@ -12,7 +12,6 @@ const EntityEnum = z.enum(["emails", "contacts", "tasks", "events", "meetings", 
 type Entity = z.infer<typeof EntityEnum>;
 
 const CriteriaSchema = z.object({
-  // Multi-entités possible : ["emails","contacts"] ou [] = laisser l'agent décider.
   entities: z.array(EntityEnum).default([]),
   keywords: z.array(z.string()).default([]),
   from_contains: z.array(z.string()).default([]),
@@ -22,6 +21,7 @@ const CriteriaSchema = z.object({
   date_to: z.string().nullable().default(null),
   unread_only: z.boolean().default(false),
   status: z.string().nullable().default(null),
+  category: z.enum(["perso", "pro"]).nullable().default(null),
   limit: z.number().min(1).max(100).default(40),
   user_intent: z.string().default(""),
 });
