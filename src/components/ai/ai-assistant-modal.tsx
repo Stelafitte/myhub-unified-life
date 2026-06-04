@@ -37,8 +37,10 @@ type ActionItem = { action: ProposedAction; status: Status; message?: string };
 
 type Turn = {
   id: string;
+  mode: "search" | "chat";
   prompt: string;
   result: AiAssistantResult | null;
+  chatReply: string | null;
   error: string | null;
   selectedMatches: Set<string>;
   actions: ActionItem[];
