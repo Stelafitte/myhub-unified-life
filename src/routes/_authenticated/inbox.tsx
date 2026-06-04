@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Inbox as InboxIcon,
@@ -113,6 +113,10 @@ type Filter =
   | "theme:__none__";
 
 export const Route = createFileRoute("/_authenticated/inbox")({
+  validateSearch: (s: Record<string, unknown>): { emailId?: string; open?: string } => ({
+    emailId: typeof s.emailId === "string" ? s.emailId : undefined,
+    open: typeof s.open === "string" ? s.open : undefined,
+  }),
   component: InboxPage,
 });
 
@@ -184,6 +188,9 @@ function groupThemes(
 
 function InboxPage() {
   const { user } = useAuth();
+  const search = useSearch({ from: "/_authenticated/inbox" });
+  const navigate = useNavigate();
+  const requestedEmailId = search.emailId ?? search.open ?? null;
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [emails, setEmails] = useState<Email[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
@@ -763,6 +770,9 @@ function InboxPage() {
 
   // Quand le filtre change, sur mobile on revient à la liste ; sur desktop on garde le panneau de lecture rempli.
   useEffect(() => {
+    // Si un deep-link (?emailId=…) est en cours de traitement, on ne réinitialise pas
+    // le lecteur — sinon l'email demandé serait fermé juste après ouverture.
+    if (requestedEmailId) return;
     if (isMobileInbox) {
       setReaderOpen(false);
       setSelectedId(null);
@@ -1226,6 +1236,27 @@ function InboxPage() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [readerOpen]);
+
+  // Deep-link : ?emailId=... (Recherche globale, Assistant IA…) → ouvrir l'email
+  // dès que la liste est chargée. On force le filtre à « all » pour s'assurer
+  // que l'email est visible, puis on nettoie l'URL.
+  const handledDeepLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!requestedEmailId) return;
+    if (handledDeepLinkRef.current === requestedEmailId) return;
+    if (emails.length === 0) return;
+    const target = emails.find((e) => e.id === requestedEmailId);
+    if (!target) {
+      // Email pas (encore) dans la liste : on retente quand `emails` change.
+      return;
+    }
+    handledDeepLinkRef.current = requestedEmailId;
+    setFilter("all");
+    setQuery("");
+    navigate({ to: "/inbox", search: {}, replace: true });
+    openEmail(target);
+  }, [requestedEmailId, emails, navigate]);
+
 
 
   return (
