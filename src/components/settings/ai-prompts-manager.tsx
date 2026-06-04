@@ -235,12 +235,15 @@ function PromptDialog({
         toast.error(`${f.name}: dépasse 10 Mo`);
         continue;
       }
-      const path = `${user.id}/ai-prompts/${crypto.randomUUID()}-${f.name}`;
+      const safeName = f.name.replace(/[^\w.\-]+/g, "_");
+      const path = `${user.id}/ai-prompts/${crypto.randomUUID()}-${safeName}`;
       const { error } = await supabase.storage.from("documents").upload(path, f, {
-        contentType: f.type || undefined,
+        contentType: f.type || "application/octet-stream",
+        upsert: false,
       });
       if (error) {
-        toast.error(`Échec upload ${f.name}`);
+        console.error("[ai-prompts] upload error", error);
+        toast.error(`Échec upload ${f.name}: ${error.message}`);
         continue;
       }
       added.push({ name: f.name, path, size: f.size, mime: f.type || null });
