@@ -1,17 +1,29 @@
 import { useState, useRef, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
-import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox } from "lucide-react";
+import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { aiAssistantQuery, aiProposeActions, type AiAssistantResult, type ProposedAction, type AnyMatch, type EntityKind } from "@/lib/api/ai-assistant.functions";
 import { ActionCard, executeAction } from "@/components/ai/action-card";
 import { sendEmail } from "@/lib/api/email-send.functions";
 import { toast } from "sonner";
+
+const ARCHIVE_KEY = "ai-assistant-archives";
+type Archive = { id: string; title: string; savedAt: number; turns: Turn[] };
+
+function loadArchives(): Archive[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(ARCHIVE_KEY) || "[]"); } catch { return []; }
+}
+function saveArchives(a: Archive[]) {
+  try { localStorage.setItem(ARCHIVE_KEY, JSON.stringify(a.slice(0, 30))); } catch {}
+}
 
 const KIND_ICON: Record<EntityKind, any> = {
   email: Mail, contact: User, task: CheckSquare, event: CalendarPlus, meeting: Users, document: FileBox,
