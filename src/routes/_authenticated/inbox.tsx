@@ -46,6 +46,7 @@ import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
 import { AiSuggestionsPanel } from "@/components/inbox/ai-suggestions-panel";
 import { AiClassificationFeedback } from "@/components/inbox/ai-classification-feedback";
 import { EmailAttachmentsPanel } from "@/components/inbox/email-attachments-panel";
+import { EmailHtmlFrame } from "@/components/inbox/email-html-frame";
 
 import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -2519,11 +2520,7 @@ function Reader({
 
       <div className="min-w-0 max-w-full p-3 text-sm sm:p-4">
         {email.body_html ? (
-          <div
-            className="prose prose-sm max-w-none break-words dark:prose-invert [&_*]:max-w-full [&_img]:h-auto [&_img]:max-w-full [&_table]:w-full [&_table]:table-fixed"
-            style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}
-            dangerouslySetInnerHTML={{ __html: email.body_html }}
-          />
+          <EmailHtmlFrame html={email.body_html} />
         ) : (
           <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed [overflow-wrap:anywhere]">
             {email.body_text ?? "(vide)"}
