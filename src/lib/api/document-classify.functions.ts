@@ -48,7 +48,7 @@ CATÉGORIES:
 - signature: image de signature email, logo de pied de mail, bannière promotionnelle sans intérêt
 - autre: ne correspond à rien
 
-PRIORITÉ basée sur l'importance probable du document.`;
+PRIORITÉ basée sur l'importance probable du document.${userPromptsBlock}`;
 
   const user = `Nom: ${d.filename}
 Type MIME: ${d.mime_type ?? "inconnu"}
