@@ -1,17 +1,24 @@
 import { useState, useRef, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
-import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play } from "lucide-react";
+import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { aiAssistantQuery, aiProposeActions, type AiAssistantResult, type ProposedAction } from "@/lib/api/ai-assistant.functions";
+import { aiAssistantQuery, aiProposeActions, type AiAssistantResult, type ProposedAction, type AnyMatch, type EntityKind } from "@/lib/api/ai-assistant.functions";
 import { ActionCard, executeAction } from "@/components/ai/action-card";
 import { sendEmail } from "@/lib/api/email-send.functions";
 import { toast } from "sonner";
+
+const KIND_ICON: Record<EntityKind, any> = {
+  email: Mail, contact: User, task: CheckSquare, event: CalendarPlus, meeting: Users, document: FileBox,
+};
+const KIND_ROUTE: Record<EntityKind, string> = {
+  email: "/inbox", contact: "/contacts", task: "/tasks", event: "/calendar", meeting: "/meetings", document: "/documents",
+};
 
 type Status = "pending" | "running" | "done" | "error";
 type ActionItem = { action: ProposedAction; status: Status; message?: string };
