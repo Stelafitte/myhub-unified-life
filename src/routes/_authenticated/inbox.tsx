@@ -46,6 +46,7 @@ import { classifyPendingEmails } from "@/lib/api/email-classify.functions";
 import { AiSuggestionsPanel } from "@/components/inbox/ai-suggestions-panel";
 import { AiClassificationFeedback } from "@/components/inbox/ai-classification-feedback";
 import { EmailAttachmentsPanel } from "@/components/inbox/email-attachments-panel";
+import { EmailHtmlFrame } from "@/components/inbox/email-html-frame";
 
 import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
 import { supabase } from "@/integrations/supabase/client";
