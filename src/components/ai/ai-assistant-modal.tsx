@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { aiAssistantQuery, aiProposeActions, type AiAssistantResult, type ProposedAction, type AnyMatch, type EntityKind } from "@/lib/api/ai-assistant.functions";
+import { aiAssistantQuery, aiProposeActions, aiChat, type AiAssistantResult, type ProposedAction, type AnyMatch, type EntityKind } from "@/lib/api/ai-assistant.functions";
 import { ActionCard, executeAction } from "@/components/ai/action-card";
 import { sendEmail } from "@/lib/api/email-send.functions";
 import { toast } from "sonner";
@@ -37,8 +37,10 @@ type ActionItem = { action: ProposedAction; status: Status; message?: string };
 
 type Turn = {
   id: string;
+  mode: "search" | "chat";
   prompt: string;
   result: AiAssistantResult | null;
+  chatReply: string | null;
   error: string | null;
   selectedMatches: Set<string>;
   actions: ActionItem[];
@@ -71,11 +73,13 @@ export function AiAssistantModal({
   initialPrompt?: string;
 }) {
   const [prompt, setPrompt] = useState(initialPrompt ?? "");
+  const [mode, setMode] = useState<"search" | "chat">("search");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
   const [archives, setArchives] = useState<ArchivedChat[]>([]);
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
+  const chatFn = useServerFn(aiChat);
   const sendFn = useServerFn(sendEmail);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -94,7 +98,7 @@ export function AiAssistantModal({
     newConversation();
   };
   const restoreArchive = (a: ArchivedChat) => {
-    setTurns(a.turns.map(t => ({ ...t, selectedMatches: new Set(Array.isArray(t.selectedMatches as any) ? (t.selectedMatches as any) : []) })));
+    setTurns(a.turns.map(t => ({ ...t, mode: t.mode ?? "search", chatReply: t.chatReply ?? null, selectedMatches: new Set(Array.isArray(t.selectedMatches as any) ? (t.selectedMatches as any) : []) })));
   };
   const deleteArchive = (id: string) => {
     const next = archives.filter(a => a.id !== id);
@@ -109,11 +113,30 @@ export function AiAssistantModal({
     if (q.length < 2) return;
     setLoading(true);
     const id = crypto.randomUUID();
-    setTurns((t) => [...t, { id, prompt: q, result: null, error: null, selectedMatches: new Set(), actions: [], proposing: false }]);
+    const currentMode = mode;
+    setTurns((t) => [...t, { id, mode: currentMode, prompt: q, result: null, chatReply: null, error: null, selectedMatches: new Set(), actions: [], proposing: false }]);
     setPrompt("");
     try {
-      const res = await run({ data: { prompt: q, contextRoute: window.location.pathname } });
-      setTurns((t) => t.map((x) => (x.id === id ? { ...x, result: res, selectedMatches: new Set(res.matches.map(m => m.id)) } : x)));
+      if (currentMode === "chat") {
+        // Build conversation history from previous turns (any mode)
+        const history: { role: "user" | "assistant"; content: string }[] = [];
+        for (const t of turns) {
+          history.push({ role: "user", content: t.prompt });
+          const reply = t.chatReply ?? t.result?.summary ?? "";
+          if (reply) history.push({ role: "assistant", content: reply.slice(0, 4000) });
+        }
+        history.push({ role: "user", content: q });
+        // Optional context: last search summary + top matches
+        const last = [...turns].reverse().find(t => t.result);
+        const ctx = last?.result
+          ? `Dernière recherche: "${last.prompt}"\nRésumé: ${last.result.summary.slice(0, 1500)}\nRésultats (${last.result.matches.length}): ${last.result.matches.slice(0, 8).map(m => `[${m.kind}] ${m.title}`).join(" ; ")}`
+          : null;
+        const res = await chatFn({ data: { messages: history, contextSummary: ctx } });
+        setTurns((t) => t.map((x) => (x.id === id ? { ...x, chatReply: res.reply } : x)));
+      } else {
+        const res = await run({ data: { prompt: q, contextRoute: window.location.pathname } });
+        setTurns((t) => t.map((x) => (x.id === id ? { ...x, result: res, selectedMatches: new Set(res.matches.map(m => m.id)) } : x)));
+      }
     } catch (e: any) {
       const msg = e?.message ?? "Erreur IA";
       setTurns((t) => t.map((x) => (x.id === id ? { ...x, error: msg } : x)));
@@ -244,6 +267,22 @@ export function AiAssistantModal({
                   </button>
                   <div className="max-w-[80%] rounded-2xl bg-primary text-primary-foreground px-4 py-2 text-sm whitespace-pre-wrap">{t.prompt}</div>
                 </div>
+                {t.mode === "chat" ? (
+                  <>
+                    {t.chatReply === null && t.error === null && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />Réflexion en cours…
+                      </div>
+                    )}
+                    {t.error && <div className="text-sm text-destructive">{t.error}</div>}
+                    {t.chatReply && (
+                      <div className="rounded-2xl border bg-card px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed max-w-[85%]">
+                        {t.chatReply}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
                 {t.result === null && t.error === null && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />Recherche en cours…
@@ -331,25 +370,41 @@ export function AiAssistantModal({
                     )}
                   </div>
                 )}
+                  </>
+                )}
               </div>
             ))}
           </div>
         </ScrollArea>
 
-        <div className="border-t p-3 flex items-end gap-2">
-          <Textarea
-            ref={inputRef}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading) submit(); } }}
-            placeholder="Ex : trouve les mails de Ternacle traitant d'IDEAL"
-            rows={2}
-            className="resize-none"
-            disabled={loading}
-          />
-          <Button onClick={submit} disabled={loading || prompt.trim().length < 2} size="icon" className="h-10 w-10 shrink-0">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </Button>
+        <div className="border-t p-3 space-y-2">
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-muted-foreground mr-1">Mode :</span>
+            <button type="button" onClick={() => setMode("search")} className={`px-2.5 py-1 rounded-full border transition ${mode === "search" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 hover:bg-muted text-foreground/80"}`}>
+              🔍 Rechercher
+            </button>
+            <button type="button" onClick={() => setMode("chat")} className={`px-2.5 py-1 rounded-full border transition ${mode === "chat" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 hover:bg-muted text-foreground/80"}`}>
+              💬 Discuter
+            </button>
+            <span className="text-[10px] text-muted-foreground ml-2 hidden sm:inline">
+              {mode === "search" ? "Cherche dans vos données et propose des actions." : "Discussion libre avec contexte des recherches précédentes."}
+            </span>
+          </div>
+          <div className="flex items-end gap-2">
+            <Textarea
+              ref={inputRef}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading) submit(); } }}
+              placeholder={mode === "search" ? "Ex : mes rdv perso, mails de Ternacle…" : "Ex : pourquoi tu n'as pas trouvé mes rdv kiné ?"}
+              rows={2}
+              className="resize-none"
+              disabled={loading}
+            />
+            <Button onClick={submit} disabled={loading || prompt.trim().length < 2} size="icon" className="h-10 w-10 shrink-0">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

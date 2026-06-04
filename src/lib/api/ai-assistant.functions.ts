@@ -12,7 +12,6 @@ const EntityEnum = z.enum(["emails", "contacts", "tasks", "events", "meetings", 
 type Entity = z.infer<typeof EntityEnum>;
 
 const CriteriaSchema = z.object({
-  // Multi-entités possible : ["emails","contacts"] ou [] = laisser l'agent décider.
   entities: z.array(EntityEnum).default([]),
   keywords: z.array(z.string()).default([]),
   from_contains: z.array(z.string()).default([]),
@@ -22,6 +21,7 @@ const CriteriaSchema = z.object({
   date_to: z.string().nullable().default(null),
   unread_only: z.boolean().default(false),
   status: z.string().nullable().default(null),
+  category: z.enum(["perso", "pro"]).nullable().default(null),
   limit: z.number().min(1).max(100).default(40),
   user_intent: z.string().default(""),
 });
@@ -194,14 +194,15 @@ async function searchTasks(supabase: any, userId: string, c: z.infer<typeof Crit
 }
 
 async function searchEvents(supabase: any, userId: string, c: z.infer<typeof CriteriaSchema>): Promise<AnyMatch[]> {
-  const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains].map(clean).filter(Boolean)).slice(0, 8);
+  const frags = uniq([...c.keywords, ...c.subject_contains, ...c.body_contains].map(clean).filter(Boolean)).slice(0, 12);
   let q = supabase
     .from("calendar_events")
     .select("id,title,description,start_at,end_at,location,category")
     .eq("user_id", userId)
     .order("start_at", { ascending: false })
-    .limit(Math.max(c.limit, 60));
+    .limit(Math.max(c.limit, 80));
   if (frags.length > 0) q = q.or(orClause(["title", "description", "location"], frags));
+  if (c.category) q = q.eq("category", c.category);
   if (c.date_from) q = q.gte("start_at", c.date_from);
   if (c.date_to) q = q.lte("start_at", c.date_to);
   const { data: rows, error } = await q;
@@ -322,14 +323,17 @@ Tu DOIS répondre UNIQUEMENT en JSON valide avec ce schéma exact :
   "date_to": "ISO8601 ou null",
   "unread_only": true|false,
   "status": "todo|in_progress|done|null (tâches)",
+  "category": "perso|pro|null (events uniquement)",
   "limit": 30,
   "user_intent": "résumé clair en 1 phrase"
 }
 RÈGLES IMPORTANTES :
-- "entities" peut contenir PLUSIEURS valeurs si la demande est ambiguë ou trans-domaines (ex: "tout sur Ternacle" → ["emails","contacts","tasks","documents"]).
-- Privilégie la PRÉCISION dans subject/body/from_contains (1-3 fragments courts) et la LARGEUR dans keywords (synonymes, formes alternatives, accents/sans accents).
-- N'invente pas de dates : ne renseigne date_from/date_to QUE si l'utilisateur le précise (semaine, mois, "hier", etc.).
-- Mapping entités : mail/email/courriel/expéditeur → emails ; contact/personne/téléphone → contacts ; tâche/todo/à faire → tasks ; événement/agenda → events ; réunion/rdv/meeting → meetings ; document/fichier/pj → documents.${promptBlock}`;
+- "entities" peut contenir PLUSIEURS valeurs si la demande est ambiguë ou trans-domaines.
+- Mapping entités : mail/email/courriel/expéditeur → emails ; contact/personne/téléphone → contacts ; tâche/todo/à faire → tasks ; événement/agenda/rdv/rendez-vous → events (ET meetings si visio/réunion).
+- CATÉGORIE : "perso"/"personnel"/"privé"/"perso non pro" → category="perso" ; "pro"/"professionnel"/"travail" → category="pro". Si la demande est générique (ex: "mes rdv perso", "tous mes événements personnels"), LAISSE keywords/subject_contains/body_contains VIDES — le filtre category seul ramène tous les événements de la catégorie. N'ajoute des mots-clés QUE si l'utilisateur cible un sujet précis (ex: "rdv kiné", "rdv chez le médecin").
+- Synonymes médicaux/perso utiles si l'utilisateur évoque la santé : kiné, kinésithérapie, kinesi, renfo, balneo, balnéo, médecin, dentiste, ostéo, ostéopathe, RDV médical, consultation, infirmière, biologie, radio, IRM.
+- Privilégie la PRÉCISION dans subject/body/from_contains et la LARGEUR dans keywords (synonymes, accents/sans accents).
+- N'invente pas de dates : ne renseigne date_from/date_to QUE si l'utilisateur le précise.${promptBlock}`;
 
     const extracted = await callGateway(key, {
       model: "google/gemini-2.5-pro",
@@ -625,4 +629,42 @@ Réponds UNIQUEMENT en JSON ${data.action === "create_meeting"
     }
 
     return { actions, warning, activePrompts: activePrompts.map((p) => ({ title: p.title, target: p.target })) };
+  });
+
+// ============================================================================
+// Phase 3 — Chat conversationnel libre (sans recherche)
+// ============================================================================
+
+const ChatMsgSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().max(8000),
+});
+
+const ChatInput = z.object({
+  messages: z.array(ChatMsgSchema).min(1).max(40),
+  contextSummary: z.string().max(6000).optional().nullable(),
+});
+
+export type AiChatResult = { reply: string; activePrompts: { title: string; target: string }[] };
+
+export const aiChat = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => ChatInput.parse(d))
+  .handler(async ({ data, context }): Promise<AiChatResult> => {
+    const { supabase, userId } = context;
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("LOVABLE_API_KEY manquant");
+
+    const generalPrompts = await loadActivePrompts(supabase, userId, ["general"]);
+    const promptBlock = buildPromptBlock(generalPrompts);
+
+    const sys = `Tu es l'assistant IA conversationnel de MyHub Pro. Tu réponds en français, de manière claire, utile et concise. Tu peux discuter librement avec l'utilisateur : répondre à ses questions, expliquer pourquoi une recherche a (ou n'a pas) abouti, donner des conseils, suggérer comment reformuler une demande, ou aider à apprendre/améliorer le système. Si l'utilisateur veut sauvegarder une instruction durable, dis-lui d'aller dans Réglages > IA > Prompts pour l'enregistrer comme prompt actif. Tu n'as PAS accès direct aux données : si l'utilisateur te demande de chercher des emails/événements/contacts, invite-le à utiliser le mode "Rechercher" (bouton 🔍 en haut du composer).${data.contextSummary ? "\n\nContexte de la dernière recherche :\n" + data.contextSummary : ""}${promptBlock}`;
+
+    const resp = await callGateway(key, {
+      model: "google/gemini-3-flash-preview",
+      max_tokens: 2000,
+      messages: [{ role: "system", content: sys }, ...data.messages],
+    });
+    const reply = resp?.choices?.[0]?.message?.content ?? "(pas de réponse)";
+    return { reply, activePrompts: generalPrompts.map((p) => ({ title: p.title, target: p.target })) };
   });
