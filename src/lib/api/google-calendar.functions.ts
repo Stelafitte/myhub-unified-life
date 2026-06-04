@@ -174,16 +174,16 @@ async function pushLocalEventsForConnection(
     .is("gcal_connection_id", null)
     .is("google_event_id", null);
 
-  const { data: toCreate, error: createLoadErr } = await supabaseAdmin
+  const { data: maybeToCreate, error: createLoadErr } = await supabaseAdmin
     .from("calendar_events")
-    .select("id, title, description, location, start_at, end_at, is_all_day, recurrence_rule")
+    .select("id, title, description, location, start_at, end_at, is_all_day, recurrence_rule, google_event_id")
     .eq("user_id", conn.user_id)
     .eq("gcal_connection_id", conn.id)
-    .filter("google_event_id", "is", null)
     .limit(100);
   if (createLoadErr) throw new Error(`Failed to load local events to push: ${createLoadErr.message}`);
+  const toCreate = (maybeToCreate ?? []).filter((ev) => !ev.google_event_id);
 
-  for (const ev of toCreate ?? []) {
+  for (const ev of toCreate) {
     const payload = buildGooglePayload(ev);
     try {
       const res = await fetch(
