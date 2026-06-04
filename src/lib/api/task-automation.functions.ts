@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 import { z } from "zod";
 
 const InputSchema = z.object({
