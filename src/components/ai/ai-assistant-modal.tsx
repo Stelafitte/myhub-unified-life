@@ -252,7 +252,15 @@ export function AiAssistantModal({
                 {t.error && <div className="text-sm text-destructive">{t.error}</div>}
                 {t.result && (
                   <div className="space-y-3">
-                    <div className="text-sm whitespace-pre-wrap leading-relaxed">{t.result.summary}</div>
+                    <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Question</div>
+                      <div className="text-xs whitespace-pre-wrap">{t.prompt}</div>
+                    </div>
+                    <div className="rounded-lg border bg-card px-3 py-2">
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Réponse de l'IA</div>
+                      <div className="text-sm whitespace-pre-wrap leading-relaxed">{t.result.summary}</div>
+                    </div>
+
 
                     {t.result.matches.length > 0 && (
                       <div className="border rounded-lg divide-y bg-card">
