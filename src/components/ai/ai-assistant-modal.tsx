@@ -184,24 +184,27 @@ export function AiAssistantModal({
 
                     {t.result.matches.length > 0 && (
                       <div className="border rounded-lg divide-y bg-card">
-                        {t.result.matches.map((m) => {
+                        {t.result.matches.map((m: AnyMatch) => {
                           const checked = t.selectedMatches.has(m.id);
+                          const Icon = KIND_ICON[m.kind] ?? Mail;
+                          const open = () => {
+                            onOpenChange(false);
+                            if (m.kind === "email") navigate({ to: "/inbox", search: { emailId: m.id } as any });
+                            else navigate({ to: KIND_ROUTE[m.kind] as any });
+                          };
                           return (
                             <div key={m.id} className="flex items-start gap-2 px-3 py-2 hover:bg-muted/30">
                               <Checkbox checked={checked} onCheckedChange={() => toggleMatch(t.id, m.id)} className="mt-1" />
-                              <button
-                                type="button"
-                                onClick={() => { onOpenChange(false); navigate({ to: "/inbox", search: { emailId: m.id } as any }); }}
-                                className="flex items-start gap-2 flex-1 min-w-0 text-left"
-                              >
-                                <Mail className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                              <button type="button" onClick={open} className="flex items-start gap-2 flex-1 min-w-0 text-left">
+                                <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
-                                    <span className={`text-sm truncate ${m.is_read ? "" : "font-semibold"}`}>{m.from_name ?? m.from_address ?? "(inconnu)"}</span>
-                                    {m.received_at && <span className="text-[11px] text-muted-foreground shrink-0">{new Date(m.received_at).toLocaleDateString("fr-FR")}</span>}
+                                    <span className="text-sm font-medium truncate">{m.title}</span>
+                                    {m.date && <span className="text-[11px] text-muted-foreground shrink-0">{new Date(m.date).toLocaleDateString("fr-FR")}</span>}
+                                    {m.badge && <Badge variant="secondary" className="text-[10px] shrink-0">{m.badge}</Badge>}
                                   </div>
-                                  <div className="text-sm truncate">{m.subject ?? "(sans objet)"}</div>
-                                  <div className="text-xs text-muted-foreground truncate">{m.snippet}</div>
+                                  {m.subtitle && <div className="text-xs text-muted-foreground truncate">{m.subtitle}</div>}
+                                  {m.snippet && <div className="text-xs text-muted-foreground truncate">{m.snippet}</div>}
                                 </div>
                                 <ChevronRight className="h-4 w-4 mt-1 text-muted-foreground shrink-0" />
                               </button>
@@ -215,7 +218,8 @@ export function AiAssistantModal({
                     <div className="flex flex-wrap items-center gap-2 pt-1">
                       <span className="text-xs text-muted-foreground mr-1">Propositions :</span>
                       {ACTION_BUTTONS.map(({ kind, label, Icon, needsMatches }) => {
-                        const disabled = t.proposing || (needsMatches && t.selectedMatches.size === 0);
+                        const hasEmailSel = Array.from(t.selectedMatches).some(id => t.result?.matches.find(x => x.id === id)?.kind === "email");
+                        const disabled = t.proposing || (needsMatches && !hasEmailSel);
                         return (
                           <Button key={kind} size="sm" variant="outline" disabled={disabled} onClick={() => proposeFor(t, kind)} className="h-7 gap-1.5 text-xs">
                             <Icon className="h-3.5 w-3.5" />{label}
