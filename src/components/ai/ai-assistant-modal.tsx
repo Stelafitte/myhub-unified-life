@@ -1,17 +1,29 @@
 import { useState, useRef, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
-import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox } from "lucide-react";
+import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { aiAssistantQuery, aiProposeActions, type AiAssistantResult, type ProposedAction, type AnyMatch, type EntityKind } from "@/lib/api/ai-assistant.functions";
 import { ActionCard, executeAction } from "@/components/ai/action-card";
 import { sendEmail } from "@/lib/api/email-send.functions";
 import { toast } from "sonner";
+
+const ARCHIVE_KEY = "ai-assistant-archives";
+type ArchivedChat = { id: string; title: string; savedAt: number; turns: Turn[] };
+
+function loadArchives(): ArchivedChat[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(ARCHIVE_KEY) || "[]"); } catch { return []; }
+}
+function saveArchives(a: ArchivedChat[]) {
+  try { localStorage.setItem(ARCHIVE_KEY, JSON.stringify(a.slice(0, 30))); } catch {}
+}
 
 const KIND_ICON: Record<EntityKind, any> = {
   email: Mail, contact: User, task: CheckSquare, event: CalendarPlus, meeting: Users, document: FileBox,
@@ -61,14 +73,36 @@ export function AiAssistantModal({
   const [prompt, setPrompt] = useState(initialPrompt ?? "");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
+  const [archives, setArchives] = useState<ArchivedChat[]>([]);
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const sendFn = useServerFn(sendEmail);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 60); }, [open]);
+  useEffect(() => { if (open) { setTimeout(() => inputRef.current?.focus(), 60); setArchives(loadArchives()); } }, [open]);
   useEffect(() => { if (initialPrompt && open) setPrompt(initialPrompt); }, [initialPrompt, open]);
+
+  const newConversation = () => { setTurns([]); setPrompt(""); setTimeout(() => inputRef.current?.focus(), 50); };
+  const archiveConversation = () => {
+    if (turns.length === 0) { toast.info("Rien à archiver."); return; }
+    const title = turns[0]?.prompt.slice(0, 60) || "Conversation";
+    const serializable = turns.map(t => ({ ...t, selectedMatches: Array.from(t.selectedMatches) as any }));
+    const next = [{ id: crypto.randomUUID(), title, savedAt: Date.now(), turns: serializable as any }, ...archives];
+    setArchives(next); saveArchives(next);
+    toast.success("Conversation archivée");
+    newConversation();
+  };
+  const restoreArchive = (a: ArchivedChat) => {
+    setTurns(a.turns.map(t => ({ ...t, selectedMatches: new Set(Array.isArray(t.selectedMatches as any) ? (t.selectedMatches as any) : []) })));
+  };
+  const deleteArchive = (id: string) => {
+    const next = archives.filter(a => a.id !== id);
+    setArchives(next); saveArchives(next);
+  };
+  const removeTurn = (turnId: string) => {
+    setTurns(ts => ts.filter(t => t.id !== turnId));
+  };
 
   const submit = async () => {
     const q = prompt.trim();
@@ -145,11 +179,43 @@ export function AiAssistantModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl p-0 gap-0 h-[88vh] flex flex-col">
-        <DialogHeader className="px-6 py-4 border-b flex-row items-center justify-between space-y-0">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <DialogTitle>Assistant IA</DialogTitle>
+        <DialogHeader className="px-6 py-4 border-b flex-row items-center justify-between space-y-0 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles className="h-5 w-5 text-primary shrink-0" />
+            <DialogTitle className="truncate">Assistant IA</DialogTitle>
             <ActivePromptsBadge turns={turns} onOpenSettings={() => { onOpenChange(false); navigate({ to: "/settings", search: { tab: "ai" } as any }); }} />
+          </div>
+          <div className="flex items-center gap-1 mr-6">
+            <Button size="sm" variant="ghost" onClick={newConversation} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs">
+              <Plus className="h-3.5 w-3.5" />Nouvelle
+            </Button>
+            <Button size="sm" variant="ghost" onClick={archiveConversation} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs">
+              <Archive className="h-3.5 w-3.5" />Archiver
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => { if (turns.length === 0) return; if (confirm("Supprimer cette conversation ?")) newConversation(); }} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive">
+              <Trash2 className="h-3.5 w-3.5" />Supprimer
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs"><History className="h-3.5 w-3.5" />Archives ({archives.length})</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-auto">
+                <DropdownMenuLabel>Conversations archivées</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {archives.length === 0 && <div className="px-2 py-3 text-xs text-muted-foreground">Aucune archive</div>}
+                {archives.map(a => (
+                  <DropdownMenuItem key={a.id} className="flex items-start gap-2" onSelect={(e) => { e.preventDefault(); restoreArchive(a); }}>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-medium truncate">{a.title}</div>
+                      <div className="text-[10px] text-muted-foreground">{new Date(a.savedAt).toLocaleString("fr-FR")}</div>
+                    </div>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); deleteArchive(a.id); }} className="p-1 hover:bg-destructive/10 rounded text-destructive shrink-0">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </DialogHeader>
 
@@ -171,8 +237,11 @@ export function AiAssistantModal({
 
           <div className="space-y-8">
             {turns.map((t) => (
-              <div key={t.id} className="space-y-3">
-                <div className="flex justify-end">
+              <div key={t.id} className="space-y-3 group">
+                <div className="flex justify-end items-start gap-2">
+                  <button type="button" onClick={() => removeTurn(t.id)} title="Fermer cet échange" className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted text-muted-foreground mt-1">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                   <div className="max-w-[80%] rounded-2xl bg-primary text-primary-foreground px-4 py-2 text-sm whitespace-pre-wrap">{t.prompt}</div>
                 </div>
                 {t.result === null && t.error === null && (
