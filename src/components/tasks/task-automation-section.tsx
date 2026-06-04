@@ -70,6 +70,27 @@ export function TaskAutomationSection({
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [steps, setSteps] = useState<RunStep[]>([]);
   const [reply, setReply] = useState<string>("");
+  const [viewing, setViewing] = useState<EmailHit | null>(null);
+  const [viewBody, setViewBody] = useState<{ body_html: string | null; body_text: string | null; to_address: string | null } | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
+
+  useEffect(() => {
+    if (!viewing) { setViewBody(null); return; }
+    let cancelled = false;
+    setViewLoading(true);
+    (async () => {
+      const { data } = await supabase
+        .from("emails")
+        .select("body_html,body_text,to_address")
+        .eq("id", viewing.id)
+        .maybeSingle();
+      if (!cancelled) {
+        setViewBody(data ?? { body_html: null, body_text: null, to_address: null });
+        setViewLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [viewing]);
 
   // Load saved prompts for this task
   useEffect(() => {
