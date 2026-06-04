@@ -553,6 +553,29 @@ function AgendaPage() {
     else { toast.success("Événement déplacé"); load(); }
   };
 
+  const resizeEvent = async (ev: UnifiedEvent, edge: "start" | "end", deltaMin: number) => {
+    if (ev.kind !== "event" || deltaMin === 0) return;
+    let newStart = new Date(ev.start);
+    let newEnd = new Date(ev.end);
+    if (edge === "start") {
+      newStart = new Date(ev.start.getTime() + deltaMin * 60000);
+      if (newStart.getTime() >= newEnd.getTime() - 5 * 60000) {
+        newStart = new Date(newEnd.getTime() - 15 * 60000);
+      }
+    } else {
+      newEnd = new Date(ev.end.getTime() + deltaMin * 60000);
+      if (newEnd.getTime() <= newStart.getTime() + 5 * 60000) {
+        newEnd = new Date(newStart.getTime() + 15 * 60000);
+      }
+    }
+    const { error } = await supabase
+      .from("calendar_events")
+      .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() })
+      .eq("id", (ev.raw as DbEvent).id);
+    if (error) toast.error(error.message);
+    else { toast.success("Plage horaire modifiée"); load(); }
+  };
+
   const shareEvent = (ev: UnifiedEvent) => {
     const subject = encodeURIComponent(`Invitation : ${ev.title}`);
     const lines = [
@@ -766,9 +789,9 @@ function AgendaPage() {
           {view === "month" ? (
             <MonthView cursor={cursor} events={unified} onSelect={handleSelectEvent} onPick={setCursor} onLongCreate={openCreate} />
           ) : view === "week" ? (
-            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={handleSelectEvent} onMove={moveEvent} onLongCreate={openCreate} />
+            <WeekOrDayView days={7} from={startOfWeek(cursor)} events={inRange} onSelect={handleSelectEvent} onMove={moveEvent} onResize={resizeEvent} onLongCreate={openCreate} />
           ) : view === "day" ? (
-            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={handleSelectEvent} onMove={moveEvent} onLongCreate={openCreate} />
+            <WeekOrDayView days={1} from={startOfDay(cursor)} events={inRange} onSelect={handleSelectEvent} onMove={moveEvent} onResize={resizeEvent} onLongCreate={openCreate} />
           ) : (
             <ListView events={inRange} onSelect={handleSelectEvent} />
           )}
@@ -938,6 +961,7 @@ function WeekOrDayView({
   events,
   onSelect,
   onMove,
+  onResize,
   onLongCreate,
 }: {
   days: number;
@@ -945,6 +969,7 @@ function WeekOrDayView({
   events: UnifiedEvent[];
   onSelect: (e: UnifiedEvent) => void;
   onMove?: (e: UnifiedEvent, deltaMin: number) => void;
+  onResize?: (e: UnifiedEvent, edge: "start" | "end", deltaMin: number) => void;
   onLongCreate?: (d: Date) => void;
 }) {
   const dayCols = Array.from({ length: days }, (_, i) => addDays(from, i));
@@ -954,6 +979,38 @@ function WeekOrDayView({
   const hours = Array.from({ length: hourCount }, (_, i) => startHour + i);
   const ROW_H = 48;
   const [dragOffset, setDragOffset] = useState<{ id: string; dy: number } | null>(null);
+  const [resizeState, setResizeState] = useState<{ id: string; edge: "start" | "end"; dy: number } | null>(null);
+
+  const startResize = (ev: UnifiedEvent, edge: "start" | "end") => (downEvt: React.MouseEvent | React.TouchEvent) => {
+    if (!onResize || ev.kind !== "event") return;
+    downEvt.stopPropagation();
+    downEvt.preventDefault();
+    const isTouch = "touches" in downEvt;
+    const startY = isTouch ? (downEvt as React.TouchEvent).touches[0].clientY : (downEvt as React.MouseEvent).clientY;
+    let lastY = startY;
+    const onMove2 = (clientY: number) => {
+      lastY = clientY;
+      setResizeState({ id: ev.id, edge, dy: clientY - startY });
+    };
+    const onMouseMove = (m: MouseEvent) => onMove2(m.clientY);
+    const onTouchMove = (m: TouchEvent) => { m.preventDefault(); onMove2(m.touches[0].clientY); };
+    const finish = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      const dy = lastY - startY;
+      setResizeState(null);
+      const deltaMin = Math.round((dy / ROW_H) * 4) * 15;
+      if (deltaMin !== 0) onResize(ev, edge, deltaMin);
+    };
+    const onMouseUp = () => finish();
+    const onTouchEnd = () => finish();
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
+  };
 
   const startDrag = (ev: UnifiedEvent) => (downEvt: React.MouseEvent | React.TouchEvent) => {
     if (!onMove || ev.kind !== "event") return;
@@ -1118,6 +1175,13 @@ function WeekOrDayView({
                   const h = Math.max(20, ((clampedEnd - clampedStart) / 60) * ROW_H);
                   const dy = dragOffset?.id === e.id ? dragOffset.dy : 0;
                   const draggable = !!onMove && e.kind === "event";
+                  const resizable = !!onResize && e.kind === "event";
+                  const rz = resizeState?.id === e.id ? resizeState : null;
+                  const previewTop = top + dy + (rz?.edge === "start" ? rz.dy : 0);
+                  const previewHeight = Math.max(
+                    20,
+                    h + (rz?.edge === "end" ? rz.dy : 0) - (rz?.edge === "start" ? rz.dy : 0),
+                  );
                   const lay = layout.get(e.id) ?? { col: 0, cols: 1 };
                   const widthPct = 100 / lay.cols;
                   const leftPct = lay.col * widthPct;
@@ -1131,22 +1195,40 @@ function WeekOrDayView({
                           className={cn(
                             "absolute select-none overflow-hidden rounded-md p-1 text-left text-[10px] text-white shadow-sm transition-transform hover:scale-[1.01]",
                             draggable && "cursor-grab active:cursor-grabbing",
-                            dy !== 0 && "opacity-80 ring-2 ring-primary",
+                            (dy !== 0 || rz) && "opacity-80 ring-2 ring-primary",
                           )}
                           style={{
-                            top: top + dy,
-                            height: h,
+                            top: previewTop,
+                            height: previewHeight,
                             background: e.color,
                             left: `calc(${leftPct}% + 2px)`,
                             width: `calc(${widthPct}% - 4px)`,
                           }}
                         >
+                          {resizable && (
+                            <div
+                              onMouseDown={startResize(e, "start")}
+                              onTouchStart={startResize(e, "start")}
+                              onClick={(ev) => ev.stopPropagation()}
+                              className="absolute left-0 right-0 top-0 z-10 h-1.5 cursor-ns-resize hover:bg-white/40"
+                              title="Glisser pour modifier l'heure de début"
+                            />
+                          )}
                           <div className="flex items-center gap-1 truncate font-semibold">
                             <span>{e.badge}</span> {e.title}
                           </div>
                           <div className="opacity-90">{fmtTime(e.start)} – {fmtTime(e.end)}</div>
                           {e.location && <div className="flex items-center gap-0.5 truncate opacity-90"><MapPin className="h-2.5 w-2.5" />{e.location}</div>}
                           {e.hasVideo && <div className="flex items-center gap-0.5 opacity-90"><Video className="h-2.5 w-2.5" /> Visio</div>}
+                          {resizable && (
+                            <div
+                              onMouseDown={startResize(e, "end")}
+                              onTouchStart={startResize(e, "end")}
+                              onClick={(ev) => ev.stopPropagation()}
+                              className="absolute bottom-0 left-0 right-0 z-10 h-1.5 cursor-ns-resize hover:bg-white/40"
+                              title="Glisser pour modifier l'heure de fin"
+                            />
+                          )}
                         </div>
                       </HoverCardTrigger>
                       <HoverCardContent side="right" className="w-72 text-xs">
