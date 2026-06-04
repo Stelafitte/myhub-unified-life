@@ -179,7 +179,7 @@ async function pushLocalEventsForConnection(
     .select("id, title, description, location, start_at, end_at, is_all_day, recurrence_rule, google_event_id")
     .eq("user_id", conn.user_id)
     .eq("gcal_connection_id", conn.id)
-    .limit(100);
+    .limit(1000);
   if (createLoadErr) throw new Error(`Failed to load local events to push: ${createLoadErr.message}`);
   const toCreate = (maybeToCreate ?? []).filter((ev) => !ev.google_event_id);
 
