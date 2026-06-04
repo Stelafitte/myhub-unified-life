@@ -961,6 +961,7 @@ function WeekOrDayView({
   events,
   onSelect,
   onMove,
+  onResize,
   onLongCreate,
 }: {
   days: number;
@@ -968,6 +969,7 @@ function WeekOrDayView({
   events: UnifiedEvent[];
   onSelect: (e: UnifiedEvent) => void;
   onMove?: (e: UnifiedEvent, deltaMin: number) => void;
+  onResize?: (e: UnifiedEvent, edge: "start" | "end", deltaMin: number) => void;
   onLongCreate?: (d: Date) => void;
 }) {
   const dayCols = Array.from({ length: days }, (_, i) => addDays(from, i));
@@ -977,6 +979,38 @@ function WeekOrDayView({
   const hours = Array.from({ length: hourCount }, (_, i) => startHour + i);
   const ROW_H = 48;
   const [dragOffset, setDragOffset] = useState<{ id: string; dy: number } | null>(null);
+  const [resizeState, setResizeState] = useState<{ id: string; edge: "start" | "end"; dy: number } | null>(null);
+
+  const startResize = (ev: UnifiedEvent, edge: "start" | "end") => (downEvt: React.MouseEvent | React.TouchEvent) => {
+    if (!onResize || ev.kind !== "event") return;
+    downEvt.stopPropagation();
+    downEvt.preventDefault();
+    const isTouch = "touches" in downEvt;
+    const startY = isTouch ? (downEvt as React.TouchEvent).touches[0].clientY : (downEvt as React.MouseEvent).clientY;
+    let lastY = startY;
+    const onMove2 = (clientY: number) => {
+      lastY = clientY;
+      setResizeState({ id: ev.id, edge, dy: clientY - startY });
+    };
+    const onMouseMove = (m: MouseEvent) => onMove2(m.clientY);
+    const onTouchMove = (m: TouchEvent) => { m.preventDefault(); onMove2(m.touches[0].clientY); };
+    const finish = () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      const dy = lastY - startY;
+      setResizeState(null);
+      const deltaMin = Math.round((dy / ROW_H) * 4) * 15;
+      if (deltaMin !== 0) onResize(ev, edge, deltaMin);
+    };
+    const onMouseUp = () => finish();
+    const onTouchEnd = () => finish();
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    window.addEventListener("touchend", onTouchEnd);
+  };
 
   const startDrag = (ev: UnifiedEvent) => (downEvt: React.MouseEvent | React.TouchEvent) => {
     if (!onMove || ev.kind !== "event") return;
