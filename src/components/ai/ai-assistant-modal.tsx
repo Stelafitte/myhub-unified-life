@@ -261,18 +261,3 @@ function BulkBar({ items, onRunAll, onRunSelected }: { items: ActionItem[]; onRu
   );
 }
 
-// Trigger executions by setting status: we rely on each card's own run via DOM click
-// To keep code minimal, we dispatch a custom event and ActionCards listen — but here
-// we use a simpler approach: provide a global helper via window for bulk runs.
-function runBulk(turn: Turn, mode: "pending" | "selected", updateAction: (turnId: string, actionId: string, updates: Partial<ActionItem>) => void) {
-  // Click each card's "Exécuter" button via querySelector — fallback approach
-  const ids = turn.actions
-    .filter(it => it.status === "pending" && (mode === "pending" || ((it as any).selected !== false)))
-    .map(it => it.action.id);
-  for (const id of ids) {
-    const btn = document.querySelector<HTMLButtonElement>(`[data-action-id="${id}"]`);
-    btn?.click();
-  }
-  // Note: ActionCard doesn't expose data-action-id; bulk uses a per-card programmatic call via event.
-  window.dispatchEvent(new CustomEvent("ai-bulk-run", { detail: { turnId: turn.id, ids } }));
-}
