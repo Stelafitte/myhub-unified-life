@@ -314,7 +314,8 @@ export const aiProposeSlots = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY manquant");
-    const { userId } = context as { userId: string };
+    const { userId, supabase } = context as { userId: string; supabase: unknown };
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["meeting_slots", "meeting"]);
 
     // Reuse the slot finder logic by calling its handler-equivalent directly.
     // Generate a wide candidate set (up to 20 slots) for the AI to choose from.
