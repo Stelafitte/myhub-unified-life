@@ -12,6 +12,7 @@ import { downloadAsBlob, getSignedUrl, sha256, storagePath, uploadToStorage, typ
 import { AttachmentViewerDialog } from "@/components/inbox/attachment-viewer-dialog";
 import { EmailComposer, type ComposerAttachment, type ComposerInitial } from "@/components/inbox/email-composer";
 import { formatBytes } from "@/lib/file-icons";
+import { TaskAutomationSection } from "@/components/tasks/task-automation-section";
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
