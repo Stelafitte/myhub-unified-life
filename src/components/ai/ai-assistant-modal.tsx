@@ -349,7 +349,25 @@ export function AiAssistantModal({
 
 
                     {t.result.matches.length > 0 && (
-                      <div className="border rounded-lg divide-y bg-card">
+                      <div className="border rounded-lg bg-card">
+                        <div className="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-xs">
+                          <Checkbox
+                            checked={t.selectedMatches.size === t.result.matches.length ? true : t.selectedMatches.size === 0 ? false : "indeterminate"}
+                            onCheckedChange={(v) => {
+                              setTurns(ts => ts.map(x => {
+                                if (x.id !== t.id) return x;
+                                const all = x.result?.matches.map(m => m.id) ?? [];
+                                return { ...x, selectedMatches: v ? new Set(all) : new Set() };
+                              }));
+                            }}
+                          />
+                          <span className="text-muted-foreground">{t.selectedMatches.size}/{t.result.matches.length} sélectionné(s)</span>
+                          <div className="ml-auto flex gap-1">
+                            <button type="button" onClick={() => setTurns(ts => ts.map(x => x.id === t.id ? { ...x, selectedMatches: new Set(x.result?.matches.map(m => m.id) ?? []) } : x))} className="text-xs px-2 py-0.5 rounded hover:bg-muted">Tout cocher</button>
+                            <button type="button" onClick={() => setTurns(ts => ts.map(x => x.id === t.id ? { ...x, selectedMatches: new Set() } : x))} className="text-xs px-2 py-0.5 rounded hover:bg-muted">Tout décocher</button>
+                          </div>
+                        </div>
+                        <div className="divide-y">
                         {t.result.matches.map((m: AnyMatch) => {
                           const checked = t.selectedMatches.has(m.id);
                           const expanded = expandedMatches.has(m.id);
@@ -386,6 +404,7 @@ export function AiAssistantModal({
                             </div>
                           );
                         })}
+                        </div>
                       </div>
                     )}
 
