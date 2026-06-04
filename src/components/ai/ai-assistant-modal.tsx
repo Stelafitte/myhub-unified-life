@@ -716,3 +716,129 @@ function ActivePromptsBadge({ turns, onOpenSettings }: { turns: Turn[]; onOpenSe
 }
 
 
+
+type EntityRef = { kind: EntityKind; id: string };
+
+function AiEntityPreviewDialog({ entity, open, onOpenChange }: { entity: EntityRef | null; open: boolean; onOpenChange: (v: boolean) => void }) {
+  const [data, setData] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!entity) { setData(null); return; }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const table = entity.kind === "event" ? "calendar_events"
+          : entity.kind === "meeting" ? "meetings"
+          : entity.kind === "task" ? "tasks"
+          : "documents";
+        const { data: row, error } = await supabase.from(table).select("*").eq("id", entity.id).maybeSingle();
+        if (error) throw error;
+        if (!cancelled) setData(row);
+      } catch (e: any) {
+        if (!cancelled) toast.error(e?.message ?? "Erreur de chargement");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [entity?.kind, entity?.id]);
+
+  const titleMap: Record<EntityKind, string> = {
+    email: "Mail", contact: "Contact", task: "Tâche", event: "Événement", meeting: "Réunion", document: "Document",
+  };
+
+  const renderBody = () => {
+    if (loading) return <div className="flex items-center gap-2 text-sm text-muted-foreground py-8"><Loader2 className="h-4 w-4 animate-spin" /> Chargement…</div>;
+    if (!data) return <div className="text-sm text-muted-foreground py-8">Introuvable.</div>;
+    if (!entity) return null;
+    const fmt = (iso?: string | null) => iso ? new Date(iso).toLocaleString("fr-FR") : "—";
+    if (entity.kind === "task") {
+      return (
+        <div className="space-y-3 text-sm">
+          <div className="text-base font-semibold">{data.title}</div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">Statut : {data.status}</Badge>
+            <Badge variant="secondary">Priorité : {data.priority}</Badge>
+            {data.due_date && <Badge variant="outline">Échéance : {fmt(data.due_date)}</Badge>}
+          </div>
+          {data.description && <div className="whitespace-pre-wrap text-foreground/90 rounded-md border bg-muted/30 p-3">{data.description}</div>}
+          {Array.isArray(data.tags) && data.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">{data.tags.map((t: string) => <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>)}</div>
+          )}
+          {data.comments && <div className="text-xs text-muted-foreground whitespace-pre-wrap"><span className="font-medium text-foreground">Commentaires :</span> {data.comments}</div>}
+        </div>
+      );
+    }
+    if (entity.kind === "event") {
+      return (
+        <div className="space-y-3 text-sm">
+          <div className="text-base font-semibold">{data.title}</div>
+          <div className="text-muted-foreground">{fmt(data.start_at)} → {fmt(data.end_at)}</div>
+          {data.location && <div><span className="font-medium">Lieu :</span> {data.location}</div>}
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">{data.category}</Badge>
+            {data.is_all_day && <Badge variant="outline">Journée entière</Badge>}
+            {data.recurrence_rule && <Badge variant="outline">Récurrent</Badge>}
+          </div>
+          {data.description && <div className="whitespace-pre-wrap rounded-md border bg-muted/30 p-3">{data.description}</div>}
+        </div>
+      );
+    }
+    if (entity.kind === "meeting") {
+      return (
+        <div className="space-y-3 text-sm">
+          <div className="text-base font-semibold">{data.title}</div>
+          <div className="text-muted-foreground">{fmt(data.start_at)} → {fmt(data.end_at)}</div>
+          {data.location && <div><span className="font-medium">Lieu :</span> {data.location}</div>}
+          {data.is_online && data.online_link && (
+            <div className="text-xs"><span className="font-medium">Lien :</span> <a href={data.online_link} target="_blank" rel="noreferrer" className="text-primary underline break-all">{data.online_link}</a></div>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">Statut : {data.status}</Badge>
+            <Badge variant="outline">Importance : {data.importance}</Badge>
+          </div>
+          {data.description && <div className="whitespace-pre-wrap rounded-md border bg-muted/30 p-3">{data.description}</div>}
+          {data.notes && <div className="text-xs"><span className="font-medium">Notes :</span> <div className="whitespace-pre-wrap text-muted-foreground">{data.notes}</div></div>}
+          {data.decisions && <div className="text-xs"><span className="font-medium">Décisions :</span> <div className="whitespace-pre-wrap text-muted-foreground">{data.decisions}</div></div>}
+        </div>
+      );
+    }
+    // document
+    return (
+      <div className="space-y-3 text-sm">
+        <div className="text-base font-semibold break-all">{data.original_filename || data.filename}</div>
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          <span>{(data.file_size / 1024).toFixed(1)} Ko</span>
+          {data.mime_type && <Badge variant="outline" className="text-[10px]">{data.mime_type}</Badge>}
+          {data.ai_category && <Badge variant="secondary" className="text-[10px]">{data.ai_category}</Badge>}
+          {data.is_sensitive && <Badge variant="destructive" className="text-[10px]">Sensible</Badge>}
+        </div>
+        {data.description && <div className="whitespace-pre-wrap rounded-md border bg-muted/30 p-3">{data.description}</div>}
+        {data.ai_summary && <div className="rounded-md border bg-muted/30 p-3 text-xs"><span className="font-medium">Résumé IA :</span> {data.ai_summary}</div>}
+        {data.onedrive_web_url && (
+          <a href={data.onedrive_web_url} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all">Ouvrir dans OneDrive</a>
+        )}
+        {Array.isArray(data.tags) && data.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">{data.tags.map((t: string) => <Badge key={t} variant="outline" className="text-[10px]">{t}</Badge>)}</div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-sm text-muted-foreground">
+            {entity ? titleMap[entity.kind] : ""}
+          </DialogTitle>
+        </DialogHeader>
+        <ScrollArea className="max-h-[70vh] pr-2">
+          {renderBody()}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
