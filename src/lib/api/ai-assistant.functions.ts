@@ -5,10 +5,14 @@ import { z } from "zod";
 const Input = z.object({
   prompt: z.string().min(2).max(2000),
   contextRoute: z.string().nullable().optional(),
+  forceEntity: z.enum(["emails", "contacts", "tasks", "events", "meetings", "documents", "auto"]).optional().nullable(),
 });
 
+const EntityEnum = z.enum(["emails", "contacts", "tasks", "events", "meetings", "documents"]);
+type Entity = z.infer<typeof EntityEnum>;
+
 const CriteriaSchema = z.object({
-  entity: z.enum(["emails", "contacts", "tasks", "events", "meetings", "documents", "auto"]).default("emails"),
+  entity: z.enum(["emails", "contacts", "tasks", "events", "meetings", "documents", "auto"]).default("auto"),
   keywords: z.array(z.string()).default([]),
   from_contains: z.array(z.string()).default([]),
   subject_contains: z.array(z.string()).default([]),
@@ -16,10 +20,26 @@ const CriteriaSchema = z.object({
   date_from: z.string().nullable().default(null),
   date_to: z.string().nullable().default(null),
   unread_only: z.boolean().default(false),
+  status: z.string().nullable().default(null),
   limit: z.number().min(1).max(100).default(30),
   user_intent: z.string().default(""),
 });
 
+export type EntityKind = "email" | "contact" | "task" | "event" | "meeting" | "document";
+
+export type AnyMatch = {
+  id: string;
+  kind: EntityKind;
+  title: string;
+  subtitle: string | null;
+  snippet: string;
+  date: string | null;
+  badge: string | null;
+  /** kept for emails for back-compat with Phase 2 action proposals */
+  raw?: Record<string, any>;
+};
+
+/** Back-compat: emails-only shape used by ActionCard / Phase 2 */
 export type AiAssistantMatch = {
   id: string;
   subject: string | null;
@@ -34,8 +54,10 @@ export type AiAssistantMatch = {
 export type AiAssistantResult = {
   summary: string;
   criteria: z.infer<typeof CriteriaSchema>;
-  matches: AiAssistantMatch[];
-  entity: string;
+  entity: Entity;
+  matches: AnyMatch[];
+  /** Emails-only legacy view kept for Phase 2 action proposals */
+  emailMatches: AiAssistantMatch[];
   warning: string | null;
 };
 
@@ -54,6 +76,10 @@ async function callGateway(key: string, body: unknown) {
   return resp.json();
 }
 
+function clean(s: string) {
+  return s.replace(/[,()%]/g, "").trim();
+}
+
 export const aiAssistantQuery = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Input.parse(d))
@@ -63,23 +89,30 @@ export const aiAssistantQuery = createServerFn({ method: "POST" })
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
 
     const today = new Date().toISOString();
-    const sys = `Tu es un assistant qui transforme une demande en langage naturel en critères de recherche structurés sur la plateforme MyHub Pro.
+    const sys = `Tu transformes une demande utilisateur en critères de recherche structurés sur la plateforme MyHub Pro.
 Date de référence : ${today}
 Tu DOIS répondre UNIQUEMENT en JSON valide avec ce schéma exact :
 {
   "entity": "emails" | "contacts" | "tasks" | "events" | "meetings" | "documents" | "auto",
   "keywords": ["mots-clés généraux"],
-  "from_contains": ["fragments d'adresse ou de nom d'expéditeur"],
-  "subject_contains": ["fragments de sujet"],
-  "body_contains": ["fragments à chercher dans le corps"],
+  "from_contains": ["fragments d'expéditeur (emails uniquement)"],
+  "subject_contains": ["fragments de sujet/titre"],
+  "body_contains": ["fragments dans le corps/description/notes"],
   "date_from": "ISO8601 ou null",
   "date_to": "ISO8601 ou null",
   "unread_only": true|false,
+  "status": "todo|in_progress|done|null (tâches)",
   "limit": 30,
-  "user_intent": "résumé en 1 phrase de ce que l'utilisateur cherche/veut faire"
+  "user_intent": "résumé en 1 phrase"
 }
-Pour la Phase 1, l'entité est presque toujours "emails". Si la demande mentionne explicitement un autre type, mets "auto".
-Exemple "trouve les mails de Ternacle traitant d'IDEAL" -> from_contains:["ternacle"], body_contains:["IDEAL"], subject_contains:["IDEAL"].`;
+Règles de choix d'entité :
+- "mail", "email", "courriel", "expéditeur" -> emails
+- "contact", "personne", "téléphone", "adresse" -> contacts
+- "tâche", "todo", "à faire", "priorité" -> tasks
+- "événement", "agenda", "calendrier" -> events
+- "réunion", "rendez-vous", "rdv", "meeting" -> meetings
+- "document", "fichier", "pj", "pièce jointe" -> documents
+- Sinon, choisis l'entité la plus probable, jamais "auto" dans la réponse finale.`;
 
     const extracted = await callGateway(key, {
       model: "google/gemini-3-flash-preview",
@@ -98,98 +131,222 @@ Exemple "trouve les mails de Ternacle traitant d'IDEAL" -> from_contains:["terna
       parsed = CriteriaSchema.parse({});
     }
 
-    // Phase 1: emails uniquement
-    let query = supabase
-      .from("emails")
-      .select("id,subject,from_address,from_name,received_at,is_read,ai_category,body_text")
-      .eq("user_id", userId)
-      .is("deleted_at", null)
-      .order("received_at", { ascending: false })
-      .limit(parsed.limit);
+    let entity: Entity = (parsed.entity === "auto" ? "emails" : parsed.entity) as Entity;
+    if (data.forceEntity && data.forceEntity !== "auto") entity = data.forceEntity as Entity;
 
-    const orParts: string[] = [];
-    for (const f of parsed.from_contains) {
-      const safe = f.replace(/[,()]/g, "");
-      orParts.push(`from_address.ilike.%${safe}%`);
-      orParts.push(`from_name.ilike.%${safe}%`);
-    }
-    if (orParts.length > 0) query = query.or(orParts.join(","));
-
-    if (parsed.unread_only) query = query.eq("is_read", false);
-    if (parsed.date_from) query = query.gte("received_at", parsed.date_from);
-    if (parsed.date_to) query = query.lte("received_at", parsed.date_to);
-
-    // subject/body filters: AND each fragment via ilike
-    for (const s of parsed.subject_contains) {
-      query = query.ilike("subject", `%${s.replace(/[,()]/g, "")}%`);
-    }
-    // Only one body filter to keep it simple
-    if (parsed.body_contains.length > 0) {
-      const b = parsed.body_contains[0].replace(/[,()]/g, "");
-      query = query.ilike("body_text", `%${b}%`);
-    }
-
-    const { data: rows, error } = await query;
-    if (error) throw new Error(error.message);
-
-    let matches: AiAssistantMatch[] = (rows ?? []).map((r) => ({
-      id: r.id,
-      subject: r.subject,
-      from_address: r.from_address,
-      from_name: r.from_name,
-      received_at: r.received_at,
-      is_read: !!r.is_read,
-      ai_category: r.ai_category ?? null,
-      snippet: ((r as any).body_text ?? "").slice(0, 240),
-    }));
-
-    // Post-filter with remaining body_contains fragments (AND), client-side
-    if (parsed.body_contains.length > 1) {
-      const extras = parsed.body_contains.slice(1).map((s) => s.toLowerCase());
-      matches = matches.filter((m) => {
-        const txt = (m.snippet + " " + (m.subject ?? "")).toLowerCase();
-        return extras.every((x) => txt.includes(x));
-      });
-    }
-
-    // Summary via AI
-    let summary = "";
+    const matches: AnyMatch[] = [];
+    const emailMatches: AiAssistantMatch[] = [];
     let warning: string | null = null;
+
+    const allFragments = [...parsed.keywords, ...parsed.subject_contains, ...parsed.body_contains].map(clean).filter(Boolean);
+
+    try {
+      if (entity === "emails") {
+        let q = supabase
+          .from("emails")
+          .select("id,subject,from_address,from_name,received_at,is_read,ai_category,body_text")
+          .eq("user_id", userId)
+          .is("deleted_at", null)
+          .order("received_at", { ascending: false })
+          .limit(parsed.limit);
+
+        const orParts: string[] = [];
+        for (const f of parsed.from_contains.map(clean).filter(Boolean)) {
+          orParts.push(`from_address.ilike.%${f}%`);
+          orParts.push(`from_name.ilike.%${f}%`);
+        }
+        if (orParts.length > 0) q = q.or(orParts.join(","));
+        if (parsed.unread_only) q = q.eq("is_read", false);
+        if (parsed.date_from) q = q.gte("received_at", parsed.date_from);
+        if (parsed.date_to) q = q.lte("received_at", parsed.date_to);
+        for (const s of parsed.subject_contains.map(clean).filter(Boolean)) q = q.ilike("subject", `%${s}%`);
+        if (parsed.body_contains.length > 0) {
+          const b = clean(parsed.body_contains[0]);
+          if (b) q = q.ilike("body_text", `%${b}%`);
+        }
+        const { data: rows, error } = await q;
+        if (error) throw new Error(error.message);
+        for (const r of rows ?? []) {
+          const snippet = ((r as any).body_text ?? "").slice(0, 240);
+          emailMatches.push({
+            id: r.id, subject: r.subject, from_address: r.from_address, from_name: r.from_name,
+            received_at: r.received_at, is_read: !!r.is_read, ai_category: r.ai_category ?? null, snippet,
+          });
+          matches.push({
+            id: r.id, kind: "email",
+            title: r.subject ?? "(sans objet)",
+            subtitle: r.from_name ?? r.from_address ?? null,
+            snippet, date: r.received_at, badge: r.ai_category ?? null,
+            raw: r,
+          });
+        }
+      } else if (entity === "contacts") {
+        let q = supabase
+          .from("contacts")
+          .select("id,first_name,last_name,email,phone,organization,role,notes,updated_at")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false })
+          .limit(parsed.limit);
+        const orParts: string[] = [];
+        for (const f of allFragments) {
+          orParts.push(`first_name.ilike.%${f}%`);
+          orParts.push(`last_name.ilike.%${f}%`);
+          orParts.push(`organization.ilike.%${f}%`);
+          orParts.push(`role.ilike.%${f}%`);
+          orParts.push(`notes.ilike.%${f}%`);
+        }
+        if (orParts.length > 0) q = q.or(orParts.join(","));
+        const { data: rows, error } = await q;
+        if (error) throw new Error(error.message);
+        for (const r of rows ?? []) {
+          const name = [r.first_name, r.last_name].filter(Boolean).join(" ").trim() || (r.email?.[0] ?? "(contact)");
+          matches.push({
+            id: r.id, kind: "contact",
+            title: name,
+            subtitle: r.organization ?? r.role ?? null,
+            snippet: [r.email?.join(", "), r.phone?.join(", "), r.notes].filter(Boolean).join(" · ").slice(0, 240),
+            date: r.updated_at, badge: r.role ?? null,
+          });
+        }
+      } else if (entity === "tasks") {
+        let q = supabase
+          .from("tasks")
+          .select("id,title,description,priority,status,due_date,updated_at,tags")
+          .eq("user_id", userId)
+          .order("updated_at", { ascending: false })
+          .limit(parsed.limit);
+        const orParts: string[] = [];
+        for (const f of allFragments) {
+          orParts.push(`title.ilike.%${f}%`);
+          orParts.push(`description.ilike.%${f}%`);
+        }
+        if (orParts.length > 0) q = q.or(orParts.join(","));
+        if (parsed.status && ["todo", "in_progress", "done"].includes(parsed.status)) q = q.eq("status", parsed.status as any);
+        if (parsed.date_from) q = q.gte("due_date", parsed.date_from);
+        if (parsed.date_to) q = q.lte("due_date", parsed.date_to);
+        const { data: rows, error } = await q;
+        if (error) throw new Error(error.message);
+        for (const r of rows ?? []) {
+          matches.push({
+            id: r.id, kind: "task",
+            title: r.title ?? "(tâche)",
+            subtitle: r.status ?? null,
+            snippet: (r.description ?? "").slice(0, 240),
+            date: r.due_date ?? r.updated_at, badge: r.priority ?? null,
+          });
+        }
+      } else if (entity === "events") {
+        let q = supabase
+          .from("calendar_events")
+          .select("id,title,description,start_at,end_at,location,category")
+          .eq("user_id", userId)
+          .order("start_at", { ascending: false })
+          .limit(parsed.limit);
+        const orParts: string[] = [];
+        for (const f of allFragments) {
+          orParts.push(`title.ilike.%${f}%`);
+          orParts.push(`description.ilike.%${f}%`);
+          orParts.push(`location.ilike.%${f}%`);
+        }
+        if (orParts.length > 0) q = q.or(orParts.join(","));
+        if (parsed.date_from) q = q.gte("start_at", parsed.date_from);
+        if (parsed.date_to) q = q.lte("start_at", parsed.date_to);
+        const { data: rows, error } = await q;
+        if (error) throw new Error(error.message);
+        for (const r of rows ?? []) {
+          matches.push({
+            id: r.id, kind: "event",
+            title: r.title ?? "(événement)",
+            subtitle: r.location ?? null,
+            snippet: (r.description ?? "").slice(0, 240),
+            date: r.start_at, badge: r.category ?? null,
+          });
+        }
+      } else if (entity === "meetings") {
+        let q = supabase
+          .from("meetings")
+          .select("id,title,description,start_at,end_at,location,status,is_online")
+          .eq("user_id", userId)
+          .order("start_at", { ascending: false })
+          .limit(parsed.limit);
+        const orParts: string[] = [];
+        for (const f of allFragments) {
+          orParts.push(`title.ilike.%${f}%`);
+          orParts.push(`description.ilike.%${f}%`);
+          orParts.push(`location.ilike.%${f}%`);
+        }
+        if (orParts.length > 0) q = q.or(orParts.join(","));
+        if (parsed.date_from) q = q.gte("start_at", parsed.date_from);
+        if (parsed.date_to) q = q.lte("start_at", parsed.date_to);
+        const { data: rows, error } = await q;
+        if (error) throw new Error(error.message);
+        for (const r of rows ?? []) {
+          matches.push({
+            id: r.id, kind: "meeting",
+            title: r.title ?? "(réunion)",
+            subtitle: r.is_online ? "En ligne" : (r.location ?? null),
+            snippet: (r.description ?? "").slice(0, 240),
+            date: r.start_at, badge: r.status ?? null,
+          });
+        }
+      } else if (entity === "documents") {
+        let q = supabase
+          .from("documents")
+          .select("id,filename,original_filename,description,ai_category,ai_summary,mime_type,created_at,source_type")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(parsed.limit);
+        const orParts: string[] = [];
+        for (const f of allFragments) {
+          orParts.push(`filename.ilike.%${f}%`);
+          orParts.push(`original_filename.ilike.%${f}%`);
+          orParts.push(`description.ilike.%${f}%`);
+          orParts.push(`ai_summary.ilike.%${f}%`);
+        }
+        if (orParts.length > 0) q = q.or(orParts.join(","));
+        if (parsed.date_from) q = q.gte("created_at", parsed.date_from);
+        if (parsed.date_to) q = q.lte("created_at", parsed.date_to);
+        const { data: rows, error } = await q;
+        if (error) throw new Error(error.message);
+        for (const r of rows ?? []) {
+          matches.push({
+            id: r.id, kind: "document",
+            title: r.original_filename ?? r.filename ?? "(document)",
+            subtitle: r.mime_type ?? r.source_type ?? null,
+            snippet: (r.ai_summary ?? r.description ?? "").slice(0, 240),
+            date: r.created_at, badge: r.ai_category ?? null,
+          });
+        }
+      }
+    } catch (e: any) {
+      warning = e?.message ?? "Erreur de recherche";
+    }
+
+    // Summary
+    let summary = "";
     if (matches.length === 0) {
-      summary = "Aucun mail ne correspond à votre demande. Affinez les critères ou élargissez la période.";
+      summary = `Aucun résultat (${entity}) pour votre demande. Affinez les critères ou élargissez la période.`;
     } else {
       const sample = matches.slice(0, 15).map((m, i) => {
-        const d = m.received_at ? new Date(m.received_at).toLocaleString("fr-FR") : "";
-        return `${i + 1}. [${d}] ${m.from_name ?? m.from_address ?? ""} — ${m.subject ?? "(sans objet)"}\n   ${m.snippet.slice(0, 160)}`;
+        const d = m.date ? new Date(m.date).toLocaleDateString("fr-FR") : "";
+        return `${i + 1}. [${d}] ${m.title}${m.subtitle ? " — " + m.subtitle : ""}\n   ${m.snippet.slice(0, 160)}`;
       }).join("\n");
       try {
         const sumResp = await callGateway(key, {
           model: "google/gemini-3-flash-preview",
           messages: [
-            {
-              role: "system",
-              content: `Tu résumes une liste de mails pour répondre à une demande utilisateur. Réponds en français, 2 à 4 phrases courtes, factuel. Ne propose pas d'actions, seulement le constat.`,
-            },
-            {
-              role: "user",
-              content: `Demande : ${data.prompt}\n\nMails trouvés (${matches.length}) :\n${sample}`,
-            },
+            { role: "system", content: `Tu résumes une liste de résultats (${entity}) pour répondre à une demande utilisateur. Réponds en français, 2 à 4 phrases courtes, factuel. Pas de proposition d'actions.` },
+            { role: "user", content: `Demande : ${data.prompt}\n\nRésultats (${matches.length}) :\n${sample}` },
           ],
         });
-        summary = sumResp?.choices?.[0]?.message?.content ?? `${matches.length} mail(s) trouvé(s).`;
+        summary = sumResp?.choices?.[0]?.message?.content ?? `${matches.length} résultat(s) trouvé(s).`;
       } catch (e: any) {
-        summary = `${matches.length} mail(s) trouvé(s).`;
-        warning = e?.message ?? null;
+        summary = `${matches.length} résultat(s) trouvé(s).`;
+        warning = warning ?? e?.message ?? null;
       }
     }
 
-    return {
-      summary,
-      criteria: parsed,
-      matches,
-      entity: "emails",
-      warning,
-    };
+    return { summary, criteria: parsed, entity, matches, emailMatches, warning };
   });
 
 // ============================================================================
@@ -323,7 +480,6 @@ export const aiProposeActions = createServerFn({ method: "POST" })
         const sys = `Tu rédiges en français un court message d'introduction pour transférer un email. Réponds UNIQUEMENT en JSON {"subject":"Fwd: ...","body":"..."}.`;
         const usr = `Demande : ${data.prompt}${data.extra ? "\nInstruction : " + data.extra : ""}\n\nMail à transférer :\nDe : ${e.from_name ?? ""} <${e.from_address ?? ""}>\nObjet : ${e.subject ?? ""}\n\n${(e.body_text ?? "").slice(0, 2000)}`;
         const draft = await aiJson(key, ReplyDraftSchema, sys, usr, { subject: `Fwd: ${e.subject ?? ""}`, body: "" });
-        // Append original content quote
         const quoted = `\n\n---------- Message transféré ----------\nDe : ${e.from_name ?? ""} <${e.from_address ?? ""}>\nObjet : ${e.subject ?? ""}\n\n${(e.body_text ?? "").slice(0, 8000)}`;
         draft.body = (draft.body ?? "") + quoted;
         if (!draft.subject) draft.subject = `Fwd: ${e.subject ?? ""}`;
