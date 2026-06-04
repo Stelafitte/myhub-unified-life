@@ -742,7 +742,7 @@ function ActivePromptsBadge({ turns, onOpenSettings }: { turns: Turn[]; onOpenSe
 
 type EntityRef = { kind: EntityKind; id: string };
 
-function AiEntityPreviewDialog({ entity, open, onOpenChange }: { entity: EntityRef | null; open: boolean; onOpenChange: (v: boolean) => void }) {
+function AiEntityPreviewDialog({ entity, open, onOpenChange, onOpenInSource }: { entity: EntityRef | null; open: boolean; onOpenChange: (v: boolean) => void; onOpenInSource?: (e: EntityRef) => void }) {
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
