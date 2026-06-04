@@ -1308,6 +1308,7 @@ export function TaskPanel({
 
 
             <TaskAutomationSection
+              taskId={task?.id ?? null}
               taskTitle={title}
               taskDescription={description}
               currentEmailId={emailId}
