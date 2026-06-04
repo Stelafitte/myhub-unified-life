@@ -65,6 +65,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    eventId: typeof search.eventId === "string" ? search.eventId : undefined,
+  }),
   component: AgendaPage,
 });
 
