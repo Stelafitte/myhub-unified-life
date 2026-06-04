@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 import { z } from "zod";
 
 const Input = z.object({
@@ -51,9 +52,11 @@ export type ProposedAction =
 export const proposeInsightAction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Input.parse(d))
-  .handler(async ({ data }): Promise<ProposedAction> => {
+  .handler(async ({ data, context }): Promise<ProposedAction> => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
+    const { supabase, userId } = context as { supabase: unknown; userId: string };
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["dashboard"]);
 
     const now = new Date().toISOString();
     const sys = `Tu transformes une suggestion ou alerte de dashboard en une action concrète. Réponds UNIQUEMENT en JSON valide selon UN de ces formats :
@@ -63,7 +66,7 @@ export const proposeInsightAction = createServerFn({ method: "POST" })
 {"type":"open_tasks","reason":"..."}
 {"type":"reminder","title":"...","remind_in_hours": nombre,"reason":"..."}
 {"type":"none","reason":"..."}
-Choisis le type le plus pertinent. "reason" = 1 phrase courte (max 120 car.) justifiant l'action. Date de référence: ${now}.`;
+Choisis le type le plus pertinent. "reason" = 1 phrase courte (max 120 car.) justifiant l'action. Date de référence: ${now}.${userPromptsBlock}`;
 
     const user = `Type: ${data.kind}
 Texte: ${data.text}

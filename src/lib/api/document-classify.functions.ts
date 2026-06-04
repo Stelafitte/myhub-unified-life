@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 
 const CATEGORIES = [
   "facture",
@@ -30,6 +31,7 @@ type DocRow = {
 async function classifyOne(
   key: string,
   d: DocRow,
+  userPromptsBlock: string,
 ): Promise<{ category: Category; priority: Priority; summary: string } | null> {
   const sys = `Tu classes des documents bureautiques. Réponds UNIQUEMENT en JSON valide:
 {"category":"facture|contrat|rapport|presentation|courrier|rh|technique|image|signature|autre","priority":"urgent|important|normal|low","summary":"résumé en 1 phrase (max 160 caractères), français"}
@@ -46,7 +48,7 @@ CATÉGORIES:
 - signature: image de signature email, logo de pied de mail, bannière promotionnelle sans intérêt
 - autre: ne correspond à rien
 
-PRIORITÉ basée sur l'importance probable du document.`;
+PRIORITÉ basée sur l'importance probable du document.${userPromptsBlock}`;
 
   const user = `Nom: ${d.filename}
 Type MIME: ${d.mime_type ?? "inconnu"}
@@ -104,6 +106,8 @@ export const classifyPendingDocuments = createServerFn({ method: "POST" })
     if (error) return { processed: 0, skipped: 0, error: error.message };
     if (!rows || rows.length === 0) return { processed: 0, skipped: 0 };
 
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["document"]);
+
     let processed = 0;
     let skipped = 0;
     const now = new Date().toISOString();
@@ -122,7 +126,7 @@ export const classifyPendingDocuments = createServerFn({ method: "POST" })
         skipped++;
         continue;
       }
-      const result = await classifyOne(key, r);
+      const result = await classifyOne(key, r, userPromptsBlock);
       if (result) {
         await supabase.from("documents").update({
           ai_processed_at: now,

@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 import { z } from "zod";
 
 const InputSchema = z.object({
@@ -14,10 +16,13 @@ const ResultSchema = z.object({
 });
 
 export const generateTaskEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => InputSchema.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
+    const { supabase, userId } = context as { supabase: unknown; userId: string };
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["email_reply", "task_create"]);
 
     const sys = `Tu rédiges un email professionnel en français à partir d'une tâche.
 Tu DOIS répondre UNIQUEMENT en JSON valide avec ce schéma :
@@ -30,7 +35,7 @@ Règles :
 - Mentionne brièvement le contexte/objet de la tâche.
 - Si des pièces jointes sont listées, indique qu'elles sont jointes.
 - Termine par "Cordialement," mais SANS le nom — la signature sera ajoutée.
-- N'invente pas de noms de destinataires.`;
+- N'invente pas de noms de destinataires.${userPromptsBlock}`;
 
     const lines: string[] = [`Titre: ${data.title}`];
     if (data.description) lines.push(`Description:\n${data.description}`);

@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 import { z } from "zod";
 
 const InputSchema = z.object({
@@ -31,10 +33,13 @@ export type AutomationAction = z.infer<typeof ActionSchema>;
 export type AutomationPlan = z.infer<typeof PlanSchema>;
 
 export const planTaskAutomation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => InputSchema.parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
+    const { supabase, userId } = context as { supabase: unknown; userId: string };
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["task_create"]);
 
     const sys = `Tu es un assistant qui transforme la demande d'un utilisateur en un plan
 d'actions automatiques exécutables sur une tâche.
@@ -51,7 +56,7 @@ Réponds UNIQUEMENT en JSON valide :
   "actions": [ { "type": "...", "label": "libellé court FR", "args": {...} } ]
 }
 Tu peux planifier plusieurs actions. Si la demande est vague, propose au moins
-une recherche de mail pertinente.`;
+une recherche de mail pertinente.${userPromptsBlock}`;
 
     const ctx = `Tâche : ${data.taskTitle ?? "(sans titre)"}
 Description : ${(data.taskDescription ?? "").slice(0, 600)}

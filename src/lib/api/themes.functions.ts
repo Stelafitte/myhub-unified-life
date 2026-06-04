@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 import { z } from "zod";
 
 // ---------- Types ----------
@@ -254,6 +255,8 @@ export const classifyPendingThemes = createServerFn({ method: "POST" })
     if (error) return { processed: 0, error: error.message };
     if (!rows || rows.length === 0) return { processed: 0 };
 
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["email_classify"]);
+
     const themeList = themes
       .map((t) => `- "${t.name}" [${t.scope ?? "perso"}/${t.utility_level ?? "modere"}]${t.description ? `: ${t.description}` : ""}${t.keywords.length ? ` [mots-clés: ${t.keywords.join(", ")}]` : ""}`)
       .join("\n");
@@ -286,7 +289,7 @@ ${(r.body_text ?? "").slice(0, 1500)}`;
             body: JSON.stringify({
               model: "google/gemini-3-flash-preview",
               messages: [
-                { role: "system", content: CLASSIFY_SYS },
+                { role: "system", content: CLASSIFY_SYS + userPromptsBlock },
                 { role: "user", content: user },
               ],
               response_format: { type: "json_object" },

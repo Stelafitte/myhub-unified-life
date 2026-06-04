@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 import { z } from "zod";
 
 const InputSchema = z.object({
@@ -41,10 +43,13 @@ export type DashboardInsightItem = z.infer<typeof InsightItem>;
 export type DashboardInsights = z.infer<typeof Result>;
 
 export const generateDashboardInsights = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => InputSchema.parse(d))
-  .handler(async ({ data }): Promise<DashboardInsights> => {
+  .handler(async ({ data, context }): Promise<DashboardInsights> => {
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
+    const { supabase, userId } = context as { supabase: unknown; userId: string };
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["dashboard"]);
 
     const sys = `Tu produis un résumé quotidien concis pour un dashboard.
 Réponds UNIQUEMENT en JSON valide :
@@ -56,7 +61,7 @@ Réponds UNIQUEMENT en JSON valide :
 Règles:
 - 3 max par liste, factuel, jamais verbeux.
 - "origin.refId" DOIT correspondre EXACTEMENT à un id fourni dans le contexte si la suggestion/alerte porte sur cet élément. Sinon mets origin.type = "none".
-- "origin.label" = sujet du mail / titre de la tâche correspondant.`;
+- "origin.label" = sujet du mail / titre de la tâche correspondant.${userPromptsBlock}`;
 
     const user = `Mails non lus: ${data.unreadCount}
 Mails urgents (id | sujet | expéditeur):

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 
 /* ------------------------------------------------------------------ */
 /* Google token refresh (local copy to avoid cross-file server import) */
@@ -313,7 +314,8 @@ export const aiProposeSlots = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY manquant");
-    const { userId } = context as { userId: string };
+    const { userId, supabase } = context as { userId: string; supabase: unknown };
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["meeting_slots", "meeting"]);
 
     // Reuse the slot finder logic by calling its handler-equivalent directly.
     // Generate a wide candidate set (up to 20 slots) for the AI to choose from.
@@ -349,7 +351,7 @@ Règles strictes :
 4. Si aucun créneau ne respecte les disponibilités ET les contraintes, renvoie {"slots":[]} — ne propose surtout pas un créneau approximatif.
 5. Classe les retenus du meilleur au moins bon, max ${data.maxResults}.
 
-Réponds UNIQUEMENT en JSON valide, sans markdown : {"slots":[{"startAt":"ISO exact copié","endAt":"ISO exact copié","reason":"courte explication en français citant la disponibilité/contrainte respectée"}]}.`;
+Réponds UNIQUEMENT en JSON valide, sans markdown : {"slots":[{"startAt":"ISO exact copié","endAt":"ISO exact copié","reason":"courte explication en français citant la disponibilité/contrainte respectée"}]}.${userPromptsBlock}`;
 
     const user = `Date d'aujourd'hui (Paris) : ${today}\n\nTexte utilisateur (contraintes et disponibilités à analyser) :\n"""\n${data.constraints}\n"""\n\nCréneaux libres candidats (heures en Europe/Paris) :\n${slotList}`;
 

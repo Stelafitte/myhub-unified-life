@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { loadActivePromptsBlock } from "./_ai-prompts";
 
 const PRIORITIES = ["urgent", "important", "normal", "low"] as const;
 const CATEGORIES = [
@@ -40,6 +41,7 @@ async function classifyOne(
   e: Row,
   hints: string,
   trustedSenders: string,
+  userPromptsBlock: string,
 ): Promise<ClassifyResult | null> {
   const sys = `Tu classes des emails. Réponds UNIQUEMENT en JSON valide:
 {"priority":"urgent|important|normal|low","category":"action|rendez-vous|document|facturation|rh|info|newsletter","summary":"résumé en 1-2 phrases (max 200 caractères), français","spam_label":"legit|promo|spam|phishing","spam_score":0-100,"spam_reason":"raison courte en français (max 80 caractères)"}
@@ -55,7 +57,7 @@ SPAM/PROMO (très important):
 - promo: newsletter, publicité commerciale, offre promotionnelle (même légitime)
 - spam: courrier non sollicité, arnaque évidente, contenu douteux
 - phishing: hameçonnage (faux expéditeur, lien suspect, urgence factice, demande de mot de passe/paiement)
-- spam_score = confiance (0=sûr legit, 100=sûr indésirable)${trustedSenders ? `\n\nEXPÉDITEURS DE CONFIANCE (toujours legit):\n${trustedSenders}` : ""}${hints ? `\n\nPRÉFÉRENCES APPRISES de l'utilisateur (à respecter en priorité):\n${hints}` : ""}`;
+- spam_score = confiance (0=sûr legit, 100=sûr indésirable)${trustedSenders ? `\n\nEXPÉDITEURS DE CONFIANCE (toujours legit):\n${trustedSenders}` : ""}${hints ? `\n\nPRÉFÉRENCES APPRISES de l'utilisateur (à respecter en priorité):\n${hints}` : ""}${userPromptsBlock}`;
 
   const user = `Sujet: ${e.subject ?? ""}
 De: ${e.from_name ?? ""} <${e.from_address ?? ""}>
@@ -155,9 +157,11 @@ export const classifyPendingEmails = createServerFn({ method: "POST" })
     if (error) return { processed: 0, error: error.message };
     if (!rows || rows.length === 0) return { processed: 0 };
 
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["email_classify"]);
+
     let processed = 0;
     for (const r of rows as Row[]) {
-      const result = await classifyOne(key, r, hints, trustedSenders);
+      const result = await classifyOne(key, r, hints, trustedSenders, userPromptsBlock);
 
       const from = (r.from_address ?? "").toLowerCase();
       const isWhitelisted = whitelist.some((w) => from.includes(w.toLowerCase()));
