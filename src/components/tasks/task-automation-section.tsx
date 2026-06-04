@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Sparkles, Loader2, Search, Mail, FileText, Paperclip, Check, ChevronRight,
-  Play, Pencil, Trash2, Plus, X,
+  Play, Pencil, Trash2, Plus, X, Eye,
 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { planTaskAutomation, type AutomationAction } from "@/lib/api/task-automation.functions";
+import { EmailHtmlFrame } from "@/components/inbox/email-html-frame";
+import { EmailAttachmentsPanel } from "@/components/inbox/email-attachments-panel";
 
 type EmailHit = {
   id: string;
