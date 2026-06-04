@@ -94,6 +94,12 @@ type Account = {
 
 type Email = CachedEmail;
 
+const INBOX_MIN_LEFT_W = 200;
+const INBOX_MIN_LIST_W = 300;
+const INBOX_MIN_READER_W = 360;
+const INBOX_RESIZERS_W = 8;
+const INBOX_COMPACT_W = INBOX_MIN_LEFT_W + INBOX_MIN_LIST_W + INBOX_MIN_READER_W + INBOX_RESIZERS_W;
+
 type Filter =
   | "all"
   | "unread"
@@ -312,8 +318,23 @@ function InboxPage() {
   const [winW, setWinW] = useState<number>(() =>
     typeof window !== "undefined" ? window.innerWidth : 600,
   );
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const [layoutW, setLayoutW] = useState(0);
 
-  const isMobileInbox = winW < 1024;
+  const layoutWidth = layoutW || winW;
+  const isMobileInbox = winW < 1200 || layoutWidth < INBOX_COMPACT_W;
+  const desktopLeftW = isMobileInbox
+    ? leftW
+    : Math.min(
+        leftW,
+        Math.max(INBOX_MIN_LEFT_W, layoutWidth - INBOX_MIN_LIST_W - INBOX_MIN_READER_W - INBOX_RESIZERS_W),
+      );
+  const desktopRightW = isMobileInbox
+    ? rightW
+    : Math.min(
+        rightW,
+        Math.max(INBOX_MIN_READER_W, layoutWidth - desktopLeftW - INBOX_MIN_LIST_W - INBOX_RESIZERS_W),
+      );
   const [readerOpen, setReaderOpen] = useState(false);
   // Mobile navigation: 'sidebar' (boîtes / thèmes IA) ↔ 'list' (liste des mails)
   const [mobileView, setMobileView] = useState<"sidebar" | "list">("sidebar");
@@ -359,18 +380,36 @@ function InboxPage() {
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+  useEffect(() => {
+    const node = layoutRef.current;
+    if (!node) return;
+    const update = () => setLayoutW(node.clientWidth);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   const startDrag = (which: "left" | "right") => (e: React.MouseEvent) => {
     e.preventDefault();
     const startX = e.clientX;
-    const startW = which === "left" ? leftW : rightW;
+    const startW = which === "left" ? desktopLeftW : desktopRightW;
+    const startLayoutW = layoutRef.current?.clientWidth || layoutWidth;
+    const startLeftW = desktopLeftW;
     const onMove = (ev: MouseEvent) => {
       const dx = ev.clientX - startX;
       if (which === "left") {
-        const w = Math.min(500, Math.max(200, startW + dx));
+        const maxLeft = Math.max(
+          INBOX_MIN_LEFT_W,
+          startLayoutW - INBOX_MIN_LIST_W - INBOX_MIN_READER_W - INBOX_RESIZERS_W,
+        );
+        const w = Math.min(maxLeft, Math.max(INBOX_MIN_LEFT_W, startW + dx));
         setLeftW(w);
       } else {
-        const maxW = Math.max(360, window.innerWidth - leftW - 380);
-        const w = Math.min(maxW, Math.max(320, startW - dx));
+        const maxRight = Math.max(
+          INBOX_MIN_READER_W,
+          startLayoutW - startLeftW - INBOX_MIN_LIST_W - INBOX_RESIZERS_W,
+        );
+        const w = Math.min(maxRight, Math.max(INBOX_MIN_READER_W, startW - dx));
         setRightW(w);
       }
     };
@@ -378,14 +417,6 @@ function InboxPage() {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
       document.body.style.cursor = "";
-      localStorage.setItem(
-        "inbox:leftW",
-        String(which === "left" ? (document.documentElement.dataset._lw ?? leftW) : leftW),
-      );
-      localStorage.setItem(
-        "inbox:rightW",
-        String(which === "right" ? (document.documentElement.dataset._rw ?? rightW) : rightW),
-      );
     };
     document.body.style.cursor = "col-resize";
     window.addEventListener("mousemove", onMove);
@@ -1198,10 +1229,13 @@ function InboxPage() {
 
 
   return (
-    <div className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6">
+    <div
+      ref={layoutRef}
+      className="-mx-3 -my-3 flex h-[calc(100vh-3.5rem)] min-w-0 max-w-[100vw] overflow-hidden sm:-mx-4 sm:-my-4 sm:h-[calc(100vh-4rem)] md:-mx-6"
+    >
       {/* LEFT — filters */}
       <aside
-        style={isMobileInbox ? undefined : { width: leftW }}
+        style={isMobileInbox ? undefined : { width: desktopLeftW }}
         className={cn(
           "shrink-0 flex-col border-r bg-card",
           isMobileInbox
@@ -2127,9 +2161,7 @@ function InboxPage() {
 
       {/* RIGHT — reader (full overlay on mobile when selected) */}
       <aside
-        style={{
-          width: winW >= 1024 ? Math.min(rightW, Math.max(360, winW - leftW - 380)) : undefined,
-        }}
+        style={winW >= 1024 ? { width: desktopRightW } : undefined}
         className={cn(
           "min-w-0 shrink-0 flex-col bg-card lg:flex lg:relative lg:inset-auto lg:z-auto",
           selected && (!isMobileInbox || readerOpen) ? "fixed inset-0 z-40 flex" : "hidden lg:flex",
