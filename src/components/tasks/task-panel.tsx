@@ -1306,6 +1306,17 @@ export function TaskPanel({
               {preparingEmail ? "Préparation de l'email…" : "Envoyer par email (PJ + brouillon IA)"}
             </Button>
 
+
+            <TaskAutomationSection
+              taskTitle={title}
+              taskDescription={description}
+              currentEmailId={emailId}
+              onAttachEmail={(id) => setEmailId(id)}
+              onAppendComment={(text) =>
+                setComments((prev) => (prev ? `${prev}\n\n${text}` : text))
+              }
+            />
+
             <div className="sticky bottom-0 -mx-6 flex gap-2 border-t bg-background px-6 py-3">
               <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
                 Annuler
