@@ -178,7 +178,10 @@ export function AiSection() {
         </CardContent>
       </Card>
 
+      <AiPromptsManager />
+
       <Card>
+        <CardHeader>
         <CardHeader>
           <CardTitle className="text-base">Historique (30 derniers jours)</CardTitle>
         </CardHeader>
