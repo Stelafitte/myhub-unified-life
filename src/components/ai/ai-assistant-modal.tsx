@@ -86,6 +86,8 @@ export function AiAssistantModal({
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
   const [emailPreviewId, setEmailPreviewId] = useState<string | null>(null);
   const [entityPreview, setEntityPreview] = useState<{ kind: EntityKind; id: string } | null>(null);
+  const [minimized, setMinimized] = useState(false);
+  const [voiceLivePreview, setVoiceLivePreview] = useState("");
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const chatFn = useServerFn(aiChat);
