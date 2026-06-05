@@ -498,8 +498,10 @@ async function findCandidateSlots(
     const dayRef = new Date(startDay.getTime() + d * 86400_000 + 12 * 3600_000); // noon to avoid DST edge
     const { y, mo, da, isoWeekday } = parisYMD(dayRef, TZ);
     if (!workDays.has(isoWeekday)) continue;
+    if (isFrenchHoliday(y, mo, da)) continue;
+    const effectiveEndHour = isoWeekday === 6 ? saturdayMaxHour : workEndHour;
     const dayStartMs = parisWallToUtc(y, mo, da, workStartHour, 0, TZ).getTime();
-    const dayEndMs = parisWallToUtc(y, mo, da, workEndHour, 0, TZ).getTime();
+    const dayEndMs = parisWallToUtc(y, mo, da, clamp(effectiveEndHour, 1, 24), 0, TZ).getTime();
     for (let t = dayStartMs; t + durationMs <= dayEndMs; t += step) {
       if (t < earliest) continue;
       const endT = t + durationMs;
