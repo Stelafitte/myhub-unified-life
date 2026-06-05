@@ -302,15 +302,11 @@ export function MeetingDialog({
         setLoading(false);
       })();
     } else {
-      const start = new Date();
-      start.setMinutes(0, 0, 0);
-      start.setHours(start.getHours() + 1);
-      const end = new Date(start.getTime() + 60 * 60 * 1000);
       setForm({
         ...empty,
         ...initial,
-        start_at: initial?.start_at ?? toLocalInput(start.toISOString()),
-        end_at: initial?.end_at ?? toLocalInput(end.toISOString()),
+        start_at: initial?.start_at ?? "",
+        end_at: initial?.end_at ?? "",
         organizer_email: initial?.organizer_email ?? user?.email ?? "",
         organizer_name: initial?.organizer_name ?? user?.user_metadata?.display_name ?? "",
       });
@@ -1008,7 +1004,7 @@ export function MeetingDialog({
             <SlotFinder
               durationMinutes={prepDuration}
               daysAhead={prepDays}
-              disabled={manualMode}
+              disabled={manualMode || !!form.start_at || !!form.end_at}
               selectedKeys={selectedAvailableKeys}
               onToggleSelect={(s) => {
                 setSelectedAvailable((arr) => {
@@ -1109,13 +1105,16 @@ export function MeetingDialog({
                     />
                   </div>
                 </div>
-                {manualMode && (
+                {(manualMode || form.start_at || form.end_at) && (
                   <button
                     type="button"
-                    onClick={() => setManualMode(false)}
+                    onClick={() => {
+                      setManualMode(false);
+                      setForm((f) => ({ ...f, start_at: "", end_at: "" }));
+                    }}
                     className="text-xs text-primary hover:underline"
                   >
-                    Réactiver la sélection dans « Créneaux disponibles »
+                    Effacer et réactiver « Créneaux disponibles »
                   </button>
                 )}
               </div>
