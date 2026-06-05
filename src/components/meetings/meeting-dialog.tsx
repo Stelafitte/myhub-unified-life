@@ -224,6 +224,8 @@ export function MeetingDialog({
     setOneNoteUrl(null);
     setPrepDuration(60);
     setPrepDays(30);
+    setSelectedAvailable([]);
+    setManualMode(false);
     if (meetingId) {
       setLoading(true);
       (async () => {
