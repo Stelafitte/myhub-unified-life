@@ -32,6 +32,7 @@ import { Route as AuthenticatedCollaborateRouteImport } from './routes/_authenti
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiGoogleCalendarCallbackRouteImport } from './routes/api/google-calendar/callback'
+import { Route as AuthenticatedCollaborateReviewRouteImport } from './routes/_authenticated/collaborate.review'
 import { Route as ApiPublicHooksRsvpRemindersRouteImport } from './routes/api/public/hooks/rsvp-reminders'
 import { Route as ApiPublicPollTokenFilesRouteImport } from './routes/api/public/poll/$token/files'
 
@@ -152,6 +153,12 @@ const ApiGoogleCalendarCallbackRoute =
     path: '/api/google-calendar/callback',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedCollaborateReviewRoute =
+  AuthenticatedCollaborateReviewRouteImport.update({
+    id: '/review',
+    path: '/review',
+    getParentRoute: () => AuthenticatedCollaborateRoute,
+  } as any)
 const ApiPublicHooksRsvpRemindersRoute =
   ApiPublicHooksRsvpRemindersRouteImport.update({
     id: '/api/public/hooks/rsvp-reminders',
@@ -171,7 +178,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/calendar': typeof AuthenticatedCalendarRoute
-  '/collaborate': typeof AuthenticatedCollaborateRoute
+  '/collaborate': typeof AuthenticatedCollaborateRouteWithChildren
   '/contacts': typeof AuthenticatedContactsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/stats': typeof AuthenticatedStatsRoute
   '/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
+  '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
@@ -197,7 +205,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/calendar': typeof AuthenticatedCalendarRoute
-  '/collaborate': typeof AuthenticatedCollaborateRoute
+  '/collaborate': typeof AuthenticatedCollaborateRouteWithChildren
   '/contacts': typeof AuthenticatedContactsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
@@ -212,6 +220,7 @@ export interface FileRoutesByTo {
   '/stats': typeof AuthenticatedStatsRoute
   '/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
+  '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
@@ -225,7 +234,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
-  '/_authenticated/collaborate': typeof AuthenticatedCollaborateRoute
+  '/_authenticated/collaborate': typeof AuthenticatedCollaborateRouteWithChildren
   '/_authenticated/contacts': typeof AuthenticatedContactsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
@@ -240,6 +249,7 @@ export interface FileRoutesById {
   '/_authenticated/stats': typeof AuthenticatedStatsRoute
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
+  '/_authenticated/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
@@ -268,6 +278,7 @@ export interface FileRouteTypes {
     | '/stats'
     | '/tasks'
     | '/poll/$token'
+    | '/collaborate/review'
     | '/api/google-calendar/callback'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/poll/$token/files'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '/stats'
     | '/tasks'
     | '/poll/$token'
+    | '/collaborate/review'
     | '/api/google-calendar/callback'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/poll/$token/files'
@@ -321,6 +333,7 @@ export interface FileRouteTypes {
     | '/_authenticated/stats'
     | '/_authenticated/tasks'
     | '/poll/$token'
+    | '/_authenticated/collaborate/review'
     | '/api/google-calendar/callback'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/poll/$token/files'
@@ -501,6 +514,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGoogleCalendarCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/collaborate/review': {
+      id: '/_authenticated/collaborate/review'
+      path: '/review'
+      fullPath: '/collaborate/review'
+      preLoaderRoute: typeof AuthenticatedCollaborateReviewRouteImport
+      parentRoute: typeof AuthenticatedCollaborateRoute
+    }
     '/api/public/hooks/rsvp-reminders': {
       id: '/api/public/hooks/rsvp-reminders'
       path: '/api/public/hooks/rsvp-reminders'
@@ -518,10 +538,24 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedCollaborateRouteChildren {
+  AuthenticatedCollaborateReviewRoute: typeof AuthenticatedCollaborateReviewRoute
+}
+
+const AuthenticatedCollaborateRouteChildren: AuthenticatedCollaborateRouteChildren =
+  {
+    AuthenticatedCollaborateReviewRoute: AuthenticatedCollaborateReviewRoute,
+  }
+
+const AuthenticatedCollaborateRouteWithChildren =
+  AuthenticatedCollaborateRoute._addFileChildren(
+    AuthenticatedCollaborateRouteChildren,
+  )
+
 interface AuthenticatedRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedCalendarRoute: typeof AuthenticatedCalendarRoute
-  AuthenticatedCollaborateRoute: typeof AuthenticatedCollaborateRoute
+  AuthenticatedCollaborateRoute: typeof AuthenticatedCollaborateRouteWithChildren
   AuthenticatedContactsRoute: typeof AuthenticatedContactsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
@@ -540,7 +574,7 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedCalendarRoute: AuthenticatedCalendarRoute,
-  AuthenticatedCollaborateRoute: AuthenticatedCollaborateRoute,
+  AuthenticatedCollaborateRoute: AuthenticatedCollaborateRouteWithChildren,
   AuthenticatedContactsRoute: AuthenticatedContactsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
