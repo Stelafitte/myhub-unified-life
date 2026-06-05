@@ -133,6 +133,15 @@ export function DocumentEditor({
   const [aiSelectedText, setAiSelectedText] = useState("");
   const [aiContext, setAiContext] = useState<string>("");
 
+  // Comments + history
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [commentsRefreshKey, setCommentsRefreshKey] = useState(0);
+  const [remoteUpdateAvailable, setRemoteUpdateAvailable] = useState(false);
+  const [pendingAnchor, setPendingAnchor] = useState<
+    { text: string; from: number; to: number } | null
+  >(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ link: false }),
