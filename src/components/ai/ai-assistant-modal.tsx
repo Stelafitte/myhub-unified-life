@@ -164,8 +164,9 @@ export function AiAssistantModal({
         // Détection rapide d'un verbe d'action → bascule sur le planificateur vocal
         if (hasActionVerb) {
           // Récupère l'éventuel emailId ouvert depuis l'URL (?emailId=…)
+          // ou depuis la sélection vivante de l'inbox (après "passe au suivant").
           const url = new URL(window.location.href);
-          const currentEmailId = url.searchParams.get("emailId");
+          const currentEmailId = url.searchParams.get("emailId") ?? getCurrentInboxSelection();
           try {
             const plan: AiVoicePlan = await planFn({
               data: { prompt: q, currentEmailId: currentEmailId ?? null, currentRoute: window.location.pathname },
