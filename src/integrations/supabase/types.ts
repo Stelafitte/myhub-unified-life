@@ -238,6 +238,69 @@ export type Database = {
           },
         ]
       }
+      collab_document_comments: {
+        Row: {
+          anchor_from: number | null
+          anchor_text: string | null
+          anchor_to: number | null
+          body: string
+          created_at: string
+          document_id: string
+          id: string
+          parent_id: string | null
+          resolved: boolean
+          resolved_at: string | null
+          resolved_by: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anchor_from?: number | null
+          anchor_text?: string | null
+          anchor_to?: number | null
+          body: string
+          created_at?: string
+          document_id: string
+          id?: string
+          parent_id?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anchor_from?: number | null
+          anchor_text?: string | null
+          anchor_to?: number | null
+          body?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+          parent_id?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          resolved_by?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_document_comments_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "collab_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collab_document_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "collab_document_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collab_document_versions: {
         Row: {
           change_summary: string | null
