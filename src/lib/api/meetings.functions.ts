@@ -169,8 +169,9 @@ export const findAvailableSlots = createServerFn({ method: "POST" })
     const { userId } = context as { userId: string };
 
     const now = Date.now();
-    const earliest = now + data.leadHours * 3600_000;
-    const horizonEnd = now + data.daysAhead * 86400_000;
+    const offsetMs = data.offsetDays * 86400_000;
+    const earliest = now + data.leadHours * 3600_000 + offsetMs;
+    const horizonEnd = now + data.daysAhead * 86400_000 + offsetMs;
 
     /* ---------- Collect busy intervals from all active GCal connections ---------- */
     const busy: Busy[] = [];
