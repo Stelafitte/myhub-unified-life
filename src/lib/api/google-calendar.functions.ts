@@ -108,6 +108,7 @@ type GEvent = {
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
   colorId?: string;
+  updated?: string;
 };
 
 function buildGooglePayload(ev: {
