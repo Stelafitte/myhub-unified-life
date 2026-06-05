@@ -13,6 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { aiAssistantQuery, aiProposeActions, aiChat, type AiAssistantResult, type ProposedAction, type AnyMatch, type EntityKind } from "@/lib/api/ai-assistant.functions";
 import { aiVoiceCommandPlan, aiVoiceCommandExecute, type AiVoicePlan } from "@/lib/api/ai-voice-command.functions";
 import { VoiceActionConfirm, type VoiceActionPlan } from "@/components/ai/voice-action-confirm";
+import { detectInboxControl, emitInboxControl } from "@/lib/inbox-control-bus";
 import { ActionCard, executeAction } from "@/components/ai/action-card";
 import { sendEmail } from "@/lib/api/email-send.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -138,6 +139,26 @@ export function AiAssistantModal({
     setPrompt("");
     try {
       if (currentMode === "chat") {
+        // 0) Pilotage instantané de l'inbox (next/prev/close/first/last) — sans LLM.
+        if (window.location.pathname.startsWith("/inbox")) {
+          const ctrl = detectInboxControl(q);
+          if (ctrl) {
+            emitInboxControl(ctrl);
+            const labels: Record<string, string> = {
+              next: "Email suivant",
+              prev: "Email précédent",
+              first: "Premier email",
+              last: "Dernier email",
+              close: "Retour à la liste",
+              "delete-current": "Suppression de l'email courant",
+              "archive-current": "Archivage de l'email courant",
+              "mark-read": "Marqué comme lu",
+              "mark-unread": "Marqué comme non lu",
+            };
+            setTurns((t) => t.map((x) => (x.id === id ? { ...x, chatReply: `✅ ${labels[ctrl.type] ?? "Action effectuée"}.` } : x)));
+            return;
+          }
+        }
         // Détection rapide d'un verbe d'action → bascule sur le planificateur vocal
         const actionVerb = /\b(supprime|efface|jette|archive|range|vire|enleve|enlève|met)\b/i.test(q);
         if (actionVerb) {
