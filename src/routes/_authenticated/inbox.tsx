@@ -1320,6 +1320,14 @@ function InboxPage() {
     return unsub;
   }, []);
 
+  // Expose la sélection courante au bus pour l'assistant vocal ("supprime ce mail").
+  useEffect(() => {
+    setCurrentInboxSelection(readerOpen ? selectedId : null);
+    return () => setCurrentInboxSelection(null);
+  }, [selectedId, readerOpen]);
+
+
+
 
 
   // Deep-link : ?emailId=... (Recherche globale, Assistant IA…) → ouvrir l'email
