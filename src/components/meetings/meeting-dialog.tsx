@@ -11,6 +11,7 @@ import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-inp
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ContactEmailAutocomplete } from "@/components/contacts/contact-email-autocomplete";
 import { X, Download, Trash2, Sparkles, Paperclip, Mail, ListTodo, Upload, FileText, Plus, Vote, Copy, ExternalLink, CheckCircle2, HelpCircle, XCircle, Trophy, Globe, Lock, History } from "lucide-react";
 import { toast } from "sonner";
 import { downloadIcs } from "@/lib/ics";
@@ -330,14 +331,15 @@ export function MeetingDialog({
     addPollSlot(start.toISOString(), end.toISOString());
   }
 
-  function addPart() {
-    const email = newPart.email.trim();
+  function addPart(emailOverride?: string, nameOverride?: string) {
+    const email = (emailOverride ?? newPart.email).trim();
+    const name = (nameOverride ?? newPart.name).trim();
     if (!email) return;
     if (form.participants.some((p) => p.email.toLowerCase() === email.toLowerCase())) {
       toast.error("Participant déjà ajouté");
       return;
     }
-    setForm((f) => ({ ...f, participants: [...f.participants, { email, name: newPart.name.trim(), role: "required" }] }));
+    setForm((f) => ({ ...f, participants: [...f.participants, { email, name, role: "required" }] }));
     setNewPart({ email: "", name: "" });
   }
 
@@ -1381,11 +1383,12 @@ export function MeetingDialog({
             <div className="space-y-2">
               <Label>Participants</Label>
               <div className="flex gap-2">
-                <Input
-                  placeholder="email@exemple.com"
+                <ContactEmailAutocomplete
                   value={newPart.email}
-                  onChange={(e) => setNewPart({ ...newPart, email: e.target.value })}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPart())}
+                  onChange={(v) => setNewPart({ ...newPart, email: v })}
+                  onSelect={(email) => addPart(email)}
+                  onEnter={() => addPart()}
+                  placeholder="email@exemple.com"
                 />
                 <Input
                   placeholder="Nom (optionnel)"
@@ -1393,7 +1396,7 @@ export function MeetingDialog({
                   onChange={(e) => setNewPart({ ...newPart, name: e.target.value })}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPart())}
                 />
-                <Button type="button" variant="outline" onClick={addPart}>Ajouter</Button>
+                <Button type="button" variant="outline" onClick={() => addPart()}>Ajouter</Button>
               </div>
               {form.participants.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
