@@ -506,18 +506,43 @@ function AgendaPage() {
   const deleteEvent = async (ev: UnifiedEvent) => {
     if (ev.kind !== "event") return;
     const dbEv = ev.raw as DbEvent;
-    const isRecurring = !!(dbEv.recurrence_rule && dbEv.recurrence_rule.trim().length > 0);
     const id = dbEv.id;
 
+    // A Google-synced recurring instance has google_event_id like "<master>_<recurrenceTime>".
+    // Such rows arrive without recurrence_rule (we pull with singleEvents=true), so we
+    // detect them via the id pattern.
+    const gid = dbEv.google_event_id ?? null;
+    const isGoogleInstance =
+      !!gid && /_\d{8}(T\d{6}Z?)?$/.test(gid);
+    const hasLocalRule =
+      !!(dbEv.recurrence_rule && dbEv.recurrence_rule.trim().length > 0);
+    const isRecurring = hasLocalRule || isGoogleInstance;
+
     if (isRecurring) {
-      // 3 choix : occurrence seule / toute la série / annuler
       const onlyThis = confirm(
         `"${ev.title}" fait partie d'une série récurrente.\n\n` +
         `OK = supprimer SEULEMENT cette occurrence (${ev.start.toLocaleString("fr-FR")}).\n` +
         `Annuler = voir d'autres options.`,
       );
       if (onlyThis) {
-        // Ajouter EXDATE à la règle
+        // Google instance → ask the server to cancel that single occurrence on Google.
+        if (isGoogleInstance) {
+          const prev = events;
+          const next = prev.filter((e) => e.id !== id);
+          setEvents(next);
+          setSelected(null);
+          cacheReplaceAll("calendar_events", next).catch(() => {});
+          try {
+            await deleteEventFn({ data: { eventId: id, scope: "instance" } });
+            toast.success("Occurrence supprimée");
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Suppression impossible");
+            setEvents(prev);
+            cacheReplaceAll("calendar_events", prev).catch(() => {});
+          }
+          return;
+        }
+        // Local-only series stored as a single row with RRULE → add EXDATE.
         const pad = (n: number) => String(n).padStart(2, "0");
         const d = ev.start;
         const exdate = `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}${pad(d.getUTCSeconds())}Z`;
@@ -546,22 +571,46 @@ function AgendaPage() {
       }
       const all = confirm(
         `Supprimer TOUTE la série récurrente "${ev.title}" ?\n\n` +
-        `OK = supprimer toutes les occurrences.\n` +
+        `OK = supprimer toutes les occurrences (Hub + Google).\n` +
         `Annuler = ne rien supprimer.`,
       );
       if (!all) return;
-    } else {
-      if (!confirm(`Supprimer "${ev.title}" ?`)) return;
+
+      // Optimistic: drop ALL local siblings of the same Google master id.
+      const prev = events;
+      let next = prev.filter((e) => e.id !== id);
+      if (isGoogleInstance && gid) {
+        const masterId = gid.split("_")[0];
+        next = prev.filter((e) => {
+          if (e.kind !== "event") return true;
+          const g = (e.raw as DbEvent).google_event_id ?? "";
+          return !(g === masterId || g.startsWith(masterId + "_"));
+        });
+      }
+      setEvents(next);
+      setSelected(null);
+      cacheReplaceAll("calendar_events", next).catch(() => {});
+      try {
+        await deleteEventFn({ data: { eventId: id, scope: "series" } });
+        toast.success("Série récurrente supprimée");
+        requestAutoSync();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Suppression impossible");
+        setEvents(prev);
+        cacheReplaceAll("calendar_events", prev).catch(() => {});
+      }
+      return;
     }
-    // Optimistic update + cache: avoid the cache rehydrate flash that reintroduced the event.
+
+    if (!confirm(`Supprimer "${ev.title}" ?`)) return;
     const prev = events;
     const next = prev.filter((e) => e.id !== id);
     setEvents(next);
     setSelected(null);
     cacheReplaceAll("calendar_events", next).catch(() => {});
     try {
-      await deleteEventFn({ data: { eventId: id } });
-      toast.success(isRecurring ? "Série récurrente supprimée" : "Événement supprimé");
+      await deleteEventFn({ data: { eventId: id, scope: "instance" } });
+      toast.success("Événement supprimé");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Suppression impossible");
       setEvents(prev);
