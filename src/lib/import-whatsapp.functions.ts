@@ -314,7 +314,8 @@ export const importWhatsapp = createServerFn({ method: "POST" })
           if (suggestionRows.length > 0) {
             const { error: sErr } = await supabase
               .from("wa_suggestions")
-              .insert(suggestionRows);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .insert(suggestionRows as any);
             if (sErr) console.error("wa_suggestions insert error", sErr);
           }
         }
