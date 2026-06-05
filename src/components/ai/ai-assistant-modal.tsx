@@ -11,6 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { aiAssistantQuery, aiProposeActions, aiChat, type AiAssistantResult, type ProposedAction, type AnyMatch, type EntityKind } from "@/lib/api/ai-assistant.functions";
+import { aiVoiceCommandPlan, aiVoiceCommandExecute, type AiVoicePlan } from "@/lib/api/ai-voice-command.functions";
+import { VoiceActionConfirm, type VoiceActionPlan } from "@/components/ai/voice-action-confirm";
 import { ActionCard, executeAction } from "@/components/ai/action-card";
 import { sendEmail } from "@/lib/api/email-send.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,6 +24,7 @@ import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-e
 import type { CachedEmail } from "@/lib/inbox-cache";
 import { toast } from "sonner";
 import { confirmDialog } from "@/lib/confirm-dialog";
+
 
 const ARCHIVE_KEY = "ai-assistant-archives";
 type ArchivedChat = { id: string; title: string; savedAt: number; turns: Turn[] };
