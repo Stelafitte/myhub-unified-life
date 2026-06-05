@@ -143,6 +143,7 @@ export function MeetingDialog({
   const [sharedMap, setSharedMap] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [autoAttachToMail, setAutoAttachToMail] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const taskPanel = useTaskPanel();
   const [composerOpen, setComposerOpen] = useState(false);
