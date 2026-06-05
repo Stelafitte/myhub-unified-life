@@ -250,6 +250,8 @@ export type Database = {
           type: string
           updated_at: string
           user_id: string
+          whatsapp_group_id: string | null
+          whatsapp_phone_number: string | null
         }
         Insert: {
           archived_at?: string | null
@@ -262,6 +264,8 @@ export type Database = {
           type?: string
           updated_at?: string
           user_id: string
+          whatsapp_group_id?: string | null
+          whatsapp_phone_number?: string | null
         }
         Update: {
           archived_at?: string | null
@@ -274,8 +278,60 @@ export type Database = {
           type?: string
           updated_at?: string
           user_id?: string
+          whatsapp_group_id?: string | null
+          whatsapp_phone_number?: string | null
         }
         Relationships: []
+      }
+      collab_wa_imports: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          filename: string
+          id: string
+          imported_messages: number | null
+          raw_content: string | null
+          space_id: string
+          status: string
+          total_messages: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          filename: string
+          id?: string
+          imported_messages?: number | null
+          raw_content?: string | null
+          space_id: string
+          status?: string
+          total_messages?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          filename?: string
+          id?: string
+          imported_messages?: number | null
+          raw_content?: string | null
+          space_id?: string
+          status?: string
+          total_messages?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_wa_imports_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contacts: {
         Row: {
