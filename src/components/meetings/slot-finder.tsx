@@ -19,15 +19,20 @@ type Props = {
   durationMinutes: number;
   /** Search horizon in days (default 30). */
   daysAhead?: number;
-  /** Called when the user picks a slot. ISO strings. */
+  /** Called when the user picks a slot (single-pick mode). ISO strings. */
   onPick: (slot: { startAt: string; endAt: string }) => void;
   /** Optional: allow picking multiple slots (returns true to keep selected style) */
   isSelected?: (slot: AvailableSlot) => boolean;
   /** Compact label for the trigger button. */
   triggerLabel?: string;
+  /** Multi-select mode: provide selected keys + toggle handler. Overrides onPick on click. */
+  selectedKeys?: Set<string>;
+  onToggleSelect?: (slot: AvailableSlot) => void;
+  /** Grise et désactive tout le bloc (ex : mode manuel actif). */
+  disabled?: boolean;
 };
 
-export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected, triggerLabel }: Props) {
+export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected, triggerLabel, selectedKeys, onToggleSelect, disabled }: Props) {
   const find = useServerFn(findAvailableSlots);
   const propose = useServerFn(aiProposeSlots);
 
@@ -141,14 +146,19 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
   }
 
   return (
-    <div className="space-y-3 rounded-md border p-3">
+    <div className={cn("space-y-3 rounded-md border p-3", disabled && "opacity-50 pointer-events-none")}> 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="text-sm font-medium flex items-center gap-1.5">
           <Search className="h-4 w-4" />
           Créneaux disponibles
+          {onToggleSelect && (
+            <span className="text-xs font-normal text-muted-foreground">
+              (sélection multiple)
+            </span>
+          )}
         </div>
         <div className="flex gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={run} disabled={loading}>
+          <Button type="button" size="sm" variant="outline" onClick={run} disabled={loading || disabled}>
             {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Search className="h-4 w-4 mr-1" />}
             {triggerLabel ?? "🔍 Trouver des créneaux"}
           </Button>
@@ -156,6 +166,7 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
             type="button"
             size="sm"
             variant="outline"
+            disabled={disabled}
             onClick={() => { setAiOpen(true); setAiSlots(null); }}
           >
             <Wand2 className="h-4 w-4 mr-1" />
@@ -176,23 +187,36 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
           {slots.map((s) => {
             const start = new Date(s.startAt);
             const end = new Date(s.endAt);
-            const selected = isSelected?.(s) ?? false;
+            const isChecked = onToggleSelect ? (selectedKeys?.has(s.startAt) ?? false) : (isSelected?.(s) ?? false);
             return (
               <Card
                 key={s.startAt}
                 className={cn(
                   "p-3 cursor-pointer hover:border-primary transition-colors",
-                  selected && "border-primary bg-primary/5",
+                  isChecked && "border-primary bg-primary/5",
                 )}
-                onClick={() => onPick({ startAt: s.startAt, endAt: s.endAt })}
+                onClick={() => {
+                  if (onToggleSelect) onToggleSelect(s);
+                  else onPick({ startAt: s.startAt, endAt: s.endAt });
+                }}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm">
-                      {format(start, "EEE d MMM", { locale: fr })}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(start, "HH:mm")} – {format(end, "HH:mm")}
+                  <div className="flex items-start gap-2 min-w-0">
+                    {onToggleSelect && (
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => onToggleSelect(s)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-0.5"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm">
+                        {format(start, "EEE d MMM", { locale: fr })}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(start, "HH:mm")} – {format(end, "HH:mm")}
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
