@@ -27,6 +27,11 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
   Bold,
   Italic,
   Underline as UnderlineIcon,
@@ -49,11 +54,17 @@ import {
   Mic,
   MicOff,
   Sparkles,
+  MessageSquare,
+  History,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SlashMenu, type SlashItem } from "./slash-menu";
 import { AIPreviewDialog, ACTION_LABELS } from "./ai-preview-dialog";
 import { useVoiceDictation } from "./use-voice-dictation";
+import { CommentsPanel } from "./comments-panel";
+import { VersionHistoryDialog } from "./version-history-dialog";
+import { useDocumentRealtime } from "./use-document-realtime";
 
 const AUTOSAVE_INTERVAL_MS = 30_000;
 
@@ -121,6 +132,15 @@ export function DocumentEditor({
   const [aiAction, setAiAction] = useState<EditorialAction | null>(null);
   const [aiSelectedText, setAiSelectedText] = useState("");
   const [aiContext, setAiContext] = useState<string>("");
+
+  // Comments + history
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [commentsRefreshKey, setCommentsRefreshKey] = useState(0);
+  const [remoteUpdateAvailable, setRemoteUpdateAvailable] = useState(false);
+  const [pendingAnchor, setPendingAnchor] = useState<
+    { text: string; from: number; to: number } | null
+  >(null);
 
   const editor = useEditor({
     extensions: [
@@ -213,6 +233,32 @@ export function DocumentEditor({
       editor.chain().focus().insertContent(t + " ").run();
     },
   });
+
+  // Realtime: comments + remote document edits (other tabs/devices)
+  useDocumentRealtime({
+    documentId,
+    onCommentsChange: () => setCommentsRefreshKey((k) => k + 1),
+    onVersionsChange: () => setCommentsRefreshKey((k) => k + 1),
+    onDocumentUpdate: () => {
+      // Avoid noisy banner if our own save just landed
+      if (saving) return;
+      setRemoteUpdateAvailable(true);
+    },
+  });
+
+  const openCommentsWithSelection = () => {
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      if (to > from) {
+        const text = editor.state.doc.textBetween(from, to, "\n", "\n");
+        setPendingAnchor({ text, from, to });
+      } else {
+        setPendingAnchor(null);
+      }
+    }
+    setCommentsOpen(true);
+  };
+
 
   const performSave = useCallback(
     async (createVersion: boolean) => {
@@ -595,6 +641,41 @@ export function DocumentEditor({
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <Sheet open={commentsOpen} onOpenChange={setCommentsOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openCommentsWithSelection();
+                }}
+                title="Commentaires"
+              >
+                <MessageSquare className="h-4 w-4 mr-1" />
+                Commentaires
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[400px] sm:w-[440px] p-0 flex flex-col">
+              <CommentsPanel
+                documentId={documentId}
+                pendingAnchor={pendingAnchor}
+                onConsumeAnchor={() => setPendingAnchor(null)}
+                refreshKey={commentsRefreshKey}
+              />
+            </SheetContent>
+          </Sheet>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setHistoryOpen(true)}
+            title="Historique des versions"
+          >
+            <History className="h-4 w-4 mr-1" />
+            Historique
+          </Button>
+
           <Button
             size="sm"
             onClick={() => performSave(true)}
@@ -605,6 +686,22 @@ export function DocumentEditor({
           </Button>
         </div>
       </div>
+
+      {remoteUpdateAvailable && (
+        <div className="mb-2 flex items-center justify-between rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200 px-3 py-2 text-sm">
+          <span>Ce document a été modifié ailleurs. Recharge pour voir la dernière version.</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+            className="ml-2"
+          >
+            <RefreshCw className="h-3.5 w-3.5 mr-1" />
+            Recharger
+          </Button>
+        </div>
+      )}
+
 
       {/* Editor */}
       <div className="border rounded-md bg-background relative">
@@ -635,6 +732,16 @@ export function DocumentEditor({
         selectedText={aiSelectedText}
         contextBefore={aiContext}
         onAccept={applySuggestion}
+      />
+
+      <VersionHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        documentId={documentId}
+        onRestored={() => {
+          // Force a reload so the editor picks up the restored content
+          window.location.reload();
+        }}
       />
     </div>
   );
