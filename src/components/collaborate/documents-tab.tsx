@@ -30,6 +30,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { TemplatesDialog } from "./templates-dialog";
+import { Office365PickerDialog } from "./office365-picker-dialog";
 
 interface DocRow {
   id: string;
@@ -57,6 +59,8 @@ export function DocumentsTab({ spaceId }: { spaceId: string }) {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"list" | "grid">("grid");
   const [creating, setCreating] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [officeOpen, setOfficeOpen] = useState(false);
 
   const reload = async () => {
     setLoading(true);
@@ -153,22 +157,14 @@ export function DocumentsTab({ spaceId }: { spaceId: string }) {
               <FileText className="h-4 w-4 mr-2" />
               📝 Document natif MyHub Pro
             </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled
-              onClick={() => toast.info("Office 365 : phase 4")}
-            >
+            <DropdownMenuItem onClick={() => setOfficeOpen(true)}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               📊 Lier un fichier Office 365
-              <span className="ml-auto text-xs text-muted-foreground">phase 4</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              disabled
-              onClick={() => toast.info("Templates : phase 4")}
-            >
+            <DropdownMenuItem onClick={() => setTemplatesOpen(true)}>
               <FilePieChart className="h-4 w-4 mr-2" />
               📋 Depuis un template
-              <span className="ml-auto text-xs text-muted-foreground">phase 4</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
