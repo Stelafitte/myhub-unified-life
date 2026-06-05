@@ -1698,6 +1698,17 @@ export function MeetingDialog({
             </div>
 
             <div className="flex flex-wrap gap-2 rounded-md border p-3 bg-muted/30">
+              {(pollMode || existingPoll) && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={sendPollToParticipants}
+                  disabled={!existingPoll || form.participants.length === 0 || pollSlots.length === 0}
+                  title={!existingPoll ? "Enregistrez d'abord la réunion pour créer le sondage" : ""}
+                >
+                  <Send className="h-4 w-4 mr-1" /> Envoyer le sondage aux participants
+                </Button>
+              )}
               <Button type="button" variant="outline" size="sm" onClick={sendMailToParticipants}>
                 <Mail className="h-4 w-4 mr-1" /> Envoyer un mail aux participants
               </Button>
