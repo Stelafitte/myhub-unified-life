@@ -91,12 +91,16 @@ export function AiAssistantModal({
   const [entityPreview, setEntityPreview] = useState<{ kind: EntityKind; id: string } | null>(null);
   const [minimized, setMinimized] = useState(false);
   const [voiceLivePreview, setVoiceLivePreview] = useState("");
+  const [pendingVoiceAction, setPendingVoiceAction] = useState<VoiceActionPlan | null>(null);
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const chatFn = useServerFn(aiChat);
   const sendFn = useServerFn(sendEmail);
+  const planFn = useServerFn(aiVoiceCommandPlan);
+  const execFn = useServerFn(aiVoiceCommandExecute);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
   const closeEmailPreview = useCallback((v: boolean) => { if (!v) setEmailPreviewId(null); }, []);
   const closeEntityPreview = useCallback((v: boolean) => { if (!v) setEntityPreview(null); }, []);
 
