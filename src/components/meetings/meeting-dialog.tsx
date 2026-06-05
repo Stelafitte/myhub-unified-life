@@ -1548,6 +1548,10 @@ export function MeetingDialog({
                 </Button>
                 <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onPickFiles} />
               </div>
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground border-t pt-2">
+                <span>Joindre automatiquement au mail envoyé aux participants</span>
+                <Switch checked={autoAttachToMail} onCheckedChange={setAutoAttachToMail} />
+              </div>
               {attachments.length === 0 && pendingFiles.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Aucun fichier.</p>
               ) : (
