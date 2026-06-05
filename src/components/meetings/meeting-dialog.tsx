@@ -1465,10 +1465,8 @@ export function MeetingDialog({
                 </Button>
                 <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onPickFiles} />
               </div>
-              {attachments.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  {form.id ? "Aucun fichier." : "Enregistrez la réunion pour pouvoir joindre des fichiers."}
-                </p>
+              {attachments.length === 0 && pendingFiles.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Aucun fichier.</p>
               ) : (
                 <ul className="space-y-1">
                   {attachments.map((d) => {
@@ -1502,6 +1500,19 @@ export function MeetingDialog({
                       </li>
                     );
                   })}
+                  {pendingFiles.map((f, i) => (
+                    <li key={`pending-${i}`} className="flex items-center gap-2 text-sm rounded border border-dashed bg-muted/30 p-2">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="truncate flex-1">
+                        {f.name}
+                        <Badge variant="outline" className="ml-1.5 text-[10px]">En attente</Badge>
+                      </span>
+                      <span className="text-xs text-muted-foreground">{formatBytes(f.size)}</span>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => setPendingFiles((p) => p.filter((_, j) => j !== i))} title="Retirer">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
