@@ -1098,7 +1098,13 @@ export function MeetingDialog({
                         const startMs = new Date(fromLocalInput(v)).getTime();
                         const mins = prepDuration || 60;
                         const endVal = toLocalInput(new Date(startMs + mins * 60000).toISOString());
-                        setForm({ ...form, start_at: v, end_at: endVal });
+                        const regenJitsi = form.is_online && (form.online_provider || "jitsi") === "jitsi";
+                        setForm({
+                          ...form,
+                          start_at: v,
+                          end_at: endVal,
+                          online_link: regenJitsi ? generateJitsiLink(v) : form.online_link,
+                        });
                       }}
                     />
                   </div>
