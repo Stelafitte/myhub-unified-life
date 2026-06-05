@@ -1079,14 +1079,17 @@ export function MeetingDialog({
                       value={form.start_at}
                       onChange={(e) => {
                         const v = e.target.value;
+                        if (!v) {
+                          setManualMode(false);
+                          setSelectedAvailable([]);
+                          setForm({ ...form, start_at: "", end_at: "" });
+                          return;
+                        }
                         setManualMode(true);
                         setSelectedAvailable([]);
-                        let endVal = form.end_at;
-                        if (v) {
-                          const startMs = new Date(fromLocalInput(v)).getTime();
-                          const mins = prepDuration || 60;
-                          endVal = toLocalInput(new Date(startMs + mins * 60000).toISOString());
-                        }
+                        const startMs = new Date(fromLocalInput(v)).getTime();
+                        const mins = prepDuration || 60;
+                        const endVal = toLocalInput(new Date(startMs + mins * 60000).toISOString());
                         setForm({ ...form, start_at: v, end_at: endVal });
                       }}
                     />
