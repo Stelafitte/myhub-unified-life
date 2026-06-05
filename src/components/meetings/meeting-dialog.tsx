@@ -1018,14 +1018,14 @@ export function MeetingDialog({
             <SlotFinder
               durationMinutes={prepDuration}
               daysAhead={prepDays}
-              disabled={manualMode || !!form.start_at || !!form.end_at}
+              disabled={manualMode}
               selectedKeys={selectedAvailableKeys}
               onToggleSelect={(s) => {
                 setSelectedAvailable((arr) => {
                   const exists = arr.some((x) => x.startAt === s.startAt);
                   const next = exists
                     ? arr.filter((x) => x.startAt !== s.startAt)
-                    : [...arr, { startAt: s.startAt, endAt: s.endAt }];
+                    : [...arr, { startAt: s.startAt, endAt: s.endAt }].sort((a, b) => a.startAt.localeCompare(b.startAt));
                   // En mode sondage : on synchronise pollSlots avec la sélection
                   if (pollMode) {
                     setPollSlots((ps) => {
@@ -1035,12 +1035,20 @@ export function MeetingDialog({
                         (a, b) => a.startAt.localeCompare(b.startAt),
                       );
                     });
-                  } else if (next.length === 1) {
-                    // Hors sondage : 1 créneau coché → alimente start/end de la réunion
+                  }
+                  // Hors comme en mode sondage : le 1er créneau (le plus tôt) alimente "Votre créneau"
+                  if (next.length === 0) {
+                    setForm((f) => ({ ...f, start_at: "", end_at: "" }));
+                  } else {
+                    const first = next[0];
                     setForm((f) => ({
                       ...f,
-                      start_at: toLocalInput(next[0].startAt),
-                      end_at: toLocalInput(next[0].endAt),
+                      start_at: toLocalInput(first.startAt),
+                      end_at: toLocalInput(first.endAt),
+                      online_link:
+                        f.is_online && (f.online_provider || "jitsi") === "jitsi"
+                          ? generateJitsiLink(toLocalInput(first.startAt))
+                          : f.online_link,
                     }));
                   }
                   return next;
@@ -1048,6 +1056,7 @@ export function MeetingDialog({
               }}
               onPick={() => {}}
             />
+
 
             {/* Poll mode toggle */}
             <div className="flex items-center justify-between rounded-md border p-3 bg-muted/20">
