@@ -1374,7 +1374,7 @@ export function MeetingDialog({
                       onValueChange={(v) => setForm((f) => ({ ...f, online_link: v }))}
                     />
                     {form.online_provider === "jitsi" && (
-                      <Button type="button" variant="outline" size="icon" onClick={() => setForm({ ...form, online_link: generateJitsiLink() })} title="Régénérer">
+                      <Button type="button" variant="outline" size="icon" onClick={() => setForm({ ...form, online_link: generateJitsiLink(form.start_at) })} title="Régénérer">
                         <Sparkles className="h-4 w-4" />
                       </Button>
                     )}
