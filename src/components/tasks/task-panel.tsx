@@ -1,3 +1,4 @@
+import { promptDialog } from "@/lib/confirm-dialog";
 import { useEffect, useRef, useState } from "react";
 import { Search, Mail, X, Sparkles, CalendarPlus, Paperclip, Download, Upload, Link, ExternalLink, Send } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";

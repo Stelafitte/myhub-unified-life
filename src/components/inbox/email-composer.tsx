@@ -1,3 +1,4 @@
+import { promptDialog } from "@/lib/confirm-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bold, Italic, Underline, List, Link2, Loader2, Paperclip, Send, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
