@@ -8,6 +8,7 @@ import { TaskPanelProvider } from "@/lib/task-panel-context";
 import { GlobalTaskPanel } from "@/components/tasks/global-task-panel";
 import { SessionExpiredBanner } from "@/components/session-expired-banner";
 import { supabase } from "@/integrations/supabase/client";
+import { ConfirmDialogHost } from "@/lib/confirm-dialog";
 
 async function consumeOAuthTokensFromUrl() {
   if (typeof window === "undefined") return;
