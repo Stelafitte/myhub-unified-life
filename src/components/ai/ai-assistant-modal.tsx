@@ -558,6 +558,28 @@ export function AiAssistantModal({
     </div>
   );
 
+  const handleVoiceActionResult = async (confirmed: boolean) => {
+    const plan = pendingVoiceAction;
+    setPendingVoiceAction(null);
+    if (!plan || !confirmed) {
+      if (plan) toast.info("Action annulée.");
+      return;
+    }
+    try {
+      const res = await execFn({
+        data: {
+          actionType: plan.actionType,
+          emailId: plan.params.emailId ?? null,
+          sender: plan.params.sender ?? null,
+          themeId: plan.params.themeId ?? null,
+        },
+      });
+      toast.success(res.message);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erreur lors de l'exécution");
+    }
+  };
+
   const previews = (
     <>
       <AiEmailReaderDialog
@@ -572,8 +594,14 @@ export function AiAssistantModal({
         onOpenChange={closeEntityPreview}
         onOpenInSource={(e) => openInSource(e.kind, e.id)}
       />
+      <VoiceActionConfirm
+        plan={pendingVoiceAction}
+        open={!!pendingVoiceAction}
+        onResult={handleVoiceActionResult}
+      />
     </>
   );
+
 
   if (!open) return null;
 
