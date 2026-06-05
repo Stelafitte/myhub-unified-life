@@ -789,6 +789,12 @@ export function MeetingDialog({
       return;
     }
     const dateStr = form.start_at ? new Date(fromLocalInput(form.start_at)).toLocaleString("fr-FR") : "";
+    // Auto-generate Jitsi link tied to the chosen date if missing
+    let visioLink = form.online_link;
+    if (form.is_online && (form.online_provider || "jitsi") === "jitsi" && !visioLink) {
+      visioLink = generateJitsiLink(form.start_at);
+      setForm((f) => ({ ...f, online_link: visioLink, online_provider: f.online_provider || "jitsi" }));
+    }
     const bodyLines = [
       `Bonjour,`,
       ``,
@@ -796,7 +802,7 @@ export function MeetingDialog({
       `• ${form.title}`,
       dateStr ? `• Date : ${dateStr}` : "",
       form.location ? `• Lieu : ${form.location}` : "",
-      form.is_online && form.online_link ? `• Visio : ${form.online_link}` : "",
+      form.is_online && visioLink ? `• Visio : ${visioLink}` : "",
       form.description ? `\n${form.description}` : "",
       ``,
       `Cordialement,`,
