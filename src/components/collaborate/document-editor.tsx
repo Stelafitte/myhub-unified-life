@@ -733,6 +733,16 @@ export function DocumentEditor({
         contextBefore={aiContext}
         onAccept={applySuggestion}
       />
+
+      <VersionHistoryDialog
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        documentId={documentId}
+        onRestored={() => {
+          // Force a reload so the editor picks up the restored content
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }
