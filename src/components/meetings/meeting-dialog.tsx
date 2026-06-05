@@ -1383,7 +1383,12 @@ export function MeetingDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Participants</Label>
+              <div className="flex items-center justify-between">
+                <Label>Participants</Label>
+                <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setPickerOpen(true)}>
+                  <Users className="h-3.5 w-3.5 mr-1" /> Depuis contacts
+                </Button>
+              </div>
               <div className="flex gap-2">
                 <ContactEmailAutocomplete
                   value={newPart.email}
@@ -1400,6 +1405,23 @@ export function MeetingDialog({
                 />
                 <Button type="button" variant="outline" onClick={() => addPart()}>Ajouter</Button>
               </div>
+              <ContactMultiPicker
+                open={pickerOpen}
+                onOpenChange={setPickerOpen}
+                excludeEmails={form.participants.map((p) => p.email)}
+                onConfirm={(items) => {
+                  setForm((f) => {
+                    const existing = new Set(f.participants.map((p) => p.email.toLowerCase()));
+                    const toAdd = items
+                      .filter((it) => !existing.has(it.email.toLowerCase()))
+                      .map((it) => ({ email: it.email, name: it.name, role: "required" as const }));
+                    if (toAdd.length === 0) return f;
+                    toast.success(`${toAdd.length} participant(s) ajouté(s)`);
+                    return { ...f, participants: [...f.participants, ...toAdd] };
+                  });
+                }}
+              />
+
               {form.participants.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {form.participants.map((p) => (
