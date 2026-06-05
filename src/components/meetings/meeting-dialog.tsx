@@ -686,7 +686,11 @@ export function MeetingDialog({
   async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!user || files.length === 0) return;
+    if (files.length === 0) return;
+    if (!user) {
+      toast.error("Session non chargée — réessayez dans un instant");
+      return;
+    }
     // If meeting not saved yet, buffer files locally — they'll upload on save.
     if (!form.id) {
       setPendingFiles((p) => [...p, ...files]);
@@ -699,6 +703,7 @@ export function MeetingDialog({
       await loadAttachments(form.id);
       toast.success("Fichier(s) ajouté(s)");
     } catch (err) {
+      console.error("[meeting] upload error", err);
       toast.error(err instanceof Error ? err.message : "Erreur upload");
     } finally {
       setUploading(false);
