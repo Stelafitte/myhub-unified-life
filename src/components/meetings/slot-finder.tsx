@@ -146,14 +146,19 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
   }
 
   return (
-    <div className="space-y-3 rounded-md border p-3">
+    <div className={cn("space-y-3 rounded-md border p-3", disabled && "opacity-50 pointer-events-none")}> 
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="text-sm font-medium flex items-center gap-1.5">
           <Search className="h-4 w-4" />
           Créneaux disponibles
+          {onToggleSelect && (
+            <span className="text-xs font-normal text-muted-foreground">
+              (sélection multiple)
+            </span>
+          )}
         </div>
         <div className="flex gap-2">
-          <Button type="button" size="sm" variant="outline" onClick={run} disabled={loading}>
+          <Button type="button" size="sm" variant="outline" onClick={run} disabled={loading || disabled}>
             {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Search className="h-4 w-4 mr-1" />}
             {triggerLabel ?? "🔍 Trouver des créneaux"}
           </Button>
@@ -161,6 +166,7 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
             type="button"
             size="sm"
             variant="outline"
+            disabled={disabled}
             onClick={() => { setAiOpen(true); setAiSlots(null); }}
           >
             <Wand2 className="h-4 w-4 mr-1" />
