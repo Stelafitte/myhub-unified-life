@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { aiAssistantQuery, aiProposeActions, aiChat, type AiAssistantResult, type ProposedAction, type AnyMatch, type EntityKind } from "@/lib/api/ai-assistant.functions";
 import { aiVoiceCommandPlan, aiVoiceCommandExecute, type AiVoicePlan } from "@/lib/api/ai-voice-command.functions";
 import { VoiceActionConfirm, type VoiceActionPlan } from "@/components/ai/voice-action-confirm";
-import { detectInboxControl, emitInboxControl } from "@/lib/inbox-control-bus";
+import { detectInboxControl, emitInboxControl, getCurrentInboxSelection } from "@/lib/inbox-control-bus";
 import { ActionCard, executeAction } from "@/components/ai/action-card";
 import { sendEmail } from "@/lib/api/email-send.functions";
 import { supabase } from "@/integrations/supabase/client";
