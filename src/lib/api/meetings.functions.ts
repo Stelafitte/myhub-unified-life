@@ -407,9 +407,13 @@ async function findCandidateSlots(
   userId: string,
   opts: { durationMinutes: number; daysAhead: number; leadHours: number; maxResults: number },
 ): Promise<{ slots: AvailableSlot[]; hasGoogleCalendar: boolean }> {
-  const workStartHour = 8;
-  const workEndHour = 19;
-  const workDays = new Set([1, 2, 3, 4, 5]);
+  // Pour l'IA, on élargit volontairement la fenêtre de candidats afin que
+  // les contraintes utilisateur ("après 17h", "le week-end", "tôt le matin"…)
+  // puissent être satisfaites. L'IA filtrera ensuite selon les disponibilités
+  // déclarées dans le texte libre.
+  const workStartHour = 7;
+  const workEndHour = 22;
+  const workDays = new Set([1, 2, 3, 4, 5, 6, 7]);
 
   const now = Date.now();
   const earliest = now + opts.leadHours * 3600_000;
