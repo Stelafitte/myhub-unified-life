@@ -14,6 +14,7 @@ import {
   saveCollabDocument,
   uploadDocumentImage,
 } from "@/lib/collab-documents.functions";
+import { saveAsTemplate } from "@/lib/collab-templates.functions";
 import type { EditorialAction } from "@/lib/collab-ai.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,8 @@ import {
   MessageSquare,
   History,
   RefreshCw,
+  Bookmark,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SlashMenu, type SlashItem } from "./slash-menu";
@@ -113,6 +116,7 @@ export function DocumentEditor({
 }: DocumentEditorProps) {
   const saveFn = useServerFn(saveCollabDocument);
   const uploadFn = useServerFn(uploadDocumentImage);
+  const saveTemplateFn = useServerFn(saveAsTemplate);
 
   const [title, setTitle] = useState(initialTitle);
   const [saving, setSaving] = useState(false);
@@ -431,6 +435,23 @@ export function DocumentEditor({
     else voice.start();
   };
 
+  const handleSaveAsTemplate = async (scope: "personal" | "space") => {
+    try {
+      // Ensure latest content is saved first
+      if (dirtyRef.current) await performSave(false);
+      await saveTemplateFn({ data: { documentId, scope } });
+      toast.success(
+        scope === "space"
+          ? "Enregistré comme template de l'espace"
+          : "Enregistré comme template personnel",
+      );
+    } catch (e) {
+      toast.error("Enregistrement template échoué", {
+        description: (e as Error).message,
+      });
+    }
+  };
+
   if (!editor) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -675,6 +696,25 @@ export function DocumentEditor({
             <History className="h-4 w-4 mr-1" />
             Historique
           </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" title="Plus d'actions">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Templates</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleSaveAsTemplate("personal")}>
+                <Bookmark className="h-3.5 w-3.5 mr-2" />
+                Enregistrer (personnel)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSaveAsTemplate("space")}>
+                <Bookmark className="h-3.5 w-3.5 mr-2" />
+                Enregistrer (espace)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Button
             size="sm"
