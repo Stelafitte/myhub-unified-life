@@ -108,6 +108,7 @@ function AuthenticatedLayout() {
             </div>
           </div>
           <GlobalTaskPanel />
+          <ConfirmDialogHost />
         </SidebarProvider>
       </TaskPanelProvider>
     </SecureVaultProvider>
