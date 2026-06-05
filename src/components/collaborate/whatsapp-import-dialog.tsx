@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { importWhatsapp } from "@/lib/import-whatsapp.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { Link } from "@tanstack/react-router";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +14,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Upload, CheckCircle2 } from "lucide-react";
 
@@ -21,6 +30,12 @@ interface Props {
   spaceId: string;
   spaceName: string;
   onDone?: () => void;
+}
+
+interface SpaceOpt {
+  id: string;
+  name: string;
+  icon: string | null;
 }
 
 interface ImportResult {
@@ -38,7 +53,23 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [spaces, setSpaces] = useState<SpaceOpt[]>([]);
+  const [targetSpaceId, setTargetSpaceId] = useState(spaceId);
   const importFn = useServerFn(importWhatsapp);
+
+  useEffect(() => {
+    setTargetSpaceId(spaceId);
+  }, [spaceId]);
+
+  useEffect(() => {
+    if (!open) return;
+    supabase
+      .from("collab_spaces")
+      .select("id, name, icon")
+      .is("archived_at", null)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => setSpaces((data ?? []) as SpaceOpt[]));
+  }, [open]);
 
   const reset = () => {
     setFile(null);
@@ -48,13 +79,12 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
   };
 
   const handleSubmit = async () => {
-    if (!file) return;
+    if (!file || !targetSpaceId) return;
     setBusy(true);
     setProgress(15);
     try {
       const text = await file.text();
       setProgress(35);
-      // Encode UTF-8 → base64
       const bytes = new TextEncoder().encode(text);
       let bin = "";
       for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
@@ -62,7 +92,7 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
       setProgress(55);
 
       const res = (await importFn({
-        data: { space_id: spaceId, filename: file.name, content_b64 },
+        data: { space_id: targetSpaceId, filename: file.name, content_b64 },
       })) as ImportResult;
       setProgress(100);
       setResult(res);
@@ -76,6 +106,9 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
     }
   };
 
+  const currentSpaceName =
+    spaces.find((s) => s.id === targetSpaceId)?.name ?? spaceName;
+
   return (
     <Dialog
       open={open}
@@ -88,13 +121,28 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
         <DialogHeader>
           <DialogTitle>📱 Importer l'historique WhatsApp</DialogTitle>
           <DialogDescription>
-            Importez un export <code>.txt</code> WhatsApp dans l'espace « {spaceName} ».
-            L'IA détecte les actions, réunions et décisions.
+            Importez un export <code>.txt</code> WhatsApp dans « {currentSpaceName} ».
+            L'IA propose des actions, réunions et décisions à valider.
           </DialogDescription>
         </DialogHeader>
 
         {!result && (
           <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium block mb-2">Espace cible</label>
+              <Select value={targetSpaceId} onValueChange={setTargetSpaceId} disabled={busy}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir un espace" />
+                </SelectTrigger>
+                <SelectContent>
+                  {spaces.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.icon ?? "📁"} {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <label className="text-sm font-medium block mb-2">Fichier d'export</label>
               <Input
@@ -132,12 +180,18 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
               <li>✅ {result.imported} importés ({result.duplicates} doublons ignorés)</li>
               <li>✓ {result.actions_created} actions proposées</li>
               <li>📅 {result.meetings_detected} réunions proposées</li>
-              <li>🎯 {result.decisions_found} décisions identifiées</li>
+              <li>🎯 {result.decisions_found} décisions proposées</li>
             </ul>
             <p className="text-xs text-muted-foreground">
-              Les actions et réunions sont créées avec le tag <code>proposition-whatsapp</code>.
-              Vérifiez-les dans Tâches / Agenda.
+              Aucune création automatique : validez chaque proposition dans l'écran de revue.
             </p>
+            <Link
+              to="/collaborate/review"
+              className="inline-flex items-center justify-center w-full rounded-md bg-primary text-primary-foreground py-2 text-sm font-medium hover:opacity-90"
+              onClick={() => onOpenChange(false)}
+            >
+              Ouvrir l'écran de revue →
+            </Link>
           </div>
         )}
 
@@ -147,7 +201,7 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
                 Annuler
               </Button>
-              <Button onClick={handleSubmit} disabled={!file || busy}>
+              <Button onClick={handleSubmit} disabled={!file || !targetSpaceId || busy}>
                 {busy ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -162,7 +216,9 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
               </Button>
             </>
           ) : (
-            <Button onClick={() => onOpenChange(false)}>Fermer</Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Fermer
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>
