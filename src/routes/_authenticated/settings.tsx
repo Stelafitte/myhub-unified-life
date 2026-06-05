@@ -36,7 +36,7 @@ function SettingsPage() {
       </div>
 
       <Tabs defaultValue="account">
-        <TabsList className="mb-6 flex-wrap">
+        <TabsList className="mb-6 h-auto flex-wrap py-1">
           <TabsTrigger value="account">👤 Mon compte</TabsTrigger>
           <TabsTrigger value="accounts">📧 Comptes</TabsTrigger>
           <TabsTrigger value="calendars">📅 Agendas</TabsTrigger>
