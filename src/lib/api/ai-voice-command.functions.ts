@@ -194,7 +194,7 @@ Thèmes disponibles : ${themes.map((t) => t.name).join(", ") || "(aucun)"}.`;
         .from("emails")
         .select("id,subject,from_address,from_name,received_at")
         .eq("user_id", userId)
-        .eq("theme_id", target.id)
+        .eq("ai_theme_id", target.id)
         .is("deleted_at", null)
         .eq("is_archived", false)
         .order("received_at", { ascending: false })
@@ -271,7 +271,7 @@ export const aiVoiceCommandExecute = createServerFn({ method: "POST" })
         .from("emails")
         .select("id")
         .eq("user_id", userId)
-        .eq("theme_id", data.themeId)
+        .eq("ai_theme_id", data.themeId)
         .is("deleted_at", null)
         .eq("is_archived", false);
       if (selErr) throw new Error(selErr.message);
