@@ -1391,12 +1391,15 @@ export function MeetingDialog({
                     )}
                   </div>
                 </div>
-                {form.online_provider === "zoom" && (
-                  <div>
-                    <Label htmlFor="m-zpwd">Mot de passe Zoom (optionnel)</Label>
-                    <DebouncedInput id="m-zpwd" value={form.zoom_password} onValueChange={(v) => setForm((f) => ({ ...f, zoom_password: v }))} />
-                  </div>
-                )}
+                <div>
+                  <Label htmlFor="m-zpwd">
+                    Mot de passe (optionnel)
+                    {form.online_provider === "jitsi" && (
+                      <span className="ml-1 text-xs text-muted-foreground">— à définir manuellement dans la salle Jitsi puis communiquer aux invités</span>
+                    )}
+                  </Label>
+                  <DebouncedInput id="m-zpwd" value={form.zoom_password} onValueChange={(v) => setForm((f) => ({ ...f, zoom_password: v }))} />
+                </div>
               </div>
             )}
 
