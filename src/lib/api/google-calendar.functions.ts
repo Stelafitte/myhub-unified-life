@@ -571,9 +571,17 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
  */
 export const deleteCalendarEvent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ eventId: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        eventId: z.string().uuid(),
+        scope: z.enum(["instance", "series"]).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    const scope = data.scope ?? "instance";
 
     const { data: ev, error: evErr } = await supabaseAdmin
       .from("calendar_events")
@@ -583,48 +591,108 @@ export const deleteCalendarEvent = createServerFn({ method: "POST" })
     if (evErr) throw new Error(evErr.message);
     if (!ev || ev.user_id !== userId) throw new Error("Événement introuvable");
 
-    // If linked to Google → try to delete remotely + tombstone
-    if (ev.gcal_connection_id && ev.google_event_id) {
+    // Resolve Google access token + calendar metadata for a connection
+    async function loadConn(connId: string) {
       const { data: conn } = await supabaseAdmin
         .from("google_calendar_connections")
         .select("*")
-        .eq("id", ev.gcal_connection_id)
+        .eq("id", connId)
         .maybeSingle();
+      if (!conn) return null;
+      let accessToken = conn.access_token;
+      if (new Date(conn.expires_at).getTime() < Date.now() + 60_000) {
+        try {
+          const refreshed = await refreshAccessToken(conn.refresh_token);
+          accessToken = refreshed.accessToken;
+          await supabaseAdmin
+            .from("google_calendar_connections")
+            .update({ access_token: accessToken, expires_at: refreshed.expiresAt })
+            .eq("id", conn.id);
+        } catch (e) {
+          console.warn("Token refresh failed before delete", e);
+        }
+      }
+      return {
+        accessToken,
+        calendarId: encodeURIComponent(conn.calendar_id || "primary"),
+        direction: conn.sync_direction as string,
+      };
+    }
 
-      if (conn) {
-        // Tombstone first (idempotent) so even a failed remote delete won't re-sync
-        await supabaseAdmin.from("deleted_calendar_events").upsert(
-          {
-            user_id: userId,
-            gcal_connection_id: ev.gcal_connection_id,
-            google_event_id: ev.google_event_id,
-          },
-          { onConflict: "gcal_connection_id,google_event_id" },
+    // -------- SERIES deletion (recurring) --------
+    // Google instance IDs use the format "<masterId>_<recurrenceTime>"
+    // (e.g. "abc123_20260605T080000Z"). With singleEvents=true at pull time,
+    // each occurrence is stored as its own row, so deleting "the series"
+    // requires deleting the MASTER event on Google + tombstoning every
+    // known instance id locally.
+    if (scope === "series" && ev.gcal_connection_id && ev.google_event_id) {
+      const masterId = ev.google_event_id.includes("_")
+        ? ev.google_event_id.split("_")[0]
+        : ev.google_event_id;
+
+      // Collect every local sibling tied to this master.
+      const { data: siblings } = await supabaseAdmin
+        .from("calendar_events")
+        .select("id, google_event_id")
+        .eq("user_id", userId)
+        .eq("gcal_connection_id", ev.gcal_connection_id)
+        .or(`google_event_id.eq.${masterId},google_event_id.like.${masterId}\\_%`);
+
+      const localIds = (siblings ?? []).map((s) => s.id);
+      const allGids = Array.from(
+        new Set([
+          masterId,
+          ev.google_event_id,
+          ...((siblings ?? []).map((s) => s.google_event_id as string)),
+        ]),
+      );
+
+      await supabaseAdmin.from("deleted_calendar_events").upsert(
+        allGids.map((gid) => ({
+          user_id: userId,
+          gcal_connection_id: ev.gcal_connection_id!,
+          google_event_id: gid,
+        })),
+        { onConflict: "gcal_connection_id,google_event_id" },
+      );
+
+      const meta = await loadConn(ev.gcal_connection_id);
+      if (meta && meta.direction !== "pull") {
+        const r = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${meta.calendarId}/events/${encodeURIComponent(masterId)}`,
+          { method: "DELETE", headers: { authorization: `Bearer ${meta.accessToken}` } },
         );
+        if (!r.ok && r.status !== 404 && r.status !== 410) {
+          console.warn("Google series delete failed", r.status, await r.text().catch(() => ""));
+        }
+      }
 
-        if (conn.sync_direction !== "pull") {
-          let accessToken = conn.access_token;
-          if (new Date(conn.expires_at).getTime() < Date.now() + 60_000) {
-            try {
-              const refreshed = await refreshAccessToken(conn.refresh_token);
-              accessToken = refreshed.accessToken;
-              await supabaseAdmin
-                .from("google_calendar_connections")
-                .update({ access_token: accessToken, expires_at: refreshed.expiresAt })
-                .eq("id", conn.id);
-            } catch (e) {
-              console.warn("Token refresh failed before delete", e);
-            }
-          }
-          const calendarId = encodeURIComponent(conn.calendar_id || "primary");
-          const r = await fetch(
-            `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(ev.google_event_id)}`,
-            { method: "DELETE", headers: { authorization: `Bearer ${accessToken}` } },
-          );
-          // 404/410 = already gone, OK. Other errors → log, tombstone keeps it hidden.
-          if (!r.ok && r.status !== 404 && r.status !== 410) {
-            console.warn("Google delete failed", r.status, await r.text().catch(() => ""));
-          }
+      if (localIds.length > 0) {
+        await supabaseAdmin.from("calendar_events").delete().in("id", localIds);
+      } else {
+        await supabaseAdmin.from("calendar_events").delete().eq("id", ev.id);
+      }
+      return { ok: true, removed: localIds.length || 1 };
+    }
+
+    // -------- INSTANCE / one-off deletion --------
+    if (ev.gcal_connection_id && ev.google_event_id) {
+      await supabaseAdmin.from("deleted_calendar_events").upsert(
+        {
+          user_id: userId,
+          gcal_connection_id: ev.gcal_connection_id,
+          google_event_id: ev.google_event_id,
+        },
+        { onConflict: "gcal_connection_id,google_event_id" },
+      );
+      const meta = await loadConn(ev.gcal_connection_id);
+      if (meta && meta.direction !== "pull") {
+        const r = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/${meta.calendarId}/events/${encodeURIComponent(ev.google_event_id)}`,
+          { method: "DELETE", headers: { authorization: `Bearer ${meta.accessToken}` } },
+        );
+        if (!r.ok && r.status !== 404 && r.status !== 410) {
+          console.warn("Google delete failed", r.status, await r.text().catch(() => ""));
         }
       }
     }
@@ -635,7 +703,7 @@ export const deleteCalendarEvent = createServerFn({ method: "POST" })
       .eq("id", ev.id);
     if (delErr) throw new Error(delErr.message);
 
-    return { ok: true };
+    return { ok: true, removed: 1 };
   });
 
 /* ------------------------------------------------------------------ */
