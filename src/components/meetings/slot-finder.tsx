@@ -239,8 +239,18 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
           <div className="flex-1 overflow-y-auto px-6 py-3 space-y-3">
             {aiHistory.length > 0 && (
               <div className="space-y-1.5">
-                <div className="text-xs font-medium text-muted-foreground">
-                  Contraintes appliquées ({aiHistory.length} itération{aiHistory.length > 1 ? "s" : ""})
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    Contraintes appliquées ({aiHistory.length} itération{aiHistory.length > 1 ? "s" : ""})
+                  </div>
+                  <button
+                    type="button"
+                    onClick={resetAi}
+                    className="text-xs text-primary hover:underline flex items-center gap-1"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Réinitialiser l'IA
+                  </button>
                 </div>
                 <ul className="space-y-1">
                   {aiHistory.map((h, i) => (
