@@ -263,7 +263,7 @@ export function AiAssistantModal({
             <Button size="sm" variant="ghost" onClick={archiveConversation} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs">
               <Archive className="h-3.5 w-3.5" />Archiver
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { if (turns.length === 0) return; if (await confirmDialog("Supprimer cette conversation ?")) newConversation(); }} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive">
+            <Button size="sm" variant="ghost" onClick={async () => { if (turns.length === 0) return; if (await confirmDialog("Supprimer cette conversation ?")) newConversation(); }} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive">
               <Trash2 className="h-3.5 w-3.5" />Supprimer
             </Button>
             <DropdownMenu>
