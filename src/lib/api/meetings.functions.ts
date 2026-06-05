@@ -103,6 +103,7 @@ const findSlotsInput = z.object({
   durationMinutes: z.number().int().min(15).max(8 * 60).default(60),
   daysAhead: z.number().int().min(1).max(60).default(30),
   leadHours: z.number().int().min(0).max(7 * 24).default(24),
+  offsetDays: z.number().int().min(0).max(60).default(0),
   workStartHour: z.number().int().min(0).max(23).default(8),
   workEndHour: z.number().int().min(1).max(24).default(19),
   // 1 = Monday … 7 = Sunday (ISO). Default: Mon-Fri.
