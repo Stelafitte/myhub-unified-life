@@ -1140,10 +1140,10 @@ function WeekOrDayView({
                   if (e.target !== e.currentTarget) return;
                   const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                   const offsetY = e.clientY - rect.top;
-                  const minutesFromStart = Math.max(0, Math.round((offsetY / ROW_H) * 4) * 15);
+                  // On arrondit à l'heure pile de la zone cliquée (minutes = 0)
+                  const hoursFromStart = Math.max(0, Math.floor(offsetY / ROW_H));
                   const slot = new Date(d);
-                  slot.setHours(startHour, 0, 0, 0);
-                  slot.setMinutes(slot.getMinutes() + minutesFromStart);
+                  slot.setHours(startHour + hoursFromStart, 0, 0, 0);
                   onLongCreate(slot);
                 }}
               >
