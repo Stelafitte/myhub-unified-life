@@ -58,12 +58,15 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
 
   async function run() {
     setLoading(true);
+    const nextOffset = offsetDays + 7;
+    setOffsetDays(nextOffset);
     try {
       const res = await find({
         data: {
           durationMinutes: Math.max(15, Math.min(8 * 60, durationMinutes || 60)),
           daysAhead,
           leadHours: 24,
+          offsetDays: nextOffset,
           maxResults: 5,
         },
       });
