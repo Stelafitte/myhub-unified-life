@@ -851,7 +851,7 @@ export function MeetingDialog({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label htmlFor="m-search-from">Date de début</Label>
+                  <Label htmlFor="m-search-from">Date de début de recherche</Label>
                   <Input
                     id="m-search-from"
                     type="date"
@@ -867,7 +867,7 @@ export function MeetingDialog({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="m-search-to">Date de fin</Label>
+                  <Label htmlFor="m-search-to">Date de fin de recherche</Label>
                   <Input
                     id="m-search-to"
                     type="date"
@@ -891,18 +891,6 @@ export function MeetingDialog({
 
             {!pollMode && (
               <>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="m-start">Début *</Label>
-                    <Input id="m-start" type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label htmlFor="m-end">Fin *</Label>
-                    <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
-                  </div>
-                </div>
-
                 <SlotFinder
                   durationMinutes={prepDuration}
                   daysAhead={prepDays}
@@ -915,6 +903,17 @@ export function MeetingDialog({
                     toast.success("Créneau sélectionné");
                   }}
                 />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="m-start">Début *</Label>
+                    <Input id="m-start" type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label htmlFor="m-end">Fin *</Label>
+                    <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
+                  </div>
+                </div>
               </>
             )}
 
