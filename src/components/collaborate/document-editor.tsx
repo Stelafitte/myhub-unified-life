@@ -14,9 +14,18 @@ import {
   saveCollabDocument,
   uploadDocumentImage,
 } from "@/lib/collab-documents.functions";
+import type { EditorialAction } from "@/lib/collab-ai.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import {
   Bold,
   Italic,
@@ -38,13 +47,16 @@ import {
   Loader2,
   Check,
   Mic,
+  MicOff,
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { SlashMenu, type SlashItem } from "./slash-menu";
+import { AIPreviewDialog, ACTION_LABELS } from "./ai-preview-dialog";
+import { useVoiceDictation } from "./use-voice-dictation";
 
 const AUTOSAVE_INTERVAL_MS = 30_000;
 
-// Image extension carrying our storage path attribute for signed-URL refresh
 const StorageImage = Image.extend({
   addAttributes() {
     return {
@@ -69,6 +81,19 @@ interface DocumentEditorProps {
   versionCount: number;
 }
 
+const AI_MENU: { action: EditorialAction; needsSelection: boolean }[] = [
+  { action: "improve", needsSelection: true },
+  { action: "shorten", needsSelection: true },
+  { action: "lengthen", needsSelection: true },
+  { action: "simplify", needsSelection: true },
+  { action: "fix_grammar", needsSelection: true },
+  { action: "change_tone", needsSelection: true },
+  { action: "translate", needsSelection: true },
+  { action: "summarize", needsSelection: true },
+  { action: "to_bullets", needsSelection: true },
+  { action: "continue", needsSelection: false },
+];
+
 export function DocumentEditor({
   documentId,
   initialTitle,
@@ -85,13 +110,25 @@ export function DocumentEditor({
   const dirtyRef = useRef(false);
   const lastSavedSerialized = useRef<string>("");
 
+  // Slash menu
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState("");
+  const [slashPos, setSlashPos] = useState<{ top: number; left: number } | null>(null);
+  const slashStartRef = useRef<number | null>(null); // doc position of the "/"
+
+  // AI dialog
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiAction, setAiAction] = useState<EditorialAction | null>(null);
+  const [aiSelectedText, setAiSelectedText] = useState("");
+  const [aiContext, setAiContext] = useState<string>("");
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ link: false }),
       Underline,
       Link.configure({ openOnClick: true, HTMLAttributes: { rel: "noopener noreferrer" } }),
       StorageImage,
-      Placeholder.configure({ placeholder: "Commencez à écrire…" }),
+      Placeholder.configure({ placeholder: "Commencez à écrire… ou tapez « / » pour les commandes" }),
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,
@@ -104,8 +141,76 @@ export function DocumentEditor({
           "tiptap-content focus:outline-none min-h-[60vh] px-4 py-4 text-base leading-relaxed",
       },
     },
-    onUpdate: () => {
+    onUpdate: ({ editor }) => {
       dirtyRef.current = true;
+      // Slash menu detection
+      const { from } = editor.state.selection;
+      if (slashStartRef.current !== null) {
+        if (from < slashStartRef.current) {
+          closeSlash();
+          return;
+        }
+        const text = editor.state.doc.textBetween(slashStartRef.current, from, "\n", "\n");
+        if (!text.startsWith("/") || text.includes(" ") || text.includes("\n")) {
+          closeSlash();
+          return;
+        }
+        setSlashQuery(text.slice(1));
+      } else {
+        // Detect a freshly-typed "/" at start of a node or after space
+        const $from = editor.state.selection.$from;
+        const lastChar = editor.state.doc.textBetween(Math.max(0, from - 1), from, "\n", "\n");
+        if (lastChar === "/") {
+          const before = editor.state.doc.textBetween(
+            Math.max(0, from - 2),
+            from - 1,
+            "\n",
+            "\n",
+          );
+          const atNodeStart = $from.parentOffset === 1;
+          if (atNodeStart || before === " " || before === "" || before === "\n") {
+            openSlashAt(from - 1);
+          }
+        }
+      }
+    },
+  });
+
+  const openSlashAt = (pos: number) => {
+    if (!editor) return;
+    slashStartRef.current = pos;
+    setSlashQuery("");
+    try {
+      const coords = editor.view.coordsAtPos(pos);
+      setSlashPos({ top: coords.bottom + 4, left: coords.left });
+    } catch {
+      setSlashPos({ top: 100, left: 100 });
+    }
+    setSlashOpen(true);
+  };
+
+  const closeSlash = useCallback(() => {
+    setSlashOpen(false);
+    setSlashQuery("");
+    slashStartRef.current = null;
+  }, []);
+
+  const removeSlashText = useCallback(() => {
+    if (!editor || slashStartRef.current === null) return;
+    const start = slashStartRef.current;
+    const end = editor.state.selection.from;
+    editor.chain().focus().deleteRange({ from: start, to: end }).run();
+    slashStartRef.current = null;
+  }, [editor]);
+
+  // Voice dictation
+  const voice = useVoiceDictation({
+    lang: "fr-FR",
+    onFinal: (text) => {
+      if (!editor) return;
+      const t = text.trim();
+      if (!t) return;
+      editor.chain().focus().insertContent(t + " ").run();
     },
   });
 
@@ -138,7 +243,6 @@ export function DocumentEditor({
     [editor, title, documentId, saveFn],
   );
 
-  // Autosave every 30s if dirty
   useEffect(() => {
     const id = setInterval(() => {
       if (dirtyRef.current) performSave(true);
@@ -146,7 +250,6 @@ export function DocumentEditor({
     return () => clearInterval(id);
   }, [performSave]);
 
-  // Save on title blur and on unmount
   useEffect(() => {
     return () => {
       if (dirtyRef.current) performSave(true);
@@ -214,6 +317,74 @@ export function DocumentEditor({
     editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   };
 
+  // === AI ===
+  const openAI = (action: EditorialAction) => {
+    if (!editor) return;
+    const { from, to } = editor.state.selection;
+    const selected = editor.state.doc.textBetween(from, to, "\n", "\n");
+    const needsSel = AI_MENU.find((m) => m.action === action)?.needsSelection;
+    if (needsSel && !selected.trim()) {
+      toast.error("Sélectionne d'abord un passage de texte.");
+      return;
+    }
+    const ctxStart = Math.max(0, from - 1500);
+    const ctxBefore = editor.state.doc.textBetween(ctxStart, from, "\n", "\n");
+    setAiAction(action);
+    setAiSelectedText(selected);
+    setAiContext(ctxBefore);
+    setAiOpen(true);
+  };
+
+  const applySuggestion = (suggestion: string, _action: EditorialAction, isContinuation: boolean) => {
+    if (!editor) return;
+    if (isContinuation) {
+      const insertion = (editor.state.doc.textBetween(
+        Math.max(0, editor.state.selection.from - 1),
+        editor.state.selection.from,
+        "\n",
+        "\n",
+      ).endsWith(" ") ? "" : " ") + suggestion;
+      editor.chain().focus().insertContent(insertion).run();
+    } else {
+      const { from, to } = editor.state.selection;
+      if (from === to) {
+        editor.chain().focus().insertContent(suggestion).run();
+      } else {
+        editor
+          .chain()
+          .focus()
+          .deleteRange({ from, to })
+          .insertContent(suggestion)
+          .run();
+      }
+    }
+    toast.success("Suggestion appliquée");
+    dirtyRef.current = true;
+  };
+
+  // Slash menu picks
+  const onPickFormat = (item: SlashItem) => {
+    if (!editor || !item.run) return;
+    removeSlashText();
+    item.run(editor);
+    closeSlash();
+  };
+  const onPickAI = (action: EditorialAction) => {
+    removeSlashText();
+    closeSlash();
+    openAI(action);
+  };
+  const onPickVoice = () => {
+    removeSlashText();
+    closeSlash();
+    if (!voice.supported) {
+      toast.error("Dictée vocale non supportée par ce navigateur.");
+      return;
+    }
+    if (voice.listening) voice.stop();
+    else voice.start();
+  };
+
   if (!editor) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -247,10 +418,7 @@ export function DocumentEditor({
             <>
               <Check className="h-3 w-3 text-green-600" />
               Sauvegardé à{" "}
-              {savedAt.toLocaleTimeString("fr-FR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {savedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
               {currentVersion > 0 && <span className="ml-1">· v{currentVersion}</span>}
             </>
           ) : (
@@ -378,23 +546,55 @@ export function DocumentEditor({
         </ToolbarBtn>
         <div className="ml-auto flex items-center gap-1">
           <Button
-            variant="outline"
+            variant={voice.listening ? "default" : "outline"}
             size="sm"
-            onClick={() => toast.info("Vocal : disponible en phase 2")}
-            title="Dictée vocale (phase 2)"
+            onClick={() => {
+              if (!voice.supported) {
+                toast.error("Dictée vocale non supportée par ce navigateur.");
+                return;
+              }
+              if (voice.listening) {
+                voice.stop();
+                toast.message("Dictée arrêtée");
+              } else {
+                voice.start();
+                toast.message("Dictée en cours… parlez");
+              }
+            }}
+            title={voice.supported ? "Dictée vocale (Web Speech)" : "Non supporté par ce navigateur"}
           >
-            <Mic className="h-4 w-4 mr-1" />
-            Vocal
+            {voice.listening ? (
+              <MicOff className="h-4 w-4 mr-1" />
+            ) : (
+              <Mic className="h-4 w-4 mr-1" />
+            )}
+            {voice.listening ? "Stop" : "Vocal"}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => toast.info("IA éditoriale : disponible en phase 2")}
-            title="Assistant IA (phase 2)"
-          >
-            <Sparkles className="h-4 w-4 mr-1" />
-            IA
-          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" title="Assistant IA">
+                <Sparkles className="h-4 w-4 mr-1" />
+                IA
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Sur la sélection</DropdownMenuLabel>
+              {AI_MENU.filter((m) => m.needsSelection).map((m) => (
+                <DropdownMenuItem key={m.action} onClick={() => openAI(m.action)}>
+                  <Sparkles className="h-3.5 w-3.5 mr-2" />
+                  {ACTION_LABELS[m.action]}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Au curseur</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => openAI("continue")}>
+                <Sparkles className="h-3.5 w-3.5 mr-2" />
+                {ACTION_LABELS.continue}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button
             size="sm"
             onClick={() => performSave(true)}
@@ -407,9 +607,35 @@ export function DocumentEditor({
       </div>
 
       {/* Editor */}
-      <div className="border rounded-md bg-background">
+      <div className="border rounded-md bg-background relative">
         <EditorContent editor={editor} />
+        {voice.listening && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 rounded-full bg-red-500/10 text-red-600 px-2 py-0.5 text-xs">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+            Dictée…
+          </div>
+        )}
       </div>
+
+      <SlashMenu
+        editor={editor}
+        open={slashOpen}
+        query={slashQuery}
+        position={slashPos}
+        onClose={closeSlash}
+        onPickFormat={onPickFormat}
+        onPickAI={onPickAI}
+        onPickVoice={onPickVoice}
+      />
+
+      <AIPreviewDialog
+        open={aiOpen}
+        onOpenChange={setAiOpen}
+        action={aiAction}
+        selectedText={aiSelectedText}
+        contextBefore={aiContext}
+        onAccept={applySuggestion}
+      />
     </div>
   );
 }
