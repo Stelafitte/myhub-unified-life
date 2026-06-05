@@ -206,7 +206,7 @@ export const findAvailableSlots = createServerFn({ method: "POST" })
             "content-type": "application/json",
           },
           body: JSON.stringify({
-            timeMin: new Date(now).toISOString(),
+            timeMin: new Date(now + offsetMs).toISOString(),
             timeMax: new Date(horizonEnd).toISOString(),
             items: [{ id: conn.calendar_id || "primary" }],
           }),
