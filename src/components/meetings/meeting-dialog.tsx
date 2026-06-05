@@ -848,16 +848,37 @@ export function MeetingDialog({
 
   async function sendPollToParticipants() {
     if (!user) return;
-    if (!existingPoll) {
-      toast.error("Enregistrez d'abord le sondage");
-      return;
-    }
     const recipients = form.participants.map((p) => p.email).filter(Boolean);
     if (recipients.length === 0) {
       toast.error("Aucun participant");
       return;
     }
-    const pollUrl = `${window.location.origin}/poll/${existingPoll.public_token}`;
+    if (pollSlots.length < 2) {
+      toast.error("Ajoutez au moins 2 créneaux au sondage");
+      return;
+    }
+    // Auto-save the meeting + poll if not yet persisted
+    let poll = existingPoll;
+    if (!poll) {
+      if (!pollMode) setPollMode(true);
+      const savedId = await save();
+      if (!savedId) return;
+      const { data: p } = await supabase
+        .from("meeting_polls")
+        .select("id, public_token, status")
+        .eq("meeting_id", savedId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!p) {
+        toast.error("Impossible de créer le sondage");
+        return;
+      }
+      poll = { id: p.id, public_token: p.public_token, status: p.status ?? "open" };
+      setExistingPoll(poll);
+    }
+    const pollUrl = `${window.location.origin}/poll/${poll.public_token}`;
+
     const slotsLines = pollSlots
       .map((s) => {
         const sd = new Date(s.startAt);
