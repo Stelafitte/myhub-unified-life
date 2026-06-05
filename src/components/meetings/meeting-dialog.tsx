@@ -1333,7 +1333,7 @@ export function MeetingDialog({
                     ...form,
                     is_online: v,
                     online_provider: v ? form.online_provider || "jitsi" : "",
-                    online_link: v && (form.online_provider || "jitsi") === "jitsi" && !form.online_link ? generateJitsiLink() : form.online_link,
+                    online_link: v && (form.online_provider || "jitsi") === "jitsi" && !form.online_link ? generateJitsiLink(form.start_at) : form.online_link,
                   })
                 }
               />
