@@ -1,5 +1,6 @@
 // MyHub Pro v1.0
 import { Moon, Sun, Wifi, WifiOff, LogOut, RefreshCw, Loader2, Plus, CheckSquare, Search, X, Sparkles } from "lucide-react";
+import { MicButton } from "@/components/ui/mic-button";
 import { AiAssistantModal } from "@/components/ai/ai-assistant-modal";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -141,9 +142,14 @@ function GlobalSearchBar() {
             type="search"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="Rechercher dans MyHub Pro…" withMic
+            placeholder="Rechercher dans MyHub Pro…"
             aria-label="Recherche globale"
-            className="h-9 w-full rounded-md border border-border/60 bg-muted/40 pl-8 pr-20 text-sm text-foreground placeholder:text-muted-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40"
+            className="h-9 w-full rounded-md border border-border/60 bg-muted/40 pl-8 pr-28 text-sm text-foreground placeholder:text-muted-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40"
+          />
+          <MicButton
+            targetRef={inputRef}
+            className="absolute right-20 top-1/2 -translate-y-1/2"
+            iconSize={14}
           />
           {value && (
             <button
