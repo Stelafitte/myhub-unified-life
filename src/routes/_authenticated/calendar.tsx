@@ -582,8 +582,7 @@ function AgendaPage() {
       if (isGoogleInstance && gid) {
         const masterId = gid.split("_")[0];
         next = prev.filter((e) => {
-          if (e.kind !== "event") return true;
-          const g = (e.raw as DbEvent).google_event_id ?? "";
+          const g = e.google_event_id ?? "";
           return !(g === masterId || g.startsWith(masterId + "_"));
         });
       }
