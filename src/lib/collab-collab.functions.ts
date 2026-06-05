@@ -266,6 +266,6 @@ export const restoreDocumentVersion = createServerFn({ method: "POST" })
       restoredFrom: v.version_number,
       newVersion: restoredVersion,
       title: v.title as string,
-      content: v.content as Record<string, unknown>,
+      content: v.content as JsonContent,
     };
   });
