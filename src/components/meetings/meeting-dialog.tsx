@@ -1753,6 +1753,7 @@ export function MeetingDialog({
                 variant="outline"
                 size="sm"
                 onClick={async () => {
+                  if (!user) { toast.error("Non connecté."); return; }
                   if (!form.id) { toast.error("Enregistrez d'abord la réunion."); return; }
                   if (!form.start_at || !form.end_at) { toast.error("Date manquante."); return; }
                   try {
