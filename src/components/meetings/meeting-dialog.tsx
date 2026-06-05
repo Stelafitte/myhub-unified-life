@@ -1383,11 +1383,12 @@ export function MeetingDialog({
             <div className="space-y-2">
               <Label>Participants</Label>
               <div className="flex gap-2">
-                <Input
-                  placeholder="email@exemple.com"
+                <ContactEmailAutocomplete
                   value={newPart.email}
-                  onChange={(e) => setNewPart({ ...newPart, email: e.target.value })}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPart())}
+                  onChange={(v) => setNewPart({ ...newPart, email: v })}
+                  onSelect={(email) => addPart(email)}
+                  onEnter={() => addPart()}
+                  placeholder="email@exemple.com"
                 />
                 <Input
                   placeholder="Nom (optionnel)"
