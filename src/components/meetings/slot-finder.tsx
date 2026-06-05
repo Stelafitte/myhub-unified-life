@@ -135,9 +135,7 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
     });
     setSlots(pickedAvailableSlots);
     picked.forEach((s) => onPick({ startAt: s.startAt, endAt: s.endAt }));
-    toast.success(
-      picked.length > 1 ? `${picked.length} créneaux importés` : "Créneau importé",
-    );
+    toast.success(picked.length > 1 ? `${picked.length} créneaux importés` : "Créneau importé");
     setAiOpen(false);
     resetAi();
   }
