@@ -77,7 +77,6 @@ export const createDocumentComment = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     // Update unresolved count
-    await supabase.rpc; // no-op to keep TS happy
     const { count } = await supabase
       .from("collab_document_comments")
       .select("id", { count: "exact", head: true })
