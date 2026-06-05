@@ -237,7 +237,7 @@ export const findAvailableSlots = createServerFn({ method: "POST" })
       .select("start_at, end_at, status")
       .eq("user_id", userId)
       .neq("status", "cancelled")
-      .gte("end_at", new Date(now).toISOString())
+      .gte("end_at", new Date(now + offsetMs).toISOString())
       .lte("start_at", new Date(horizonEnd).toISOString());
 
     for (const m of localMeetings ?? []) {
