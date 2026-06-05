@@ -116,7 +116,7 @@ function SortableRow({
         <Input
           value={item.title}
           onChange={(e) => onChange({ title: e.target.value })}
-          placeholder="Titre du point"
+          placeholder="Titre du point" withMic
           className="h-8"
         />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">

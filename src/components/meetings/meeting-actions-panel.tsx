@@ -130,7 +130,7 @@ export function MeetingActionsPanel({ meetingId }: { meetingId?: string }) {
       </div>
 
       <Card className="p-3 flex flex-wrap gap-2 items-center">
-        <Input placeholder="Rechercher…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs h-9" />
+        <Input placeholder="Rechercher…" withMic value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs h-9" />
         {!meetingId && (
           <Select value={meetingFilter} onValueChange={setMeetingFilter}>
             <SelectTrigger className="w-[220px] h-9"><SelectValue placeholder="Toutes les réunions" /></SelectTrigger>

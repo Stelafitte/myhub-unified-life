@@ -499,7 +499,7 @@ export function PlanOperationSection() {
               <Input
                 value={newTheme}
                 onChange={(e) => setNewTheme(e.target.value)}
-                placeholder="Nom du thème (ex. CHEFFERIE DE SERVICE)"
+                placeholder="Nom du thème (ex. CHEFFERIE DE SERVICE)" withMic
                 onKeyDown={(e) => e.key === "Enter" && addTheme()}
               />
               <Button onClick={addTheme} className="gap-1">

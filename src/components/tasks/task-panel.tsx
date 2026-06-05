@@ -762,7 +762,7 @@ export function TaskPanel({
                 id="t-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ex. Préparer la présentation"
+                placeholder="Ex. Préparer la présentation" withMic
               />
             </div>
 
