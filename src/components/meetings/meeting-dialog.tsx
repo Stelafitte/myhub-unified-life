@@ -641,35 +641,44 @@ export function MeetingDialog({
   }
 
 
+  async function uploadFilesForMeeting(meetingId: string, files: File[]) {
+    if (!user || files.length === 0) return;
+    for (const file of files) {
+      const docId = crypto.randomUUID();
+      const path = storagePath(user.id, "meeting", docId, file.name);
+      await uploadToStorage(path, file);
+      const checksum = await sha256(file);
+      const { error } = await supabase.from("documents").insert({
+        id: docId,
+        user_id: user.id,
+        filename: file.name,
+        original_filename: file.name,
+        file_size: file.size,
+        mime_type: file.type || null,
+        storage_path: path,
+        source_type: "meeting",
+        source_id: meetingId,
+        tags: [],
+        checksum,
+      });
+      if (error) throw error;
+    }
+  }
+
   async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (!user || files.length === 0) return;
-    const id = await ensureSaved();
-    if (!id) return;
+    // If meeting not saved yet, buffer files locally — they'll upload on save.
+    if (!form.id) {
+      setPendingFiles((p) => [...p, ...files]);
+      toast.success(`${files.length} fichier(s) en attente — seront ajoutés à l'enregistrement`);
+      return;
+    }
     setUploading(true);
     try {
-      for (const file of files) {
-        const docId = crypto.randomUUID();
-        const path = storagePath(user.id, "meeting", docId, file.name);
-        await uploadToStorage(path, file);
-        const checksum = await sha256(file);
-        const { error } = await supabase.from("documents").insert({
-          id: docId,
-          user_id: user.id,
-          filename: file.name,
-          original_filename: file.name,
-          file_size: file.size,
-          mime_type: file.type || null,
-          storage_path: path,
-          source_type: "meeting",
-          source_id: id,
-          tags: [],
-          checksum,
-        });
-        if (error) throw error;
-      }
-      await loadAttachments(id);
+      await uploadFilesForMeeting(form.id, files);
+      await loadAttachments(form.id);
       toast.success("Fichier(s) ajouté(s)");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur upload");
