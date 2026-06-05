@@ -56,24 +56,24 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
     setAiSelected(new Set());
   }
 
-  async function run() {
+  async function run(targetOffset: number = offsetDays) {
     setLoading(true);
-    const nextOffset = offsetDays + 7;
-    setOffsetDays(nextOffset);
+    const safeOffset = Math.max(0, targetOffset);
+    setOffsetDays(safeOffset);
     try {
       const res = await find({
         data: {
           durationMinutes: Math.max(15, Math.min(8 * 60, durationMinutes || 60)),
           daysAhead,
           leadHours: 24,
-          offsetDays: nextOffset,
+          offsetDays: safeOffset,
           maxResults: 5,
         },
       });
       setSlots(res.slots);
       setHasGcal(res.hasGoogleCalendar);
       if (res.slots.length === 0) {
-        toast.info("Aucun créneau libre trouvé sur 30 jours.");
+        toast.info("Aucun créneau libre trouvé sur cette semaine.");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur recherche créneaux");
