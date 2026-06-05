@@ -14,6 +14,7 @@ import {
   saveCollabDocument,
   uploadDocumentImage,
 } from "@/lib/collab-documents.functions";
+import { saveAsTemplate } from "@/lib/collab-templates.functions";
 import type { EditorialAction } from "@/lib/collab-ai.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +58,8 @@ import {
   MessageSquare,
   History,
   RefreshCw,
+  Bookmark,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SlashMenu, type SlashItem } from "./slash-menu";
@@ -113,6 +116,7 @@ export function DocumentEditor({
 }: DocumentEditorProps) {
   const saveFn = useServerFn(saveCollabDocument);
   const uploadFn = useServerFn(uploadDocumentImage);
+  const saveTemplateFn = useServerFn(saveAsTemplate);
 
   const [title, setTitle] = useState(initialTitle);
   const [saving, setSaving] = useState(false);
