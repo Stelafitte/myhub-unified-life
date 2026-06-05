@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
-import { subscribeInboxControl } from "@/lib/inbox-control-bus";
+import { subscribeInboxControl, setCurrentInboxSelection } from "@/lib/inbox-control-bus";
 import {
   ArrowLeft,
   Inbox as InboxIcon,
