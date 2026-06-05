@@ -402,6 +402,54 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
           .filter((r): r is NonNullable<typeof r> => r !== null);
 
         if (rows.length > 0) {
+          // ---- Anti-duplication patch ----
+          // Avant d'insérer des événements Google, on cherche des lignes
+          // locales créées dans le Hub (sans google_event_id) qui
+          // correspondent à un événement tiré de Google (même utilisateur,
+          // même date de début, même titre). Cela se produit quand la
+          // catégorie ne correspond pas ou qu'une course push→pull a
+          // empêché l'étape push de marquer l'événement local.
+          // On les adopte en posant google_event_id pour que l'upsert
+          // fusionne au lieu de créer un doublon.
+          try {
+            const startKeys = Array.from(new Set(rows.map((r) => r.start_at)));
+            const titleKeys = Array.from(new Set(rows.map((r) => r.title)));
+            const { data: orphans } = await supabaseAdmin
+              .from("calendar_events")
+              .select("id, title, start_at, google_event_id")
+              .eq("user_id", userId)
+              .is("google_event_id", null)
+              .in("start_at", startKeys)
+              .in("title", titleKeys);
+            const orphanList = orphans ?? [];
+            const usedOrphan = new Set<string>();
+            for (const row of rows) {
+              const match = orphanList.find(
+                (o) =>
+                  !usedOrphan.has(o.id) &&
+                  !o.google_event_id &&
+                  o.title === row.title &&
+                  new Date(o.start_at as string).getTime() ===
+                    new Date(row.start_at).getTime(),
+              );
+              if (match) {
+                usedOrphan.add(match.id);
+                await supabaseAdmin
+                  .from("calendar_events")
+                  .update({
+                    google_event_id: row.google_event_id,
+                    external_id: row.external_id,
+                    gcal_connection_id: row.gcal_connection_id,
+                    source: "google",
+                    sync_direction: "bidirectional",
+                  })
+                  .eq("id", match.id);
+              }
+            }
+          } catch (e) {
+            console.warn("Orphan adoption skipped", e);
+          }
+
           const { error: upsertErr } = await supabaseAdmin
             .from("calendar_events")
             .upsert(rows, { onConflict: "gcal_connection_id,google_event_id" });
