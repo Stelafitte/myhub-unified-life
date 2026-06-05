@@ -240,12 +240,35 @@ export const importWhatsapp = createServerFn({ method: "POST" })
           const batch = analysable.slice(i, i + 20);
           const detections = await analyzeBatch(batch, apiKey);
 
+          type SuggestionInsert = {
+            user_id: string;
+            space_id: string;
+            wa_import_id: string;
+            kind: "action" | "meeting" | "decision";
+            status: "pending";
+            title: string;
+            priority?: string;
+            meeting_start_at?: string | null;
+            meeting_end_at?: string | null;
+            source_sender: string;
+            source_text: string;
+            source_message_at: string;
+            payload: Record<string, unknown>;
+          };
+          const suggestionRows: SuggestionInsert[] = [];
           for (const det of detections) {
             const src = batch[det.index];
             if (!src) continue;
-            const ctxNote = `Issu de WhatsApp (${src.sender}, ${new Date(src.message_at).toLocaleString("fr-FR")}): « ${src.content.slice(0, 200)} »`;
+            const base = {
+              user_id: userId,
+              space_id: data.space_id,
+              wa_import_id: importId,
+              source_sender: src.sender,
+              source_text: src.content.slice(0, 1000),
+              source_message_at: src.message_at,
+              status: "pending" as const,
+            };
 
-            // ACTION → task proposition
             if (det.action?.found && det.action.description) {
               const pri =
                 det.action.priority === "urgent"
@@ -253,52 +276,47 @@ export const importWhatsapp = createServerFn({ method: "POST" })
                   : det.action.priority === "low"
                     ? "low"
                     : "medium";
-              const { error: tErr } = await supabase.from("tasks").insert({
-                user_id: userId,
+              suggestionRows.push({
+                ...base,
+                kind: "action",
                 title: det.action.description.slice(0, 200),
-                description: ctxNote,
-                status: "todo",
                 priority: pri,
-                source_app: "whatsapp",
-                tags: ["proposition-whatsapp", `espace:${space.name}`],
+                payload: { space_name: space.name },
               });
-              if (!tErr) actionsCreated++;
+              actionsCreated++;
             }
-
-            // MEETING → calendar event proposition
             if (det.meeting?.found && det.meeting.title) {
               const start = det.meeting.date ? new Date(det.meeting.date) : null;
-              if (start && !isNaN(start.getTime())) {
-                const end = new Date(start.getTime() + 60 * 60 * 1000);
-                const { error: cErr } = await supabase.from("calendar_events").insert({
-                  user_id: userId,
-                  title: `[Proposition WA] ${det.meeting.title.slice(0, 200)}`,
-                  description: ctxNote,
-                  start_at: start.toISOString(),
-                  end_at: end.toISOString(),
-                  category: "pro",
-                });
-                if (!cErr) meetingsDetected++;
-              }
+              const valid = !!(start && !isNaN(start.getTime()));
+              suggestionRows.push({
+                ...base,
+                kind: "meeting",
+                title: det.meeting.title.slice(0, 200),
+                meeting_start_at: valid ? start!.toISOString() : null,
+                meeting_end_at: valid
+                  ? new Date(start!.getTime() + 60 * 60 * 1000).toISOString()
+                  : null,
+                payload: { space_name: space.name, raw_date: det.meeting.date ?? null },
+              });
+              meetingsDetected++;
             }
-
-            // DECISION → log as collab_messages of type 'decision'
             if (det.decision?.found && det.decision.description) {
-              await supabase.from("collab_messages").insert({
-                space_id: data.space_id,
-                user_id: userId,
-                content: det.decision.description.slice(0, 1000),
-                type: "decision",
-                sender_name: src.sender,
-                message_at: src.message_at,
-                metadata: {
-                  is_imported: true,
-                  source_text: src.content.slice(0, 500),
-                  badge: "Décision",
-                },
+              suggestionRows.push({
+                ...base,
+                kind: "decision",
+                title: det.decision.description.slice(0, 200),
+                payload: { space_name: space.name },
               });
               decisionsFound++;
             }
+          }
+
+          if (suggestionRows.length > 0) {
+            const { error: sErr } = await supabase
+              .from("wa_suggestions")
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .insert(suggestionRows as any);
+            if (sErr) console.error("wa_suggestions insert error", sErr);
           }
         }
       } else {
