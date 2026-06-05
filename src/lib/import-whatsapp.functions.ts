@@ -173,7 +173,7 @@ export const importWhatsapp = createServerFn({ method: "POST" })
     if (importErr || !importRow) throw new Error("Impossible de créer l'import");
     const importId = importRow.id;
 
-    const updateImport = async (patch: Record<string, unknown>) => {
+    const updateImport = async (patch: Partial<{ status: string; total_messages: number; imported_messages: number; error_message: string }>) => {
       await supabase.from("collab_wa_imports").update(patch).eq("id", importId);
     };
 
