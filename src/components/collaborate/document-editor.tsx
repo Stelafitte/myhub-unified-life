@@ -435,6 +435,23 @@ export function DocumentEditor({
     else voice.start();
   };
 
+  const handleSaveAsTemplate = async (scope: "personal" | "space") => {
+    try {
+      // Ensure latest content is saved first
+      if (dirtyRef.current) await performSave(false);
+      await saveTemplateFn({ data: { documentId, scope } });
+      toast.success(
+        scope === "space"
+          ? "Enregistré comme template de l'espace"
+          : "Enregistré comme template personnel",
+      );
+    } catch (e) {
+      toast.error("Enregistrement template échoué", {
+        description: (e as Error).message,
+      });
+    }
+  };
+
   if (!editor) {
     return (
       <div className="flex items-center justify-center py-12 text-muted-foreground">
