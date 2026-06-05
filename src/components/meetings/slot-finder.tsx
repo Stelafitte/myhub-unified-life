@@ -39,6 +39,7 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
   const [loading, setLoading] = useState(false);
   const [slots, setSlots] = useState<AvailableSlot[] | null>(null);
   const [hasGcal, setHasGcal] = useState<boolean | null>(null);
+  const [offsetDays, setOffsetDays] = useState(0);
 
   // AI proposition dialog state
   const [aiOpen, setAiOpen] = useState(false);
