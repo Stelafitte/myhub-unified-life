@@ -830,6 +830,35 @@ export function MeetingDialog({
               </p>
             </div>
 
+            {!pollMode && (
+              <>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="m-start">Début *</Label>
+                    <Input id="m-start" type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label htmlFor="m-end">Fin *</Label>
+                    <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
+                  </div>
+                </div>
+
+                <SlotFinder
+                  durationMinutes={prepDuration}
+                  daysAhead={prepDays}
+                  onPick={({ startAt, endAt }) => {
+                    setForm((f) => ({
+                      ...f,
+                      start_at: toLocalInput(startAt),
+                      end_at: toLocalInput(endAt),
+                    }));
+                    toast.success("Créneau sélectionné");
+                  }}
+                />
+              </>
+            )}
+
             {/* Poll mode toggle */}
             <div className="flex items-center justify-between rounded-md border p-3 bg-muted/20">
               <div>
@@ -1025,35 +1054,6 @@ export function MeetingDialog({
                   Sondage clôturé — créneau confirmé.
                 </span>
               </div>
-            )}
-
-            {!pollMode && (
-              <>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="m-start">Début *</Label>
-                    <Input id="m-start" type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label htmlFor="m-end">Fin *</Label>
-                    <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
-                  </div>
-                </div>
-
-                <SlotFinder
-                  durationMinutes={prepDuration}
-                  daysAhead={prepDays}
-                  onPick={({ startAt, endAt }) => {
-                    setForm((f) => ({
-                      ...f,
-                      start_at: toLocalInput(startAt),
-                      end_at: toLocalInput(endAt),
-                    }));
-                    toast.success("Créneau sélectionné");
-                  }}
-                />
-              </>
             )}
             <div>
               <Label htmlFor="m-loc">Lieu</Label>
