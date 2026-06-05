@@ -472,6 +472,16 @@ export function MeetingDialog({
       }
 
       setForm((f) => ({ ...f, id }));
+      // Flush any files added before the meeting existed.
+      if (pendingFiles.length > 0) {
+        try {
+          await uploadFilesForMeeting(id!, pendingFiles);
+          setPendingFiles([]);
+          await loadAttachments(id!);
+        } catch (e) {
+          toast.error(e instanceof Error ? `PJ: ${e.message}` : "Erreur upload PJ");
+        }
+      }
       toast.success(form.id ? "Réunion mise à jour" : pollMode ? "Sondage créé" : "Réunion créée");
       onSaved?.();
       requestAutoSync();
