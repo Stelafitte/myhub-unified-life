@@ -27,6 +27,11 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
   Bold,
   Italic,
   Underline as UnderlineIcon,
@@ -49,11 +54,17 @@ import {
   Mic,
   MicOff,
   Sparkles,
+  MessageSquare,
+  History,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SlashMenu, type SlashItem } from "./slash-menu";
 import { AIPreviewDialog, ACTION_LABELS } from "./ai-preview-dialog";
 import { useVoiceDictation } from "./use-voice-dictation";
+import { CommentsPanel } from "./comments-panel";
+import { VersionHistoryDialog } from "./version-history-dialog";
+import { useDocumentRealtime } from "./use-document-realtime";
 
 const AUTOSAVE_INTERVAL_MS = 30_000;
 
