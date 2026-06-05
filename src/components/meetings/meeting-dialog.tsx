@@ -811,19 +811,17 @@ export function MeetingDialog({
       return;
     }
 
-    // Optional: attach meeting PJ
+    // Optional: attach meeting PJ (controlled by the "Joindre au mail" switch)
     let attachs: ComposerAttachment[] = [];
     const hasAny = attachments.length > 0 || pendingFiles.length > 0;
-    if (hasAny) {
+    if (hasAny && autoAttachToMail) {
       const totalCount = attachments.length + pendingFiles.length;
-      if (await confirmDialog(`Joindre les ${totalCount} pièce(s) jointe(s) de la réunion au mail ?`)) {
-        const toastId = toast.loading("Préparation des pièces jointes…");
-        try {
-          attachs = await buildAttachmentsForMail();
-          toast.success(`${attachs.length} PJ prête(s)`, { id: toastId });
-        } catch (e) {
-          toast.error(e instanceof Error ? e.message : "Erreur PJ", { id: toastId });
-        }
+      const toastId = toast.loading(`Préparation de ${totalCount} pièce(s) jointe(s)…`);
+      try {
+        attachs = await buildAttachmentsForMail();
+        toast.success(`${attachs.length} PJ prête(s)`, { id: toastId });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Erreur PJ", { id: toastId });
       }
     }
 
