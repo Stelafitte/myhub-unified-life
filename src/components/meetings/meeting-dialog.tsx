@@ -1395,7 +1395,7 @@ export function MeetingDialog({
                   onChange={(e) => setNewPart({ ...newPart, name: e.target.value })}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPart())}
                 />
-                <Button type="button" variant="outline" onClick={addPart}>Ajouter</Button>
+                <Button type="button" variant="outline" onClick={() => addPart()}>Ajouter</Button>
               </div>
               {form.participants.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
