@@ -187,23 +187,36 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
           {slots.map((s) => {
             const start = new Date(s.startAt);
             const end = new Date(s.endAt);
-            const selected = isSelected?.(s) ?? false;
+            const isChecked = onToggleSelect ? (selectedKeys?.has(s.startAt) ?? false) : (isSelected?.(s) ?? false);
             return (
               <Card
                 key={s.startAt}
                 className={cn(
                   "p-3 cursor-pointer hover:border-primary transition-colors",
-                  selected && "border-primary bg-primary/5",
+                  isChecked && "border-primary bg-primary/5",
                 )}
-                onClick={() => onPick({ startAt: s.startAt, endAt: s.endAt })}
+                onClick={() => {
+                  if (onToggleSelect) onToggleSelect(s);
+                  else onPick({ startAt: s.startAt, endAt: s.endAt });
+                }}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm">
-                      {format(start, "EEE d MMM", { locale: fr })}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(start, "HH:mm")} – {format(end, "HH:mm")}
+                  <div className="flex items-start gap-2 min-w-0">
+                    {onToggleSelect && (
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => onToggleSelect(s)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="mt-0.5"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm">
+                        {format(start, "EEE d MMM", { locale: fr })}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(start, "HH:mm")} – {format(end, "HH:mm")}
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
