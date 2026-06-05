@@ -352,7 +352,7 @@ export function TaskPanel({
   const createOpSubtheme = async () => {
     if (!user) return;
     if (!themeId) { toast.error("Choisis d'abord un thème"); return; }
-    const name = window.prompt("Nom du nouveau sous-thème ?")?.trim();
+    const name = (await promptDialog("Nom du nouveau sous-thème ?", { title: "Nouveau sous-thème" }))?.trim();
     if (!name) return;
     const existing = opSubthemes.filter((s) => s.theme_id === themeId);
     const position = existing.length ? Math.max(...existing.map((s) => s.position)) + 1 : 0;
