@@ -215,8 +215,8 @@ export function EmailComposer({
       ta.setSelectionRange(start + insert.length, start + insert.length);
     });
   };
-  const insertLink = () => {
-    const url = window.prompt("URL du lien :", "https://");
+  const insertLink = async () => {
+    const url = await promptDialog("URL du lien :", { title: "Insérer un lien", defaultValue: "https://" });
     if (!url) return;
     wrapSelection("[", `](${url})`);
   };
