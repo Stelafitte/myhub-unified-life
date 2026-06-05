@@ -1356,7 +1356,7 @@ export function MeetingDialog({
                         ...form,
                         online_provider: prov,
                         online_link: prov === "jitsi" ? generateJitsiLink(form.start_at) : "",
-                        zoom_password: prov === "zoom" ? form.zoom_password : "",
+                        zoom_password: form.zoom_password,
                       });
                     }}
                   >
