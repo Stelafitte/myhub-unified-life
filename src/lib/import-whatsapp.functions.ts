@@ -240,7 +240,22 @@ export const importWhatsapp = createServerFn({ method: "POST" })
           const batch = analysable.slice(i, i + 20);
           const detections = await analyzeBatch(batch, apiKey);
 
-          const suggestionRows: Array<Record<string, unknown>> = [];
+          type SuggestionInsert = {
+            user_id: string;
+            space_id: string;
+            wa_import_id: string;
+            kind: "action" | "meeting" | "decision";
+            status: "pending";
+            title: string;
+            priority?: string;
+            meeting_start_at?: string | null;
+            meeting_end_at?: string | null;
+            source_sender: string;
+            source_text: string;
+            source_message_at: string;
+            payload: Record<string, unknown>;
+          };
+          const suggestionRows: SuggestionInsert[] = [];
           for (const det of detections) {
             const src = batch[det.index];
             if (!src) continue;
