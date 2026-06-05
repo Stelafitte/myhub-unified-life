@@ -212,6 +212,18 @@ export function DocumentsTab({ spaceId }: { spaceId: string }) {
           ))}
         </div>
       )}
+
+      <TemplatesDialog
+        spaceId={spaceId}
+        open={templatesOpen}
+        onOpenChange={setTemplatesOpen}
+      />
+      <Office365PickerDialog
+        spaceId={spaceId}
+        open={officeOpen}
+        onOpenChange={setOfficeOpen}
+        onLinked={reload}
+      />
     </div>
   );
 }
