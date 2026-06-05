@@ -178,7 +178,7 @@ export const saveCollabDocument = createServerFn({ method: "POST" })
       .from("collab_documents")
       .update({
         title: data.title,
-        content: data.content,
+        content: data.content as never,
         last_edited_at: new Date().toISOString(),
         last_edited_by: userId,
         version_count: data.createVersion ? undefined : undefined,
@@ -198,7 +198,7 @@ export const saveCollabDocument = createServerFn({ method: "POST" })
           user_id: userId,
           version_number: versionNumber,
           title: data.title,
-          content: data.content,
+          content: data.content as never,
           change_summary: data.changeSummary ?? null,
         });
       if (vErr) throw new Error(vErr.message);
