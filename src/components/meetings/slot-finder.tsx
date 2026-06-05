@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Search, Loader2, Sun, Sunset, Sparkles, CheckCircle2, AlertCircle, Wand2, Check, RotateCcw } from "lucide-react";
+import { Search, Loader2, Sun, Sunset, Sparkles, CheckCircle2, AlertCircle, Wand2, Check, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -56,24 +56,24 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
     setAiSelected(new Set());
   }
 
-  async function run() {
+  async function run(targetOffset: number = offsetDays) {
     setLoading(true);
-    const nextOffset = offsetDays + 7;
-    setOffsetDays(nextOffset);
+    const safeOffset = Math.max(0, targetOffset);
+    setOffsetDays(safeOffset);
     try {
       const res = await find({
         data: {
           durationMinutes: Math.max(15, Math.min(8 * 60, durationMinutes || 60)),
           daysAhead,
           leadHours: 24,
-          offsetDays: nextOffset,
+          offsetDays: safeOffset,
           maxResults: 5,
         },
       });
       setSlots(res.slots);
       setHasGcal(res.hasGoogleCalendar);
       if (res.slots.length === 0) {
-        toast.info("Aucun créneau libre trouvé sur 30 jours.");
+        toast.info("Aucun créneau libre trouvé sur cette semaine.");
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur recherche créneaux");
@@ -166,7 +166,27 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
             </Badge>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => run(Math.max(0, offsetDays - 7))}
+            disabled={loading || disabled || offsetDays === 0}
+            title="Semaine précédente"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => run(offsetDays + 7)}
+            disabled={loading || disabled}
+            title="Semaine suivante"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
           {offsetDays > 0 && (
             <Button
               type="button"
@@ -179,7 +199,7 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
               Semaine actuelle
             </Button>
           )}
-          <Button type="button" size="sm" variant="outline" onClick={run} disabled={loading || disabled}>
+          <Button type="button" size="sm" variant="outline" onClick={() => run(offsetDays)} disabled={loading || disabled}>
             {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Search className="h-4 w-4 mr-1" />}
             {triggerLabel ?? "🔍 Trouver des créneaux"}
           </Button>
