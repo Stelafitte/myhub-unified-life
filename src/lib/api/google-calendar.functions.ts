@@ -466,6 +466,47 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
         pageToken = body.nextPageToken;
       } while (pageToken);
 
+      // ---- Anti-duplication cleanup ----
+      // Supprime les éventuels doublons déjà présents : pour chaque couple
+      // (titre, start_at) du user, on garde la ligne liée à Google
+      // (google_event_id non null) et on supprime les copies locales
+      // orphelines de même titre/start.
+      try {
+        const { data: linked } = await supabaseAdmin
+          .from("calendar_events")
+          .select("id, title, start_at")
+          .eq("user_id", userId)
+          .eq("gcal_connection_id", conn.id)
+          .not("google_event_id", "is", null);
+        if (linked && linked.length > 0) {
+          const titles = Array.from(new Set(linked.map((r) => r.title)));
+          const starts = Array.from(new Set(linked.map((r) => r.start_at)));
+          const { data: orphanDupes } = await supabaseAdmin
+            .from("calendar_events")
+            .select("id, title, start_at")
+            .eq("user_id", userId)
+            .is("google_event_id", null)
+            .in("title", titles)
+            .in("start_at", starts);
+          const dupIds: string[] = [];
+          for (const o of orphanDupes ?? []) {
+            const hit = linked.find(
+              (l) =>
+                l.title === o.title &&
+                new Date(l.start_at as string).getTime() ===
+                  new Date(o.start_at as string).getTime(),
+            );
+            if (hit) dupIds.push(o.id);
+          }
+          if (dupIds.length > 0) {
+            await supabaseAdmin.from("calendar_events").delete().in("id", dupIds);
+            console.log(`Deduplicated ${dupIds.length} calendar event(s)`);
+          }
+        }
+      } catch (e) {
+        console.warn("Dedup pass skipped", e);
+      }
+
       await supabaseAdmin
         .from("google_calendar_connections")
         .update({ last_sync_at: new Date().toISOString() })
