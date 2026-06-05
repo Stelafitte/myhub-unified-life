@@ -1757,8 +1757,9 @@ export function MeetingDialog({
                   type="button"
                   size="sm"
                   onClick={sendPollToParticipants}
-                  disabled={!existingPoll || form.participants.length === 0 || pollSlots.length === 0}
-                  title={!existingPoll ? "Enregistrez d'abord la réunion pour créer le sondage" : ""}
+                  disabled={saving || form.participants.length === 0 || pollSlots.length < 2}
+                  title={!existingPoll ? "La réunion et le sondage seront enregistrés automatiquement" : ""}
+
                 >
                   <Send className="h-4 w-4 mr-1" /> Envoyer le sondage aux participants
                 </Button>
