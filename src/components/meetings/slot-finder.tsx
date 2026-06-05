@@ -19,15 +19,20 @@ type Props = {
   durationMinutes: number;
   /** Search horizon in days (default 30). */
   daysAhead?: number;
-  /** Called when the user picks a slot. ISO strings. */
+  /** Called when the user picks a slot (single-pick mode). ISO strings. */
   onPick: (slot: { startAt: string; endAt: string }) => void;
   /** Optional: allow picking multiple slots (returns true to keep selected style) */
   isSelected?: (slot: AvailableSlot) => boolean;
   /** Compact label for the trigger button. */
   triggerLabel?: string;
+  /** Multi-select mode: provide selected keys + toggle handler. Overrides onPick on click. */
+  selectedKeys?: Set<string>;
+  onToggleSelect?: (slot: AvailableSlot) => void;
+  /** Grise et désactive tout le bloc (ex : mode manuel actif). */
+  disabled?: boolean;
 };
 
-export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected, triggerLabel }: Props) {
+export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected, triggerLabel, selectedKeys, onToggleSelect, disabled }: Props) {
   const find = useServerFn(findAvailableSlots);
   const propose = useServerFn(aiProposeSlots);
 
