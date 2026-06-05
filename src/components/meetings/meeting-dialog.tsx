@@ -1632,6 +1632,13 @@ export function MeetingDialog({
           <Button onClick={saveAndClose} disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer"}</Button>
         </DialogFooter>
       </DialogContent>
+      <EmailComposer
+        open={composerOpen}
+        onOpenChange={setComposerOpen}
+        accounts={composerAccounts}
+        initial={composerInitial}
+        initialAttachments={composerAttachments}
+      />
     </Dialog>
   );
 }
