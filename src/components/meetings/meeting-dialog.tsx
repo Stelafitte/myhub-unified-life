@@ -897,37 +897,90 @@ export function MeetingDialog({
               </p>
             </div>
 
-            {!pollMode && (
-              <>
-                <SlotFinder
-                  durationMinutes={prepDuration}
-                  daysAhead={prepDays}
-                  onPick={({ startAt, endAt }) => {
+            <SlotFinder
+              durationMinutes={prepDuration}
+              daysAhead={prepDays}
+              disabled={manualMode}
+              selectedKeys={selectedAvailableKeys}
+              onToggleSelect={(s) => {
+                setSelectedAvailable((arr) => {
+                  const exists = arr.some((x) => x.startAt === s.startAt);
+                  const next = exists
+                    ? arr.filter((x) => x.startAt !== s.startAt)
+                    : [...arr, { startAt: s.startAt, endAt: s.endAt }];
+                  // En mode sondage : on synchronise pollSlots avec la sélection
+                  if (pollMode) {
+                    setPollSlots((ps) => {
+                      if (exists) return ps.filter((x) => x.startAt !== s.startAt);
+                      if (ps.some((x) => x.startAt === s.startAt)) return ps;
+                      return [...ps, { startAt: s.startAt, endAt: s.endAt }].sort(
+                        (a, b) => a.startAt.localeCompare(b.startAt),
+                      );
+                    });
+                  } else if (next.length === 1) {
+                    // Hors sondage : 1 créneau coché → alimente start/end de la réunion
                     setForm((f) => ({
                       ...f,
-                      start_at: toLocalInput(startAt),
-                      end_at: toLocalInput(endAt),
+                      start_at: toLocalInput(next[0].startAt),
+                      end_at: toLocalInput(next[0].endAt),
                     }));
-                    toast.success("Créneau sélectionné");
-                  }}
-                />
+                  }
+                  return next;
+                });
+              }}
+              onPick={() => {}}
+            />
 
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    ou créneaux manuels
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="m-start">Début</Label>
-                      <Input id="m-start" type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
-                    </div>
-                    <div>
-                      <Label htmlFor="m-end">Fin</Label>
-                      <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
-                    </div>
+            {!pollMode && (
+              <div className={cn("space-y-2", selectedAvailable.length > 1 && "opacity-60")}>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  ou créneau manuel
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="m-start">Début</Label>
+                    <Input
+                      id="m-start"
+                      type="datetime-local"
+                      value={form.start_at}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setManualMode(true);
+                        setSelectedAvailable([]);
+                        let endVal = form.end_at;
+                        if (v) {
+                          const startMs = new Date(fromLocalInput(v)).getTime();
+                          const mins = prepDuration || 60;
+                          endVal = toLocalInput(new Date(startMs + mins * 60000).toISOString());
+                        }
+                        setForm({ ...form, start_at: v, end_at: endVal });
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="m-end">Fin</Label>
+                    <Input
+                      id="m-end"
+                      type="datetime-local"
+                      value={form.end_at}
+                      onChange={(e) => {
+                        setManualMode(true);
+                        setSelectedAvailable([]);
+                        setForm({ ...form, end_at: e.target.value });
+                      }}
+                    />
                   </div>
                 </div>
-              </>
+                {manualMode && (
+                  <button
+                    type="button"
+                    onClick={() => setManualMode(false)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Réactiver la sélection dans « Créneaux disponibles »
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Poll mode toggle */}
@@ -937,10 +990,27 @@ export function MeetingDialog({
                   <Vote className="h-4 w-4" /> Mode sondage de dates
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Proposez plusieurs créneaux et laissez les participants voter via un lien public.
+                  Utilise les créneaux disponibles sélectionnés ci-dessus pour lancer un vote.
                 </p>
               </div>
-              <Switch id="m-poll" checked={pollMode} onCheckedChange={setPollMode} />
+              <Switch
+                id="m-poll"
+                checked={pollMode}
+                onCheckedChange={(v) => {
+                  setPollMode(v);
+                  if (v && selectedAvailable.length > 0) {
+                    setPollSlots((ps) => {
+                      const merged = [...ps];
+                      for (const s of selectedAvailable) {
+                        if (!merged.some((x) => x.startAt === s.startAt)) {
+                          merged.push({ startAt: s.startAt, endAt: s.endAt });
+                        }
+                      }
+                      return merged.sort((a, b) => a.startAt.localeCompare(b.startAt));
+                    });
+                  }
+                }}
+              />
             </div>
 
             {pollMode && (
@@ -953,7 +1023,7 @@ export function MeetingDialog({
                 </div>
                 {pollSlots.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    Aucun créneau. Utilisez le bouton ci-dessus ou les suggestions ci-dessous.
+                    Aucun créneau. Sélectionnez-en dans « Créneaux disponibles » ci-dessus, ou ajoutez-en manuellement.
                   </p>
                 ) : (
                   <ul className="space-y-1.5">
@@ -999,11 +1069,6 @@ export function MeetingDialog({
                   />
                 </div>
 
-                <SlotFinder
-                  durationMinutes={prepDuration}
-                  daysAhead={prepDays}
-                  onPick={({ startAt, endAt }) => addPollSlot(startAt, endAt)}
-                />
 
                 {existingPoll && (
                   <div className="rounded-md border bg-background p-2 text-xs space-y-1">
