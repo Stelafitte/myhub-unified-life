@@ -93,11 +93,24 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
         },
       });
       setHasGcal(res.hasGoogleCalendar);
-      setAiSlots(res.slots);
-      setAiSelected(new Set());
+      // Préserver les créneaux déjà sélectionnés lors d'une itération
+      // et fusionner avec les nouvelles propositions (dédupliquées par startAt).
+      const prev = aiSlots ?? [];
+      const keptSelected = prev.filter((s) => aiSelected.has(s.startAt));
+      const seen = new Set(keptSelected.map((s) => s.startAt));
+      const merged: AiProposedSlot[] = [...keptSelected];
+      for (const s of res.slots) {
+        if (!seen.has(s.startAt)) {
+          merged.push(s);
+          seen.add(s.startAt);
+        }
+      }
+      setAiSlots(merged);
+      // Conserver les sélections existantes (par startAt)
+      setAiSelected(new Set(keptSelected.map((s) => s.startAt)));
       setAiHistory(nextHistory);
       setAiConstraints("");
-      if (res.slots.length === 0) {
+      if (res.slots.length === 0 && keptSelected.length === 0) {
         toast.info("L'IA n'a trouvé aucun créneau correspondant à vos contraintes.");
       }
     } catch (e) {
