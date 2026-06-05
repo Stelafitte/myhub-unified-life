@@ -414,7 +414,10 @@ async function findCandidateSlots(
   // déclarées dans le texte libre.
   const workStartHour = 7;
   const workEndHour = 20;
-  const workDays = new Set([1, 2, 3, 4, 5, 6, 7]);
+  // Lundi-vendredi + samedi (samedi borné à 11h max, voir plus bas).
+  // Dimanche exclu. Jours fériés français exclus.
+  const workDays = new Set([1, 2, 3, 4, 5, 6]);
+  const saturdayMaxHour = 11;
 
   const now = Date.now();
   const earliest = now + opts.leadHours * 3600_000;
