@@ -641,6 +641,41 @@ export function DocumentEditor({
             </DropdownMenuContent>
           </DropdownMenu>
 
+          <Sheet open={commentsOpen} onOpenChange={setCommentsOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openCommentsWithSelection();
+                }}
+                title="Commentaires"
+              >
+                <MessageSquare className="h-4 w-4 mr-1" />
+                Commentaires
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[400px] sm:w-[440px] p-0 flex flex-col">
+              <CommentsPanel
+                documentId={documentId}
+                pendingAnchor={pendingAnchor}
+                onConsumeAnchor={() => setPendingAnchor(null)}
+                refreshKey={commentsRefreshKey}
+              />
+            </SheetContent>
+          </Sheet>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setHistoryOpen(true)}
+            title="Historique des versions"
+          >
+            <History className="h-4 w-4 mr-1" />
+            Historique
+          </Button>
+
           <Button
             size="sm"
             onClick={() => performSave(true)}
@@ -651,6 +686,22 @@ export function DocumentEditor({
           </Button>
         </div>
       </div>
+
+      {remoteUpdateAvailable && (
+        <div className="mb-2 flex items-center justify-between rounded-md border border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200 px-3 py-2 text-sm">
+          <span>Ce document a été modifié ailleurs. Recharge pour voir la dernière version.</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.location.reload()}
+            className="ml-2"
+          >
+            <RefreshCw className="h-3.5 w-3.5 mr-1" />
+            Recharger
+          </Button>
+        </div>
+      )}
+
 
       {/* Editor */}
       <div className="border rounded-md bg-background relative">
