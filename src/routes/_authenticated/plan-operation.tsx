@@ -217,7 +217,7 @@ function PlanOperationPage() {
   // Création rapide d'un thème / sous-thème du Plan d'opération (table op_plan_themes / op_plan_subthemes)
   const createOpTheme = async () => {
     if (!user) return;
-    const name = window.prompt("Nom du nouveau thème ?")?.trim();
+    const name = (await promptDialog("Nom du nouveau thème ?", { title: "Nouveau thème" }))?.trim();
     if (!name) return;
     const { data: existing } = await supabase
       .from("op_plan_themes")
