@@ -140,6 +140,7 @@ export function MeetingDialog({
   const [attachments, setAttachments] = useState<DocumentRow[]>([]);
   const [sharedMap, setSharedMap] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [notesSavedAt, setNotesSavedAt] = useState<Date | null>(null);
   const [notesSaving, setNotesSaving] = useState(false);
