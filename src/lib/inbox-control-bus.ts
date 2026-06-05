@@ -28,6 +28,16 @@ export function emitInboxControl(e: InboxControlEvent): void {
   }
 }
 
+// Sélection courante (email ouvert dans le lecteur). Mis à jour par l'inbox,
+// lu par l'assistant pour cibler les actions ("supprime ce mail").
+let currentSelectedEmailId: string | null = null;
+export function setCurrentInboxSelection(id: string | null): void {
+  currentSelectedEmailId = id;
+}
+export function getCurrentInboxSelection(): string | null {
+  return currentSelectedEmailId;
+}
+
 export function hasInboxControlListeners(): boolean {
   return listeners.size > 0;
 }
