@@ -846,6 +846,65 @@ export function MeetingDialog({
     setComposerOpen(true);
   }
 
+  async function sendPollToParticipants() {
+    if (!user) return;
+    if (!existingPoll) {
+      toast.error("Enregistrez d'abord le sondage");
+      return;
+    }
+    const recipients = form.participants.map((p) => p.email).filter(Boolean);
+    if (recipients.length === 0) {
+      toast.error("Aucun participant");
+      return;
+    }
+    const pollUrl = `${window.location.origin}/poll/${existingPoll.public_token}`;
+    const slotsLines = pollSlots
+      .map((s) => {
+        const sd = new Date(s.startAt);
+        const ed = new Date(s.endAt);
+        return `• ${sd.toLocaleString("fr-FR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} → ${ed.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+      })
+      .join("\n");
+    const deadlineStr = pollDeadline
+      ? new Date(fromLocalInput(pollDeadline)).toLocaleString("fr-FR")
+      : "";
+    const bodyLines = [
+      `Bonjour,`,
+      ``,
+      `Merci d'indiquer vos disponibilités pour la réunion « ${form.title} ».`,
+      ``,
+      `Créneaux proposés :`,
+      slotsLines,
+      ``,
+      `Votez ici : ${pollUrl}`,
+      deadlineStr ? `Date limite de vote : ${deadlineStr}` : "",
+      ``,
+      `Cordialement,`,
+      form.organizer_name || "",
+    ].filter(Boolean).join("\n");
+
+    const { data: accs } = await supabase
+      .from("accounts")
+      .select("id, name, type, color, icon, credentials")
+      .eq("user_id", user.id)
+      .eq("is_active", true);
+    const accounts = (accs ?? []) as ComposerAccount[];
+    if (accounts.filter((a) => ["gmail", "outlook", "imap"].includes(a.type)).length === 0) {
+      toast.error("Aucun compte mail configuré");
+      return;
+    }
+
+    setComposerAccounts(accounts);
+    setComposerAttachments([]);
+    setComposerInitial({
+      mode: "new",
+      to: recipients.join(", "),
+      subject: `Sondage de dates : ${form.title}`,
+      body: bodyLines,
+    });
+    setComposerOpen(true);
+  }
+
   function createLinkedTask() {
     const dateStr = form.start_at
       ? new Date(fromLocalInput(form.start_at)).toLocaleString("fr-FR")
