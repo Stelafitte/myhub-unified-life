@@ -121,8 +121,8 @@ export function AiAssistantModal({
     setTurns(ts => ts.filter(t => t.id !== turnId));
   };
 
-  const submit = async () => {
-    const q = prompt.trim();
+  const submit = async (overrideText?: string) => {
+    const q = (overrideText ?? prompt).trim();
     if (q.length < 2) return;
     setLoading(true);
     const id = crypto.randomUUID();
