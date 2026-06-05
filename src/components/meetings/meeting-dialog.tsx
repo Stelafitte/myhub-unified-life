@@ -45,9 +45,17 @@ const PROVIDER_LABEL: Record<Provider, string> = {
   teams: "Microsoft Teams (coller le lien)",
   other: "Autre / lien personnalisé",
 };
-function generateJitsiLink(): string {
+function generateJitsiLink(dateInput?: string): string {
+  let datePart = "";
+  if (dateInput) {
+    const d = new Date(dateInput.includes("T") && dateInput.length <= 16 ? dateInput : dateInput);
+    if (!isNaN(d.getTime())) {
+      const pad = (n: number) => n.toString().padStart(2, "0");
+      datePart = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-`;
+    }
+  }
   const slug = Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8);
-  return `https://meet.jit.si/MyHub-${slug}`;
+  return `https://meet.jit.si/MyHub-${datePart}${slug}`;
 }
 
 type Importance = "low" | "normal" | "high" | "critical";
