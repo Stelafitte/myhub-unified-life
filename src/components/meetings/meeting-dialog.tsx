@@ -402,7 +402,7 @@ export function MeetingDialog({
         is_online: form.is_online,
         online_link: form.is_online ? form.online_link.trim() || null : null,
         online_provider: form.is_online ? form.online_provider || null : null,
-        zoom_password: form.is_online && form.online_provider === "zoom" ? form.zoom_password.trim() || null : null,
+        zoom_password: form.is_online ? form.zoom_password.trim() || null : null,
         organizer_email: form.organizer_email.trim() || null,
         organizer_name: form.organizer_name.trim() || null,
         status: pollMode ? "scheduled" : "scheduled",
@@ -1356,7 +1356,7 @@ export function MeetingDialog({
                         ...form,
                         online_provider: prov,
                         online_link: prov === "jitsi" ? generateJitsiLink(form.start_at) : "",
-                        zoom_password: prov === "zoom" ? form.zoom_password : "",
+                        zoom_password: form.zoom_password,
                       });
                     }}
                   >
@@ -1391,12 +1391,15 @@ export function MeetingDialog({
                     )}
                   </div>
                 </div>
-                {form.online_provider === "zoom" && (
-                  <div>
-                    <Label htmlFor="m-zpwd">Mot de passe Zoom (optionnel)</Label>
-                    <DebouncedInput id="m-zpwd" value={form.zoom_password} onValueChange={(v) => setForm((f) => ({ ...f, zoom_password: v }))} />
-                  </div>
-                )}
+                <div>
+                  <Label htmlFor="m-zpwd">
+                    Mot de passe (optionnel)
+                    {form.online_provider === "jitsi" && (
+                      <span className="ml-1 text-xs text-muted-foreground">— à définir manuellement dans la salle Jitsi puis communiquer aux invités</span>
+                    )}
+                  </Label>
+                  <DebouncedInput id="m-zpwd" value={form.zoom_password} onValueChange={(v) => setForm((f) => ({ ...f, zoom_password: v }))} />
+                </div>
               </div>
             )}
 
