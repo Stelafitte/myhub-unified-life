@@ -108,6 +108,7 @@ type GEvent = {
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
   colorId?: string;
+  updated?: string;
 };
 
 function buildGooglePayload(ev: {
@@ -465,6 +466,53 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
 
         pageToken = body.nextPageToken;
       } while (pageToken);
+      // ---- Détection des suppressions côté Google ----
+      // Tout événement local lié à cette connexion, dont la date tombe dans
+      // la fenêtre [timeMin, timeMax] et qui N'EST PAS revenu dans la liste
+      // Google → il a été supprimé sur Google. On le supprime localement
+      // ET on pose un tombstone pour qu'il ne soit pas réimporté.
+      // Garde-fou : on saute si la requête Google a retourné 0 événement
+      // (souvent un problème transitoire — éviterait de tout effacer).
+      if (fetchedIds.length > 0) {
+        try {
+          const { data: localLinked } = await supabaseAdmin
+            .from("calendar_events")
+            .select("id, google_event_id, updated_at, start_at")
+            .eq("user_id", userId)
+            .eq("gcal_connection_id", conn.id)
+            .not("google_event_id", "is", null)
+            .gte("start_at", timeMin)
+            .lte("start_at", timeMax);
+
+          const fetchedSet = new Set(fetchedIds);
+          const lastSync = conn.last_sync_at ? new Date(conn.last_sync_at).getTime() : 0;
+          const missing = (localLinked ?? []).filter((r) => {
+            if (fetchedSet.has(r.google_event_id as string)) return false;
+            // Ne supprime pas un événement créé/modifié localement APRÈS la
+            // dernière sync (push à venir) — la règle "le plus récent gagne"
+            // doit le préserver.
+            const localUpdated = r.updated_at ? new Date(r.updated_at as string).getTime() : 0;
+            return localUpdated <= lastSync;
+          });
+
+          if (missing.length > 0) {
+            const ids = missing.map((r) => r.id);
+            const tombstones = missing.map((r) => ({
+              user_id: userId,
+              gcal_connection_id: conn.id,
+              google_event_id: r.google_event_id as string,
+            }));
+            await supabaseAdmin
+              .from("deleted_calendar_events")
+              .upsert(tombstones, { onConflict: "gcal_connection_id,google_event_id" });
+            await supabaseAdmin.from("calendar_events").delete().in("id", ids);
+            console.log(`Removed ${ids.length} event(s) deleted on Google`);
+          }
+        } catch (e) {
+          console.warn("Google-side deletion detection skipped", e);
+        }
+      }
+
 
       // ---- Anti-duplication cleanup ----
       // Supprime les éventuels doublons déjà présents : pour chaque couple
