@@ -484,9 +484,10 @@ export function AiAssistantModal({
               className="resize-none"
               disabled={loading}
             />
-            <Button onClick={submit} disabled={loading || prompt.trim().length < 2} size="icon" className="h-10 w-10 shrink-0">
+            <Button onClick={() => submit()} disabled={loading || prompt.trim().length < 2} size="icon" className="h-10 w-10 shrink-0">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
+            <VoiceConvoButton loading={loading} onSubmit={(text) => submit(text)} onLivePreview={setVoiceLivePreview} />
           </div>
         </div>
         <AiEmailReaderDialog
