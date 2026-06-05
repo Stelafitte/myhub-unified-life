@@ -20,7 +20,7 @@ import {
   MessageSquareQuote,
 } from "lucide-react";
 
-const KIND_LABEL: Record<WaSuggestion["kind"], { label: string; icon: JSX.Element }> = {
+const KIND_LABEL: Record<WaSuggestion["kind"], { label: string; icon: ReactNode }> = {
   action: { label: "Action", icon: <CheckSquare className="h-4 w-4" /> },
   meeting: { label: "Réunion", icon: <Calendar className="h-4 w-4" /> },
   decision: { label: "Décision", icon: <MessageSquareQuote className="h-4 w-4" /> },
