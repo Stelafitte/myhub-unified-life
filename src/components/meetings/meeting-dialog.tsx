@@ -911,7 +911,7 @@ export function MeetingDialog({
                   </div>
                   <div>
                     <Label htmlFor="m-end">Fin *</Label>
-                    <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...w, end_at: e.target.value })} />
+                    <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
                   </div>
                 </div>
               </>
