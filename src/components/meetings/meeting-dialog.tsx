@@ -1748,6 +1748,37 @@ export function MeetingDialog({
               <Button type="button" variant="outline" size="sm" onClick={createLinkedTask}>
                 <ListTodo className="h-4 w-4 mr-1" /> Créer une tâche associée
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (!form.id) { toast.error("Enregistrez d'abord la réunion."); return; }
+                  if (!form.start_at || !form.end_at) { toast.error("Date manquante."); return; }
+                  try {
+                    const { error } = await supabase.from("calendar_events").insert({
+                      user_id: user.id,
+                      title: form.title || "Réunion",
+                      description: form.description || null,
+                      start_at: new Date(form.start_at).toISOString(),
+                      end_at: new Date(form.end_at).toISOString(),
+                      location: form.is_online ? (form.online_link || null) : (form.location || null),
+                      source: "local" as never,
+                      category: "pro",
+                    });
+                    if (error) throw error;
+                    await supabase.from("meetings").update({ calendar_event_id: null }).eq("id", form.id);
+                    toast.success("Réunion ajoutée à l'agenda");
+                    requestAutoSync();
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Erreur ajout agenda");
+                  }
+                }}
+                disabled={!form.id}
+                title={!form.id ? "Enregistrez d'abord la réunion" : "Ajouter la réunion à l'agenda"}
+              >
+                <CalendarPlus className="h-4 w-4 mr-1" /> Ajout dans Agenda
+              </Button>
             </div>
           </div>
         )}
