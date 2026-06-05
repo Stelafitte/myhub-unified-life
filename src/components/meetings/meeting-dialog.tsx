@@ -1287,6 +1287,15 @@ export function MeetingDialog({
                         <ExternalLink className="h-3.5 w-3.5" />
                       </Button>
                     </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full"
+                      disabled={form.participants.length === 0 || pollSlots.length === 0}
+                      onClick={sendPollToParticipants}
+                    >
+                      <Send className="h-4 w-4 mr-1" /> Envoyer le sondage aux participants
+                    </Button>
                   </div>
                 )}
 
