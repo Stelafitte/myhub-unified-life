@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Smartphone, Loader2 } from "lucide-react";
+import { Smartphone, Loader2, FolderOpen } from "lucide-react";
 import { WhatsappImportDialog } from "./whatsapp-import-dialog";
 
 interface Space {
@@ -76,6 +77,12 @@ export function SpacesList() {
               <Badge variant="secondary" className="self-start text-xs">
                 {s.type}
               </Badge>
+              <Link to="/collaborate/space/$spaceId" params={{ spaceId: s.id }}>
+                <Button variant="default" size="sm" className="w-full">
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  Ouvrir
+                </Button>
+              </Link>
               <Button
                 variant="outline"
                 size="sm"
