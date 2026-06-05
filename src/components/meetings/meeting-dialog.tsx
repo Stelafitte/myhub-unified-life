@@ -1004,7 +1004,7 @@ export function MeetingDialog({
             <SlotFinder
               durationMinutes={prepDuration}
               daysAhead={prepDays}
-              disabled={manualMode}
+              disabled={manualMode || !!form.start_at || !!form.end_at}
               selectedKeys={selectedAvailableKeys}
               onToggleSelect={(s) => {
                 setSelectedAvailable((arr) => {
