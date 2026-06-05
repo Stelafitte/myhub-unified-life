@@ -413,7 +413,7 @@ async function findCandidateSlots(
   // puissent être satisfaites. L'IA filtrera ensuite selon les disponibilités
   // déclarées dans le texte libre.
   const workStartHour = 7;
-  const workEndHour = 22;
+  const workEndHour = 20;
   const workDays = new Set([1, 2, 3, 4, 5, 6, 7]);
 
   const now = Date.now();
