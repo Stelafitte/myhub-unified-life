@@ -93,24 +93,24 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
         },
       });
       setHasGcal(res.hasGoogleCalendar);
-      // Préserver les créneaux déjà sélectionnés lors d'une itération
-      // et fusionner avec les nouvelles propositions (dédupliquées par startAt).
+      // Les créneaux sélectionnés sont prioritaires et conservés.
+      // Les créneaux précédents non sélectionnés sont supprimés (pas de fusion)
+      // et exclus des nouvelles propositions s'ils réapparaissent.
       const prev = aiSlots ?? [];
       const keptSelected = prev.filter((s) => aiSelected.has(s.startAt));
-      const seen = new Set(keptSelected.map((s) => s.startAt));
-      const merged: AiProposedSlot[] = [...keptSelected];
-      for (const s of res.slots) {
-        if (!seen.has(s.startAt)) {
-          merged.push(s);
-          seen.add(s.startAt);
-        }
-      }
+      const rejected = new Set(
+        prev.filter((s) => !aiSelected.has(s.startAt)).map((s) => s.startAt),
+      );
+      const keptKeys = new Set(keptSelected.map((s) => s.startAt));
+      const fresh = res.slots.filter(
+        (s) => !keptKeys.has(s.startAt) && !rejected.has(s.startAt),
+      );
+      const merged: AiProposedSlot[] = [...keptSelected, ...fresh];
       setAiSlots(merged);
-      // Conserver les sélections existantes (par startAt)
       setAiSelected(new Set(keptSelected.map((s) => s.startAt)));
       setAiHistory(nextHistory);
       setAiConstraints("");
-      if (res.slots.length === 0 && keptSelected.length === 0) {
+      if (fresh.length === 0 && keptSelected.length === 0) {
         toast.info("L'IA n'a trouvé aucun créneau correspondant à vos contraintes.");
       }
     } catch (e) {
