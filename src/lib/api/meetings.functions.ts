@@ -116,6 +116,46 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+// Calcule la date de Pâques (algorithme de Meeus/Jones/Butcher) pour une année donnée.
+function easterSunday(year: number): { mo: number; da: number } {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const L = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * L) / 451);
+  const month = Math.floor((h + L - 7 * m + 114) / 31);
+  const day = ((h + L - 7 * m + 114) % 31) + 1;
+  return { mo: month, da: day };
+}
+
+// Jours fériés français (métropole). mo/da en 1-indexé.
+function isFrenchHoliday(y: number, mo: number, da: number): boolean {
+  const fixed: Array<[number, number]> = [
+    [1, 1],   // Jour de l'an
+    [5, 1],   // Fête du travail
+    [5, 8],   // Victoire 1945
+    [7, 14],  // Fête nationale
+    [8, 15],  // Assomption
+    [11, 1],  // Toussaint
+    [11, 11], // Armistice
+    [12, 25], // Noël
+  ];
+  for (const [m, d] of fixed) if (mo === m && da === d) return true;
+  const easter = easterSunday(y);
+  const easterUtc = Date.UTC(y, easter.mo - 1, easter.da);
+  const targetUtc = Date.UTC(y, mo - 1, da);
+  const diffDays = Math.round((targetUtc - easterUtc) / 86400_000);
+  // Lundi de Pâques (+1), Ascension (+39), Lundi de Pentecôte (+50)
+  return diffDays === 1 || diffDays === 39 || diffDays === 50;
+}
+
 /**
  * Find the N best available meeting slots by querying the user's Google
  * Calendar freebusy. Falls back to "all working hours free" when no GCal
@@ -414,7 +454,10 @@ async function findCandidateSlots(
   // déclarées dans le texte libre.
   const workStartHour = 7;
   const workEndHour = 20;
-  const workDays = new Set([1, 2, 3, 4, 5, 6, 7]);
+  // Lundi-vendredi + samedi (samedi borné à 11h max, voir plus bas).
+  // Dimanche exclu. Jours fériés français exclus.
+  const workDays = new Set([1, 2, 3, 4, 5, 6]);
+  const saturdayMaxHour = 11;
 
   const now = Date.now();
   const earliest = now + opts.leadHours * 3600_000;
@@ -495,8 +538,10 @@ async function findCandidateSlots(
     const dayRef = new Date(startDay.getTime() + d * 86400_000 + 12 * 3600_000); // noon to avoid DST edge
     const { y, mo, da, isoWeekday } = parisYMD(dayRef, TZ);
     if (!workDays.has(isoWeekday)) continue;
+    if (isFrenchHoliday(y, mo, da)) continue;
+    const effectiveEndHour = isoWeekday === 6 ? saturdayMaxHour : workEndHour;
     const dayStartMs = parisWallToUtc(y, mo, da, workStartHour, 0, TZ).getTime();
-    const dayEndMs = parisWallToUtc(y, mo, da, workEndHour, 0, TZ).getTime();
+    const dayEndMs = parisWallToUtc(y, mo, da, clamp(effectiveEndHour, 1, 24), 0, TZ).getTime();
     for (let t = dayStartMs; t + durationMs <= dayEndMs; t += step) {
       if (t < earliest) continue;
       const endT = t + durationMs;
