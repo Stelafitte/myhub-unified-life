@@ -331,14 +331,15 @@ export function MeetingDialog({
     addPollSlot(start.toISOString(), end.toISOString());
   }
 
-  function addPart() {
-    const email = newPart.email.trim();
+  function addPart(emailOverride?: string, nameOverride?: string) {
+    const email = (emailOverride ?? newPart.email).trim();
+    const name = (nameOverride ?? newPart.name).trim();
     if (!email) return;
     if (form.participants.some((p) => p.email.toLowerCase() === email.toLowerCase())) {
       toast.error("Participant déjà ajouté");
       return;
     }
-    setForm((f) => ({ ...f, participants: [...f.participants, { email, name: newPart.name.trim(), role: "required" }] }));
+    setForm((f) => ({ ...f, participants: [...f.participants, { email, name, role: "required" }] }));
     setNewPart({ email: "", name: "" });
   }
 
