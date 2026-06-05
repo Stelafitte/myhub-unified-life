@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 type Theme = {
   id: string;
@@ -262,7 +263,7 @@ export function PlanOperationSection() {
   };
 
   const deleteTheme = async (id: string) => {
-    if (!confirm("Supprimer ce thème et tous ses sous-thèmes ?")) return;
+    if (!await confirmDialog("Supprimer ce thème et tous ses sous-thèmes ?")) return;
     const { error } = await supabase.from("op_plan_themes").delete().eq("id", id);
     if (error) return toast.error(error.message);
     setThemes((p) => p.filter((t) => t.id !== id));
@@ -338,7 +339,7 @@ export function PlanOperationSection() {
 
   const seedFromTemplate = async () => {
     if (!user) return;
-    if (themes.length > 0 && !confirm("Cela ajoutera les thèmes du modèle à la suite des vôtres. Continuer ?")) return;
+    if (themes.length > 0 && !await confirmDialog("Cela ajoutera les thèmes du modèle à la suite des vôtres. Continuer ?")) return;
     const base = themes.length ? Math.max(...themes.map((t) => t.position)) + 1 : 0;
     try {
       for (let i = 0; i < TEMPLATE.length; i++) {

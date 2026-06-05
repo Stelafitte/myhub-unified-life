@@ -8,6 +8,7 @@ import { listVaultItems, getEmail, deleteEmail, type VaultItem, type VaultEmail 
 import { toast } from "sonner";
 import { relativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 export const Route = createFileRoute("/_authenticated/secure-box")({
   component: SecureBoxPage,
@@ -42,7 +43,7 @@ function SecureBoxPage() {
   }
 
   async function removeItem(id: string) {
-    if (!confirm("Supprimer définitivement cet email du coffre ?")) return;
+    if (!await confirmDialog("Supprimer définitivement cet email du coffre ?")) return;
     await deleteEmail(id);
     setItems((prev) => prev.filter((i) => i.id !== id));
     if (selected?.id === id) setSelected(null);

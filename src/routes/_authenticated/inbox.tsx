@@ -78,6 +78,7 @@ import {
 } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
+import { confirmDialog } from "@/lib/confirm-dialog";
 import { RecategorizePopover } from "@/components/inbox/recategorize-popover";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
 import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
@@ -917,7 +918,7 @@ function InboxPage() {
   const remove = async (e: Email) => {
     // Si déjà dans la corbeille → suppression définitive
     if (e.deleted_at) {
-      if (!confirm("Supprimer définitivement cet email ?")) return;
+      if (!await confirmDialog("Supprimer définitivement cet email ?")) return;
       setEmails((prev) => prev.filter((x) => x.id !== e.id));
       if (selectedId === e.id) setSelectedId(null);
       const { error } = await supabase.from("emails").delete().eq("id", e.id);
@@ -939,7 +940,7 @@ function InboxPage() {
       : [];
     let alsoDeleteSender = false;
     if (sameSenderIds.length > 0) {
-      alsoDeleteSender = confirm(
+      alsoDeleteSender = await confirmDialog(
         `Mettre aussi à la corbeille les ${sameSenderIds.length} autre(s) email(s) de ${e.from_name || e.from_address} ?`,
       );
     }
@@ -1001,7 +1002,7 @@ function InboxPage() {
   const emptyTrash = async () => {
     const ids = emails.filter(isTrashed).map((x) => x.id);
     if (!ids.length) return;
-    if (!confirm(`Vider la corbeille (${ids.length} email${ids.length > 1 ? "s" : ""}) ? Les messages seront aussi supprimés sur le serveur (Gmail/Outlook/IMAP).`))
+    if (!await confirmDialog(`Vider la corbeille (${ids.length} email${ids.length > 1 ? "s" : ""}) ? Les messages seront aussi supprimés sur le serveur (Gmail/Outlook/IMAP).`))
       return;
     setEmails((prev) => prev.filter((x) => !ids.includes(x.id)));
     if (selectedId && ids.includes(selectedId)) setSelectedId(null);
@@ -1030,7 +1031,7 @@ function InboxPage() {
   const emptySpam = async () => {
     const ids = emails.filter((x) => isSpam(x) && !isTrashed(x)).map((x) => x.id);
     if (!ids.length) return;
-    if (!confirm(`Déplacer ${ids.length} indésirable${ids.length > 1 ? "s" : ""} vers la corbeille ?`))
+    if (!await confirmDialog(`Déplacer ${ids.length} indésirable${ids.length > 1 ? "s" : ""} vers la corbeille ?`))
       return;
     const now = new Date().toISOString();
     setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: now } : x)));
@@ -1113,7 +1114,7 @@ function InboxPage() {
     if (!ids.length) return;
     const inTrash = filter === "trash";
     if (inTrash) {
-      if (!confirm(`Supprimer définitivement ${ids.length} email(s) ?`)) return;
+      if (!await confirmDialog(`Supprimer définitivement ${ids.length} email(s) ?`)) return;
       setEmails((prev) => prev.filter((x) => !checked.has(x.id)));
       if (selectedId && checked.has(selectedId)) setSelectedId(null);
       clearChecked();
@@ -1121,7 +1122,7 @@ function InboxPage() {
       if (error) toast.error(error.message);
       else toast.success(`${ids.length} email(s) supprimé(s) définitivement`);
     } else {
-      if (!confirm(`Déplacer ${ids.length} email(s) vers la corbeille ?`)) return;
+      if (!await confirmDialog(`Déplacer ${ids.length} email(s) vers la corbeille ?`)) return;
       const now = new Date().toISOString();
       setEmails((prev) =>
         prev.map((x) => (checked.has(x.id) ? { ...x, deleted_at: now } : x)),
@@ -2405,7 +2406,7 @@ function Reader({
   }, [email.id]);
   const unmarkSensitive = async () => {
     if (
-      !window.confirm(
+      !await confirmDialog(
         "Confirmer que ce message ne contient pas de données sensibles ? L'analyse IA sera réactivée.",
       )
     )

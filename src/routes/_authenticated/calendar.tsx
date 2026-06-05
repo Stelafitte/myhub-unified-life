@@ -63,6 +63,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useDeleteKey } from "@/hooks/use-delete-key";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 export const Route = createFileRoute("/_authenticated/calendar")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -519,7 +520,7 @@ function AgendaPage() {
     const isRecurring = hasLocalRule || isGoogleInstance;
 
     if (isRecurring) {
-      const onlyThis = confirm(
+      const onlyThis = await confirmDialog(
         `"${ev.title}" fait partie d'une série récurrente.\n\n` +
         `OK = supprimer SEULEMENT cette occurrence (${ev.start.toLocaleString("fr-FR")}).\n` +
         `Annuler = voir d'autres options.`,
@@ -569,7 +570,7 @@ function AgendaPage() {
         }
         return;
       }
-      const all = confirm(
+      const all = await confirmDialog(
         `Supprimer TOUTE la série récurrente "${ev.title}" ?\n\n` +
         `OK = supprimer toutes les occurrences (Hub + Google).\n` +
         `Annuler = ne rien supprimer.`,
@@ -601,7 +602,7 @@ function AgendaPage() {
       return;
     }
 
-    if (!confirm(`Supprimer "${ev.title}" ?`)) return;
+    if (!await confirmDialog(`Supprimer "${ev.title}" ?`)) return;
     const prev = events;
     const next = prev.filter((e) => e.id !== id);
     setEvents(next);
@@ -1925,7 +1926,7 @@ function EventDetail({
   }
 
   async function deleteAttachment(doc: DocumentRow) {
-    if (!confirm(`Supprimer "${doc.filename}" ?`)) return;
+    if (!await confirmDialog(`Supprimer "${doc.filename}" ?`)) return;
     try {
       if (doc.storage_path) await removeFromStorage(doc.storage_path);
       await supabase.from("documents").delete().eq("id", doc.id);

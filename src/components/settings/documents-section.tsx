@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { downloadAsBlob, removeFromStorage, type DocumentRow } from "@/lib/documents";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 type RetentionRow = {
   user_id: string;
@@ -92,7 +93,7 @@ export function DocumentsSection() {
 
   async function removeDuplicates() {
     if (dupeCount === 0) return;
-    if (!confirm(`Supprimer ${dupeCount} doublon(s) ? Le premier exemplaire de chaque fichier est conservé.`)) return;
+    if (!await confirmDialog(`Supprimer ${dupeCount} doublon(s) ? Le premier exemplaire de chaque fichier est conservé.`)) return;
     setBusy("dupes");
     try {
       const toDelete: DocumentRow[] = [];
