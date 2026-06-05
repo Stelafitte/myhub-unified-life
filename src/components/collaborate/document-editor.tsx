@@ -234,6 +234,32 @@ export function DocumentEditor({
     },
   });
 
+  // Realtime: comments + remote document edits (other tabs/devices)
+  useDocumentRealtime({
+    documentId,
+    onCommentsChange: () => setCommentsRefreshKey((k) => k + 1),
+    onVersionsChange: () => setCommentsRefreshKey((k) => k + 1),
+    onDocumentUpdate: () => {
+      // Avoid noisy banner if our own save just landed
+      if (saving) return;
+      setRemoteUpdateAvailable(true);
+    },
+  });
+
+  const openCommentsWithSelection = () => {
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      if (to > from) {
+        const text = editor.state.doc.textBetween(from, to, "\n", "\n");
+        setPendingAnchor({ text, from, to });
+      } else {
+        setPendingAnchor(null);
+      }
+    }
+    setCommentsOpen(true);
+  };
+
+
   const performSave = useCallback(
     async (createVersion: boolean) => {
       if (!editor) return;
