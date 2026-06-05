@@ -318,12 +318,13 @@ export const aiProposeSlots = createServerFn({ method: "POST" })
     const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["meeting_slots", "meeting"]);
 
     // Reuse the slot finder logic by calling its handler-equivalent directly.
-    // Generate a wide candidate set (up to 20 slots) for the AI to choose from.
+    // Generate a large candidate set so l'IA puisse honorer des contraintes
+    // pointues (soirées, week-ends, créneaux tôt le matin…).
     const candidates = await findCandidateSlots(userId, {
       durationMinutes: data.durationMinutes,
       daysAhead: data.daysAhead,
       leadHours: data.leadHours,
-      maxResults: 20,
+      maxResults: 120,
     });
 
     if (candidates.slots.length === 0) {
@@ -407,9 +408,13 @@ async function findCandidateSlots(
   userId: string,
   opts: { durationMinutes: number; daysAhead: number; leadHours: number; maxResults: number },
 ): Promise<{ slots: AvailableSlot[]; hasGoogleCalendar: boolean }> {
-  const workStartHour = 8;
-  const workEndHour = 19;
-  const workDays = new Set([1, 2, 3, 4, 5]);
+  // Pour l'IA, on élargit volontairement la fenêtre de candidats afin que
+  // les contraintes utilisateur ("après 17h", "le week-end", "tôt le matin"…)
+  // puissent être satisfaites. L'IA filtrera ensuite selon les disponibilités
+  // déclarées dans le texte libre.
+  const workStartHour = 7;
+  const workEndHour = 22;
+  const workDays = new Set([1, 2, 3, 4, 5, 6, 7]);
 
   const now = Date.now();
   const earliest = now + opts.leadHours * 3600_000;
@@ -506,12 +511,15 @@ async function findCandidateSlots(
       results.push({ startAt: new Date(t).toISOString(), endAt: new Date(endT).toISOString(), period, score, ideal });
     }
   }
-  results.sort((a, b) => b.score - a.score);
+  // Tri chronologique pour offrir un échantillon couvrant tout l'horizon
+  // (matin, après-midi, soir, week-end) plutôt qu'un top-N biaisé score.
+  results.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
   const picked: AvailableSlot[] = [];
   for (const s of results) {
     if (picked.length >= opts.maxResults) break;
     const ts = new Date(s.startAt).getTime();
-    if (picked.some((p) => Math.abs(new Date(p.startAt).getTime() - ts) < 90 * 60_000)) continue;
+    // Dédup léger : pas deux créneaux à moins de 30 min d'écart.
+    if (picked.some((p) => Math.abs(new Date(p.startAt).getTime() - ts) < 30 * 60_000)) continue;
     picked.push(s);
   }
   picked.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
