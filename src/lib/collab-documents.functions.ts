@@ -9,7 +9,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const IMAGE_BUCKET = "collab-doc-images";
 const SIGNED_URL_TTL_SEC = 60 * 60 * 24 * 7; // 7 days
 
-type JSONContent = Record<string, unknown>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type JSONContent = any;
 
 /**
  * Walks a Tiptap doc and re-signs image src that point to storage paths.
