@@ -159,12 +159,15 @@ export const deleteDocumentComment = createServerFn({ method: "POST" })
 
 // ---------- VERSIONS ----------
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type JsonContent = any;
+
 export interface DocVersionRow {
   id: string;
   document_id: string;
   version_number: number;
   title: string;
-  content: Record<string, unknown>;
+  content: JsonContent;
   change_summary: string | null;
   created_by: string | null;
   created_at: string;
