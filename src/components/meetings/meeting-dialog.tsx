@@ -1035,6 +1035,36 @@ export function MeetingDialog({
               onPick={() => {}}
             />
 
+            {/* Poll mode toggle */}
+            <div className="flex items-center justify-between rounded-md border p-3 bg-muted/20">
+              <div>
+                <Label htmlFor="m-poll" className="cursor-pointer flex items-center gap-1.5">
+                  <Vote className="h-4 w-4" /> Mode sondage de dates
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Utilise les créneaux disponibles sélectionnés ci-dessus pour lancer un vote.
+                </p>
+              </div>
+              <Switch
+                id="m-poll"
+                checked={pollMode}
+                onCheckedChange={(v) => {
+                  setPollMode(v);
+                  if (v && selectedAvailable.length > 0) {
+                    setPollSlots((ps) => {
+                      const merged = [...ps];
+                      for (const s of selectedAvailable) {
+                        if (!merged.some((x) => x.startAt === s.startAt)) {
+                          merged.push({ startAt: s.startAt, endAt: s.endAt });
+                        }
+                      }
+                      return merged.sort((a, b) => a.startAt.localeCompare(b.startAt));
+                    });
+                  }
+                }}
+              />
+            </div>
+
             {!pollMode && (
               <div className={cn("space-y-2", selectedAvailable.length > 1 && "opacity-60")}>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -1086,36 +1116,6 @@ export function MeetingDialog({
                 )}
               </div>
             )}
-
-            {/* Poll mode toggle */}
-            <div className="flex items-center justify-between rounded-md border p-3 bg-muted/20">
-              <div>
-                <Label htmlFor="m-poll" className="cursor-pointer flex items-center gap-1.5">
-                  <Vote className="h-4 w-4" /> Mode sondage de dates
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Utilise les créneaux disponibles sélectionnés ci-dessus pour lancer un vote.
-                </p>
-              </div>
-              <Switch
-                id="m-poll"
-                checked={pollMode}
-                onCheckedChange={(v) => {
-                  setPollMode(v);
-                  if (v && selectedAvailable.length > 0) {
-                    setPollSlots((ps) => {
-                      const merged = [...ps];
-                      for (const s of selectedAvailable) {
-                        if (!merged.some((x) => x.startAt === s.startAt)) {
-                          merged.push({ startAt: s.startAt, endAt: s.endAt });
-                        }
-                      }
-                      return merged.sort((a, b) => a.startAt.localeCompare(b.startAt));
-                    });
-                  }
-                }}
-              />
-            </div>
 
             {pollMode && (
               <div className="space-y-3 rounded-md border p-3">
