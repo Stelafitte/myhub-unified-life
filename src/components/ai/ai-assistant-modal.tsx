@@ -138,6 +138,28 @@ export function AiAssistantModal({
     setPrompt("");
     try {
       if (currentMode === "chat") {
+        // Détection rapide d'un verbe d'action → bascule sur le planificateur vocal
+        const actionVerb = /\b(supprime|efface|jette|archive|range|vire|enleve|enlève|met)\b/i.test(q);
+        if (actionVerb) {
+          // Récupère l'éventuel emailId ouvert depuis l'URL (?emailId=…)
+          const url = new URL(window.location.href);
+          const currentEmailId = url.searchParams.get("emailId");
+          try {
+            const plan: AiVoicePlan = await planFn({
+              data: { prompt: q, currentEmailId: currentEmailId ?? null, currentRoute: window.location.pathname },
+            });
+            if (plan.kind === "reply") {
+              setTurns((t) => t.map((x) => (x.id === id ? { ...x, chatReply: plan.reply } : x)));
+            } else {
+              setTurns((t) => t.map((x) => (x.id === id ? { ...x, chatReply: `J'ai compris : ${plan.confirmationMessage}` } : x)));
+              setPendingVoiceAction(plan as VoiceActionPlan);
+            }
+            return;
+          } catch (err: any) {
+            // Si le plan échoue, on retombe sur le chat libre.
+            console.warn("voice command plan failed, falling back to chat", err);
+          }
+        }
         // Build conversation history from previous turns (any mode)
         const history: { role: "user" | "assistant"; content: string }[] = [];
         for (const t of turns) {
@@ -146,7 +168,6 @@ export function AiAssistantModal({
           if (reply) history.push({ role: "assistant", content: reply.slice(0, 4000) });
         }
         history.push({ role: "user", content: q });
-        // Optional context: last search summary + top matches
         const last = [...turns].reverse().find(t => t.result);
         const ctx = last?.result
           ? `Dernière recherche: "${last.prompt}"\nRésumé: ${last.result.summary.slice(0, 1500)}\nRésultats (${last.result.matches.length}): ${last.result.matches.slice(0, 8).map(m => `[${m.kind}] ${m.title}`).join(" ; ")}`
@@ -157,6 +178,7 @@ export function AiAssistantModal({
         const res = await run({ data: { prompt: q, contextRoute: window.location.pathname } });
         setTurns((t) => t.map((x) => (x.id === id ? { ...x, result: res, selectedMatches: new Set(res.matches.map(m => m.id)) } : x)));
       }
+
     } catch (e: any) {
       const msg = e?.message ?? "Erreur IA";
       setTurns((t) => t.map((x) => (x.id === id ? { ...x, error: msg } : x)));
