@@ -238,6 +238,122 @@ export type Database = {
           },
         ]
       }
+      collab_document_versions: {
+        Row: {
+          change_summary: string | null
+          content: Json
+          created_at: string
+          document_id: string
+          id: string
+          title: string
+          user_id: string
+          version_number: number
+        }
+        Insert: {
+          change_summary?: string | null
+          content: Json
+          created_at?: string
+          document_id: string
+          id?: string
+          title: string
+          user_id: string
+          version_number: number
+        }
+        Update: {
+          change_summary?: string | null
+          content?: Json
+          created_at?: string
+          document_id?: string
+          id?: string
+          title?: string
+          user_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "collab_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collab_documents: {
+        Row: {
+          archived_at: string | null
+          collab_mode: string
+          content: Json
+          created_at: string
+          doc_type: string
+          id: string
+          is_template: boolean
+          last_edited_at: string
+          last_edited_by: string | null
+          office_item_id: string | null
+          office_provider: string | null
+          office_synced_at: string | null
+          office_thumbnail_url: string | null
+          office_url: string | null
+          space_id: string
+          template_scope: string
+          template_source_id: string | null
+          title: string
+          unresolved_comments: number
+          updated_at: string
+          user_id: string
+          version_count: number
+        }
+        Insert: {
+          archived_at?: string | null
+          collab_mode?: string
+          content?: Json
+          created_at?: string
+          doc_type?: string
+          id?: string
+          is_template?: boolean
+          last_edited_at?: string
+          last_edited_by?: string | null
+          office_item_id?: string | null
+          office_provider?: string | null
+          office_synced_at?: string | null
+          office_thumbnail_url?: string | null
+          office_url?: string | null
+          space_id: string
+          template_scope?: string
+          template_source_id?: string | null
+          title?: string
+          unresolved_comments?: number
+          updated_at?: string
+          user_id: string
+          version_count?: number
+        }
+        Update: {
+          archived_at?: string | null
+          collab_mode?: string
+          content?: Json
+          created_at?: string
+          doc_type?: string
+          id?: string
+          is_template?: boolean
+          last_edited_at?: string
+          last_edited_by?: string | null
+          office_item_id?: string | null
+          office_provider?: string | null
+          office_synced_at?: string | null
+          office_thumbnail_url?: string | null
+          office_url?: string | null
+          space_id?: string
+          template_scope?: string
+          template_source_id?: string | null
+          title?: string
+          unresolved_comments?: number
+          updated_at?: string
+          user_id?: string
+          version_count?: number
+        }
+        Relationships: []
+      }
       collab_messages: {
         Row: {
           content: string

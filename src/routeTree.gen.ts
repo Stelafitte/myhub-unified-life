@@ -34,7 +34,9 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as ApiGoogleCalendarCallbackRouteImport } from './routes/api/google-calendar/callback'
 import { Route as AuthenticatedCollaborateReviewRouteImport } from './routes/_authenticated/collaborate.review'
 import { Route as ApiPublicHooksRsvpRemindersRouteImport } from './routes/api/public/hooks/rsvp-reminders'
+import { Route as AuthenticatedCollaborateSpaceSpaceIdRouteImport } from './routes/_authenticated/collaborate.space.$spaceId'
 import { Route as ApiPublicPollTokenFilesRouteImport } from './routes/api/public/poll/$token/files'
+import { Route as AuthenticatedCollaborateSpaceSpaceIdDocDocIdRouteImport } from './routes/_authenticated/collaborate.space.$spaceId.doc.$docId'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
@@ -165,11 +167,23 @@ const ApiPublicHooksRsvpRemindersRoute =
     path: '/api/public/hooks/rsvp-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
+const AuthenticatedCollaborateSpaceSpaceIdRoute =
+  AuthenticatedCollaborateSpaceSpaceIdRouteImport.update({
+    id: '/space/$spaceId',
+    path: '/space/$spaceId',
+    getParentRoute: () => AuthenticatedCollaborateRoute,
+  } as any)
 const ApiPublicPollTokenFilesRoute = ApiPublicPollTokenFilesRouteImport.update({
   id: '/api/public/poll/$token/files',
   path: '/api/public/poll/$token/files',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute =
+  AuthenticatedCollaborateSpaceSpaceIdDocDocIdRouteImport.update({
+    id: '/doc/$docId',
+    path: '/doc/$docId',
+    getParentRoute: () => AuthenticatedCollaborateSpaceSpaceIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -195,8 +209,10 @@ export interface FileRoutesByFullPath {
   '/poll/$token': typeof PollTokenRoute
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
+  '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
+  '/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -222,8 +238,10 @@ export interface FileRoutesByTo {
   '/poll/$token': typeof PollTokenRoute
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
+  '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
+  '/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -251,8 +269,10 @@ export interface FileRoutesById {
   '/poll/$token': typeof PollTokenRoute
   '/_authenticated/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
+  '/_authenticated/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
+  '/_authenticated/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -280,8 +300,10 @@ export interface FileRouteTypes {
     | '/poll/$token'
     | '/collaborate/review'
     | '/api/google-calendar/callback'
+    | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/poll/$token/files'
+    | '/collaborate/space/$spaceId/doc/$docId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -307,8 +329,10 @@ export interface FileRouteTypes {
     | '/poll/$token'
     | '/collaborate/review'
     | '/api/google-calendar/callback'
+    | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/poll/$token/files'
+    | '/collaborate/space/$spaceId/doc/$docId'
   id:
     | '__root__'
     | '/'
@@ -335,8 +359,10 @@ export interface FileRouteTypes {
     | '/poll/$token'
     | '/_authenticated/collaborate/review'
     | '/api/google-calendar/callback'
+    | '/_authenticated/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/poll/$token/files'
+    | '/_authenticated/collaborate/space/$spaceId/doc/$docId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -528,6 +554,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRsvpRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/collaborate/space/$spaceId': {
+      id: '/_authenticated/collaborate/space/$spaceId'
+      path: '/space/$spaceId'
+      fullPath: '/collaborate/space/$spaceId'
+      preLoaderRoute: typeof AuthenticatedCollaborateSpaceSpaceIdRouteImport
+      parentRoute: typeof AuthenticatedCollaborateRoute
+    }
     '/api/public/poll/$token/files': {
       id: '/api/public/poll/$token/files'
       path: '/api/public/poll/$token/files'
@@ -535,16 +568,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPollTokenFilesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/collaborate/space/$spaceId/doc/$docId': {
+      id: '/_authenticated/collaborate/space/$spaceId/doc/$docId'
+      path: '/doc/$docId'
+      fullPath: '/collaborate/space/$spaceId/doc/$docId'
+      preLoaderRoute: typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRouteImport
+      parentRoute: typeof AuthenticatedCollaborateSpaceSpaceIdRoute
+    }
   }
 }
 
+interface AuthenticatedCollaborateSpaceSpaceIdRouteChildren {
+  AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute: typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
+}
+
+const AuthenticatedCollaborateSpaceSpaceIdRouteChildren: AuthenticatedCollaborateSpaceSpaceIdRouteChildren =
+  {
+    AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute:
+      AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute,
+  }
+
+const AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren =
+  AuthenticatedCollaborateSpaceSpaceIdRoute._addFileChildren(
+    AuthenticatedCollaborateSpaceSpaceIdRouteChildren,
+  )
+
 interface AuthenticatedCollaborateRouteChildren {
   AuthenticatedCollaborateReviewRoute: typeof AuthenticatedCollaborateReviewRoute
+  AuthenticatedCollaborateSpaceSpaceIdRoute: typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
 }
 
 const AuthenticatedCollaborateRouteChildren: AuthenticatedCollaborateRouteChildren =
   {
     AuthenticatedCollaborateReviewRoute: AuthenticatedCollaborateReviewRoute,
+    AuthenticatedCollaborateSpaceSpaceIdRoute:
+      AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren,
   }
 
 const AuthenticatedCollaborateRouteWithChildren =
