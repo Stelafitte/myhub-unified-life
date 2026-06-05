@@ -293,10 +293,14 @@ export type Database = {
           description: string | null
           icon: string | null
           id: string
+          level: number
           name: string
+          parent_id: string | null
+          position: number
           type: string
           updated_at: string
           user_id: string
+          wa_group_name: string | null
           whatsapp_group_id: string | null
           whatsapp_phone_number: string | null
         }
@@ -307,10 +311,14 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          level?: number
           name: string
+          parent_id?: string | null
+          position?: number
           type?: string
           updated_at?: string
           user_id: string
+          wa_group_name?: string | null
           whatsapp_group_id?: string | null
           whatsapp_phone_number?: string | null
         }
@@ -321,14 +329,26 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          level?: number
           name?: string
+          parent_id?: string | null
+          position?: number
           type?: string
           updated_at?: string
           user_id?: string
+          wa_group_name?: string | null
           whatsapp_group_id?: string | null
           whatsapp_phone_number?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "collab_spaces_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       collab_wa_imports: {
         Row: {
