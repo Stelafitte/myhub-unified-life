@@ -143,6 +143,7 @@ export function MeetingDialog({
   const [sharedMap, setSharedMap] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [autoAttachToMail, setAutoAttachToMail] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const taskPanel = useTaskPanel();
   const [composerOpen, setComposerOpen] = useState(false);
@@ -685,7 +686,11 @@ export function MeetingDialog({
   async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!user || files.length === 0) return;
+    if (files.length === 0) return;
+    if (!user) {
+      toast.error("Session non chargée — réessayez dans un instant");
+      return;
+    }
     // If meeting not saved yet, buffer files locally — they'll upload on save.
     if (!form.id) {
       setPendingFiles((p) => [...p, ...files]);
@@ -698,6 +703,7 @@ export function MeetingDialog({
       await loadAttachments(form.id);
       toast.success("Fichier(s) ajouté(s)");
     } catch (err) {
+      console.error("[meeting] upload error", err);
       toast.error(err instanceof Error ? err.message : "Erreur upload");
     } finally {
       setUploading(false);
@@ -805,19 +811,17 @@ export function MeetingDialog({
       return;
     }
 
-    // Optional: attach meeting PJ
+    // Optional: attach meeting PJ (controlled by the "Joindre au mail" switch)
     let attachs: ComposerAttachment[] = [];
     const hasAny = attachments.length > 0 || pendingFiles.length > 0;
-    if (hasAny) {
+    if (hasAny && autoAttachToMail) {
       const totalCount = attachments.length + pendingFiles.length;
-      if (await confirmDialog(`Joindre les ${totalCount} pièce(s) jointe(s) de la réunion au mail ?`)) {
-        const toastId = toast.loading("Préparation des pièces jointes…");
-        try {
-          attachs = await buildAttachmentsForMail();
-          toast.success(`${attachs.length} PJ prête(s)`, { id: toastId });
-        } catch (e) {
-          toast.error(e instanceof Error ? e.message : "Erreur PJ", { id: toastId });
-        }
+      const toastId = toast.loading(`Préparation de ${totalCount} pièce(s) jointe(s)…`);
+      try {
+        attachs = await buildAttachmentsForMail();
+        toast.success(`${attachs.length} PJ prête(s)`, { id: toastId });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Erreur PJ", { id: toastId });
       }
     }
 
@@ -1543,6 +1547,10 @@ export function MeetingDialog({
                   <Upload className="h-4 w-4 mr-1" /> {uploading ? "Envoi…" : "Ajouter"}
                 </Button>
                 <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onPickFiles} />
+              </div>
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground border-t pt-2">
+                <span>Joindre automatiquement au mail envoyé aux participants</span>
+                <Switch checked={autoAttachToMail} onCheckedChange={setAutoAttachToMail} />
               </div>
               {attachments.length === 0 && pendingFiles.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Aucun fichier.</p>
