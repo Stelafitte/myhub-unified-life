@@ -146,7 +146,7 @@ export function MeetingDialog({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newPart, setNewPart] = useState({ email: "", name: "" });
-  const [pickerOpen, setPickerOpen] = useState(false);
+  
   const [attachments, setAttachments] = useState<DocumentRow[]>([]);
   const [sharedMap, setSharedMap] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
