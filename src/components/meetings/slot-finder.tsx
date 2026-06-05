@@ -160,8 +160,25 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
               (sélection multiple)
             </span>
           )}
+          {offsetDays > 0 && (
+            <Badge variant="secondary" className="text-[10px]">
+              +{offsetDays} jours
+            </Badge>
+          )}
         </div>
         <div className="flex gap-2">
+          {offsetDays > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => { setOffsetDays(0); setSlots(null); }}
+              disabled={loading || disabled}
+            >
+              <RotateCcw className="h-4 w-4 mr-1" />
+              Semaine actuelle
+            </Button>
+          )}
           <Button type="button" size="sm" variant="outline" onClick={run} disabled={loading || disabled}>
             {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Search className="h-4 w-4 mr-1" />}
             {triggerLabel ?? "🔍 Trouver des créneaux"}
