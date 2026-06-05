@@ -918,7 +918,7 @@ function InboxPage() {
   const remove = async (e: Email) => {
     // Si déjà dans la corbeille → suppression définitive
     if (e.deleted_at) {
-      if (!await confirmDialog("Supprimer définitivement cet email ?")) return;
+      if (!await confirmDialog("Supprimer définitivement cet email ?", { destructive: true, confirmLabel: "Supprimer" })) return;
       setEmails((prev) => prev.filter((x) => x.id !== e.id));
       if (selectedId === e.id) setSelectedId(null);
       const { error } = await supabase.from("emails").delete().eq("id", e.id);
@@ -926,7 +926,8 @@ function InboxPage() {
       else toast.success("Email supprimé définitivement");
       return;
     }
-    // Sinon → corbeille (soft delete)
+    // Sinon → corbeille (soft delete) — toujours demander confirmation Hub
+    if (!await confirmDialog(`Mettre cet email à la corbeille ?\n\n${e.subject || "(sans objet)"}`, { destructive: true, confirmLabel: "Mettre à la corbeille" })) return;
     const sender = (e.from_address ?? "").toLowerCase();
     const sameSenderIds = sender
       ? emails
