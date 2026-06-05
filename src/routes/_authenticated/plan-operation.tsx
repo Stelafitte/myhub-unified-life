@@ -186,7 +186,7 @@ function PlanOperationPage() {
   // Création rapide d'une tâche dans une section donnée
   const createInSection = async (sectionKey: string) => {
     if (!user) return;
-    const title = window.prompt("Titre de la nouvelle tâche ?");
+    const title = await promptDialog("Titre de la nouvelle tâche ?", { title: "Nouvelle tâche" });
     if (!title || !title.trim()) return;
     const sectionTag = `section:${sectionKey}`;
     const today = new Date();
