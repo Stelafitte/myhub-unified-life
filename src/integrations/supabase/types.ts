@@ -1839,6 +1839,96 @@ export type Database = {
         }
         Relationships: []
       }
+      wa_suggestions: {
+        Row: {
+          created_at: string
+          created_event_id: string | null
+          created_task_id: string | null
+          description: string | null
+          due_at: string | null
+          id: string
+          kind: string
+          meeting_end_at: string | null
+          meeting_start_at: string | null
+          message_id: string | null
+          payload: Json
+          priority: string | null
+          reviewed_at: string | null
+          source_message_at: string | null
+          source_sender: string | null
+          source_text: string | null
+          space_id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          wa_import_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_event_id?: string | null
+          created_task_id?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          kind: string
+          meeting_end_at?: string | null
+          meeting_start_at?: string | null
+          message_id?: string | null
+          payload?: Json
+          priority?: string | null
+          reviewed_at?: string | null
+          source_message_at?: string | null
+          source_sender?: string | null
+          source_text?: string | null
+          space_id: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          wa_import_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_event_id?: string | null
+          created_task_id?: string | null
+          description?: string | null
+          due_at?: string | null
+          id?: string
+          kind?: string
+          meeting_end_at?: string | null
+          meeting_start_at?: string | null
+          message_id?: string | null
+          payload?: Json
+          priority?: string | null
+          reviewed_at?: string | null
+          source_message_at?: string | null
+          source_sender?: string | null
+          source_text?: string | null
+          space_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          wa_import_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_suggestions_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_suggestions_wa_import_id_fkey"
+            columns: ["wa_import_id"]
+            isOneToOne: false
+            referencedRelation: "collab_wa_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
