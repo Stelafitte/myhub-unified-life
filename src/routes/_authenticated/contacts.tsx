@@ -42,6 +42,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 type Contact = {
   id: string;
@@ -257,7 +258,7 @@ function ContactsPage() {
   };
 
   const removeContact = async (id: string) => {
-    if (!confirm("Supprimer ce contact ?")) return;
+    if (!await confirmDialog("Supprimer ce contact ?")) return;
     const { error } = await supabase.from("contacts").delete().eq("id", id);
     if (error) return toast.error(error.message);
     setContacts((p) => p.filter((c) => c.id !== id));
@@ -330,7 +331,7 @@ function ContactsPage() {
       toast.info("Aucun doublon détecté");
       return;
     }
-    if (!confirm(`Fusionner automatiquement ${duplicates.length} groupe(s) de doublons ?`)) return;
+    if (!await confirmDialog(`Fusionner automatiquement ${duplicates.length} groupe(s) de doublons ?`)) return;
     setMergingAll(true);
     let mergedCount = 0;
     let deletedCount = 0;

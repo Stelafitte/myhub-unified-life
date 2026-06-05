@@ -17,6 +17,7 @@ import { enqueue, flushQueue, installOnlineFlusher, listPending } from "@/lib/sy
 import { cacheGetAll, cacheReplaceAll } from "@/lib/local-cache";
 import { type Task, type TaskStatus, getSection, DEFAULT_SECTIONS } from "@/lib/tasks-model";
 import { TaskRequestsPanel } from "@/components/tasks/task-requests";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 export const Route = createFileRoute("/_authenticated/tasks")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -144,7 +145,7 @@ function TasksPage() {
   };
 
   const removeTask = async (task: Task) => {
-    if (!confirm(`Supprimer "${task.title}" ?`)) return;
+    if (!await confirmDialog(`Supprimer "${task.title}" ?`)) return;
     setTasks((prev) => prev.filter((t) => t.id !== task.id));
     if (navigator.onLine) {
       const { error } = await supabase.from("tasks").delete().eq("id", task.id);

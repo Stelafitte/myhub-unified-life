@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { AiPromptsManager } from "./ai-prompts-manager";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 type AiPrefs = {
   provider: "lovable-default" | "gpt-4o-mini" | "claude-haiku" | "claude-sonnet";
@@ -92,7 +93,7 @@ export function AiSection() {
 
   const resetLearned = async () => {
     if (!user) return;
-    if (!confirm("Réinitialiser les préférences apprises (catégorisations corrigées, etc.) ?")) return;
+    if (!await confirmDialog("Réinitialiser les préférences apprises (catégorisations corrigées, etc.) ?")) return;
     const { error } = await supabase.from("ai_feedback").delete().eq("user_id", user.id);
     if (error) toast.error("Échec de la réinitialisation");
     else toast.success("Préférences apprises réinitialisées");

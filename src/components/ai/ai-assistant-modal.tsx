@@ -20,6 +20,7 @@ import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-co
 import { CreateTaskFromEmailDialog } from "@/components/tasks/create-task-from-email-dialog";
 import type { CachedEmail } from "@/lib/inbox-cache";
 import { toast } from "sonner";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 const ARCHIVE_KEY = "ai-assistant-archives";
 type ArchivedChat = { id: string; title: string; savedAt: number; turns: Turn[] };
@@ -262,7 +263,7 @@ export function AiAssistantModal({
             <Button size="sm" variant="ghost" onClick={archiveConversation} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs">
               <Archive className="h-3.5 w-3.5" />Archiver
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { if (turns.length === 0) return; if (confirm("Supprimer cette conversation ?")) newConversation(); }} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive">
+            <Button size="sm" variant="ghost" onClick={() => { if (turns.length === 0) return; if (await confirmDialog("Supprimer cette conversation ?")) newConversation(); }} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs text-destructive hover:text-destructive">
               <Trash2 className="h-3.5 w-3.5" />Supprimer
             </Button>
             <DropdownMenu>

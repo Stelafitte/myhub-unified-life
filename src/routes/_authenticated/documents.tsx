@@ -19,6 +19,7 @@ import { type DocumentRow, getSignedUrl, removeFromStorage } from "@/lib/documen
 import { deleteSecureBlob } from "@/lib/secure-documents";
 import { useServerFn } from "@tanstack/react-start";
 import { classifyPendingDocuments } from "@/lib/api/document-classify.functions";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 
 
@@ -164,7 +165,7 @@ function DocumentsPage() {
 
   async function reclassifyAll() {
     if (classifying) return;
-    if (!confirm("Réinitialiser la classification IA de tous les documents et la relancer avec les prompts actuels ?")) return;
+    if (!await confirmDialog("Réinitialiser la classification IA de tous les documents et la relancer avec les prompts actuels ?")) return;
     setClassifying(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -324,7 +325,7 @@ function DocumentsPage() {
   }
 
   async function deleteDoc(d: DocumentRow) {
-    if (!confirm(`Supprimer "${d.filename}" ?`)) return;
+    if (!await confirmDialog(`Supprimer "${d.filename}" ?`)) return;
     await performDelete([d]);
     load();
   }
@@ -332,7 +333,7 @@ function DocumentsPage() {
   async function bulkDelete() {
     const targets = docs.filter((d) => selected.has(d.id));
     if (targets.length === 0) return;
-    if (!confirm(`Supprimer ${targets.length} document(s) ?`)) return;
+    if (!await confirmDialog(`Supprimer ${targets.length} document(s) ?`)) return;
     await performDelete(targets);
     clearSelection();
     load();
@@ -354,7 +355,7 @@ function DocumentsPage() {
 
   async function deleteSkippedDocs() {
     if (skippedDocs.length === 0) return;
-    if (!confirm(`Supprimer ${skippedDocs.length} document${skippedDocs.length > 1 ? "s" : ""} ignoré${skippedDocs.length > 1 ? "s" : ""} ?`)) return;
+    if (!await confirmDialog(`Supprimer ${skippedDocs.length} document${skippedDocs.length > 1 ? "s" : ""} ignoré${skippedDocs.length > 1 ? "s" : ""} ?`)) return;
     await performDelete(skippedDocs);
     load();
   }

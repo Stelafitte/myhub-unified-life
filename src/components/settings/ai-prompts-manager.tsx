@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 type Attachment = { name: string; path: string; size: number; mime: string | null };
 type Prompt = {
@@ -103,7 +104,7 @@ export function AiPromptsManager() {
   };
 
   const onDelete = async (p: Prompt) => {
-    if (!confirm(`Supprimer le prompt "${p.title}" ?`)) return;
+    if (!await confirmDialog(`Supprimer le prompt "${p.title}" ?`)) return;
     const { error } = await db.from("ai_prompts").delete().eq("id", p.id);
     if (error) return toast.error("Échec de la suppression");
     // best-effort cleanup of attached files

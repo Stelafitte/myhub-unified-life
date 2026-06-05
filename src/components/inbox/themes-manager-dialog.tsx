@@ -31,6 +31,7 @@ import {
 import { Sparkles, Pencil, Archive, ArchiveRestore, Trash2, GitMerge, Plus, Loader2, Wand2, Briefcase, Heart, Search } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 const UTILITY_LABELS: Record<ThemeUtility, string> = {
   faible: "Faible",
@@ -162,7 +163,7 @@ export function ThemesManagerDialog({
   };
 
   const handleDelete = async (t: Theme) => {
-    if (!confirm(`Supprimer "${t.name}" ? Les emails associés seront reclassés.`)) return;
+    if (!await confirmDialog(`Supprimer "${t.name}" ? Les emails associés seront reclassés.`)) return;
     await deleteFn({ data: { id: t.id } });
     await refresh();
     onChanged?.();

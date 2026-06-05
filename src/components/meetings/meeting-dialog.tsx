@@ -30,6 +30,7 @@ import { RecurrenceSection } from "@/components/meetings/recurrence-section";
 import { MeetingHistorySection } from "@/components/meetings/meeting-history-section";
 import { LogisticsSection } from "@/components/meetings/logistics-section";
 import { OneNoteSyncButton } from "@/components/meetings/onenote-sync-button";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 type Provider = "jitsi" | "google_meet" | "zoom" | "teams" | "other";
 const PROVIDER_LABEL: Record<Provider, string> = {
@@ -490,7 +491,7 @@ export function MeetingDialog({
       toast.error("Enregistrez le sondage avant de confirmer un créneau.");
       return;
     }
-    if (!confirm("Confirmer ce créneau comme date définitive de la réunion ? Le sondage sera clôturé.")) return;
+    if (!await confirmDialog("Confirmer ce créneau comme date définitive de la réunion ? Le sondage sera clôturé.")) return;
     setConfirming(true);
     try {
       const nowIso = new Date().toISOString();
@@ -572,7 +573,7 @@ export function MeetingDialog({
   }, [form.notes, form.id]);
 
   async function restoreNoteVersion(version: { content: string }) {
-    if (!confirm("Remplacer les notes actuelles par cette version ?")) return;
+    if (!await confirmDialog("Remplacer les notes actuelles par cette version ?")) return;
     setForm((f) => ({ ...f, notes: version.content }));
     // Trigger immediate save
     setTimeout(() => flushNotesNow(), 100);
@@ -662,7 +663,7 @@ export function MeetingDialog({
   }
 
   async function deleteAttachment(doc: DocumentRow) {
-    if (!confirm(`Supprimer "${doc.filename}" ?`)) return;
+    if (!await confirmDialog(`Supprimer "${doc.filename}" ?`)) return;
     try {
       if (doc.storage_path) await removeFromStorage(doc.storage_path);
       if (form.id) await supabase.from("meeting_shared_files").delete().eq("meeting_id", form.id).eq("document_id", doc.id);
@@ -1338,7 +1339,7 @@ export function MeetingDialog({
               variant="ghost"
               className="text-destructive sm:mr-auto"
               onClick={async () => {
-                if (!confirm("Supprimer cette réunion ?")) return;
+                if (!await confirmDialog("Supprimer cette réunion ?")) return;
                 await supabase.from("meeting_participants").delete().eq("meeting_id", form.id!);
                 await supabase.from("meeting_tasks").delete().eq("meeting_id", form.id!);
                 await supabase.from("meetings").delete().eq("id", form.id!);

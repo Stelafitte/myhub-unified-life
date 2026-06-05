@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 type Prefs = {
   language: "fr" | "en";
@@ -108,7 +109,7 @@ export function PreferencesSection() {
   };
 
   const purgeCache = async () => {
-    if (!confirm("Vider le cache local ? Vous devrez vous reconnecter.")) return;
+    if (!await confirmDialog("Vider le cache local ? Vous devrez vous reconnecter.")) return;
     localStorage.clear();
     if ("caches" in window) {
       const keys = await caches.keys();

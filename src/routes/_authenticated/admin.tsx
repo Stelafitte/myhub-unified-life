@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch";
 import { Shield, Mail, Activity, UserPlus, Copy, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
@@ -96,7 +97,7 @@ function AdminPage() {
   };
 
   const purgeSource = async (accountId: string, name: string) => {
-    if (!confirm(`Vider définitivement sur le serveur les mails supprimés du compte "${name}" ?\n\nCette action est IRRÉVERSIBLE côté provider.`)) return;
+    if (!await confirmDialog(`Vider définitivement sur le serveur les mails supprimés du compte "${name}" ?\n\nCette action est IRRÉVERSIBLE côté provider.`)) return;
     setPurgingId(accountId);
     try {
       const { data, error } = await supabase.functions.invoke("purge-imap-source", { body: { account_id: accountId } });

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
+import { confirmDialog } from "@/lib/confirm-dialog";
   listGoogleCalendarConnections,
   listGoogleCalendarsForConnection,
   addGoogleCalendarFromExisting,
@@ -183,7 +184,7 @@ export function GoogleAgendasPanel({ onChanged }: { onChanged?: () => void }) {
   };
 
   const onRemove = async (id: string) => {
-    if (!confirm("Retirer cet agenda ? Les événements synchronisés seront supprimés localement.")) return;
+    if (!await confirmDialog("Retirer cet agenda ? Les événements synchronisés seront supprimés localement.")) return;
     try {
       await deleteConn({ data: { id } });
       await refresh();
