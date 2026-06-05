@@ -243,11 +243,11 @@ function PlanOperationPage() {
     }
     const themes = opThemes;
     const list = themes.map((t, i) => `${i + 1}. ${t.name}`).join("\n");
-    const pick = window.prompt(`Sous quel thème ?\n${list}\n\nEntre le numéro :`)?.trim();
+    const pick = (await promptDialog(`Sous quel thème ?\n${list}\n\nEntre le numéro :`, { title: "Choisir un thème" }))?.trim();
     const idx = pick ? parseInt(pick, 10) - 1 : -1;
     if (Number.isNaN(idx) || idx < 0 || idx >= themes.length) return;
     const theme = themes[idx];
-    const name = window.prompt(`Nom du nouveau sous-thème dans « ${theme.name} » ?`)?.trim();
+    const name = (await promptDialog(`Nom du nouveau sous-thème dans « ${theme.name} » ?`, { title: "Nouveau sous-thème" }))?.trim();
     if (!name) return;
     const { data: existingSubs } = await supabase
       .from("op_plan_subthemes")
