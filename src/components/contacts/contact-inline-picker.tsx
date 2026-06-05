@@ -79,7 +79,7 @@ export function ContactInlinePicker({
         onChange={(e) => setQ(e.target.value)}
         className="h-9"
       />
-      <div className="max-h-56 overflow-y-auto rounded-md border divide-y bg-background">
+      <div className="max-h-[6.75rem] overflow-y-auto rounded-md border divide-y bg-background">
         {filtered.length === 0 ? (
           <div className="px-3 py-4 text-center text-xs text-muted-foreground">
             {q ? "Aucun contact — ajoutez l'adresse manuellement ci-dessous." : "Aucun contact"}

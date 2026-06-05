@@ -1381,6 +1381,39 @@ export function MeetingDialog({
                           );
                         })}
                       </ul>
+                      <div className="flex flex-wrap gap-2 pt-1 border-t">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="default"
+                          disabled={confirming || !form.id || maxScore === 0 || counts.filter((c) => c.score === maxScore).length !== 1}
+                          onClick={() => {
+                            const winner = counts.find((c) => c.score === maxScore);
+                            if (winner) confirmSlot(winner.slot);
+                          }}
+                          title={maxScore === 0 ? "Aucun vote" : counts.filter((c) => c.score === maxScore).length > 1 ? "Égalité — choisissez manuellement" : "Confirmer le créneau préféré"}
+                        >
+                          <Trophy className="h-4 w-4 mr-1" /> Auto-confirmer le préféré
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={!existingPoll}
+                          onClick={async () => {
+                            if (!existingPoll) return;
+                            if (!await confirmDialog("Réinitialiser les votes et relancer le sondage avec de nouvelles dates ?")) return;
+                            await supabase.from("meeting_poll_votes").delete().eq("poll_id", existingPoll.id);
+                            await supabase.from("meeting_polls").update({ status: "open" }).eq("id", existingPoll.id);
+                            setPollVotes([]);
+                            setExistingPoll((p) => (p ? { ...p, status: "open" } : p));
+                            setPollMode(true);
+                            toast.success("Sondage relancé — ajoutez de nouvelles dates puis cliquez sur « Envoyer le sondage ».");
+                          }}
+                        >
+                          <Send className="h-4 w-4 mr-1" /> Relancer avec nouvelles dates
+                        </Button>
+                      </div>
                       <p className="text-[11px] text-muted-foreground">
                         Confirmer un créneau met à jour la date de la réunion et clôture le sondage.
                       </p>
@@ -1698,6 +1731,17 @@ export function MeetingDialog({
             </div>
 
             <div className="flex flex-wrap gap-2 rounded-md border p-3 bg-muted/30">
+              {(pollMode || existingPoll) && (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={sendPollToParticipants}
+                  disabled={!existingPoll || form.participants.length === 0 || pollSlots.length === 0}
+                  title={!existingPoll ? "Enregistrez d'abord la réunion pour créer le sondage" : ""}
+                >
+                  <Send className="h-4 w-4 mr-1" /> Envoyer le sondage aux participants
+                </Button>
+              )}
               <Button type="button" variant="outline" size="sm" onClick={sendMailToParticipants}>
                 <Mail className="h-4 w-4 mr-1" /> Envoyer un mail aux participants
               </Button>
