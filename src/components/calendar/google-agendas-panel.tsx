@@ -22,13 +22,13 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
-import { confirmDialog } from "@/lib/confirm-dialog";
   listGoogleCalendarConnections,
   listGoogleCalendarsForConnection,
   addGoogleCalendarFromExisting,
   updateGoogleCalendarConnection,
   deleteGoogleCalendarConnection,
 } from "@/lib/api/google-calendar.functions";
+import { confirmDialog } from "@/lib/confirm-dialog";
 
 export type AgendaConnection = {
   id: string;
