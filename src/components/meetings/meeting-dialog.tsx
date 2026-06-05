@@ -402,7 +402,7 @@ export function MeetingDialog({
         is_online: form.is_online,
         online_link: form.is_online ? form.online_link.trim() || null : null,
         online_provider: form.is_online ? form.online_provider || null : null,
-        zoom_password: form.is_online && form.online_provider === "zoom" ? form.zoom_password.trim() || null : null,
+        zoom_password: form.is_online ? form.zoom_password.trim() || null : null,
         organizer_email: form.organizer_email.trim() || null,
         organizer_name: form.organizer_name.trim() || null,
         status: pollMode ? "scheduled" : "scheduled",
