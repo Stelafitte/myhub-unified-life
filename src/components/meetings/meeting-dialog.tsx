@@ -34,6 +34,8 @@ import { MeetingHistorySection } from "@/components/meetings/meeting-history-sec
 import { LogisticsSection } from "@/components/meetings/logistics-section";
 import { OneNoteSyncButton } from "@/components/meetings/onenote-sync-button";
 import { confirmDialog } from "@/lib/confirm-dialog";
+import { EmailComposer, type ComposerInitial, type ComposerAccount, type ComposerAttachment } from "@/components/inbox/email-composer";
+import { useTaskPanel } from "@/lib/task-panel-context";
 
 type Provider = "jitsi" | "google_meet" | "zoom" | "teams" | "other";
 const PROVIDER_LABEL: Record<Provider, string> = {
