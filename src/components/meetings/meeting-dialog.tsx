@@ -904,14 +904,19 @@ export function MeetingDialog({
                   }}
                 />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="m-start">Début *</Label>
-                    <Input id="m-start" type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label htmlFor="m-end">Fin *</Label>
-                    <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    ou créneaux manuels
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="m-start">Début</Label>
+                      <Input id="m-start" type="datetime-local" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label htmlFor="m-end">Fin</Label>
+                      <Input id="m-end" type="datetime-local" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
+                    </div>
                   </div>
                 </div>
               </>
