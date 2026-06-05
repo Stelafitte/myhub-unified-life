@@ -11,6 +11,7 @@ import { DebouncedInput, DebouncedTextarea } from "@/components/ui/debounced-inp
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ContactEmailAutocomplete } from "@/components/contacts/contact-email-autocomplete";
 import { X, Download, Trash2, Sparkles, Paperclip, Mail, ListTodo, Upload, FileText, Plus, Vote, Copy, ExternalLink, CheckCircle2, HelpCircle, XCircle, Trophy, Globe, Lock, History } from "lucide-react";
 import { toast } from "sonner";
 import { downloadIcs } from "@/lib/ics";
