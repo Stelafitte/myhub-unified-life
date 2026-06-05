@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { subscribeInboxControl } from "@/lib/inbox-control-bus";
 import {
   ArrowLeft,
   Inbox as InboxIcon,
@@ -1238,6 +1239,88 @@ function InboxPage() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [readerOpen]);
+
+  // ===== Pilotage vocal de l'inbox (assistant IA) =====
+  // Refs pour accéder aux valeurs vivantes sans re-souscrire à chaque render.
+  const ctrlRef = useRef({
+    filtered,
+    selectedId,
+    readerOpen,
+    isMobileInbox,
+    openEmail,
+    remove,
+    archive,
+    toggleRead,
+    setReaderOpen,
+    setSelectedId,
+  });
+  ctrlRef.current = {
+    filtered,
+    selectedId,
+    readerOpen,
+    isMobileInbox,
+    openEmail,
+    remove,
+    archive,
+    toggleRead,
+    setReaderOpen,
+    setSelectedId,
+  };
+  useEffect(() => {
+    const unsub = subscribeInboxControl((ev) => {
+      const c = ctrlRef.current;
+      const list = c.filtered;
+      if (list.length === 0) {
+        toast.info("Aucun email dans la liste");
+        return;
+      }
+      const idx = c.selectedId ? list.findIndex((e) => e.id === c.selectedId) : -1;
+      switch (ev.type) {
+        case "next": {
+          const nextIdx = idx < 0 ? 0 : Math.min(idx + 1, list.length - 1);
+          if (idx >= 0 && nextIdx === idx) { toast.info("Dernier email de la liste"); return; }
+          c.openEmail(list[nextIdx]);
+          break;
+        }
+        case "prev": {
+          const prevIdx = idx <= 0 ? 0 : idx - 1;
+          if (idx === 0) { toast.info("Premier email de la liste"); return; }
+          c.openEmail(list[prevIdx < 0 ? 0 : prevIdx]);
+          break;
+        }
+        case "first":
+          c.openEmail(list[0]);
+          break;
+        case "last":
+          c.openEmail(list[list.length - 1]);
+          break;
+        case "close":
+          c.setReaderOpen(false);
+          if (c.isMobileInbox) c.setSelectedId(null);
+          break;
+        case "delete-current": {
+          const target = c.selectedId ? list.find((e) => e.id === c.selectedId) : null;
+          if (target) void c.remove(target); else toast.info("Aucun email sélectionné");
+          break;
+        }
+        case "archive-current": {
+          const target = c.selectedId ? list.find((e) => e.id === c.selectedId) : null;
+          if (target) void c.archive(target); else toast.info("Aucun email sélectionné");
+          break;
+        }
+        case "mark-read":
+        case "mark-unread": {
+          const target = c.selectedId ? list.find((e) => e.id === c.selectedId) : null;
+          if (!target) { toast.info("Aucun email sélectionné"); return; }
+          if ((ev.type === "mark-read") !== !!target.is_read) c.toggleRead(target);
+          break;
+        }
+      }
+    });
+    return unsub;
+  }, []);
+
+
 
   // Deep-link : ?emailId=... (Recherche globale, Assistant IA…) → ouvrir l'email
   // dès que la liste est chargée. On force le filtre à « all » pour s'assurer
