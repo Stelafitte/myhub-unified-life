@@ -1312,7 +1312,7 @@ export function MeetingDialog({
                       type="button"
                       size="sm"
                       className="w-full"
-                      disabled={form.participants.length === 0 || pollSlots.length === 0}
+                      disabled={saving || form.participants.length === 0 || pollSlots.length < 2}
                       onClick={sendPollToParticipants}
                     >
                       <Send className="h-4 w-4 mr-1" /> Envoyer le sondage aux participants
