@@ -166,7 +166,27 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
             </Badge>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => run(Math.max(0, offsetDays - 7))}
+            disabled={loading || disabled || offsetDays === 0}
+            title="Semaine précédente"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => run(offsetDays + 7)}
+            disabled={loading || disabled}
+            title="Semaine suivante"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
           {offsetDays > 0 && (
             <Button
               type="button"
@@ -179,7 +199,7 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
               Semaine actuelle
             </Button>
           )}
-          <Button type="button" size="sm" variant="outline" onClick={run} disabled={loading || disabled}>
+          <Button type="button" size="sm" variant="outline" onClick={() => run(offsetDays)} disabled={loading || disabled}>
             {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Search className="h-4 w-4 mr-1" />}
             {triggerLabel ?? "🔍 Trouver des créneaux"}
           </Button>
