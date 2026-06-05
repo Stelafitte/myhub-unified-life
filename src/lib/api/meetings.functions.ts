@@ -511,12 +511,15 @@ async function findCandidateSlots(
       results.push({ startAt: new Date(t).toISOString(), endAt: new Date(endT).toISOString(), period, score, ideal });
     }
   }
-  results.sort((a, b) => b.score - a.score);
+  // Tri chronologique pour offrir un échantillon couvrant tout l'horizon
+  // (matin, après-midi, soir, week-end) plutôt qu'un top-N biaisé score.
+  results.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
   const picked: AvailableSlot[] = [];
   for (const s of results) {
     if (picked.length >= opts.maxResults) break;
     const ts = new Date(s.startAt).getTime();
-    if (picked.some((p) => Math.abs(new Date(p.startAt).getTime() - ts) < 90 * 60_000)) continue;
+    // Dédup léger : pas deux créneaux à moins de 30 min d'écart.
+    if (picked.some((p) => Math.abs(new Date(p.startAt).getTime() - ts) < 30 * 60_000)) continue;
     picked.push(s);
   }
   picked.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
