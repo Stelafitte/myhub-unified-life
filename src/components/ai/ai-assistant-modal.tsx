@@ -140,7 +140,9 @@ export function AiAssistantModal({
     try {
       if (currentMode === "chat") {
         // 0) Pilotage instantané de l'inbox (next/prev/close/first/last) — sans LLM.
-        if (window.location.pathname.startsWith("/inbox")) {
+        //    On laisse la priorité à un verbe d'action explicite (supprime/archive…).
+        const hasActionVerb = /\b(supprime|efface|jette|archive|range|vire|enleve|enlève|met)\b/i.test(q);
+        if (!hasActionVerb && window.location.pathname.startsWith("/inbox")) {
           const ctrl = detectInboxControl(q);
           if (ctrl) {
             emitInboxControl(ctrl);
