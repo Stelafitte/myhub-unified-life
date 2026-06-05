@@ -402,6 +402,54 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
           .filter((r): r is NonNullable<typeof r> => r !== null);
 
         if (rows.length > 0) {
+          // ---- Anti-duplication patch ----
+          // Avant d'insérer des événements Google, on cherche des lignes
+          // locales créées dans le Hub (sans google_event_id) qui
+          // correspondent à un événement tiré de Google (même utilisateur,
+          // même date de début, même titre). Cela se produit quand la
+          // catégorie ne correspond pas ou qu'une course push→pull a
+          // empêché l'étape push de marquer l'événement local.
+          // On les adopte en posant google_event_id pour que l'upsert
+          // fusionne au lieu de créer un doublon.
+          try {
+            const startKeys = Array.from(new Set(rows.map((r) => r.start_at)));
+            const titleKeys = Array.from(new Set(rows.map((r) => r.title)));
+            const { data: orphans } = await supabaseAdmin
+              .from("calendar_events")
+              .select("id, title, start_at, google_event_id")
+              .eq("user_id", userId)
+              .is("google_event_id", null)
+              .in("start_at", startKeys)
+              .in("title", titleKeys);
+            const orphanList = orphans ?? [];
+            const usedOrphan = new Set<string>();
+            for (const row of rows) {
+              const match = orphanList.find(
+                (o) =>
+                  !usedOrphan.has(o.id) &&
+                  !o.google_event_id &&
+                  o.title === row.title &&
+                  new Date(o.start_at as string).getTime() ===
+                    new Date(row.start_at).getTime(),
+              );
+              if (match) {
+                usedOrphan.add(match.id);
+                await supabaseAdmin
+                  .from("calendar_events")
+                  .update({
+                    google_event_id: row.google_event_id,
+                    external_id: row.external_id,
+                    gcal_connection_id: row.gcal_connection_id,
+                    source: "google",
+                    sync_direction: "bidirectional",
+                  })
+                  .eq("id", match.id);
+              }
+            }
+          } catch (e) {
+            console.warn("Orphan adoption skipped", e);
+          }
+
           const { error: upsertErr } = await supabaseAdmin
             .from("calendar_events")
             .upsert(rows, { onConflict: "gcal_connection_id,google_event_id" });
@@ -417,6 +465,47 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
 
         pageToken = body.nextPageToken;
       } while (pageToken);
+
+      // ---- Anti-duplication cleanup ----
+      // Supprime les éventuels doublons déjà présents : pour chaque couple
+      // (titre, start_at) du user, on garde la ligne liée à Google
+      // (google_event_id non null) et on supprime les copies locales
+      // orphelines de même titre/start.
+      try {
+        const { data: linked } = await supabaseAdmin
+          .from("calendar_events")
+          .select("id, title, start_at")
+          .eq("user_id", userId)
+          .eq("gcal_connection_id", conn.id)
+          .not("google_event_id", "is", null);
+        if (linked && linked.length > 0) {
+          const titles = Array.from(new Set(linked.map((r) => r.title)));
+          const starts = Array.from(new Set(linked.map((r) => r.start_at)));
+          const { data: orphanDupes } = await supabaseAdmin
+            .from("calendar_events")
+            .select("id, title, start_at")
+            .eq("user_id", userId)
+            .is("google_event_id", null)
+            .in("title", titles)
+            .in("start_at", starts);
+          const dupIds: string[] = [];
+          for (const o of orphanDupes ?? []) {
+            const hit = linked.find(
+              (l) =>
+                l.title === o.title &&
+                new Date(l.start_at as string).getTime() ===
+                  new Date(o.start_at as string).getTime(),
+            );
+            if (hit) dupIds.push(o.id);
+          }
+          if (dupIds.length > 0) {
+            await supabaseAdmin.from("calendar_events").delete().in("id", dupIds);
+            console.log(`Deduplicated ${dupIds.length} calendar event(s)`);
+          }
+        }
+      } catch (e) {
+        console.warn("Dedup pass skipped", e);
+      }
 
       await supabaseAdmin
         .from("google_calendar_connections")
