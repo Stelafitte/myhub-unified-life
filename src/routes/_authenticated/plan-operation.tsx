@@ -1,3 +1,4 @@
+import { promptDialog } from "@/lib/confirm-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -185,7 +186,7 @@ function PlanOperationPage() {
   // Création rapide d'une tâche dans une section donnée
   const createInSection = async (sectionKey: string) => {
     if (!user) return;
-    const title = window.prompt("Titre de la nouvelle tâche ?");
+    const title = await promptDialog("Titre de la nouvelle tâche ?", { title: "Nouvelle tâche" });
     if (!title || !title.trim()) return;
     const sectionTag = `section:${sectionKey}`;
     const today = new Date();
@@ -216,7 +217,7 @@ function PlanOperationPage() {
   // Création rapide d'un thème / sous-thème du Plan d'opération (table op_plan_themes / op_plan_subthemes)
   const createOpTheme = async () => {
     if (!user) return;
-    const name = window.prompt("Nom du nouveau thème ?")?.trim();
+    const name = (await promptDialog("Nom du nouveau thème ?", { title: "Nouveau thème" }))?.trim();
     if (!name) return;
     const { data: existing } = await supabase
       .from("op_plan_themes")
@@ -242,11 +243,11 @@ function PlanOperationPage() {
     }
     const themes = opThemes;
     const list = themes.map((t, i) => `${i + 1}. ${t.name}`).join("\n");
-    const pick = window.prompt(`Sous quel thème ?\n${list}\n\nEntre le numéro :`)?.trim();
+    const pick = (await promptDialog(`Sous quel thème ?\n${list}\n\nEntre le numéro :`, { title: "Choisir un thème" }))?.trim();
     const idx = pick ? parseInt(pick, 10) - 1 : -1;
     if (Number.isNaN(idx) || idx < 0 || idx >= themes.length) return;
     const theme = themes[idx];
-    const name = window.prompt(`Nom du nouveau sous-thème dans « ${theme.name} » ?`)?.trim();
+    const name = (await promptDialog(`Nom du nouveau sous-thème dans « ${theme.name} » ?`, { title: "Nouveau sous-thème" }))?.trim();
     if (!name) return;
     const { data: existingSubs } = await supabase
       .from("op_plan_subthemes")

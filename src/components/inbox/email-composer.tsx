@@ -1,3 +1,4 @@
+import { promptDialog } from "@/lib/confirm-dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bold, Italic, Underline, List, Link2, Loader2, Paperclip, Send, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
@@ -214,8 +215,8 @@ export function EmailComposer({
       ta.setSelectionRange(start + insert.length, start + insert.length);
     });
   };
-  const insertLink = () => {
-    const url = window.prompt("URL du lien :", "https://");
+  const insertLink = async () => {
+    const url = await promptDialog("URL du lien :", { title: "Insérer un lien", defaultValue: "https://" });
     if (!url) return;
     wrapSelection("[", `](${url})`);
   };
