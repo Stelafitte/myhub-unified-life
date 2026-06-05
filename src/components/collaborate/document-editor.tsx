@@ -697,6 +697,25 @@ export function DocumentEditor({
             Historique
           </Button>
 
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" title="Plus d'actions">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Templates</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => handleSaveAsTemplate("personal")}>
+                <Bookmark className="h-3.5 w-3.5 mr-2" />
+                Enregistrer (personnel)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleSaveAsTemplate("space")}>
+                <Bookmark className="h-3.5 w-3.5 mr-2" />
+                Enregistrer (espace)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Button
             size="sm"
             onClick={() => performSave(true)}
