@@ -45,9 +45,17 @@ const PROVIDER_LABEL: Record<Provider, string> = {
   teams: "Microsoft Teams (coller le lien)",
   other: "Autre / lien personnalisé",
 };
-function generateJitsiLink(): string {
+function generateJitsiLink(dateInput?: string): string {
+  let datePart = "";
+  if (dateInput) {
+    const d = new Date(dateInput.includes("T") && dateInput.length <= 16 ? dateInput : dateInput);
+    if (!isNaN(d.getTime())) {
+      const pad = (n: number) => n.toString().padStart(2, "0");
+      datePart = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}-`;
+    }
+  }
   const slug = Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 8);
-  return `https://meet.jit.si/MyHub-${slug}`;
+  return `https://meet.jit.si/MyHub-${datePart}${slug}`;
 }
 
 type Importance = "low" | "normal" | "high" | "critical";
@@ -781,6 +789,12 @@ export function MeetingDialog({
       return;
     }
     const dateStr = form.start_at ? new Date(fromLocalInput(form.start_at)).toLocaleString("fr-FR") : "";
+    // Auto-generate Jitsi link tied to the chosen date if missing
+    let visioLink = form.online_link;
+    if (form.is_online && (form.online_provider || "jitsi") === "jitsi" && !visioLink) {
+      visioLink = generateJitsiLink(form.start_at);
+      setForm((f) => ({ ...f, online_link: visioLink, online_provider: f.online_provider || "jitsi" }));
+    }
     const bodyLines = [
       `Bonjour,`,
       ``,
@@ -788,7 +802,7 @@ export function MeetingDialog({
       `• ${form.title}`,
       dateStr ? `• Date : ${dateStr}` : "",
       form.location ? `• Lieu : ${form.location}` : "",
-      form.is_online && form.online_link ? `• Visio : ${form.online_link}` : "",
+      form.is_online && visioLink ? `• Visio : ${visioLink}` : "",
       form.description ? `\n${form.description}` : "",
       ``,
       `Cordialement,`,
@@ -1090,7 +1104,13 @@ export function MeetingDialog({
                         const startMs = new Date(fromLocalInput(v)).getTime();
                         const mins = prepDuration || 60;
                         const endVal = toLocalInput(new Date(startMs + mins * 60000).toISOString());
-                        setForm({ ...form, start_at: v, end_at: endVal });
+                        const regenJitsi = form.is_online && (form.online_provider || "jitsi") === "jitsi";
+                        setForm({
+                          ...form,
+                          start_at: v,
+                          end_at: endVal,
+                          online_link: regenJitsi ? generateJitsiLink(v) : form.online_link,
+                        });
                       }}
                     />
                   </div>
@@ -1319,7 +1339,7 @@ export function MeetingDialog({
                     ...form,
                     is_online: v,
                     online_provider: v ? form.online_provider || "jitsi" : "",
-                    online_link: v && (form.online_provider || "jitsi") === "jitsi" && !form.online_link ? generateJitsiLink() : form.online_link,
+                    online_link: v && (form.online_provider || "jitsi") === "jitsi" && !form.online_link ? generateJitsiLink(form.start_at) : form.online_link,
                   })
                 }
               />
@@ -1335,7 +1355,7 @@ export function MeetingDialog({
                       setForm({
                         ...form,
                         online_provider: prov,
-                        online_link: prov === "jitsi" ? generateJitsiLink() : "",
+                        online_link: prov === "jitsi" ? generateJitsiLink(form.start_at) : "",
                         zoom_password: prov === "zoom" ? form.zoom_password : "",
                       });
                     }}
@@ -1360,7 +1380,7 @@ export function MeetingDialog({
                       onValueChange={(v) => setForm((f) => ({ ...f, online_link: v }))}
                     />
                     {form.online_provider === "jitsi" && (
-                      <Button type="button" variant="outline" size="icon" onClick={() => setForm({ ...form, online_link: generateJitsiLink() })} title="Régénérer">
+                      <Button type="button" variant="outline" size="icon" onClick={() => setForm({ ...form, online_link: generateJitsiLink(form.start_at) })} title="Régénérer">
                         <Sparkles className="h-4 w-4" />
                       </Button>
                     )}
