@@ -37,9 +37,18 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
 
   // AI proposition dialog state
   const [aiOpen, setAiOpen] = useState(false);
-  const aiConstraintsRef = useRef<HTMLTextAreaElement>(null);
+  const [aiConstraints, setAiConstraints] = useState("");
+  const [aiHistory, setAiHistory] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSlots, setAiSlots] = useState<AiProposedSlot[] | null>(null);
+  const [aiSelected, setAiSelected] = useState<Set<string>>(new Set());
+
+  function resetAi() {
+    setAiConstraints("");
+    setAiHistory([]);
+    setAiSlots(null);
+    setAiSelected(new Set());
+  }
 
   async function run() {
     setLoading(true);
@@ -65,25 +74,29 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
   }
 
   async function runAi() {
-    const constraints = aiConstraintsRef.current?.value.trim() ?? "";
-    if (!constraints) {
+    const fragment = aiConstraints.trim();
+    if (!fragment && aiHistory.length === 0) {
       toast.error("Décrivez vos contraintes pour la proposition IA.");
       return;
     }
+    const nextHistory = fragment ? [...aiHistory, fragment] : aiHistory;
+    const combined = nextHistory.join("\n");
     setAiLoading(true);
-    setAiSlots(null);
     try {
       const res = await propose({
         data: {
-          constraints,
+          constraints: combined,
           durationMinutes: Math.max(15, Math.min(8 * 60, durationMinutes || 60)),
           daysAhead,
           leadHours: 24,
-          maxResults: 5,
+          maxResults: 8,
         },
       });
       setHasGcal(res.hasGoogleCalendar);
       setAiSlots(res.slots);
+      setAiSelected(new Set());
+      setAiHistory(nextHistory);
+      setAiConstraints("");
       if (res.slots.length === 0) {
         toast.info("L'IA n'a trouvé aucun créneau correspondant à vos contraintes.");
       }
@@ -92,6 +105,26 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
     } finally {
       setAiLoading(false);
     }
+  }
+
+  function toggleAiSlot(key: string) {
+    setAiSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  function confirmAiSelection() {
+    if (!aiSlots || aiSelected.size === 0) {
+      toast.error("Sélectionnez au moins un créneau.");
+      return;
+    }
+    const picked = aiSlots.filter((s) => aiSelected.has(s.startAt));
+    picked.forEach((s) => onPick({ startAt: s.startAt, endAt: s.endAt }));
+    toast.success(picked.length > 1 ? `${picked.length} créneaux ajoutés` : "Créneau sélectionné");
+    setAiOpen(false);
+    resetAi();
   }
 
   return (
