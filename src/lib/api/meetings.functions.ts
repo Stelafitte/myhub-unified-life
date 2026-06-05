@@ -318,12 +318,13 @@ export const aiProposeSlots = createServerFn({ method: "POST" })
     const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["meeting_slots", "meeting"]);
 
     // Reuse the slot finder logic by calling its handler-equivalent directly.
-    // Generate a wide candidate set (up to 20 slots) for the AI to choose from.
+    // Generate a large candidate set so l'IA puisse honorer des contraintes
+    // pointues (soirées, week-ends, créneaux tôt le matin…).
     const candidates = await findCandidateSlots(userId, {
       durationMinutes: data.durationMinutes,
       daysAhead: data.daysAhead,
       leadHours: data.leadHours,
-      maxResults: 20,
+      maxResults: 120,
     });
 
     if (candidates.slots.length === 0) {
