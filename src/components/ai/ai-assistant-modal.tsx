@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
-import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History, Reply, ReplyAll, Star, Clock, Shield, ShieldOff, RefreshCw } from "lucide-react";
+import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History, Reply, ReplyAll, Star, Clock, Shield, ShieldOff, RefreshCw, Minimize2, Maximize2, Mic, MicOff } from "lucide-react";
+import { useVoiceConversation } from "@/hooks/use-voice-conversation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,6 +86,8 @@ export function AiAssistantModal({
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
   const [emailPreviewId, setEmailPreviewId] = useState<string | null>(null);
   const [entityPreview, setEntityPreview] = useState<{ kind: EntityKind; id: string } | null>(null);
+  const [minimized, setMinimized] = useState(false);
+  const [voiceLivePreview, setVoiceLivePreview] = useState("");
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const chatFn = useServerFn(aiChat);
@@ -118,8 +121,8 @@ export function AiAssistantModal({
     setTurns(ts => ts.filter(t => t.id !== turnId));
   };
 
-  const submit = async () => {
-    const q = prompt.trim();
+  const submit = async (overrideText?: string) => {
+    const q = (overrideText ?? prompt).trim();
     if (q.length < 2) return;
     setLoading(true);
     const id = crypto.randomUUID();
@@ -247,16 +250,20 @@ export function AiAssistantModal({
   };
 
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl p-0 gap-0 h-[88vh] flex flex-col">
-        <DialogHeader className="px-6 py-4 border-b flex-row items-center justify-between space-y-0 gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Sparkles className="h-5 w-5 text-primary shrink-0" />
-            <DialogTitle className="truncate">Assistant IA</DialogTitle>
-            <ActivePromptsBadge turns={turns} onOpenSettings={() => { onOpenChange(false); navigate({ to: "/settings", search: { tab: "ai" } as any }); }} />
-          </div>
-          <div className="flex items-center gap-1 mr-6">
+  const headerBar = (
+    <div className={`flex flex-row items-center justify-between space-y-0 gap-2 border-b ${minimized ? "px-3 py-2" : "px-6 py-4"}`}>
+      <div className="flex items-center gap-2 min-w-0">
+        <Sparkles className={`text-primary shrink-0 ${minimized ? "h-4 w-4" : "h-5 w-5"}`} />
+        {minimized ? (
+          <span className="text-sm font-semibold truncate">Assistant IA</span>
+        ) : (
+          <DialogTitle className="truncate">Assistant IA</DialogTitle>
+        )}
+        {!minimized && <ActivePromptsBadge turns={turns} onOpenSettings={() => { onOpenChange(false); navigate({ to: "/settings", search: { tab: "ai" } as any }); }} />}
+      </div>
+      <div className={`flex items-center gap-1 ${minimized ? "" : "mr-6"}`}>
+        {!minimized && (
+          <>
             <Button size="sm" variant="ghost" onClick={newConversation} disabled={turns.length === 0} className="h-8 gap-1.5 text-xs">
               <Plus className="h-3.5 w-3.5" />Nouvelle
             </Button>
@@ -287,219 +294,309 @@ export function AiAssistantModal({
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </DialogHeader>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => setMinimized(m => !m)}
+          title={minimized ? "Agrandir" : "Réduire en mini-fenêtre"}
+          className="p-1.5 rounded hover:bg-muted text-muted-foreground"
+        >
+          {minimized ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
+        </button>
+        {minimized && (
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            title="Fermer"
+            className="p-1.5 rounded hover:bg-muted text-muted-foreground"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
-        <ScrollArea className="flex-1 px-6 py-4">
-          {turns.length === 0 && (
-            <div className="space-y-4 py-8">
-              <p className="text-sm text-muted-foreground text-center">
-                Posez une question en langage naturel. L'IA cherche, résume, puis propose des actions modifiables (réponses, tâches, événements…).
-              </p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {EXAMPLES.map((ex) => (
-                  <button key={ex} type="button" onClick={() => setPrompt(ex)} className="text-xs px-3 py-1.5 rounded-full border bg-muted/40 hover:bg-muted text-foreground/80">
-                    {ex}
-                  </button>
-                ))}
-              </div>
+  const scrollBody = (
+    <ScrollArea className={`flex-1 ${minimized ? "px-3 py-2" : "px-6 py-4"}`}>
+      {turns.length === 0 && (
+        <div className="space-y-4 py-8">
+          <p className="text-sm text-muted-foreground text-center">
+            Posez une question en langage naturel{minimized ? "" : ". L'IA cherche, résume, puis propose des actions modifiables (réponses, tâches, événements…)"}.
+          </p>
+          {!minimized && (
+            <div className="flex flex-wrap gap-2 justify-center">
+              {EXAMPLES.map((ex) => (
+                <button key={ex} type="button" onClick={() => setPrompt(ex)} className="text-xs px-3 py-1.5 rounded-full border bg-muted/40 hover:bg-muted text-foreground/80">
+                  {ex}
+                </button>
+              ))}
             </div>
           )}
+        </div>
+      )}
 
-          <div className="space-y-8">
-            {turns.map((t) => (
-              <div key={t.id} className="space-y-3 group">
-                <div className="flex justify-end items-start gap-2">
-                  <button type="button" onClick={() => removeTurn(t.id)} title="Fermer cet échange" className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted text-muted-foreground mt-1">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                  <div className="max-w-[80%] rounded-2xl bg-primary text-primary-foreground px-4 py-2 text-sm whitespace-pre-wrap">{t.prompt}</div>
-                </div>
-                {t.mode === "chat" ? (
-                  <>
-                    {t.chatReply === null && t.error === null && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />Réflexion en cours…
-                      </div>
-                    )}
-                    {t.error && <div className="text-sm text-destructive">{t.error}</div>}
-                    {t.chatReply && (
-                      <div className="rounded-2xl border bg-card px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed max-w-[85%]">
-                        {t.chatReply}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                {t.result === null && t.error === null && (
+      <div className="space-y-8">
+        {turns.map((t) => (
+          <div key={t.id} className="space-y-3 group">
+            <div className="flex justify-end items-start gap-2">
+              <button type="button" onClick={() => removeTurn(t.id)} title="Fermer cet échange" className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted text-muted-foreground mt-1">
+                <X className="h-3.5 w-3.5" />
+              </button>
+              <div className="max-w-[80%] rounded-2xl bg-primary text-primary-foreground px-4 py-2 text-sm whitespace-pre-wrap">{t.prompt}</div>
+            </div>
+            {t.mode === "chat" ? (
+              <>
+                {t.chatReply === null && t.error === null && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />Recherche en cours…
+                    <Loader2 className="h-4 w-4 animate-spin" />Réflexion en cours…
                   </div>
                 )}
                 {t.error && <div className="text-sm text-destructive">{t.error}</div>}
-                {t.result && (
-                  <div className="space-y-3">
-                    <div className="rounded-lg border bg-muted/30 px-3 py-2">
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Question</div>
-                      <div className="text-xs whitespace-pre-wrap">{t.prompt}</div>
-                    </div>
-                    <div className="rounded-lg border bg-card px-3 py-2">
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Réponse de l'IA</div>
-                      <div className="text-sm whitespace-pre-wrap leading-relaxed">{t.result.summary}</div>
-                    </div>
-
-
-                    {t.result.matches.length > 0 && (
-                      <div className="border rounded-lg bg-card">
-                        <div className="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-xs">
-                          <Checkbox
-                            checked={t.selectedMatches.size === t.result.matches.length ? true : t.selectedMatches.size === 0 ? false : "indeterminate"}
-                            onCheckedChange={(v) => {
-                              setTurns(ts => ts.map(x => {
-                                if (x.id !== t.id) return x;
-                                const all = x.result?.matches.map(m => m.id) ?? [];
-                                return { ...x, selectedMatches: v ? new Set(all) : new Set() };
-                              }));
-                            }}
-                          />
-                          <span className="text-muted-foreground">{t.selectedMatches.size}/{t.result.matches.length} sélectionné(s)</span>
-                          <div className="ml-auto flex gap-1">
-                            <button type="button" onClick={() => setTurns(ts => ts.map(x => x.id === t.id ? { ...x, selectedMatches: new Set(x.result?.matches.map(m => m.id) ?? []) } : x))} className="text-xs px-2 py-0.5 rounded hover:bg-muted">Tout cocher</button>
-                            <button type="button" onClick={() => setTurns(ts => ts.map(x => x.id === t.id ? { ...x, selectedMatches: new Set() } : x))} className="text-xs px-2 py-0.5 rounded hover:bg-muted">Tout décocher</button>
-                          </div>
-                        </div>
-                        <div className="divide-y">
-                        {t.result.matches.map((m: AnyMatch) => {
-                          const checked = t.selectedMatches.has(m.id);
-                          const expanded = expandedMatches.has(m.id);
-                          const Icon = KIND_ICON[m.kind] ?? Mail;
-                          return (
-                            <div key={m.id} className="px-3 py-2 hover:bg-muted/30">
-                              <div className="flex items-start gap-2">
-                                <Checkbox checked={checked} onCheckedChange={() => toggleMatch(t.id, m.id)} className="mt-1" />
-                                <button type="button" onClick={() => openMatchPreview(m)} className="flex items-start gap-2 flex-1 min-w-0 text-left">
-                                  <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm font-medium truncate">{m.title}</span>
-                                      {m.date && <span className="text-[11px] text-muted-foreground shrink-0">{new Date(m.date).toLocaleDateString("fr-FR")}</span>}
-                                      {m.badge && <Badge variant="secondary" className="text-[10px] shrink-0">{m.badge}</Badge>}
-                                    </div>
-                                    {m.subtitle && <div className="text-xs text-muted-foreground truncate">{m.subtitle}</div>}
-                                    {m.snippet && <div className="text-xs text-muted-foreground truncate">{m.snippet}</div>}
-                                  </div>
-                                  <ChevronRight className={`h-4 w-4 mt-1 text-muted-foreground shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`} />
-                                </button>
-                              </div>
-                              {expanded && (
-                                <div className="ml-8 mt-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-foreground/90 space-y-2">
-                                  <div className="font-medium">{m.title}</div>
-                                  {m.date && <div className="text-muted-foreground">Date : {new Date(m.date).toLocaleString("fr-FR")}</div>}
-                                  {m.subtitle && <div>{m.subtitle}</div>}
-                                  {m.snippet && <div className="text-muted-foreground whitespace-pre-wrap">{m.snippet}</div>}
-                                  <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openInSource(m.kind, m.id, m.date)}>
-                                    Ouvrir dans {SOURCE_LABEL[m.kind]}
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action toolbar */}
-                    <div className="flex flex-wrap items-center gap-2 pt-1">
-                      <span className="text-xs text-muted-foreground mr-1">Propositions :</span>
-                      {ACTION_BUTTONS.map(({ kind, label, Icon, needsMatches }) => {
-                        const hasEmailSel = Array.from(t.selectedMatches).some(id => t.result?.matches.find(x => x.id === id)?.kind === "email");
-                        const disabled = t.proposing || (needsMatches && !hasEmailSel);
-                        return (
-                          <Button key={kind} size="sm" variant="outline" disabled={disabled} onClick={() => proposeFor(t, kind)} className="h-7 gap-1.5 text-xs">
-                            <Icon className="h-3.5 w-3.5" />{label}
-                          </Button>
-                        );
-                      })}
-                      {t.proposing && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                    </div>
-
-                    {/* Action cards */}
-                    {t.actions.length > 0 && (
-                      <div className="space-y-3 pt-2">
-                        <BulkBar
-                          items={t.actions}
-                          onRunAll={() => runBulk(t, "all")}
-                          onRunSelected={() => runBulk(t, "selected")}
-                          onToggleAll={(v) => setTurns(ts => ts.map(x => x.id !== t.id ? x : { ...x, actions: x.actions.map(a => ({ ...a, selected: v } as any)) }))}
-                        />
-
-                        {t.actions.map((it) => (
-                          <ActionCard
-                            key={it.action.id}
-                            action={it.action}
-                            onChange={(a) => updateAction(t.id, it.action.id, { action: a })}
-                            onRemove={() => removeAction(t.id, it.action.id)}
-                            selected={(it as any).selected ?? true}
-                            onSelectChange={(v) => updateAction(t.id, it.action.id, { ...(it as any), selected: v } as any)}
-                            status={it.status}
-                            setStatus={(s, msg) => updateAction(t.id, it.action.id, { status: s, message: msg })}
-                          />
-                        ))}
-                      </div>
-                    )}
+                {t.chatReply && (
+                  <div className="rounded-2xl border bg-card px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed max-w-[85%]">
+                    {t.chatReply}
                   </div>
                 )}
-                  </>
+              </>
+            ) : (
+              <>
+            {t.result === null && t.error === null && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />Recherche en cours…
+              </div>
+            )}
+            {t.error && <div className="text-sm text-destructive">{t.error}</div>}
+            {t.result && (
+              <div className="space-y-3">
+                <div className="rounded-lg border bg-muted/30 px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Question</div>
+                  <div className="text-xs whitespace-pre-wrap">{t.prompt}</div>
+                </div>
+                <div className="rounded-lg border bg-card px-3 py-2">
+                  <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Réponse de l'IA</div>
+                  <div className="text-sm whitespace-pre-wrap leading-relaxed">{t.result.summary}</div>
+                </div>
+
+
+                {t.result.matches.length > 0 && (
+                  <div className="border rounded-lg bg-card">
+                    <div className="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/30 text-xs">
+                      <Checkbox
+                        checked={t.selectedMatches.size === t.result.matches.length ? true : t.selectedMatches.size === 0 ? false : "indeterminate"}
+                        onCheckedChange={(v) => {
+                          setTurns(ts => ts.map(x => {
+                            if (x.id !== t.id) return x;
+                            const all = x.result?.matches.map(m => m.id) ?? [];
+                            return { ...x, selectedMatches: v ? new Set(all) : new Set() };
+                          }));
+                        }}
+                      />
+                      <span className="text-muted-foreground">{t.selectedMatches.size}/{t.result.matches.length} sélectionné(s)</span>
+                      <div className="ml-auto flex gap-1">
+                        <button type="button" onClick={() => setTurns(ts => ts.map(x => x.id === t.id ? { ...x, selectedMatches: new Set(x.result?.matches.map(m => m.id) ?? []) } : x))} className="text-xs px-2 py-0.5 rounded hover:bg-muted">Tout cocher</button>
+                        <button type="button" onClick={() => setTurns(ts => ts.map(x => x.id === t.id ? { ...x, selectedMatches: new Set() } : x))} className="text-xs px-2 py-0.5 rounded hover:bg-muted">Tout décocher</button>
+                      </div>
+                    </div>
+                    <div className="divide-y">
+                    {t.result.matches.map((m: AnyMatch) => {
+                      const checked = t.selectedMatches.has(m.id);
+                      const expanded = expandedMatches.has(m.id);
+                      const Icon = KIND_ICON[m.kind] ?? Mail;
+                      return (
+                        <div key={m.id} className="px-3 py-2 hover:bg-muted/30">
+                          <div className="flex items-start gap-2">
+                            <Checkbox checked={checked} onCheckedChange={() => toggleMatch(t.id, m.id)} className="mt-1" />
+                            <button type="button" onClick={() => openMatchPreview(m)} className="flex items-start gap-2 flex-1 min-w-0 text-left">
+                              <Icon className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium truncate">{m.title}</span>
+                                  {m.date && <span className="text-[11px] text-muted-foreground shrink-0">{new Date(m.date).toLocaleDateString("fr-FR")}</span>}
+                                  {m.badge && <Badge variant="secondary" className="text-[10px] shrink-0">{m.badge}</Badge>}
+                                </div>
+                                {m.subtitle && <div className="text-xs text-muted-foreground truncate">{m.subtitle}</div>}
+                                {m.snippet && <div className="text-xs text-muted-foreground truncate">{m.snippet}</div>}
+                              </div>
+                              <ChevronRight className={`h-4 w-4 mt-1 text-muted-foreground shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`} />
+                            </button>
+                          </div>
+                          {expanded && (
+                            <div className="ml-8 mt-2 rounded-md border bg-muted/30 px-3 py-2 text-xs text-foreground/90 space-y-2">
+                              <div className="font-medium">{m.title}</div>
+                              {m.date && <div className="text-muted-foreground">Date : {new Date(m.date).toLocaleString("fr-FR")}</div>}
+                              {m.subtitle && <div>{m.subtitle}</div>}
+                              {m.snippet && <div className="text-muted-foreground whitespace-pre-wrap">{m.snippet}</div>}
+                              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openInSource(m.kind, m.id, m.date)}>
+                                Ouvrir dans {SOURCE_LABEL[m.kind]}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action toolbar */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <span className="text-xs text-muted-foreground mr-1">Propositions :</span>
+                  {ACTION_BUTTONS.map(({ kind, label, Icon, needsMatches }) => {
+                    const hasEmailSel = Array.from(t.selectedMatches).some(id => t.result?.matches.find(x => x.id === id)?.kind === "email");
+                    const disabled = t.proposing || (needsMatches && !hasEmailSel);
+                    return (
+                      <Button key={kind} size="sm" variant="outline" disabled={disabled} onClick={() => proposeFor(t, kind)} className="h-7 gap-1.5 text-xs">
+                        <Icon className="h-3.5 w-3.5" />{label}
+                      </Button>
+                    );
+                  })}
+                  {t.proposing && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                </div>
+
+                {/* Action cards */}
+                {t.actions.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <BulkBar
+                      items={t.actions}
+                      onRunAll={() => runBulk(t, "all")}
+                      onRunSelected={() => runBulk(t, "selected")}
+                      onToggleAll={(v) => setTurns(ts => ts.map(x => x.id !== t.id ? x : { ...x, actions: x.actions.map(a => ({ ...a, selected: v } as any)) }))}
+                    />
+
+                    {t.actions.map((it) => (
+                      <ActionCard
+                        key={it.action.id}
+                        action={it.action}
+                        onChange={(a) => updateAction(t.id, it.action.id, { action: a })}
+                        onRemove={() => removeAction(t.id, it.action.id)}
+                        selected={(it as any).selected ?? true}
+                        onSelectChange={(v) => updateAction(t.id, it.action.id, { ...(it as any), selected: v } as any)}
+                        status={it.status}
+                        setStatus={(s, msg) => updateAction(t.id, it.action.id, { status: s, message: msg })}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
-            ))}
+            )}
+              </>
+            )}
           </div>
-        </ScrollArea>
+        ))}
+      </div>
+    </ScrollArea>
+  );
 
-        <div className="border-t p-3 space-y-2">
-          <div className="flex items-center gap-1 text-xs">
-            <span className="text-muted-foreground mr-1">Mode :</span>
-            <button type="button" onClick={() => setMode("search")} className={`px-2.5 py-1 rounded-full border transition ${mode === "search" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 hover:bg-muted text-foreground/80"}`}>
-              🔍 Rechercher
-            </button>
-            <button type="button" onClick={() => setMode("chat")} className={`px-2.5 py-1 rounded-full border transition ${mode === "chat" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 hover:bg-muted text-foreground/80"}`}>
-              💬 Discuter
-            </button>
-            <span className="text-[10px] text-muted-foreground ml-2 hidden sm:inline">
-              {mode === "search" ? "Cherche dans vos données et propose des actions." : "Discussion libre avec contexte des recherches précédentes."}
-            </span>
-          </div>
-          <div className="flex items-end gap-2">
-            <Textarea
-              ref={inputRef}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading) submit(); } }}
-              placeholder={mode === "search" ? "Ex : mes rdv perso, mails de Ternacle…" : "Ex : pourquoi tu n'as pas trouvé mes rdv kiné ?"}
-              rows={2}
-              className="resize-none"
-              disabled={loading}
-            />
-            <Button onClick={submit} disabled={loading || prompt.trim().length < 2} size="icon" className="h-10 w-10 shrink-0">
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            </Button>
-          </div>
+  const inputBar = (
+    <div className={`border-t space-y-2 ${minimized ? "p-2" : "p-3"}`}>
+      {!minimized && (
+        <div className="flex items-center gap-1 text-xs">
+          <span className="text-muted-foreground mr-1">Mode :</span>
+          <button type="button" onClick={() => setMode("search")} className={`px-2.5 py-1 rounded-full border transition ${mode === "search" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 hover:bg-muted text-foreground/80"}`}>
+            🔍 Rechercher
+          </button>
+          <button type="button" onClick={() => setMode("chat")} className={`px-2.5 py-1 rounded-full border transition ${mode === "chat" ? "bg-primary text-primary-foreground border-primary" : "bg-muted/40 hover:bg-muted text-foreground/80"}`}>
+            💬 Discuter
+          </button>
+          <span className="text-[10px] text-muted-foreground ml-2 hidden sm:inline">
+            {mode === "search" ? "Cherche dans vos données et propose des actions." : "Discussion libre avec contexte des recherches précédentes."}
+          </span>
         </div>
-        <AiEmailReaderDialog
-          emailId={emailPreviewId}
-          open={!!emailPreviewId}
-          onOpenChange={closeEmailPreview}
-          onOpenInSource={(id) => openInSource("email", id)}
+      )}
+      {voiceLivePreview && (
+        <div className="rounded-md border border-red-500/30 bg-red-500/5 px-2 py-1 text-xs text-red-700 dark:text-red-300 italic">
+          🎙️ {voiceLivePreview}
+        </div>
+      )}
+      <div className="flex items-end gap-2">
+        <Textarea
+          ref={inputRef}
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (!loading) submit(); } }}
+          placeholder={mode === "search" ? "Ex : mes rdv perso, mails de Ternacle…" : "Ex : pourquoi tu n'as pas trouvé mes rdv kiné ?"}
+          rows={minimized ? 1 : 2}
+          className="resize-none"
+          disabled={loading}
         />
-        <AiEntityPreviewDialog
-          entity={entityPreview}
-          open={!!entityPreview}
-          onOpenChange={closeEntityPreview}
-          onOpenInSource={(e) => openInSource(e.kind, e.id)}
-        />
+        <Button onClick={() => submit()} disabled={loading || prompt.trim().length < 2} size="icon" className="h-10 w-10 shrink-0">
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </Button>
+        <VoiceConvoButton loading={loading} onSubmit={(text: string) => submit(text)} onLivePreview={setVoiceLivePreview} />
+      </div>
+    </div>
+  );
+
+  const previews = (
+    <>
+      <AiEmailReaderDialog
+        emailId={emailPreviewId}
+        open={!!emailPreviewId}
+        onOpenChange={closeEmailPreview}
+        onOpenInSource={(id) => openInSource("email", id)}
+      />
+      <AiEntityPreviewDialog
+        entity={entityPreview}
+        open={!!entityPreview}
+        onOpenChange={closeEntityPreview}
+        onOpenInSource={(e) => openInSource(e.kind, e.id)}
+      />
+    </>
+  );
+
+  if (!open) return null;
+
+  if (minimized) {
+    return (
+      <>
+        <div className="fixed bottom-4 right-4 z-50 flex h-[500px] w-[380px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] flex-col rounded-lg border bg-background shadow-2xl">
+          {headerBar}
+          {scrollBody}
+          {inputBar}
+        </div>
+        {previews}
+      </>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl p-0 gap-0 h-[88vh] flex flex-col">
+        <DialogHeader className="p-0 space-y-0">
+          {headerBar}
+        </DialogHeader>
+        {scrollBody}
+        {inputBar}
+        {previews}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function VoiceConvoButton({ loading, onSubmit, onLivePreview }: { loading: boolean; onSubmit: (text: string) => void; onLivePreview: (text: string) => void }) {
+  const { active, supported, toggle } = useVoiceConversation({
+    isBusy: loading,
+    onSubmit: (text) => {
+      onLivePreview("");
+      onSubmit(text);
+    },
+    onTranscript: (text, kind) => {
+      onLivePreview(kind === "interim" ? text + " …" : text);
+    },
+  });
+  if (!supported) return null;
+  return (
+    <Button
+      onClick={toggle}
+      size="icon"
+      variant={active ? "default" : "outline"}
+      title={active ? "Arrêter la conversation vocale (auto-envoi)" : "Conversation vocale (auto-envoi à la pause)"}
+      className={`h-10 w-10 shrink-0 ${active ? "bg-red-500 hover:bg-red-600 text-white animate-pulse" : ""}`}
+    >
+      {active ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+    </Button>
   );
 }
 
