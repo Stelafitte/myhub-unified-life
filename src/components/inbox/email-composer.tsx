@@ -13,7 +13,7 @@ import { RecipientInput } from "@/components/inbox/recipient-input";
 import { getSignatureForAccount } from "@/lib/email-signatures";
 import { cn } from "@/lib/utils";
 
-type ComposerAccount = {
+export type ComposerAccount = {
   id: string;
   name: string;
   type: string;
