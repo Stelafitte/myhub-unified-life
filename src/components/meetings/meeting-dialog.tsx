@@ -140,6 +140,7 @@ export function MeetingDialog({
   const [attachments, setAttachments] = useState<DocumentRow[]>([]);
   const [sharedMap, setSharedMap] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [notesSavedAt, setNotesSavedAt] = useState<Date | null>(null);
   const [notesSaving, setNotesSaving] = useState(false);
@@ -471,6 +472,16 @@ export function MeetingDialog({
       }
 
       setForm((f) => ({ ...f, id }));
+      // Flush any files added before the meeting existed.
+      if (pendingFiles.length > 0) {
+        try {
+          await uploadFilesForMeeting(id!, pendingFiles);
+          setPendingFiles([]);
+          await loadAttachments(id!);
+        } catch (e) {
+          toast.error(e instanceof Error ? `PJ: ${e.message}` : "Erreur upload PJ");
+        }
+      }
       toast.success(form.id ? "Réunion mise à jour" : pollMode ? "Sondage créé" : "Réunion créée");
       onSaved?.();
       requestAutoSync();
@@ -640,35 +651,44 @@ export function MeetingDialog({
   }
 
 
+  async function uploadFilesForMeeting(meetingId: string, files: File[]) {
+    if (!user || files.length === 0) return;
+    for (const file of files) {
+      const docId = crypto.randomUUID();
+      const path = storagePath(user.id, "meeting", docId, file.name);
+      await uploadToStorage(path, file);
+      const checksum = await sha256(file);
+      const { error } = await supabase.from("documents").insert({
+        id: docId,
+        user_id: user.id,
+        filename: file.name,
+        original_filename: file.name,
+        file_size: file.size,
+        mime_type: file.type || null,
+        storage_path: path,
+        source_type: "meeting",
+        source_id: meetingId,
+        tags: [],
+        checksum,
+      });
+      if (error) throw error;
+    }
+  }
+
   async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (!user || files.length === 0) return;
-    const id = await ensureSaved();
-    if (!id) return;
+    // If meeting not saved yet, buffer files locally — they'll upload on save.
+    if (!form.id) {
+      setPendingFiles((p) => [...p, ...files]);
+      toast.success(`${files.length} fichier(s) en attente — seront ajoutés à l'enregistrement`);
+      return;
+    }
     setUploading(true);
     try {
-      for (const file of files) {
-        const docId = crypto.randomUUID();
-        const path = storagePath(user.id, "meeting", docId, file.name);
-        await uploadToStorage(path, file);
-        const checksum = await sha256(file);
-        const { error } = await supabase.from("documents").insert({
-          id: docId,
-          user_id: user.id,
-          filename: file.name,
-          original_filename: file.name,
-          file_size: file.size,
-          mime_type: file.type || null,
-          storage_path: path,
-          source_type: "meeting",
-          source_id: id,
-          tags: [],
-          checksum,
-        });
-        if (error) throw error;
-      }
-      await loadAttachments(id);
+      await uploadFilesForMeeting(form.id, files);
+      await loadAttachments(form.id);
       toast.success("Fichier(s) ajouté(s)");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur upload");
@@ -1445,10 +1465,8 @@ export function MeetingDialog({
                 </Button>
                 <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onPickFiles} />
               </div>
-              {attachments.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  {form.id ? "Aucun fichier." : "Enregistrez la réunion pour pouvoir joindre des fichiers."}
-                </p>
+              {attachments.length === 0 && pendingFiles.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Aucun fichier.</p>
               ) : (
                 <ul className="space-y-1">
                   {attachments.map((d) => {
@@ -1482,6 +1500,19 @@ export function MeetingDialog({
                       </li>
                     );
                   })}
+                  {pendingFiles.map((f, i) => (
+                    <li key={`pending-${i}`} className="flex items-center gap-2 text-sm rounded border border-dashed bg-muted/30 p-2">
+                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span className="truncate flex-1">
+                        {f.name}
+                        <Badge variant="outline" className="ml-1.5 text-[10px]">En attente</Badge>
+                      </span>
+                      <span className="text-xs text-muted-foreground">{formatBytes(f.size)}</span>
+                      <Button type="button" variant="ghost" size="icon" onClick={() => setPendingFiles((p) => p.filter((_, j) => j !== i))} title="Retirer">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
