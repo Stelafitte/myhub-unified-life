@@ -1105,13 +1105,16 @@ export function MeetingDialog({
                     />
                   </div>
                 </div>
-                {manualMode && (
+                {(manualMode || form.start_at || form.end_at) && (
                   <button
                     type="button"
-                    onClick={() => setManualMode(false)}
+                    onClick={() => {
+                      setManualMode(false);
+                      setForm((f) => ({ ...f, start_at: "", end_at: "" }));
+                    }}
                     className="text-xs text-primary hover:underline"
                   >
-                    Réactiver la sélection dans « Créneaux disponibles »
+                    Effacer et réactiver « Créneaux disponibles »
                   </button>
                 )}
               </div>
