@@ -334,7 +334,7 @@ export function TaskPanel({
 
   const createOpTheme = async () => {
     if (!user) return;
-    const name = window.prompt("Nom du nouveau thème ?")?.trim();
+    const name = (await promptDialog("Nom du nouveau thème ?", { title: "Nouveau thème" }))?.trim();
     if (!name) return;
     const position = opThemes.length ? Math.max(...opThemes.map((t) => t.position)) + 1 : 0;
     const { data, error } = await supabase
