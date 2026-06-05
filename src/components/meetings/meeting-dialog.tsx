@@ -1082,7 +1082,7 @@ export function MeetingDialog({
             {!pollMode && (
               <div className={cn("space-y-2", selectedAvailable.length > 1 && "opacity-60")}>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  ou créneau manuel
+                  Votre créneau
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
