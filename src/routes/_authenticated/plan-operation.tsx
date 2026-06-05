@@ -594,7 +594,7 @@ function PlanOperationPage() {
               </div>
               <div>
                 <Label className="text-xs">Tag / Titre</Label>
-                <Input value={fTag} onChange={(e) => setFTag(e.target.value)} placeholder="Rechercher…" className="mt-1 h-8 text-xs" />
+                <Input value={fTag} onChange={(e) => setFTag(e.target.value)} placeholder="Rechercher…" withMic className="mt-1 h-8 text-xs" />
               </div>
               <Button size="sm" variant="ghost" className="w-full" onClick={() => { setFPriority(new Set()); setFStatus(new Set()); setFSource(new Set()); setFTag(""); }}>
                 Réinitialiser

@@ -141,7 +141,7 @@ function GlobalSearchBar() {
             type="search"
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="Rechercher dans MyHub Pro…"
+            placeholder="Rechercher dans MyHub Pro…" withMic
             aria-label="Recherche globale"
             className="h-9 w-full rounded-md border border-border/60 bg-muted/40 pl-8 pr-20 text-sm text-foreground placeholder:text-muted-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40"
           />

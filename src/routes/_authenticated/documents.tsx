@@ -450,7 +450,7 @@ function DocumentsPage() {
           </Button>
           <div className="relative flex-1 max-w-md">
             <Search className="h-4 w-4 absolute left-2.5 top-2.5 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" className="pl-9" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher…" withMic className="pl-9" />
           </div>
           {!selectionMode && (
             <Button variant="outline" size="sm" onClick={classifyNow} disabled={classifying} className="gap-1.5">

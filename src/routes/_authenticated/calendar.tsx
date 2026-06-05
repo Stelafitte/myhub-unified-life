@@ -2560,7 +2560,7 @@ function NewEventDialog({
 
           <div>
             <Label htmlFor="ev-title">Titre</Label>
-            <Input id="ev-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Réunion équipe…" />
+            <Input id="ev-title" withMic value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Réunion équipe…" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -2581,7 +2581,7 @@ function NewEventDialog({
 
           <div>
             <Label htmlFor="ev-loc">Lieu</Label>
-            <Input id="ev-loc" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Adresse, salle, ou lien Meet/Zoom/Teams" />
+            <Input id="ev-loc" withMic value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Adresse, salle, ou lien Meet/Zoom/Teams" />
           </div>
 
           <div>
