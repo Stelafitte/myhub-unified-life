@@ -1,12 +1,13 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Search, Loader2, Sun, Sunset, Sparkles, CheckCircle2, AlertCircle, Wand2 } from "lucide-react";
+import { Search, Loader2, Sun, Sunset, Sparkles, CheckCircle2, AlertCircle, Wand2, Check } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -36,9 +37,18 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
 
   // AI proposition dialog state
   const [aiOpen, setAiOpen] = useState(false);
-  const aiConstraintsRef = useRef<HTMLTextAreaElement>(null);
+  const [aiConstraints, setAiConstraints] = useState("");
+  const [aiHistory, setAiHistory] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSlots, setAiSlots] = useState<AiProposedSlot[] | null>(null);
+  const [aiSelected, setAiSelected] = useState<Set<string>>(new Set());
+
+  function resetAi() {
+    setAiConstraints("");
+    setAiHistory([]);
+    setAiSlots(null);
+    setAiSelected(new Set());
+  }
 
   async function run() {
     setLoading(true);
@@ -64,25 +74,29 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
   }
 
   async function runAi() {
-    const constraints = aiConstraintsRef.current?.value.trim() ?? "";
-    if (!constraints) {
+    const fragment = aiConstraints.trim();
+    if (!fragment && aiHistory.length === 0) {
       toast.error("Décrivez vos contraintes pour la proposition IA.");
       return;
     }
+    const nextHistory = fragment ? [...aiHistory, fragment] : aiHistory;
+    const combined = nextHistory.join("\n");
     setAiLoading(true);
-    setAiSlots(null);
     try {
       const res = await propose({
         data: {
-          constraints,
+          constraints: combined,
           durationMinutes: Math.max(15, Math.min(8 * 60, durationMinutes || 60)),
           daysAhead,
           leadHours: 24,
-          maxResults: 5,
+          maxResults: 8,
         },
       });
       setHasGcal(res.hasGoogleCalendar);
       setAiSlots(res.slots);
+      setAiSelected(new Set());
+      setAiHistory(nextHistory);
+      setAiConstraints("");
       if (res.slots.length === 0) {
         toast.info("L'IA n'a trouvé aucun créneau correspondant à vos contraintes.");
       }
@@ -91,6 +105,26 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
     } finally {
       setAiLoading(false);
     }
+  }
+
+  function toggleAiSlot(key: string) {
+    setAiSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  function confirmAiSelection() {
+    if (!aiSlots || aiSelected.size === 0) {
+      toast.error("Sélectionnez au moins un créneau.");
+      return;
+    }
+    const picked = aiSlots.filter((s) => aiSelected.has(s.startAt));
+    picked.forEach((s) => onPick({ startAt: s.startAt, endAt: s.endAt }));
+    toast.success(picked.length > 1 ? `${picked.length} créneaux ajoutés` : "Créneau sélectionné");
+    setAiOpen(false);
+    resetAi();
   }
 
   return (
@@ -172,9 +206,15 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
         <p className="text-xs text-muted-foreground">Aucun créneau libre trouvé.</p>
       )}
 
-      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+      <Dialog
+        open={aiOpen}
+        onOpenChange={(o) => {
+          setAiOpen(o);
+          if (!o) resetAi();
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
             <DialogTitle className="flex items-center gap-2">
               <Wand2 className="h-4 w-4" /> Proposition IA de créneaux
             </DialogTitle>
@@ -183,15 +223,40 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3">
+          <div className="flex-1 overflow-y-auto px-6 py-3 space-y-3">
+            {aiHistory.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-xs font-medium text-muted-foreground">
+                  Contraintes appliquées ({aiHistory.length} itération{aiHistory.length > 1 ? "s" : ""})
+                </div>
+                <ul className="space-y-1">
+                  {aiHistory.map((h, i) => (
+                    <li
+                      key={i}
+                      className="rounded border bg-muted/30 px-2 py-1 text-xs text-muted-foreground"
+                    >
+                      <span className="font-mono mr-1">#{i + 1}</span>
+                      {h}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div>
-              <Label htmlFor="ai-constraints">Contraintes et disponibilités</Label>
+              <Label htmlFor="ai-constraints">
+                {aiHistory.length > 0 ? "Ajouter / affiner les contraintes" : "Contraintes et disponibilités"}
+              </Label>
               <Textarea
                 id="ai-constraints"
-                ref={aiConstraintsRef}
-                rows={4}
-                placeholder="Ex : dispo les après-midis de 15h à 18h, pas le lundi, éviter avant 9h, idéalement mardi ou jeudi…"
-                defaultValue=""
+                value={aiConstraints}
+                onChange={(e) => setAiConstraints(e.target.value)}
+                rows={3}
+                placeholder={
+                  aiHistory.length > 0
+                    ? "Ex : éviter le matin, préférer mardi…"
+                    : "Ex : dispo les après-midis de 15h à 18h, pas le lundi, éviter avant 9h, idéalement mardi ou jeudi…"
+                }
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Durée recherchée : {Math.max(15, Math.min(8 * 60, durationMinutes || 60))} min. L'IA ne propose que des créneaux libres dans votre agenda qui respectent strictement vos disponibilités.
@@ -200,23 +265,43 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
 
             {aiSlots && aiSlots.length > 0 && (
               <div className="space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">Propositions :</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-medium text-muted-foreground">
+                    Propositions ({aiSelected.size}/{aiSlots.length} sélectionné{aiSelected.size > 1 ? "s" : ""})
+                  </div>
+                  <button
+                    type="button"
+                    className="text-xs text-primary hover:underline"
+                    onClick={() => {
+                      if (aiSelected.size === aiSlots.length) setAiSelected(new Set());
+                      else setAiSelected(new Set(aiSlots.map((s) => s.startAt)));
+                    }}
+                  >
+                    {aiSelected.size === aiSlots.length ? "Tout désélectionner" : "Tout sélectionner"}
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 gap-2">
                   {aiSlots.map((s) => {
                     const start = new Date(s.startAt);
                     const end = new Date(s.endAt);
+                    const checked = aiSelected.has(s.startAt);
                     return (
                       <Card
                         key={s.startAt}
-                        className="p-3 cursor-pointer hover:border-primary transition-colors"
-                        onClick={() => {
-                          onPick({ startAt: s.startAt, endAt: s.endAt });
-                          setAiOpen(false);
-                          toast.success("Créneau sélectionné");
-                        }}
+                        className={cn(
+                          "p-3 cursor-pointer hover:border-primary transition-colors",
+                          checked && "border-primary bg-primary/5",
+                        )}
+                        onClick={() => toggleAiSlot(s.startAt)}
                       >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
+                        <div className="flex items-start gap-3">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => toggleAiSlot(s.startAt)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-0.5"
+                          />
+                          <div className="min-w-0 flex-1">
                             <div className="font-medium text-sm">
                               {format(start, "EEEE d MMMM", { locale: fr })}
                             </div>
@@ -245,12 +330,23 @@ export function SlotFinder({ durationMinutes, daysAhead = 30, onPick, isSelected
             )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAiOpen(false)}>Fermer</Button>
-            <Button onClick={runAi} disabled={aiLoading}>
-              {aiLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Wand2 className="h-4 w-4 mr-1" />}
-              {aiLoading ? "Analyse…" : "Proposer"}
+          <DialogFooter className="px-6 py-4 border-t shrink-0 flex-row flex-wrap gap-2 sm:justify-between">
+            <Button variant="outline" onClick={() => { setAiOpen(false); resetAi(); }}>
+              Fermer
             </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={runAi} disabled={aiLoading}>
+                {aiLoading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Wand2 className="h-4 w-4 mr-1" />}
+                {aiLoading ? "Analyse…" : aiHistory.length > 0 ? "Affiner" : "Proposer"}
+              </Button>
+              <Button
+                onClick={confirmAiSelection}
+                disabled={!aiSlots || aiSelected.size === 0}
+              >
+                <Check className="h-4 w-4 mr-1" />
+                Valider {aiSelected.size > 0 ? `(${aiSelected.size})` : ""}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
