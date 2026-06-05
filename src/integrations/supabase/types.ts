@@ -238,6 +238,53 @@ export type Database = {
           },
         ]
       }
+      collab_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          message_at: string
+          metadata: Json
+          sender_name: string | null
+          space_id: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          message_at?: string
+          metadata?: Json
+          sender_name?: string | null
+          space_id: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          message_at?: string
+          metadata?: Json
+          sender_name?: string | null
+          space_id?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_messages_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collab_spaces: {
         Row: {
           archived_at: string | null
@@ -1817,7 +1864,11 @@ export type Database = {
       sync_queue_action: "create" | "update" | "delete"
       sync_queue_status: "pending" | "synced" | "failed"
       task_priority: "low" | "medium" | "high" | "urgent"
-      task_source: "myhubpro" | "microsoft_todo" | "apple_reminders"
+      task_source:
+        | "myhubpro"
+        | "microsoft_todo"
+        | "apple_reminders"
+        | "whatsapp"
       task_status: "todo" | "in_progress" | "done" | "archived"
     }
     CompositeTypes: {
@@ -1955,7 +2006,12 @@ export const Constants = {
       sync_queue_action: ["create", "update", "delete"],
       sync_queue_status: ["pending", "synced", "failed"],
       task_priority: ["low", "medium", "high", "urgent"],
-      task_source: ["myhubpro", "microsoft_todo", "apple_reminders"],
+      task_source: [
+        "myhubpro",
+        "microsoft_todo",
+        "apple_reminders",
+        "whatsapp",
+      ],
       task_status: ["todo", "in_progress", "done", "archived"],
     },
   },
