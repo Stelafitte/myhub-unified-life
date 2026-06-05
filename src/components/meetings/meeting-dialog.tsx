@@ -728,14 +728,58 @@ export function MeetingDialog({
   }
 
   // --- Quick actions ---
-  function sendMailToParticipants() {
+  async function fileToBase64(file: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onerror = () => reject(fr.error ?? new Error("read error"));
+      fr.onload = () => {
+        const res = fr.result as string;
+        const idx = res.indexOf(",");
+        resolve(idx >= 0 ? res.slice(idx + 1) : res);
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  async function buildAttachmentsForMail(): Promise<ComposerAttachment[]> {
+    const out: ComposerAttachment[] = [];
+    for (const d of attachments) {
+      if (!d.storage_path) continue;
+      try {
+        const url = await getSignedUrl(d.storage_path, 120);
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const b64 = await fileToBase64(blob);
+        out.push({
+          name: d.filename,
+          type: d.mime_type || blob.type || "application/octet-stream",
+          size: d.file_size || blob.size,
+          contentBase64: b64,
+        });
+      } catch (e) {
+        console.warn("Skipping attachment", d.filename, e);
+      }
+    }
+    for (const f of pendingFiles) {
+      try {
+        const b64 = await fileToBase64(f);
+        out.push({ name: f.name, type: f.type || "application/octet-stream", size: f.size, contentBase64: b64 });
+      } catch (e) {
+        console.warn("Skipping pending file", f.name, e);
+      }
+    }
+    return out;
+  }
+
+  async function sendMailToParticipants() {
+    if (!user) return;
     const recipients = form.participants.map((p) => p.email).filter(Boolean);
     if (recipients.length === 0) {
       toast.error("Aucun participant");
       return;
     }
     const dateStr = form.start_at ? new Date(fromLocalInput(form.start_at)).toLocaleString("fr-FR") : "";
-    const lines = [
+    const bodyLines = [
       `Bonjour,`,
       ``,
       `Je vous propose la réunion suivante :`,
@@ -748,40 +792,68 @@ export function MeetingDialog({
       `Cordialement,`,
       form.organizer_name || "",
     ].filter(Boolean).join("\n");
-    const subject = encodeURIComponent(`Invitation : ${form.title}`);
-    const body = encodeURIComponent(lines);
-    window.location.href = `mailto:${recipients.join(",")}?subject=${subject}&body=${body}`;
+
+    // Load sendable accounts
+    const { data: accs } = await supabase
+      .from("accounts")
+      .select("id, name, type, color, icon, credentials")
+      .eq("user_id", user.id)
+      .eq("is_active", true);
+    const accounts = (accs ?? []) as ComposerAccount[];
+    if (accounts.filter((a) => ["gmail", "outlook", "imap"].includes(a.type)).length === 0) {
+      toast.error("Aucun compte mail configuré");
+      return;
+    }
+
+    // Optional: attach meeting PJ
+    let attachs: ComposerAttachment[] = [];
+    const hasAny = attachments.length > 0 || pendingFiles.length > 0;
+    if (hasAny) {
+      const totalCount = attachments.length + pendingFiles.length;
+      if (await confirmDialog(`Joindre les ${totalCount} pièce(s) jointe(s) de la réunion au mail ?`)) {
+        const toastId = toast.loading("Préparation des pièces jointes…");
+        try {
+          attachs = await buildAttachmentsForMail();
+          toast.success(`${attachs.length} PJ prête(s)`, { id: toastId });
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Erreur PJ", { id: toastId });
+        }
+      }
+    }
+
+    setComposerAccounts(accounts);
+    setComposerAttachments(attachs);
+    setComposerInitial({
+      mode: "new",
+      to: recipients.join(", "),
+      subject: `Invitation : ${form.title}`,
+      body: bodyLines,
+    });
+    setComposerOpen(true);
   }
 
-  async function createLinkedTask() {
-    if (!user) return;
-    const id = await ensureSaved();
-    if (!id) return;
-    try {
-      const { data: task, error } = await supabase
-        .from("tasks")
-        .insert({
-          user_id: user.id,
-          title: `Préparer : ${form.title}`,
-          description: form.notes || form.description || null,
-          status: "todo",
-          priority: form.importance === "critical" || form.importance === "high" ? "high" : "medium",
-          due_date: fromLocalInput(form.start_at),
-          source_app: "myhubpro",
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      await supabase.from("meeting_tasks").insert({
-        meeting_id: id,
-        task_id: task.id,
-        user_id: user.id,
-      });
-      toast.success("Tâche associée créée");
-      requestAutoSync();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erreur");
-    }
+  function createLinkedTask() {
+    const dateStr = form.start_at
+      ? new Date(fromLocalInput(form.start_at)).toLocaleString("fr-FR")
+      : "";
+    const contextLines = [
+      `Réunion : ${form.title}`,
+      dateStr ? `Date : ${dateStr}` : "",
+      form.location ? `Lieu : ${form.location}` : "",
+      form.is_online && form.online_link ? `Visio : ${form.online_link}` : "",
+      form.organizer_name ? `Organisateur : ${form.organizer_name}` : "",
+      form.participants.length > 0
+        ? `Participants : ${form.participants.map((p) => p.name || p.email).join(", ")}`
+        : "",
+      form.description ? `\n${form.description}` : "",
+      form.notes ? `\nNotes :\n${form.notes}` : "",
+    ].filter(Boolean).join("\n");
+    taskPanel.openCreate({
+      title: `Préparer : ${form.title}`,
+      description: contextLines,
+      due: form.start_at || undefined,
+    });
+    onOpenChange(false);
   }
 
   return (
