@@ -28,6 +28,7 @@ export const SOURCE_META: Record<TaskSource, { label: string; emoji: string }> =
   myhubpro: { label: "Manuel", emoji: "✍️" },
   microsoft_todo: { label: "MS To Do", emoji: "☑️" },
   apple_reminders: { label: "Rappels", emoji: "🍎" },
+  whatsapp: { label: "WhatsApp", emoji: "📱" },
 };
 
 export const DEFAULT_SECTIONS = ["CHU", "Université", "Personnel", "Autre"] as const;
