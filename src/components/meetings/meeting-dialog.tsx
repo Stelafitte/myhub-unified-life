@@ -144,6 +144,11 @@ export function MeetingDialog({
   const [uploading, setUploading] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const taskPanel = useTaskPanel();
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+  const [composerAccounts, setComposerAccounts] = useState<ComposerAccount[]>([]);
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
   const [notesSavedAt, setNotesSavedAt] = useState<Date | null>(null);
   const [notesSaving, setNotesSaving] = useState(false);
   const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
