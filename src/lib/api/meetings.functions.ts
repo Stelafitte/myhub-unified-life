@@ -103,6 +103,7 @@ const findSlotsInput = z.object({
   durationMinutes: z.number().int().min(15).max(8 * 60).default(60),
   daysAhead: z.number().int().min(1).max(60).default(30),
   leadHours: z.number().int().min(0).max(7 * 24).default(24),
+  offsetDays: z.number().int().min(0).max(60).default(0),
   workStartHour: z.number().int().min(0).max(23).default(8),
   workEndHour: z.number().int().min(1).max(24).default(19),
   // 1 = Monday … 7 = Sunday (ISO). Default: Mon-Fri.
@@ -168,8 +169,9 @@ export const findAvailableSlots = createServerFn({ method: "POST" })
     const { userId } = context as { userId: string };
 
     const now = Date.now();
-    const earliest = now + data.leadHours * 3600_000;
-    const horizonEnd = now + data.daysAhead * 86400_000;
+    const offsetMs = data.offsetDays * 86400_000;
+    const earliest = now + data.leadHours * 3600_000 + offsetMs;
+    const horizonEnd = now + data.daysAhead * 86400_000 + offsetMs;
 
     /* ---------- Collect busy intervals from all active GCal connections ---------- */
     const busy: Busy[] = [];
@@ -204,7 +206,7 @@ export const findAvailableSlots = createServerFn({ method: "POST" })
             "content-type": "application/json",
           },
           body: JSON.stringify({
-            timeMin: new Date(now).toISOString(),
+            timeMin: new Date(now + offsetMs).toISOString(),
             timeMax: new Date(horizonEnd).toISOString(),
             items: [{ id: conn.calendar_id || "primary" }],
           }),
@@ -235,7 +237,7 @@ export const findAvailableSlots = createServerFn({ method: "POST" })
       .select("start_at, end_at, status")
       .eq("user_id", userId)
       .neq("status", "cancelled")
-      .gte("end_at", new Date(now).toISOString())
+      .gte("end_at", new Date(now + offsetMs).toISOString())
       .lte("start_at", new Date(horizonEnd).toISOString());
 
     for (const m of localMeetings ?? []) {
