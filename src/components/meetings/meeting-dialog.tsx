@@ -12,8 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ContactEmailAutocomplete } from "@/components/contacts/contact-email-autocomplete";
-import { ContactMultiPicker } from "@/components/contacts/contact-multi-picker";
-import { Users } from "lucide-react";
+import { ContactInlinePicker } from "@/components/contacts/contact-inline-picker";
+import { Send } from "lucide-react";
 import { X, Download, Trash2, Sparkles, Paperclip, Mail, ListTodo, Upload, FileText, Plus, Vote, Copy, ExternalLink, CheckCircle2, HelpCircle, XCircle, Trophy, Globe, Lock, History } from "lucide-react";
 import { toast } from "sonner";
 import { downloadIcs } from "@/lib/ics";
@@ -146,7 +146,7 @@ export function MeetingDialog({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newPart, setNewPart] = useState({ email: "", name: "" });
-  const [pickerOpen, setPickerOpen] = useState(false);
+  
   const [attachments, setAttachments] = useState<DocumentRow[]>([]);
   const [sharedMap, setSharedMap] = useState<Record<string, boolean>>({});
   const [uploading, setUploading] = useState(false);
@@ -846,6 +846,65 @@ export function MeetingDialog({
     setComposerOpen(true);
   }
 
+  async function sendPollToParticipants() {
+    if (!user) return;
+    if (!existingPoll) {
+      toast.error("Enregistrez d'abord le sondage");
+      return;
+    }
+    const recipients = form.participants.map((p) => p.email).filter(Boolean);
+    if (recipients.length === 0) {
+      toast.error("Aucun participant");
+      return;
+    }
+    const pollUrl = `${window.location.origin}/poll/${existingPoll.public_token}`;
+    const slotsLines = pollSlots
+      .map((s) => {
+        const sd = new Date(s.startAt);
+        const ed = new Date(s.endAt);
+        return `• ${sd.toLocaleString("fr-FR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} → ${ed.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+      })
+      .join("\n");
+    const deadlineStr = pollDeadline
+      ? new Date(fromLocalInput(pollDeadline)).toLocaleString("fr-FR")
+      : "";
+    const bodyLines = [
+      `Bonjour,`,
+      ``,
+      `Merci d'indiquer vos disponibilités pour la réunion « ${form.title} ».`,
+      ``,
+      `Créneaux proposés :`,
+      slotsLines,
+      ``,
+      `Votez ici : ${pollUrl}`,
+      deadlineStr ? `Date limite de vote : ${deadlineStr}` : "",
+      ``,
+      `Cordialement,`,
+      form.organizer_name || "",
+    ].filter(Boolean).join("\n");
+
+    const { data: accs } = await supabase
+      .from("accounts")
+      .select("id, name, type, color, icon, credentials")
+      .eq("user_id", user.id)
+      .eq("is_active", true);
+    const accounts = (accs ?? []) as ComposerAccount[];
+    if (accounts.filter((a) => ["gmail", "outlook", "imap"].includes(a.type)).length === 0) {
+      toast.error("Aucun compte mail configuré");
+      return;
+    }
+
+    setComposerAccounts(accounts);
+    setComposerAttachments([]);
+    setComposerInitial({
+      mode: "new",
+      to: recipients.join(", "),
+      subject: `Sondage de dates : ${form.title}`,
+      body: bodyLines,
+    });
+    setComposerOpen(true);
+  }
+
   function createLinkedTask() {
     const dateStr = form.start_at
       ? new Date(fromLocalInput(form.start_at)).toLocaleString("fr-FR")
@@ -1228,6 +1287,15 @@ export function MeetingDialog({
                         <ExternalLink className="h-3.5 w-3.5" />
                       </Button>
                     </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full"
+                      disabled={form.participants.length === 0 || pollSlots.length === 0}
+                      onClick={sendPollToParticipants}
+                    >
+                      <Send className="h-4 w-4 mr-1" /> Envoyer le sondage aux participants
+                    </Button>
                   </div>
                 )}
 
@@ -1521,19 +1589,25 @@ export function MeetingDialog({
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Participants</Label>
-                <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setPickerOpen(true)}>
-                  <Users className="h-3.5 w-3.5 mr-1" /> Depuis contacts
-                </Button>
-              </div>
+              <Label>Participants</Label>
+
+              <ContactInlinePicker
+                excludeEmails={form.participants.map((p) => p.email)}
+                onPick={({ email, name }) => {
+                  setForm((f) => {
+                    if (f.participants.some((p) => p.email.toLowerCase() === email.toLowerCase())) return f;
+                    return { ...f, participants: [...f.participants, { email, name, role: "required" as const }] };
+                  });
+                }}
+              />
+
               <div className="flex gap-2">
                 <ContactEmailAutocomplete
                   value={newPart.email}
                   onChange={(v) => setNewPart({ ...newPart, email: v })}
                   onSelect={(email) => addPart(email)}
                   onEnter={() => addPart()}
-                  placeholder="email@exemple.com"
+                  placeholder="Ajouter manuellement : email@exemple.com"
                 />
                 <Input
                   placeholder="Nom (optionnel)"
@@ -1543,22 +1617,6 @@ export function MeetingDialog({
                 />
                 <Button type="button" variant="outline" onClick={() => addPart()}>Ajouter</Button>
               </div>
-              <ContactMultiPicker
-                open={pickerOpen}
-                onOpenChange={setPickerOpen}
-                excludeEmails={form.participants.map((p) => p.email)}
-                onConfirm={(items) => {
-                  setForm((f) => {
-                    const existing = new Set(f.participants.map((p) => p.email.toLowerCase()));
-                    const toAdd = items
-                      .filter((it) => !existing.has(it.email.toLowerCase()))
-                      .map((it) => ({ email: it.email, name: it.name, role: "required" as const }));
-                    if (toAdd.length === 0) return f;
-                    toast.success(`${toAdd.length} participant(s) ajouté(s)`);
-                    return { ...f, participants: [...f.participants, ...toAdd] };
-                  });
-                }}
-              />
 
               {form.participants.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -1573,6 +1631,7 @@ export function MeetingDialog({
                 </div>
               )}
             </div>
+
 
             <div className="space-y-2 rounded-md border p-3">
               <div className="flex items-center justify-between">
