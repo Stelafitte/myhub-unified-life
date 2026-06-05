@@ -96,6 +96,8 @@ type DbEvent = {
   source: string | null;
   recurrence_rule?: string | null;
   category?: string | null;
+  google_event_id?: string | null;
+  gcal_connection_id?: string | null;
 };
 
 type TaskRow = {
