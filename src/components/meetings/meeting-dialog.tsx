@@ -157,6 +157,18 @@ export function MeetingDialog({
   // --- Prep: duration + search horizon (asked early, drives slot search) ---
   const [prepDuration, setPrepDuration] = useState<number>(60);
   const [prepDays, setPrepDays] = useState<number>(30);
+  const toLocalDateInput = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+  const [searchFrom, setSearchFrom] = useState<string>(() => toLocalDateInput(new Date()));
+  const [searchTo, setSearchTo] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return toLocalDateInput(d);
+  });
 
   async function loadAttachments(id: string) {
     const [{ data }, { data: shared }] = await Promise.all([
