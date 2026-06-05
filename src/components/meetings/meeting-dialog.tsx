@@ -157,6 +157,18 @@ export function MeetingDialog({
   // --- Prep: duration + search horizon (asked early, drives slot search) ---
   const [prepDuration, setPrepDuration] = useState<number>(60);
   const [prepDays, setPrepDays] = useState<number>(30);
+  const toLocalDateInput = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+  const [searchFrom, setSearchFrom] = useState<string>(() => toLocalDateInput(new Date()));
+  const [searchTo, setSearchTo] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return toLocalDateInput(d);
+  });
 
   async function loadAttachments(id: string) {
     const [{ data }, { data: shared }] = await Promise.all([
@@ -813,7 +825,19 @@ export function MeetingDialog({
                 </div>
                 <div>
                   <Label htmlFor="m-prep-days">Période de recherche</Label>
-                  <Select value={String(prepDays)} onValueChange={(v) => setPrepDays(Number(v))}>
+                  <Select
+                    value={String(prepDays)}
+                    onValueChange={(v) => {
+                      const days = Number(v);
+                      setPrepDays(days);
+                      // Aligner les bornes sur la nouvelle période (début = aujourd'hui, fin = +N jours)
+                      const start = new Date();
+                      start.setHours(0, 0, 0, 0);
+                      const end = new Date(start.getTime() + days * 86400_000);
+                      setSearchFrom(toLocalDateInput(start));
+                      setSearchTo(toLocalDateInput(end));
+                    }}
+                  >
                     <SelectTrigger id="m-prep-days"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="7">7 prochains jours</SelectItem>
@@ -823,6 +847,41 @@ export function MeetingDialog({
                       <SelectItem value="90">90 prochains jours</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="m-search-from">Date de début</Label>
+                  <Input
+                    id="m-search-from"
+                    type="date"
+                    value={searchFrom}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSearchFrom(v);
+                      if (v && searchTo) {
+                        const diff = Math.max(1, Math.round((new Date(searchTo).getTime() - new Date(v).getTime()) / 86400_000));
+                        setPrepDays(Math.min(90, diff));
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="m-search-to">Date de fin</Label>
+                  <Input
+                    id="m-search-to"
+                    type="date"
+                    value={searchTo}
+                    min={searchFrom || undefined}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSearchTo(v);
+                      if (v && searchFrom) {
+                        const diff = Math.max(1, Math.round((new Date(v).getTime() - new Date(searchFrom).getTime()) / 86400_000));
+                        setPrepDays(Math.min(90, diff));
+                      }
+                    }}
+                  />
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
