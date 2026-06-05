@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -20,9 +21,7 @@ export function ContactEmailAutocomplete({
 }: {
   value: string;
   onChange: (v: string) => void;
-  /** appelé quand l'utilisateur choisit une suggestion (clic / Tab / Entrée) */
   onSelect?: (email: string) => void;
-  /** appelé quand Entrée pressée sans suggestion sélectionnée */
   onEnter?: () => void;
   placeholder?: string;
   className?: string;
@@ -33,6 +32,8 @@ export function ContactEmailAutocomplete({
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -79,11 +80,32 @@ export function ContactEmailAutocomplete({
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (wrapRef.current?.contains(t)) return;
+      // ignore clicks within the portal dropdown
+      if ((t as HTMLElement)?.closest?.("[data-contact-ac-pop]")) return;
+      setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const update = () => {
+      const el = inputRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRect({ left: r.left, top: r.bottom + 4, width: r.width });
+    };
+    update();
+    window.addEventListener("scroll", update, true);
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update, true);
+      window.removeEventListener("resize", update);
+    };
+  }, [open]);
 
   const refresh = (q: string) => {
     const needle = q.trim().toLowerCase();
@@ -110,6 +132,7 @@ export function ContactEmailAutocomplete({
   return (
     <div ref={wrapRef} className={cn("relative flex-1", className)}>
       <Input
+        ref={inputRef}
         value={value}
         placeholder={placeholder}
         className="h-8 text-sm"
@@ -146,8 +169,12 @@ export function ContactEmailAutocomplete({
           }
         }}
       />
-      {open && suggestions.length > 0 && (
-        <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-md border bg-popover text-xs shadow-md">
+      {open && suggestions.length > 0 && rect && typeof document !== "undefined" && createPortal(
+        <ul
+          data-contact-ac-pop
+          style={{ position: "fixed", left: rect.left, top: rect.top, width: rect.width, zIndex: 1000 }}
+          className="max-h-56 overflow-y-auto rounded-md border bg-popover text-xs shadow-md"
+        >
           {suggestions.map((s, i) => (
             <li key={s.email}>
               <button
@@ -166,7 +193,8 @@ export function ContactEmailAutocomplete({
               </button>
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body,
       )}
     </div>
   );
