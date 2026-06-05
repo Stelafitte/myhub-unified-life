@@ -101,7 +101,7 @@ export function DocumentEditor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm sm:prose-base dark:prose-invert max-w-none focus:outline-none min-h-[60vh] px-2 py-4",
+          "tiptap-content focus:outline-none min-h-[60vh] px-4 py-4 text-base leading-relaxed",
       },
     },
     onUpdate: () => {
