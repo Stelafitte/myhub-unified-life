@@ -154,6 +154,12 @@ export function MeetingDialog({
   const [confirmedSlotId, setConfirmedSlotId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
+  // Sélection multiple des créneaux disponibles (alimente start/end ou le sondage)
+  const [selectedAvailable, setSelectedAvailable] = useState<{ startAt: string; endAt: string }[]>([]);
+  // Mode manuel : si l'utilisateur saisit lui-même Début/Fin, on grise les créneaux disponibles
+  const [manualMode, setManualMode] = useState(false);
+  const selectedAvailableKeys = new Set(selectedAvailable.map((s) => s.startAt));
+
   // --- Prep: duration + search horizon (asked early, drives slot search) ---
   const [prepDuration, setPrepDuration] = useState<number>(60);
   const [prepDays, setPrepDays] = useState<number>(30);
