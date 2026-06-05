@@ -19,7 +19,7 @@ describe("detectInboxControl", () => {
 
   it("detects 'précédent' variants", () => {
     expect(detectInboxControl("précédent")?.type).toBe("prev");
-    expect(detectInboxControl("reviens en arrière sur le mail")?.type).toBe("prev");
+    expect(detectInboxControl("mail avant")?.type).toBe("prev");
     expect(detectInboxControl("mail precedent")?.type).toBe("prev");
   });
 
