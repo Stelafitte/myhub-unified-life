@@ -589,3 +589,44 @@ export const listSpacePolls = createServerFn({ method: "GET" })
       }),
     };
   });
+
+/** Timeline des messages WhatsApp importés dans un espace. */
+export const listSpaceWaTimeline = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        spaceId: z.string().uuid(),
+        q: z.string().max(200).optional(),
+        sender: z.string().max(200).optional(),
+        from: z.string().optional(),
+        to: z.string().optional(),
+        limit: z.number().int().min(1).max(500).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    let query = supabase
+      .from("collab_messages")
+      .select("id,content,sender_name,message_at,metadata,type")
+      .eq("space_id", data.spaceId)
+      .eq("metadata->>is_imported", "true")
+      .order("message_at", { ascending: false })
+      .limit(data.limit ?? 200);
+
+    if (data.q && data.q.trim()) query = query.ilike("content", `%${data.q.trim()}%`);
+    if (data.sender && data.sender.trim()) query = query.ilike("sender_name", `%${data.sender.trim()}%`);
+    if (data.from) query = query.gte("message_at", data.from);
+    if (data.to) query = query.lte("message_at", data.to);
+
+    const { data: messages, error } = await query;
+    if (error) throw new Error(error.message);
+
+    // Liste distincte d'expéditeurs (sur l'échantillon retourné)
+    const senders = Array.from(
+      new Set((messages ?? []).map((m) => m.sender_name).filter(Boolean) as string[]),
+    ).sort();
+
+    return { messages: messages ?? [], senders };
+  });

@@ -5,6 +5,7 @@ import {
   getSpaceWaInfo,
   listSpaceWaImports,
   updateSpaceWaConfig,
+  listSpaceWaTimeline,
 } from "@/lib/collab.functions";
 import {
   listWaSuggestions,
@@ -29,6 +30,8 @@ import {
   Check,
   X,
   FileText,
+  Search,
+  MessageCircle,
 } from "lucide-react";
 import { WhatsappImportDialog } from "./whatsapp-import-dialog";
 import { format, formatDistanceToNow } from "date-fns";
@@ -58,6 +61,7 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
   const suggestionsFn = useServerFn(listWaSuggestions);
   const approveFn = useServerFn(approveWaSuggestion);
   const rejectFn = useServerFn(rejectWaSuggestion);
+  const timelineFn = useServerFn(listSpaceWaTimeline);
 
   const [importOpen, setImportOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
@@ -65,6 +69,8 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
   const [groupExtId, setGroupExtId] = useState("");
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [tlQ, setTlQ] = useState("");
+  const [tlSender, setTlSender] = useState("");
 
   const infoQ = useQuery({
     queryKey: ["space-wa-info", spaceId],
@@ -77,6 +83,17 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
   const sugQ = useQuery({
     queryKey: ["space-wa-suggestions", spaceId],
     queryFn: () => suggestionsFn({ data: { space_id: spaceId, status: "pending" } }),
+  });
+  const tlQuery = useQuery({
+    queryKey: ["space-wa-timeline", spaceId, tlQ, tlSender],
+    queryFn: () =>
+      timelineFn({
+        data: {
+          spaceId,
+          q: tlQ || undefined,
+          sender: tlSender || undefined,
+        },
+      }),
   });
 
   useEffect(() => {
@@ -282,7 +299,71 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
         </CardContent>
       </Card>
 
-      {/* Historique imports */}
+      {/* Timeline messages importés */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <MessageCircle className="h-4 w-4" /> Timeline des messages
+            {tlQuery.data?.messages.length ? (
+              <Badge variant="secondary">{tlQuery.data.messages.length}</Badge>
+            ) : null}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid sm:grid-cols-2 gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={tlQ}
+                onChange={(e) => setTlQ(e.target.value)}
+                placeholder="Rechercher dans les messages…"
+                className="pl-7 h-8 text-sm"
+              />
+            </div>
+            <Input
+              value={tlSender}
+              onChange={(e) => setTlSender(e.target.value)}
+              placeholder="Filtrer par expéditeur"
+              className="h-8 text-sm"
+              list="wa-senders"
+            />
+            <datalist id="wa-senders">
+              {(tlQuery.data?.senders ?? []).map((s) => (
+                <option key={s} value={s} />
+              ))}
+            </datalist>
+          </div>
+          {tlQuery.isLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : !tlQuery.data?.messages.length ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              Aucun message importé pour le moment. Utilisez « Importer un export » pour ajouter une discussion WhatsApp.
+            </p>
+          ) : (
+            <ul className="divide-y max-h-[480px] overflow-y-auto">
+              {tlQuery.data.messages.map((m) => (
+                <li key={m.id} className="py-2">
+                  <div className="flex items-baseline gap-2 text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">
+                      {m.sender_name ?? "Inconnu"}
+                    </span>
+                    <span>
+                      {format(new Date(m.message_at), "PPp", { locale: fr })}
+                    </span>
+                  </div>
+                  <div className="text-sm whitespace-pre-wrap break-words mt-0.5">
+                    {m.content}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
@@ -336,6 +417,7 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
           importsQ.refetch();
           sugQ.refetch();
           infoQ.refetch();
+          tlQuery.refetch();
         }}
       />
     </div>
