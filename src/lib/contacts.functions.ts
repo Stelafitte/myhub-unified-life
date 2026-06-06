@@ -493,9 +493,23 @@ export const duplicateContactGroup = createServerFn({ method: "POST" })
       .select("contact_id, external_email, external_name, added_by")
       .eq("group_id", data.groupId);
     if (members && members.length > 0) {
+      type CopyRow = {
+        contact_id: string | null;
+        external_email: string | null;
+        external_name: string | null;
+        added_by: string;
+      };
       await supabase
         .from("contact_group_members")
-        .insert(members.map((m: Record<string, unknown>) => ({ ...m, group_id: copy.id })));
+        .insert(
+          (members as CopyRow[]).map((m) => ({
+            group_id: copy.id as string,
+            contact_id: m.contact_id,
+            external_email: m.external_email,
+            external_name: m.external_name,
+            added_by: (m.added_by ?? "manual") as "manual" | "ai" | "space" | "whatsapp",
+          })),
+        );
     }
     await recountMembers(supabase, copy.id);
     return { groupId: copy.id };
