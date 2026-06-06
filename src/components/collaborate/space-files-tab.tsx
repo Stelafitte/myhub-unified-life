@@ -240,7 +240,8 @@ export function SpaceFilesTab({ spaceId }: { spaceId: string }) {
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((f) => {
-            const cat = iconFor(f.mime_type ?? "", f.original_filename);
+            const cat = categorize(f.mime_type, f.original_filename);
+            const Icon = iconFor(cat);
             const color = colorFor(cat);
             return (
               <div
@@ -248,11 +249,8 @@ export function SpaceFilesTab({ spaceId }: { spaceId: string }) {
                 className="border rounded-md p-3 hover:border-primary/40 transition group flex flex-col gap-2"
               >
                 <div className="flex items-start gap-2 min-w-0">
-                  <div
-                    className="h-9 w-9 rounded flex items-center justify-center shrink-0 text-white text-xs font-medium"
-                    style={{ backgroundColor: color }}
-                  >
-                    <FileIcon className="h-4 w-4" />
+                  <div className="h-9 w-9 rounded bg-muted flex items-center justify-center shrink-0">
+                    <Icon className={`h-4 w-4 ${color}`} />
                   </div>
                   <button
                     onClick={() => setPreviewDoc(f as unknown as DocumentRow)}
