@@ -33,6 +33,7 @@ import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCollaborateRouteImport } from './routes/_authenticated/collaborate'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as ApiOutlookOauthCallbackRouteImport } from './routes/api/outlook-oauth/callback'
 import { Route as ApiGoogleCalendarCallbackRouteImport } from './routes/api/google-calendar/callback'
 import { Route as AuthenticatedCollaborateReviewRouteImport } from './routes/_authenticated/collaborate.review'
 import { Route as ApiPublicHooksRsvpRemindersRouteImport } from './routes/api/public/hooks/rsvp-reminders'
@@ -161,6 +162,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiOutlookOauthCallbackRoute = ApiOutlookOauthCallbackRouteImport.update({
+  id: '/api/outlook-oauth/callback',
+  path: '/api/outlook-oauth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGoogleCalendarCallbackRoute =
   ApiGoogleCalendarCallbackRouteImport.update({
     id: '/api/google-calendar/callback',
@@ -223,6 +229,7 @@ export interface FileRoutesByFullPath {
   '/survey/$token': typeof SurveyTokenRoute
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
+  '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
@@ -254,6 +261,7 @@ export interface FileRoutesByTo {
   '/survey/$token': typeof SurveyTokenRoute
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
+  '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
@@ -287,6 +295,7 @@ export interface FileRoutesById {
   '/survey/$token': typeof SurveyTokenRoute
   '/_authenticated/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
+  '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
   '/_authenticated/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
@@ -320,6 +329,7 @@ export interface FileRouteTypes {
     | '/survey/$token'
     | '/collaborate/review'
     | '/api/google-calendar/callback'
+    | '/api/outlook-oauth/callback'
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/poll/$token/files'
@@ -351,6 +361,7 @@ export interface FileRouteTypes {
     | '/survey/$token'
     | '/collaborate/review'
     | '/api/google-calendar/callback'
+    | '/api/outlook-oauth/callback'
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/poll/$token/files'
@@ -383,6 +394,7 @@ export interface FileRouteTypes {
     | '/survey/$token'
     | '/_authenticated/collaborate/review'
     | '/api/google-calendar/callback'
+    | '/api/outlook-oauth/callback'
     | '/_authenticated/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/poll/$token/files'
@@ -399,6 +411,7 @@ export interface RootRouteChildren {
   SpaceTokenRoute: typeof SpaceTokenRoute
   SurveyTokenRoute: typeof SurveyTokenRoute
   ApiGoogleCalendarCallbackRoute: typeof ApiGoogleCalendarCallbackRoute
+  ApiOutlookOauthCallbackRoute: typeof ApiOutlookOauthCallbackRoute
   ApiPublicHooksRsvpRemindersRoute: typeof ApiPublicHooksRsvpRemindersRoute
   ApiPublicPollTokenFilesRoute: typeof ApiPublicPollTokenFilesRoute
 }
@@ -573,6 +586,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/outlook-oauth/callback': {
+      id: '/api/outlook-oauth/callback'
+      path: '/api/outlook-oauth/callback'
+      fullPath: '/api/outlook-oauth/callback'
+      preLoaderRoute: typeof ApiOutlookOauthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/google-calendar/callback': {
       id: '/api/google-calendar/callback'
       path: '/api/google-calendar/callback'
@@ -702,6 +722,7 @@ const rootRouteChildren: RootRouteChildren = {
   SpaceTokenRoute: SpaceTokenRoute,
   SurveyTokenRoute: SurveyTokenRoute,
   ApiGoogleCalendarCallbackRoute: ApiGoogleCalendarCallbackRoute,
+  ApiOutlookOauthCallbackRoute: ApiOutlookOauthCallbackRoute,
   ApiPublicHooksRsvpRemindersRoute: ApiPublicHooksRsvpRemindersRoute,
   ApiPublicPollTokenFilesRoute: ApiPublicPollTokenFilesRoute,
 }
