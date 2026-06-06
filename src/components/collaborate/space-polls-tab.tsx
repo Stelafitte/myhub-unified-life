@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { MeetingDialog } from "@/components/meetings/meeting-dialog";
-import { listSpacePolls } from "@/lib/collab.functions";
+import { listSpacePolls, linkEntityToSpace } from "@/lib/collab.functions";
 
 interface Props {
   spaceId: string;
