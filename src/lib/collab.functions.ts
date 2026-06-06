@@ -112,7 +112,7 @@ export const postSpaceMessage = createServerFn({ method: "POST" })
         content: data.content,
         type: data.type ?? "text",
         sender_name: senderName,
-        metadata: data.metadata ?? {},
+        metadata: (data.metadata ?? {}) as never,
         message_at: new Date().toISOString(),
       })
       .select("id")
@@ -202,16 +202,23 @@ export const listSpaceLinks = createServerFn({ method: "GET" })
       grouped[l.entity_type].push(l.entity_id);
     }
 
-    const enrich = async <T extends Record<string, unknown>>(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const enrich = async (
       table: string,
       ids: string[] | undefined,
       cols: string,
-    ): Promise<Record<string, T>> => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ): Promise<Record<string, any>> => {
       if (!ids?.length) return {};
-      const { data: rows } = await supabase.from(table).select(cols).in("id", ids);
-      const map: Record<string, T> = {};
-      for (const r of (rows ?? []) as T[]) {
-        map[(r as { id: string }).id] = r;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: rows } = await (supabase.from(table as any) as any)
+        .select(cols)
+        .in("id", ids);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const map: Record<string, any> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const r of (rows ?? []) as any[]) {
+        if (r && typeof r.id === "string") map[r.id] = r;
       }
       return map;
     };
