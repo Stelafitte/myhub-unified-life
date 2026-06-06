@@ -11,6 +11,7 @@ import { SpaceTasksTab } from "./space-tasks-tab";
 import { SpaceMeetingsTab } from "./space-meetings-tab";
 import { DocumentsTab } from "./documents-tab";
 import { SpaceFilesTab } from "./space-files-tab";
+import { SpaceWhatsappTab } from "./space-whatsapp-tab";
 import { CollabDashboard } from "./collab-dashboard";
 import { getSpaceTree, getSpaceActivity } from "@/lib/collab.functions";
 import { useAuth } from "@/lib/auth-context";
@@ -90,7 +91,7 @@ export function SpaceWorkspace() {
                   <TabsTrigger value="files" className="gap-1">
                     <Paperclip className="h-3.5 w-3.5" /> Fichiers
                   </TabsTrigger>
-                  <TabsTrigger value="wa" disabled className="gap-1 opacity-50">
+                  <TabsTrigger value="wa" className="gap-1">
                     <Smartphone className="h-3.5 w-3.5" /> WhatsApp
                   </TabsTrigger>
                   <TabsTrigger value="polls" disabled className="gap-1 opacity-50">
@@ -116,7 +117,9 @@ export function SpaceWorkspace() {
                 <TabsContent value="files" className="flex-1 min-h-0 mt-2 overflow-y-auto">
                   <SpaceFilesTab spaceId={active.id} />
                 </TabsContent>
-                <TabsContent value="wa">{COMING_SOON}</TabsContent>
+                <TabsContent value="wa" className="flex-1 min-h-0 mt-2 overflow-y-auto">
+                  <SpaceWhatsappTab spaceId={active.id} />
+                </TabsContent>
                 <TabsContent value="polls">{COMING_SOON}</TabsContent>
               </Tabs>
             </>

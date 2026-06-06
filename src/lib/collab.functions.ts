@@ -455,3 +455,76 @@ export const listSpaceFiles = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return { files: files ?? [], linkByDocId };
   });
+
+/** Liste les imports WhatsApp d'un espace. */
+export const listSpaceWaImports = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: rows, error } = await supabase
+      .from("collab_wa_imports")
+      .select("id,filename,status,total_messages,imported_messages,error_message,created_at")
+      .eq("space_id", data.spaceId)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return { imports: rows ?? [] };
+  });
+
+/** Met à jour la configuration WhatsApp d'un espace. */
+export const updateSpaceWaConfig = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        spaceId: z.string().uuid(),
+        wa_group_name: z.string().max(160).nullable().optional(),
+        whatsapp_phone_number: z.string().max(40).nullable().optional(),
+        whatsapp_group_id: z.string().max(120).nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const patch: {
+      wa_group_name?: string | null;
+      whatsapp_phone_number?: string | null;
+      whatsapp_group_id?: string | null;
+    } = {};
+    if (data.wa_group_name !== undefined) patch.wa_group_name = data.wa_group_name || null;
+    if (data.whatsapp_phone_number !== undefined)
+      patch.whatsapp_phone_number = data.whatsapp_phone_number || null;
+    if (data.whatsapp_group_id !== undefined)
+      patch.whatsapp_group_id = data.whatsapp_group_id || null;
+    const { error } = await supabase
+      .from("collab_spaces")
+      .update(patch)
+      .eq("id", data.spaceId)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Retourne la config WA + stats d'un espace. */
+export const getSpaceWaInfo = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: space, error } = await supabase
+      .from("collab_spaces")
+      .select("id,name,wa_group_name,whatsapp_phone_number,whatsapp_group_id")
+      .eq("id", data.spaceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const { count: pendingCount } = await supabase
+      .from("wa_suggestions")
+      .select("id", { count: "exact", head: true })
+      .eq("space_id", data.spaceId)
+      .eq("user_id", userId)
+      .eq("status", "pending");
+    return { space, pendingSuggestions: pendingCount ?? 0 };
+  });
