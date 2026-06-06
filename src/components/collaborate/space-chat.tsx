@@ -426,6 +426,31 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
         </form>
       </div>
       <AiAssistantModal open={aiOpen} onOpenChange={setAiOpen} />
+      <TaskPanel
+        open={taskOpen}
+        onOpenChange={setTaskOpen}
+        task={null}
+        sections={[...DEFAULT_SECTIONS]}
+        onSaved={(t: Task) => {
+          setTaskOpen(false);
+          if (t?.id) void autoLink("task", t.id);
+        }}
+      />
+      <MeetingDialog
+        open={meetingOpen}
+        onOpenChange={setMeetingOpen}
+        meetingId={null}
+        initialPollMode={meetingPollMode}
+        onSaved={(id) => {
+          if (id) void autoLink("meeting", id);
+        }}
+      />
+      <CreateDocDialog
+        open={docOpen}
+        onOpenChange={setDocOpen}
+        spaceId={spaceId}
+        onCreated={(id) => void autoLink("document", id)}
+      />
     </>
   );
 }
