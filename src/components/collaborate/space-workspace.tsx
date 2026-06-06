@@ -117,7 +117,9 @@ export function SpaceWorkspace() {
                 <TabsContent value="files" className="flex-1 min-h-0 mt-2 overflow-y-auto">
                   <SpaceFilesTab spaceId={active.id} />
                 </TabsContent>
-                <TabsContent value="wa">{COMING_SOON}</TabsContent>
+                <TabsContent value="wa" className="flex-1 min-h-0 mt-2 overflow-y-auto">
+                  <SpaceWhatsappTab spaceId={active.id} />
+                </TabsContent>
                 <TabsContent value="polls">{COMING_SOON}</TabsContent>
               </Tabs>
             </>
