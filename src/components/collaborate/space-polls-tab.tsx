@@ -173,8 +173,16 @@ export function SpacePollsTab({ spaceId }: Props) {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         meetingId={editingMeetingId}
-        onSaved={() => {
+        onSaved={async (id?: string) => {
           setDialogOpen(false);
+          if (!editingMeetingId && id) {
+            try {
+              await linkFn({ data: { spaceId, entityType: "meeting", entityId: id } });
+              toast.success("Sondage créé et lié à l'espace");
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Erreur de liaison");
+            }
+          }
           refresh();
         }}
         initialPollMode={!editingMeetingId}
