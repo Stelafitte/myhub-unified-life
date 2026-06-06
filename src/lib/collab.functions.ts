@@ -488,7 +488,11 @@ export const updateSpaceWaConfig = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const patch: Record<string, unknown> = {};
+    const patch: {
+      wa_group_name?: string | null;
+      whatsapp_phone_number?: string | null;
+      whatsapp_group_id?: string | null;
+    } = {};
     if (data.wa_group_name !== undefined) patch.wa_group_name = data.wa_group_name || null;
     if (data.whatsapp_phone_number !== undefined)
       patch.whatsapp_phone_number = data.whatsapp_phone_number || null;
