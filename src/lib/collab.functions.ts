@@ -630,3 +630,165 @@ export const listSpaceWaTimeline = createServerFn({ method: "POST" })
 
     return { messages: messages ?? [], senders };
   });
+
+/* ============================================================
+ * SONDAGES D'OPINION (collab_surveys)
+ * ============================================================ */
+
+const SurveyQuestionInput = z.object({
+  label: z.string().min(1).max(500),
+  type: z.enum(["text", "long_text", "single_choice", "multi_choice", "rating", "yes_no"]),
+  options: z.array(z.string().min(1).max(200)).max(20).optional(),
+  required: z.boolean().optional(),
+});
+
+/** Liste les sondages d'opinion d'un espace + comptage des réponses. */
+export const listSpaceSurveys = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: rows, error } = await supabase
+      .from("collab_surveys")
+      .select("id,title,description,public_token,status,deadline,allow_anonymous,created_at,updated_at")
+      .eq("space_id", data.spaceId)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+
+    const ids = (rows ?? []).map((r) => r.id);
+    const counts = new Map<string, { q: number; r: number }>();
+    if (ids.length > 0) {
+      const [{ data: qs }, { data: rs }] = await Promise.all([
+        supabase.from("collab_survey_questions").select("survey_id").in("survey_id", ids),
+        supabase.from("collab_survey_responses").select("survey_id").in("survey_id", ids),
+      ]);
+      (qs ?? []).forEach((q) => {
+        const c = counts.get(q.survey_id) ?? { q: 0, r: 0 };
+        c.q += 1;
+        counts.set(q.survey_id, c);
+      });
+      (rs ?? []).forEach((r) => {
+        const c = counts.get(r.survey_id) ?? { q: 0, r: 0 };
+        c.r += 1;
+        counts.set(r.survey_id, c);
+      });
+    }
+
+    return {
+      surveys: (rows ?? []).map((s) => ({
+        ...s,
+        questions_count: counts.get(s.id)?.q ?? 0,
+        responses_count: counts.get(s.id)?.r ?? 0,
+      })),
+    };
+  });
+
+/** Crée un sondage d'opinion avec ses questions. */
+export const createSpaceSurvey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        spaceId: z.string().uuid(),
+        title: z.string().min(1).max(200),
+        description: z.string().max(2000).optional(),
+        deadline: z.string().datetime().optional(),
+        allow_anonymous: z.boolean().optional(),
+        questions: z.array(SurveyQuestionInput).min(1).max(50),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: survey, error } = await supabase
+      .from("collab_surveys")
+      .insert({
+        user_id: userId,
+        space_id: data.spaceId,
+        title: data.title,
+        description: data.description ?? null,
+        deadline: data.deadline ?? null,
+        allow_anonymous: data.allow_anonymous ?? true,
+      })
+      .select("id,public_token")
+      .single();
+    if (error) throw new Error(error.message);
+
+    const rows = data.questions.map((q, idx) => ({
+      survey_id: survey.id,
+      label: q.label,
+      type: q.type,
+      options: q.options ?? [],
+      required: q.required ?? false,
+      position: idx,
+    }));
+    const { error: qErr } = await supabase.from("collab_survey_questions").insert(rows);
+    if (qErr) throw new Error(qErr.message);
+
+    return { survey };
+  });
+
+/** Met à jour le statut d'un sondage (open/closed). */
+export const updateSpaceSurveyStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ id: z.string().uuid(), status: z.enum(["open", "closed"]) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("collab_surveys")
+      .update({ status: data.status })
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Supprime un sondage (et ses questions/réponses par cascade applicative). */
+export const deleteSpaceSurvey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await supabase.from("collab_survey_responses").delete().eq("survey_id", data.id);
+    await supabase.from("collab_survey_questions").delete().eq("survey_id", data.id);
+    const { error } = await supabase
+      .from("collab_surveys")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Détail d'un sondage + questions + réponses (vue propriétaire). */
+export const getSpaceSurveyDetail = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: survey, error } = await supabase
+      .from("collab_surveys")
+      .select("*")
+      .eq("id", data.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error || !survey) throw new Error("Sondage introuvable");
+
+    const [{ data: questions }, { data: responses }] = await Promise.all([
+      supabase
+        .from("collab_survey_questions")
+        .select("*")
+        .eq("survey_id", data.id)
+        .order("position", { ascending: true }),
+      supabase
+        .from("collab_survey_responses")
+        .select("*")
+        .eq("survey_id", data.id)
+        .order("submitted_at", { ascending: false }),
+    ]);
+
+    return { survey, questions: questions ?? [], responses: responses ?? [] };
+  });
