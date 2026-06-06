@@ -417,6 +417,7 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
           importsQ.refetch();
           sugQ.refetch();
           infoQ.refetch();
+          tlQuery.refetch();
         }}
       />
     </div>
