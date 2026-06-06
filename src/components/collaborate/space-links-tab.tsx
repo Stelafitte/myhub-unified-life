@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
@@ -10,11 +11,13 @@ import {
   X,
   Loader2,
   Link2,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { listSpaceLinks, unlinkEntity } from "@/lib/collab.functions";
+import { LinkPickerDialog } from "./link-picker-dialog";
 
 interface Props {
   spaceId: string;
