@@ -44,7 +44,7 @@ function labelFor(type: EntityType, e: Record<string, unknown>): string {
   }
 }
 
-export function LinkPickerDialog({ open, onOpenChange, spaceId }: Props) {
+export function LinkPickerDialog({ open, onOpenChange, spaceId, restrictTypes }: Props) {
   const [q, setQ] = useState("");
   const searchFn = useServerFn(searchLinkable);
   const linkFn = useServerFn(linkEntityToSpace);
