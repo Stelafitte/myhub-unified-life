@@ -103,7 +103,9 @@ export function SpaceWorkspace() {
                 <TabsContent value="links" className="flex-1 min-h-0 mt-2 overflow-y-auto">
                   <SpaceLinksTab spaceId={active.id} />
                 </TabsContent>
-                <TabsContent value="docs">{COMING_SOON}</TabsContent>
+                <TabsContent value="docs" className="flex-1 min-h-0 mt-2 overflow-y-auto p-3">
+                  <DocumentsTab spaceId={active.id} />
+                </TabsContent>
                 <TabsContent value="tasks" className="flex-1 min-h-0 mt-2 overflow-y-auto">
                   <SpaceTasksTab spaceId={active.id} />
                 </TabsContent>
