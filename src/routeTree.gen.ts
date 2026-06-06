@@ -36,6 +36,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as ApiOutlookOauthCallbackRouteImport } from './routes/api/outlook-oauth/callback'
 import { Route as ApiGoogleCalendarCallbackRouteImport } from './routes/api/google-calendar/callback'
 import { Route as AuthenticatedCollaborateReviewRouteImport } from './routes/_authenticated/collaborate.review'
+import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 import { Route as ApiPublicHooksRsvpRemindersRouteImport } from './routes/api/public/hooks/rsvp-reminders'
 import { Route as AuthenticatedCollaborateSpaceSpaceIdRouteImport } from './routes/_authenticated/collaborate.space.$spaceId'
 import { Route as ApiPublicPollTokenFilesRouteImport } from './routes/api/public/poll/$token/files'
@@ -179,6 +180,12 @@ const AuthenticatedCollaborateReviewRoute =
     path: '/review',
     getParentRoute: () => AuthenticatedCollaborateRoute,
   } as any)
+const ApiPublicWhatsappWebhookRoute =
+  ApiPublicWhatsappWebhookRouteImport.update({
+    id: '/api/public/whatsapp/webhook',
+    path: '/api/public/whatsapp/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksRsvpRemindersRoute =
   ApiPublicHooksRsvpRemindersRouteImport.update({
     id: '/api/public/hooks/rsvp-reminders',
@@ -232,6 +239,7 @@ export interface FileRoutesByFullPath {
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
   '/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
@@ -264,6 +272,7 @@ export interface FileRoutesByTo {
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
   '/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
@@ -298,6 +307,7 @@ export interface FileRoutesById {
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
   '/_authenticated/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
   '/_authenticated/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
@@ -332,6 +342,7 @@ export interface FileRouteTypes {
     | '/api/outlook-oauth/callback'
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
+    | '/api/public/whatsapp/webhook'
     | '/api/public/poll/$token/files'
     | '/collaborate/space/$spaceId/doc/$docId'
   fileRoutesByTo: FileRoutesByTo
@@ -364,6 +375,7 @@ export interface FileRouteTypes {
     | '/api/outlook-oauth/callback'
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
+    | '/api/public/whatsapp/webhook'
     | '/api/public/poll/$token/files'
     | '/collaborate/space/$spaceId/doc/$docId'
   id:
@@ -397,6 +409,7 @@ export interface FileRouteTypes {
     | '/api/outlook-oauth/callback'
     | '/_authenticated/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
+    | '/api/public/whatsapp/webhook'
     | '/api/public/poll/$token/files'
     | '/_authenticated/collaborate/space/$spaceId/doc/$docId'
   fileRoutesById: FileRoutesById
@@ -413,6 +426,7 @@ export interface RootRouteChildren {
   ApiGoogleCalendarCallbackRoute: typeof ApiGoogleCalendarCallbackRoute
   ApiOutlookOauthCallbackRoute: typeof ApiOutlookOauthCallbackRoute
   ApiPublicHooksRsvpRemindersRoute: typeof ApiPublicHooksRsvpRemindersRoute
+  ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicPollTokenFilesRoute: typeof ApiPublicPollTokenFilesRoute
 }
 
@@ -607,6 +621,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCollaborateReviewRouteImport
       parentRoute: typeof AuthenticatedCollaborateRoute
     }
+    '/api/public/whatsapp/webhook': {
+      id: '/api/public/whatsapp/webhook'
+      path: '/api/public/whatsapp/webhook'
+      fullPath: '/api/public/whatsapp/webhook'
+      preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/rsvp-reminders': {
       id: '/api/public/hooks/rsvp-reminders'
       path: '/api/public/hooks/rsvp-reminders'
@@ -724,6 +745,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiGoogleCalendarCallbackRoute: ApiGoogleCalendarCallbackRoute,
   ApiOutlookOauthCallbackRoute: ApiOutlookOauthCallbackRoute,
   ApiPublicHooksRsvpRemindersRoute: ApiPublicHooksRsvpRemindersRoute,
+  ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicPollTokenFilesRoute: ApiPublicPollTokenFilesRoute,
 }
 export const routeTree = rootRouteImport
