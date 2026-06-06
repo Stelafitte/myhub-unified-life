@@ -46,6 +46,9 @@ import { confirmDialog } from "@/lib/confirm-dialog";
 import { ContactGroupsPanel } from "@/components/contacts/contact-groups-panel";
 import { ContactConnectionsBar } from "@/components/contacts/contact-connections-bar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { getContactGroupMemberships } from "@/lib/contacts.functions";
 
 type Contact = {
   id: string;
