@@ -66,7 +66,8 @@ export function LinkPickerDialog({ open, onOpenChange, spaceId, restrictTypes }:
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const groups: EntityType[] = ["email", "task", "meeting", "contact", "document"];
+  const allGroups: EntityType[] = ["email", "task", "meeting", "contact", "document"];
+  const groups: EntityType[] = restrictTypes?.length ? allGroups.filter((g) => restrictTypes.includes(g)) : allGroups;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
