@@ -62,6 +62,7 @@ export function SpaceWorkspace() {
                 <div className="min-w-0 flex-1">
                   <h2 className="font-semibold truncate">{active.name}</h2>
                 </div>
+                <SpaceShareButton spaceId={active.id} />
                 <Button
                   variant="ghost"
                   size="icon"
