@@ -497,7 +497,7 @@ export function MeetingDialog({
         }
       }
       toast.success(form.id ? "Réunion mise à jour" : pollMode ? "Sondage créé" : "Réunion créée");
-      onSaved?.();
+      onSaved?.(id!);
       requestAutoSync();
       return id!;
     } catch (e) {
