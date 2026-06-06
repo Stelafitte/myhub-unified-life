@@ -1,12 +1,20 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Share2, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { Share2, Copy, ExternalLink, Loader2, UserPlus, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -16,14 +24,26 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { getSpacePublicSettings, setSpacePublic } from "@/lib/collab.functions";
+import {
+  getSpacePublicSettings,
+  setSpacePublic,
+  listSpaceGuests,
+  addSpaceGuest,
+  updateSpaceGuestRole,
+  removeSpaceGuest,
+} from "@/lib/collab.functions";
 
 export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const [open, setOpen] = useState(false);
   const getFn = useServerFn(getSpacePublicSettings);
   const setFn = useServerFn(setSpacePublic);
+  const listGuestsFn = useServerFn(listSpaceGuests);
+  const addGuestFn = useServerFn(addSpaceGuest);
+  const updateGuestRoleFn = useServerFn(updateSpaceGuestRole);
+  const removeGuestFn = useServerFn(removeSpaceGuest);
   const qc = useQueryClient();
   const key = ["space-public", spaceId];
+  const guestsKey = ["space-guests", spaceId];
 
   const { data, isLoading } = useQuery({
     queryKey: key,
@@ -32,19 +52,24 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   });
   const space = data?.space;
 
+  const guestsQ = useQuery({
+    queryKey: guestsKey,
+    queryFn: () => listGuestsFn({ data: { spaceId } }),
+    enabled: open,
+  });
+  const guests = guestsQ.data?.guests ?? [];
+
   const [isPublic, setIsPublic] = useState(false);
   const [desc, setDesc] = useState("");
   const [saving, setSaving] = useState(false);
-
-  // initialize state when data loads
-  if (space && !saving && data && (isPublic !== space.is_public || desc !== (space.public_description ?? ""))) {
-    // simple sync once per data
-  }
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestRole, setGuestRole] = useState<"viewer" | "contributor">("viewer");
+  const [addingGuest, setAddingGuest] = useState(false);
 
   const handleOpenChange = (v: boolean) => {
     setOpen(v);
     if (v) {
-      // reset to fetched after a tick
       setTimeout(() => {
         if (space) {
           setIsPublic(space.is_public);
@@ -69,14 +94,58 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
     }
   };
 
-  const publicUrl = space?.public_token
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/space/${space.public_token}`
-    : "";
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const publicUrl = space?.public_token ? `${baseUrl}/space/${space.public_token}` : "";
 
-  const copyLink = () => {
-    if (!publicUrl) return;
-    navigator.clipboard.writeText(publicUrl);
+  const guestUrl = (accessToken: string) => `${publicUrl}?g=${accessToken}`;
+
+  const copy = (url: string) => {
+    navigator.clipboard.writeText(url);
     toast.success("Lien copié");
+  };
+
+  const handleAddGuest = async () => {
+    if (!guestName.trim()) return toast.error("Nom requis");
+    setAddingGuest(true);
+    try {
+      await addGuestFn({
+        data: {
+          spaceId,
+          name: guestName.trim(),
+          email: guestEmail.trim() || null,
+          role: guestRole,
+        },
+      });
+      toast.success("Invité ajouté");
+      setGuestName("");
+      setGuestEmail("");
+      setGuestRole("viewer");
+      qc.invalidateQueries({ queryKey: guestsKey });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setAddingGuest(false);
+    }
+  };
+
+  const handleRoleChange = async (id: string, role: "viewer" | "contributor") => {
+    try {
+      await updateGuestRoleFn({ data: { id, role } });
+      qc.invalidateQueries({ queryKey: guestsKey });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    }
+  };
+
+  const handleRemoveGuest = async (id: string) => {
+    if (!confirm("Retirer cet invité ?")) return;
+    try {
+      await removeGuestFn({ data: { id } });
+      toast.success("Invité retiré");
+      qc.invalidateQueries({ queryKey: guestsKey });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    }
   };
 
   return (
@@ -86,7 +155,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
           <Share2 className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Partager cet espace</DialogTitle>
         </DialogHeader>
@@ -95,43 +164,121 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="pub-switch" className="cursor-pointer">
-                Rendre public
-              </Label>
-              <Switch
-                id="pub-switch"
-                checked={isPublic}
-                onCheckedChange={setIsPublic}
-              />
-            </div>
-            <div>
-              <Label className="text-xs">Description publique (optionnelle)</Label>
-              <Textarea
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                rows={3}
-                placeholder="Présentation affichée aux visiteurs externes"
-              />
-            </div>
-            {space.is_public && (
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="pub-switch" className="cursor-pointer">
+                  Rendre public
+                </Label>
+                <Switch id="pub-switch" checked={isPublic} onCheckedChange={setIsPublic} />
+              </div>
               <div>
-                <Label className="text-xs">Lien public</Label>
-                <div className="flex gap-1">
-                  <Input value={publicUrl} readOnly className="text-xs" />
-                  <Button size="icon" variant="outline" onClick={copyLink} title="Copier">
-                    <Copy className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="icon" variant="outline" asChild title="Ouvrir">
-                    <a href={publicUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
+                <Label className="text-xs">Description publique (optionnelle)</Label>
+                <Textarea
+                  value={desc}
+                  onChange={(e) => setDesc(e.target.value)}
+                  rows={3}
+                  placeholder="Présentation affichée aux visiteurs externes"
+                />
+              </div>
+              {space.is_public && (
+                <div>
+                  <Label className="text-xs">Lien public</Label>
+                  <div className="flex gap-1">
+                    <Input value={publicUrl} readOnly className="text-xs" />
+                    <Button size="icon" variant="outline" onClick={() => copy(publicUrl)} title="Copier">
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="outline" asChild title="Ouvrir">
+                      <a href={publicUrl} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {space.is_public && (
+              <div className="space-y-2 border-t pt-4">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-sm font-semibold">Invités avec accès personnel</Label>
+                  <Badge variant="secondary">{guests.length}</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Les <strong>contributeurs</strong> voient aussi les sondages clôturés. Les <strong>lecteurs</strong> n'ont accès qu'aux sondages ouverts.
+                </p>
+
+                <div className="grid sm:grid-cols-[1fr_1fr_auto_auto] gap-1.5 items-end">
+                  <Input
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="Nom"
+                    className="h-8 text-sm"
+                  />
+                  <Input
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    placeholder="Email (optionnel)"
+                    className="h-8 text-sm"
+                  />
+                  <Select value={guestRole} onValueChange={(v) => setGuestRole(v as "viewer" | "contributor")}>
+                    <SelectTrigger className="h-8 text-xs w-[130px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="viewer">Lecteur</SelectItem>
+                      <SelectItem value="contributor">Contributeur</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button size="sm" onClick={handleAddGuest} disabled={addingGuest}>
+                    {addingGuest ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Les visiteurs verront le nom de l'espace, la description et les sondages ouverts.
-                </p>
+
+                {guests.length > 0 && (
+                  <ul className="divide-y border rounded-md mt-2">
+                    {guests.map((g) => (
+                      <li key={g.id} className="py-2 px-2 flex items-center gap-2 text-sm">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{g.name}</div>
+                          {g.email && <div className="text-xs text-muted-foreground truncate">{g.email}</div>}
+                        </div>
+                        <Select
+                          value={g.role}
+                          onValueChange={(v) => handleRoleChange(g.id, v as "viewer" | "contributor")}
+                        >
+                          <SelectTrigger className="h-7 text-xs w-[120px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="viewer">Lecteur</SelectItem>
+                            <SelectItem value="contributor">Contributeur</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => copy(guestUrl(g.access_token))}
+                          title="Copier le lien personnel"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-red-600"
+                          onClick={() => handleRemoveGuest(g.id)}
+                          title="Retirer"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
           </div>
