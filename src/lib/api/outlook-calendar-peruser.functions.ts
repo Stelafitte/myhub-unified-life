@@ -82,7 +82,7 @@ export const syncOutlookCalendar = createServerFn({ method: "POST" })
         const body: { value?: OutlookEvent[]; ["@odata.nextLink"]?: string; error?: { message?: string } } =
           await pageRes.json().catch(() => ({}));
         if (!pageRes.ok) throw new Error(`Outlook events error (${pageRes.status}): ${body.error?.message ?? "unknown"}`);
-        if (!res.ok) throw new Error(`Outlook events error (${res.status}): ${body.error?.message ?? "unknown"}`);
+        
         const events: OutlookEvent[] = body.value ?? [];
 
         for (const ev of events) {
