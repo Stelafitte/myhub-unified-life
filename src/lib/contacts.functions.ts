@@ -351,7 +351,14 @@ export const createContactGroup = createServerFn({ method: "POST" })
         userId,
         data.space_id,
       );
-      const rows: Array<Record<string, unknown>> = [];
+      type MemberRow = {
+        group_id: string;
+        contact_id?: string | null;
+        external_email?: string | null;
+        external_name?: string | null;
+        added_by: "manual" | "ai" | "space" | "whatsapp";
+      };
+      const rows: MemberRow[] = [];
       contactIds.forEach((cid) =>
         rows.push({ group_id: groupId, contact_id: cid, added_by: "space" as const }),
       );
@@ -378,7 +385,14 @@ export const createContactGroup = createServerFn({ method: "POST" })
       if (rows.length > 0) await supabase.from("contact_group_members").insert(rows);
     } else {
       // Manual
-      const rows: Array<Record<string, unknown>> = [];
+      type MemberRow = {
+        group_id: string;
+        contact_id?: string | null;
+        external_email?: string | null;
+        external_name?: string | null;
+        added_by: "manual" | "ai" | "space" | "whatsapp";
+      };
+      const rows: MemberRow[] = [];
       (data.initial_contact_ids ?? []).forEach((cid) =>
         rows.push({ group_id: groupId, contact_id: cid, added_by: addedBy }),
       );
