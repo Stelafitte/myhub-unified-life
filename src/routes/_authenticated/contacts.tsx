@@ -767,6 +767,17 @@ function ContactsPage() {
           }}
         />
       )}
+
+      <Sheet open={groupsOpen} onOpenChange={setGroupsOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Groupes de contacts</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">
+            <ContactGroupsPanel />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
