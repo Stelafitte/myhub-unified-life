@@ -178,6 +178,8 @@ export type Database = {
           id: string
           is_all_day: boolean
           location: string | null
+          outlook_connection_id: string | null
+          outlook_event_id: string | null
           recurrence_rule: string | null
           source: Database["public"]["Enums"]["calendar_source"] | null
           start_at: string
@@ -199,6 +201,8 @@ export type Database = {
           id?: string
           is_all_day?: boolean
           location?: string | null
+          outlook_connection_id?: string | null
+          outlook_event_id?: string | null
           recurrence_rule?: string | null
           source?: Database["public"]["Enums"]["calendar_source"] | null
           start_at: string
@@ -220,6 +224,8 @@ export type Database = {
           id?: string
           is_all_day?: boolean
           location?: string | null
+          outlook_connection_id?: string | null
+          outlook_event_id?: string | null
           recurrence_rule?: string | null
           source?: Database["public"]["Enums"]["calendar_source"] | null
           start_at?: string
@@ -234,6 +240,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_outlook_connection_id_fkey"
+            columns: ["outlook_connection_id"]
+            isOneToOne: false
+            referencedRelation: "outlook_connections"
             referencedColumns: ["id"]
           },
         ]
