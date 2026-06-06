@@ -164,9 +164,21 @@ export function SpaceWorkspace() {
                 )}
               </div>
             </div>
+            <Button size="sm" variant="outline" className="w-full justify-start" onClick={() => setGroupFromSpaceOpen(true)}>
+              👥 Créer un groupe depuis cet espace
+            </Button>
           </aside>
         )}
       </main>
+      {active && (
+        <GroupFormDialog
+          open={groupFromSpaceOpen}
+          onOpenChange={setGroupFromSpaceOpen}
+          onCreated={() => setGroupFromSpaceOpen(false)}
+          defaultSpaceId={active.id}
+          defaultType="space"
+        />
+      )}
     </div>
   );
 }
