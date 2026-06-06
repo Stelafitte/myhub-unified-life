@@ -15,6 +15,7 @@ import { IntegrationsSection } from "@/components/settings/integrations-section"
 import { AiSection } from "@/components/settings/ai-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { NavigationSection } from "@/components/settings/navigation-section";
+import { WhatsAppSection } from "@/components/settings/whatsapp-section";
 
 
 
@@ -43,6 +44,7 @@ function SettingsPage() {
           <TabsTrigger value="contacts">👥 Contacts</TabsTrigger>
           <TabsTrigger value="sync">🔄 Synchronisation</TabsTrigger>
           <TabsTrigger value="integrations">🔌 Intégrations</TabsTrigger>
+          <TabsTrigger value="whatsapp">💬 WhatsApp</TabsTrigger>
           <TabsTrigger value="ai">✨ IA</TabsTrigger>
           <TabsTrigger value="notifications">🔔 Notifications</TabsTrigger>
           <TabsTrigger value="meetings">🗓️ Réunions</TabsTrigger>
@@ -60,6 +62,7 @@ function SettingsPage() {
         <TabsContent value="contacts"><ContactsSection /></TabsContent>
         <TabsContent value="sync"><SyncSection /></TabsContent>
         <TabsContent value="integrations"><IntegrationsSection /></TabsContent>
+        <TabsContent value="whatsapp"><WhatsAppSection /></TabsContent>
         <TabsContent value="ai"><AiSection /></TabsContent>
         <TabsContent value="notifications"><NotificationsSection /></TabsContent>
         <TabsContent value="meetings"><MeetingsSection /></TabsContent>
