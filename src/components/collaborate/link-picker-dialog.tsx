@@ -12,6 +12,7 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   spaceId: string;
+  restrictTypes?: EntityType[];
 }
 
 type EntityType = "email" | "task" | "meeting" | "contact" | "document";
@@ -43,7 +44,7 @@ function labelFor(type: EntityType, e: Record<string, unknown>): string {
   }
 }
 
-export function LinkPickerDialog({ open, onOpenChange, spaceId }: Props) {
+export function LinkPickerDialog({ open, onOpenChange, spaceId, restrictTypes }: Props) {
   const [q, setQ] = useState("");
   const searchFn = useServerFn(searchLinkable);
   const linkFn = useServerFn(linkEntityToSpace);
@@ -65,7 +66,8 @@ export function LinkPickerDialog({ open, onOpenChange, spaceId }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const groups: EntityType[] = ["email", "task", "meeting", "contact", "document"];
+  const allGroups: EntityType[] = ["email", "task", "meeting", "contact", "document"];
+  const groups: EntityType[] = restrictTypes?.length ? allGroups.filter((g) => restrictTypes.includes(g)) : allGroups;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

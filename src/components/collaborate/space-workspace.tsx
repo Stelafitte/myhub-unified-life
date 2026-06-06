@@ -7,6 +7,7 @@ import { PanelRightClose, PanelRightOpen, Hash, Link2, FileText, CheckSquare, Ca
 import { SpaceTree } from "./space-tree";
 import { SpaceChat } from "./space-chat";
 import { SpaceLinksTab } from "./space-links-tab";
+import { SpaceTasksTab } from "./space-tasks-tab";
 import { CollabDashboard } from "./collab-dashboard";
 import { getSpaceTree, getSpaceActivity } from "@/lib/collab.functions";
 import { useAuth } from "@/lib/auth-context";
@@ -77,7 +78,7 @@ export function SpaceWorkspace() {
                   <TabsTrigger value="docs" disabled className="gap-1 opacity-50">
                     <FileText className="h-3.5 w-3.5" /> Docs
                   </TabsTrigger>
-                  <TabsTrigger value="tasks" disabled className="gap-1 opacity-50">
+                  <TabsTrigger value="tasks" className="gap-1">
                     <CheckSquare className="h-3.5 w-3.5" /> Tâches
                   </TabsTrigger>
                   <TabsTrigger value="meetings" disabled className="gap-1 opacity-50">
@@ -101,7 +102,9 @@ export function SpaceWorkspace() {
                   <SpaceLinksTab spaceId={active.id} />
                 </TabsContent>
                 <TabsContent value="docs">{COMING_SOON}</TabsContent>
-                <TabsContent value="tasks">{COMING_SOON}</TabsContent>
+                <TabsContent value="tasks" className="flex-1 min-h-0 mt-2 overflow-y-auto">
+                  <SpaceTasksTab spaceId={active.id} />
+                </TabsContent>
                 <TabsContent value="meetings">{COMING_SOON}</TabsContent>
                 <TabsContent value="files">{COMING_SOON}</TabsContent>
                 <TabsContent value="wa">{COMING_SOON}</TabsContent>
