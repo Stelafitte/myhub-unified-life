@@ -78,7 +78,7 @@ export function SpaceWorkspace() {
                   <TabsTrigger value="docs" disabled className="gap-1 opacity-50">
                     <FileText className="h-3.5 w-3.5" /> Docs
                   </TabsTrigger>
-                  <TabsTrigger value="tasks" disabled className="gap-1 opacity-50">
+                  <TabsTrigger value="tasks" className="gap-1">
                     <CheckSquare className="h-3.5 w-3.5" /> Tâches
                   </TabsTrigger>
                   <TabsTrigger value="meetings" disabled className="gap-1 opacity-50">
