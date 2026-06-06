@@ -570,7 +570,7 @@ export function MeetingDialog({
         end_at: toLocalInput(slot.endAt),
       }));
       toast.success("Créneau confirmé, sondage clôturé.");
-      onSaved?.();
+      onSaved?.(form.id ?? undefined);
       requestAutoSync();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
