@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, MessageSquare, Link2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Loader2, MessageSquare, Link2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getSpaceActivity, getSpaceTree } from "@/lib/collab.functions";
+import { Button } from "@/components/ui/button";
+import { getSpaceActivity, getSpaceTree, countPendingWaSuggestions } from "@/lib/collab.functions";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
