@@ -61,6 +61,7 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
   const suggestionsFn = useServerFn(listWaSuggestions);
   const approveFn = useServerFn(approveWaSuggestion);
   const rejectFn = useServerFn(rejectWaSuggestion);
+  const timelineFn = useServerFn(listSpaceWaTimeline);
 
   const [importOpen, setImportOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
@@ -68,6 +69,8 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
   const [groupExtId, setGroupExtId] = useState("");
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [tlQ, setTlQ] = useState("");
+  const [tlSender, setTlSender] = useState("");
 
   const infoQ = useQuery({
     queryKey: ["space-wa-info", spaceId],
@@ -80,6 +83,17 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
   const sugQ = useQuery({
     queryKey: ["space-wa-suggestions", spaceId],
     queryFn: () => suggestionsFn({ data: { space_id: spaceId, status: "pending" } }),
+  });
+  const tlQuery = useQuery({
+    queryKey: ["space-wa-timeline", spaceId, tlQ, tlSender],
+    queryFn: () =>
+      timelineFn({
+        data: {
+          spaceId,
+          q: tlQ || undefined,
+          sender: tlSender || undefined,
+        },
+      }),
   });
 
   useEffect(() => {
