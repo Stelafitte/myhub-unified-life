@@ -481,6 +481,7 @@ export type Database = {
       }
       collab_guests: {
         Row: {
+          access_token: string
           created_at: string
           email: string | null
           id: string
@@ -488,12 +489,14 @@ export type Database = {
           metadata: Json
           name: string
           phone: string | null
+          role: string
           space_id: string
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          access_token?: string
           created_at?: string
           email?: string | null
           id?: string
@@ -501,12 +504,14 @@ export type Database = {
           metadata?: Json
           name: string
           phone?: string | null
+          role?: string
           space_id: string
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          access_token?: string
           created_at?: string
           email?: string | null
           id?: string
@@ -514,6 +519,7 @@ export type Database = {
           metadata?: Json
           name?: string
           phone?: string | null
+          role?: string
           space_id?: string
           status?: string
           updated_at?: string
