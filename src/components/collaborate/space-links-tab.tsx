@@ -89,6 +89,7 @@ export function SpaceLinksTab({ spaceId }: Props) {
   const unlinkFn = useServerFn(unlinkEntity);
   const qc = useQueryClient();
   const queryKey = ["space-links", spaceId];
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey,
