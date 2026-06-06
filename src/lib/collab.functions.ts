@@ -528,3 +528,64 @@ export const getSpaceWaInfo = createServerFn({ method: "GET" })
       .eq("status", "pending");
     return { space, pendingSuggestions: pendingCount ?? 0 };
   });
+
+/** Liste les sondages de créneaux des réunions liées à un espace. */
+export const listSpacePolls = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: links, error: lErr } = await supabase
+      .from("collab_space_links")
+      .select("id,entity_id,created_at")
+      .eq("space_id", data.spaceId)
+      .eq("user_id", userId)
+      .eq("entity_type", "meeting");
+    if (lErr) throw new Error(lErr.message);
+    const meetingIds = (links ?? []).map((l) => l.entity_id);
+    if (!meetingIds.length) return { polls: [] };
+
+    const { data: polls, error: pErr } = await supabase
+      .from("meeting_polls")
+      .select("id,meeting_id,title,description,status,deadline,public_token,created_at")
+      .in("meeting_id", meetingIds)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (pErr) throw new Error(pErr.message);
+    const pollList = polls ?? [];
+    if (!pollList.length) return { polls: [] };
+
+    const pollIds = pollList.map((p) => p.id);
+    const [{ data: slots }, { data: votes }, { data: meetings }] = await Promise.all([
+      supabase
+        .from("meeting_poll_slots")
+        .select("id,poll_id,start_at,end_at,is_online,location")
+        .in("poll_id", pollIds),
+      supabase
+        .from("meeting_poll_votes")
+        .select("poll_id,slot_id,vote,voter_email")
+        .in("poll_id", pollIds),
+      supabase
+        .from("meetings")
+        .select("id,title,confirmed_slot_id")
+        .in("id", meetingIds),
+    ]);
+
+    const meetingMap = new Map((meetings ?? []).map((m) => [m.id, m]));
+    return {
+      polls: pollList.map((p) => {
+        const pSlots = (slots ?? []).filter((s) => s.poll_id === p.id);
+        const pVotes = (votes ?? []).filter((v) => v.poll_id === p.id);
+        const voters = new Set(pVotes.map((v) => v.voter_email)).size;
+        const m = meetingMap.get(p.meeting_id);
+        return {
+          ...p,
+          meeting_title: m?.title ?? null,
+          confirmed_slot_id: m?.confirmed_slot_id ?? null,
+          slots_count: pSlots.length,
+          votes_count: pVotes.length,
+          voters_count: voters,
+        };
+      }),
+    };
+  });
