@@ -96,8 +96,8 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
   const listFn = useServerFn(listSpaceMessages);
   const postFn = useServerFn(postSpaceMessage);
   const delFn = useServerFn(deleteSpaceMessage);
+  const linkFn = useServerFn(linkEntityToSpace);
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const queryKey = ["collab-messages", spaceId];
 
   const { data, isLoading } = useQuery({
@@ -109,6 +109,10 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [taskOpen, setTaskOpen] = useState(false);
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  const [meetingPollMode, setMeetingPollMode] = useState(false);
+  const [docOpen, setDocOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
