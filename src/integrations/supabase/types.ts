@@ -479,6 +479,56 @@ export type Database = {
         }
         Relationships: []
       }
+      collab_guests: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          last_active_at: string | null
+          metadata: Json
+          name: string
+          phone: string | null
+          space_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_active_at?: string | null
+          metadata?: Json
+          name: string
+          phone?: string | null
+          space_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_active_at?: string | null
+          metadata?: Json
+          name?: string
+          phone?: string | null
+          space_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_guests_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collab_messages: {
         Row: {
           content: string
@@ -572,10 +622,13 @@ export type Database = {
           description: string | null
           icon: string | null
           id: string
+          is_public: boolean
           level: number
           name: string
           parent_id: string | null
           position: number
+          public_description: string | null
+          public_token: string | null
           type: string
           updated_at: string
           user_id: string
@@ -590,10 +643,13 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          is_public?: boolean
           level?: number
           name: string
           parent_id?: string | null
           position?: number
+          public_description?: string | null
+          public_token?: string | null
           type?: string
           updated_at?: string
           user_id: string
@@ -608,10 +664,13 @@ export type Database = {
           description?: string | null
           icon?: string | null
           id?: string
+          is_public?: boolean
           level?: number
           name?: string
           parent_id?: string | null
           position?: number
+          public_description?: string | null
+          public_token?: string | null
           type?: string
           updated_at?: string
           user_id?: string
@@ -623,6 +682,145 @@ export type Database = {
           {
             foreignKeyName: "collab_spaces_parent_id_fkey"
             columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collab_survey_questions: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          options: Json
+          position: number
+          required: boolean
+          survey_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          options?: Json
+          position?: number
+          required?: boolean
+          survey_id: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          options?: Json
+          position?: number
+          required?: boolean
+          survey_id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_survey_questions_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "collab_surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collab_survey_responses: {
+        Row: {
+          answers: Json
+          created_at: string
+          guest_id: string | null
+          id: string
+          respondent_email: string | null
+          respondent_name: string | null
+          submitted_at: string
+          survey_id: string
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string
+          guest_id?: string | null
+          id?: string
+          respondent_email?: string | null
+          respondent_name?: string | null
+          submitted_at?: string
+          survey_id: string
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          guest_id?: string | null
+          id?: string
+          respondent_email?: string | null
+          respondent_name?: string | null
+          submitted_at?: string
+          survey_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_survey_responses_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "collab_guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collab_survey_responses_survey_id_fkey"
+            columns: ["survey_id"]
+            isOneToOne: false
+            referencedRelation: "collab_surveys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collab_surveys: {
+        Row: {
+          allow_anonymous: boolean
+          created_at: string
+          deadline: string | null
+          description: string | null
+          id: string
+          public_token: string
+          space_id: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allow_anonymous?: boolean
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          public_token?: string
+          space_id: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allow_anonymous?: boolean
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          public_token?: string
+          space_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_surveys_space_id_fkey"
+            columns: ["space_id"]
             isOneToOne: false
             referencedRelation: "collab_spaces"
             referencedColumns: ["id"]
