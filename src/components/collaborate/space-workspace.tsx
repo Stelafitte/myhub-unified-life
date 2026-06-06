@@ -77,7 +77,7 @@ export function SpaceWorkspace() {
                   <TabsTrigger value="links" className="gap-1">
                     <Link2 className="h-3.5 w-3.5" /> Liens
                   </TabsTrigger>
-                  <TabsTrigger value="docs" disabled className="gap-1 opacity-50">
+                  <TabsTrigger value="docs" className="gap-1">
                     <FileText className="h-3.5 w-3.5" /> Docs
                   </TabsTrigger>
                   <TabsTrigger value="tasks" className="gap-1">
