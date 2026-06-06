@@ -43,6 +43,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
 import { confirmDialog } from "@/lib/confirm-dialog";
+import { ContactGroupsPanel } from "@/components/contacts/contact-groups-panel";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 type Contact = {
   id: string;
@@ -129,6 +131,7 @@ function ContactsPage() {
   const [lastContactMap, setLastContactMap] = useState<Map<string, string>>(new Map());
   const [mergeOpen, setMergeOpen] = useState<{ a: Contact; b: Contact } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [groupsOpen, setGroupsOpen] = useState(false);
 
   // Load
   useEffect(() => {
@@ -551,6 +554,15 @@ function ContactsPage() {
               <Button size="sm" variant="outline" onClick={refresh} className="h-8 gap-1 px-2 sm:px-3">
                 <RefreshCw className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Actualiser</span>
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setGroupsOpen(true)}
+                className="h-8 gap-1 px-2 sm:px-3"
+                title="Groupes de contacts liés aux projets"
+              >
+                <Users className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Groupes</span>
+              </Button>
               <Button size="sm" onClick={createContact} className="h-8 gap-1 px-2 sm:px-3">
                 <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Nouveau</span>
               </Button>
@@ -755,6 +767,17 @@ function ContactsPage() {
           }}
         />
       )}
+
+      <Sheet open={groupsOpen} onOpenChange={setGroupsOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Groupes de contacts</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">
+            <ContactGroupsPanel />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
