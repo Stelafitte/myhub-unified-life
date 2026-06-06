@@ -14,6 +14,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SurveyTokenRouteImport } from './routes/survey.$token'
 import { Route as SpaceTokenRouteImport } from './routes/space.$token'
 import { Route as PollTokenRouteImport } from './routes/poll.$token'
 import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
@@ -61,6 +62,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SurveyTokenRoute = SurveyTokenRouteImport.update({
+  id: '/survey/$token',
+  path: '/survey/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SpaceTokenRoute = SpaceTokenRouteImport.update({
@@ -214,6 +220,7 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
+  '/survey/$token': typeof SurveyTokenRoute
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
@@ -244,6 +251,7 @@ export interface FileRoutesByTo {
   '/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
+  '/survey/$token': typeof SurveyTokenRoute
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
@@ -276,6 +284,7 @@ export interface FileRoutesById {
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
+  '/survey/$token': typeof SurveyTokenRoute
   '/_authenticated/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/_authenticated/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
@@ -308,6 +317,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/poll/$token'
     | '/space/$token'
+    | '/survey/$token'
     | '/collaborate/review'
     | '/api/google-calendar/callback'
     | '/collaborate/space/$spaceId'
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/poll/$token'
     | '/space/$token'
+    | '/survey/$token'
     | '/collaborate/review'
     | '/api/google-calendar/callback'
     | '/collaborate/space/$spaceId'
@@ -369,6 +380,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tasks'
     | '/poll/$token'
     | '/space/$token'
+    | '/survey/$token'
     | '/_authenticated/collaborate/review'
     | '/api/google-calendar/callback'
     | '/_authenticated/collaborate/space/$spaceId'
@@ -385,6 +397,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   PollTokenRoute: typeof PollTokenRoute
   SpaceTokenRoute: typeof SpaceTokenRoute
+  SurveyTokenRoute: typeof SurveyTokenRoute
   ApiGoogleCalendarCallbackRoute: typeof ApiGoogleCalendarCallbackRoute
   ApiPublicHooksRsvpRemindersRoute: typeof ApiPublicHooksRsvpRemindersRoute
   ApiPublicPollTokenFilesRoute: typeof ApiPublicPollTokenFilesRoute
@@ -425,6 +438,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/survey/$token': {
+      id: '/survey/$token'
+      path: '/survey/$token'
+      fullPath: '/survey/$token'
+      preLoaderRoute: typeof SurveyTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/space/$token': {
@@ -680,6 +700,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   PollTokenRoute: PollTokenRoute,
   SpaceTokenRoute: SpaceTokenRoute,
+  SurveyTokenRoute: SurveyTokenRoute,
   ApiGoogleCalendarCallbackRoute: ApiGoogleCalendarCallbackRoute,
   ApiPublicHooksRsvpRemindersRoute: ApiPublicHooksRsvpRemindersRoute,
   ApiPublicPollTokenFilesRoute: ApiPublicPollTokenFilesRoute,
@@ -687,13 +708,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
