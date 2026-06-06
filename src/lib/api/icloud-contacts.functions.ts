@@ -228,7 +228,7 @@ export const syncICloudContacts = createServerFn({ method: "POST" })
           .from("contacts")
           .select("id, sources, external_ids")
           .eq("user_id", userId)
-          .contains("emails", [email])
+          .contains("email", [email])
           .maybeSingle();
         if (byEmail.data) existing = byEmail.data as ExistingContact;
       }
