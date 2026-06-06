@@ -32,6 +32,7 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
 
 export function SpacePollsTab({ spaceId }: Props) {
   const listFn = useServerFn(listSpacePolls);
+  const linkFn = useServerFn(linkEntityToSpace);
   const qc = useQueryClient();
   const queryKey = ["space-polls", spaceId];
 
