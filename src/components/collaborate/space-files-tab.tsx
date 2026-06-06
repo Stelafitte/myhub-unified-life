@@ -315,9 +315,11 @@ export function SpaceFilesTab({ spaceId }: { spaceId: string }) {
       <LinkPickerDialog
         spaceId={spaceId}
         open={pickerOpen}
-        onOpenChange={setPickerOpen}
+        onOpenChange={(v) => {
+          setPickerOpen(v);
+          if (!v) reload();
+        }}
         restrictTypes={["document"]}
-        onLinked={reload}
       />
     </div>
   );
