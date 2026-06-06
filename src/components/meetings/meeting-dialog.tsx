@@ -132,13 +132,15 @@ export function MeetingDialog({
   initial,
   onSaved,
   onOpenMeeting,
+  initialPollMode = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   meetingId?: string | null;
   initial?: Partial<MeetingFormValue>;
-  onSaved?: () => void;
+  onSaved?: (id?: string) => void;
   onOpenMeeting?: (id: string) => void;
+  initialPollMode?: boolean;
 }) {
   const { user } = useAuth();
   const [form, setForm] = useState<MeetingFormValue>(empty);
@@ -167,7 +169,7 @@ export function MeetingDialog({
   const [acceptedCount, setAcceptedCount] = useState(0);
 
   // --- Poll mode state ---
-  const [pollMode, setPollMode] = useState(false);
+  const [pollMode, setPollMode] = useState(initialPollMode);
   const [pollSlots, setPollSlots] = useState<{ id?: string; startAt: string; endAt: string }[]>([]);
   const [pollDeadline, setPollDeadline] = useState<string>("");
   const [existingPoll, setExistingPoll] = useState<{ id: string; public_token: string; status?: string } | null>(null);
@@ -495,7 +497,7 @@ export function MeetingDialog({
         }
       }
       toast.success(form.id ? "Réunion mise à jour" : pollMode ? "Sondage créé" : "Réunion créée");
-      onSaved?.();
+      onSaved?.(id!);
       requestAutoSync();
       return id!;
     } catch (e) {
@@ -568,7 +570,7 @@ export function MeetingDialog({
         end_at: toLocalInput(slot.endAt),
       }));
       toast.success("Créneau confirmé, sondage clôturé.");
-      onSaved?.();
+      onSaved?.(form.id ?? undefined);
       requestAutoSync();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");

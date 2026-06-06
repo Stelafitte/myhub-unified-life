@@ -5,16 +5,19 @@ import { Loader2, Send, Smartphone, Sparkles, Trash2, Mic, Paperclip, X } from "
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { listSpaceMessages, postSpaceMessage, deleteSpaceMessage } from "@/lib/collab.functions";
+import { listSpaceMessages, postSpaceMessage, deleteSpaceMessage, linkEntityToSpace } from "@/lib/collab.functions";
 import { useVoiceDictation } from "@/hooks/use-voice-dictation";
 import { ChatMentionPopover } from "./chat-mention-popover";
 import { ChatSlashMenu, type ChatSlashCommand } from "./chat-slash-menu";
+import { CreateDocDialog } from "./create-doc-dialog";
 import { AiAssistantModal } from "@/components/ai/ai-assistant-modal";
+import { TaskPanel } from "@/components/tasks/task-panel";
+import { MeetingDialog } from "@/components/meetings/meeting-dialog";
+import { DEFAULT_SECTIONS, type Task } from "@/lib/tasks-model";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useNavigate } from "@tanstack/react-router";
 
 interface Props {
   spaceId: string;
@@ -93,8 +96,8 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
   const listFn = useServerFn(listSpaceMessages);
   const postFn = useServerFn(postSpaceMessage);
   const delFn = useServerFn(deleteSpaceMessage);
+  const linkFn = useServerFn(linkEntityToSpace);
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const queryKey = ["collab-messages", spaceId];
 
   const { data, isLoading } = useQuery({
@@ -106,6 +109,10 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [taskOpen, setTaskOpen] = useState(false);
+  const [meetingOpen, setMeetingOpen] = useState(false);
+  const [meetingPollMode, setMeetingPollMode] = useState(false);
+  const [docOpen, setDocOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -210,24 +217,37 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
     const before = draft.slice(0, caret).replace(/\/[a-z]*$/i, "");
     setDraft(before + draft.slice(caret));
 
-    if (cmd === "ia") {
-      setAiOpen(true);
-      return;
+    switch (cmd) {
+      case "ia":
+        setAiOpen(true);
+        return;
+      case "tache":
+        setTaskOpen(true);
+        return;
+      case "reunion":
+        setMeetingPollMode(false);
+        setMeetingOpen(true);
+        return;
+      case "sondage":
+        setMeetingPollMode(true);
+        setMeetingOpen(true);
+        return;
+      case "doc":
+        setDocOpen(true);
+        return;
     }
-    // For task/meeting/poll/doc, navigate to the relevant module. Linking will
-    // be done from that module via the existing entity menus, then surfaced in
-    // the Liens tab of this space.
-    const targets: Record<ChatSlashCommand, string> = {
-      tache: "/tasks",
-      reunion: "/meetings",
-      sondage: "/meetings",
-      doc: "/documents",
-      ia: "/collaborate",
-    };
-    toast.info(`Ouvre ${cmd === "sondage" ? "Réunions (sondage)" : cmd}…`, {
-      description: "Crée l'entité puis reviens l'attacher via « + Lier ».",
-    });
-    navigate({ to: targets[cmd] });
+  };
+
+  const autoLink = async (
+    entityType: "task" | "meeting" | "document",
+    entityId: string,
+  ) => {
+    try {
+      await linkFn({ data: { spaceId, entityType, entityId } });
+      toast.success("Lié à l'espace");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur de liaison");
+    }
   };
 
   const onFiles = async (files: FileList | null) => {
@@ -406,6 +426,31 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
         </form>
       </div>
       <AiAssistantModal open={aiOpen} onOpenChange={setAiOpen} />
+      <TaskPanel
+        open={taskOpen}
+        onOpenChange={setTaskOpen}
+        task={null}
+        sections={[...DEFAULT_SECTIONS]}
+        onSaved={(t: Task) => {
+          setTaskOpen(false);
+          if (t?.id) void autoLink("task", t.id);
+        }}
+      />
+      <MeetingDialog
+        open={meetingOpen}
+        onOpenChange={setMeetingOpen}
+        meetingId={null}
+        initialPollMode={meetingPollMode}
+        onSaved={(id) => {
+          if (id) void autoLink("meeting", id);
+        }}
+      />
+      <CreateDocDialog
+        open={docOpen}
+        onOpenChange={setDocOpen}
+        spaceId={spaceId}
+        onCreated={(id) => void autoLink("document", id)}
+      />
     </>
   );
 }
