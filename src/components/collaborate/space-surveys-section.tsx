@@ -409,47 +409,213 @@ export function SpaceSurveysSection({ spaceId }: Props) {
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
           ) : !detailQ.data ? null : (
-            <div className="space-y-3">
-              <div className="text-xs text-muted-foreground">
-                {detailQ.data.responses.length} réponse(s) · {detailQ.data.questions.length} question(s)
-              </div>
-              {detailQ.data.responses.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">
-                  Aucune réponse pour le moment. Partagez le lien public pour collecter des avis.
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {detailQ.data.responses.map((r) => (
-                    <Card key={r.id} className="p-3 space-y-2">
-                      <div className="flex items-baseline gap-2 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">
-                          {r.respondent_name ?? "Anonyme"}
-                        </span>
-                        {r.respondent_email && <span>· {r.respondent_email}</span>}
-                        <span className="ml-auto">
-                          {format(new Date(r.submitted_at), "d MMM HH:mm", { locale: fr })}
-                        </span>
-                      </div>
-                      <div className="space-y-1.5">
-                        {detailQ.data.questions.map((q) => {
-                          const ans = (r.answers as Record<string, unknown>)?.[q.id];
-                          const display = Array.isArray(ans) ? ans.join(", ") : String(ans ?? "—");
-                          return (
-                            <div key={q.id} className="text-xs">
-                              <div className="text-muted-foreground">{q.label}</div>
-                              <div className="whitespace-pre-wrap">{display}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </div>
+            <SurveyDetailBody detail={detailQ.data} />
           )}
         </DialogContent>
       </Dialog>
+    </Card>
+  );
+}
+
+type DetailQuestion = { id: string; label: string; type: string; options: unknown };
+type DetailResponse = {
+  id: string;
+  respondent_name: string | null;
+  respondent_email: string | null;
+  submitted_at: string;
+  answers: unknown;
+};
+type DetailData = {
+  survey: { id: string; title: string } | null;
+  questions: DetailQuestion[];
+  responses: DetailResponse[];
+};
+
+const CHART_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6"];
+
+function SurveyDetailBody({ detail }: { detail: DetailData }) {
+  const [tab, setTab] = useState<"charts" | "responses">("charts");
+  const responses = detail.responses;
+  const questions = detail.questions;
+
+  const exportCsv = () => {
+    const headers = ["Date", "Nom", "Email", ...questions.map((q) => q.label)];
+    const rows = responses.map((r) => {
+      const ans = (r.answers as Record<string, unknown>) ?? {};
+      return [
+        format(new Date(r.submitted_at), "yyyy-MM-dd HH:mm"),
+        r.respondent_name ?? "",
+        r.respondent_email ?? "",
+        ...questions.map((q) => {
+          const v = ans[q.id];
+          if (Array.isArray(v)) return v.join("; ");
+          return v == null ? "" : String(v);
+        }),
+      ];
+    });
+    const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows].map((r) => r.map((c) => escape(String(c))).join(",")).join("\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${detail.survey?.title ?? "sondage"}-reponses.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="text-xs text-muted-foreground">
+          {responses.length} réponse(s) · {questions.length} question(s)
+        </div>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant={tab === "charts" ? "default" : "outline"}
+            onClick={() => setTab("charts")}
+          >
+            <BarChart3 className="h-3.5 w-3.5 mr-1" /> Résultats
+          </Button>
+          <Button
+            size="sm"
+            variant={tab === "responses" ? "default" : "outline"}
+            onClick={() => setTab("responses")}
+          >
+            Réponses
+          </Button>
+          <Button size="sm" variant="outline" onClick={exportCsv} disabled={responses.length === 0}>
+            <Download className="h-3.5 w-3.5 mr-1" /> CSV
+          </Button>
+        </div>
+      </div>
+
+      {responses.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6">
+          Aucune réponse pour le moment. Partagez le lien public pour collecter des avis.
+        </p>
+      ) : tab === "charts" ? (
+        <div className="space-y-4">
+          {questions.map((q) => (
+            <QuestionChart key={q.id} question={q} responses={responses} />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {responses.map((r) => (
+            <Card key={r.id} className="p-3 space-y-2">
+              <div className="flex items-baseline gap-2 text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {r.respondent_name ?? "Anonyme"}
+                </span>
+                {r.respondent_email && <span>· {r.respondent_email}</span>}
+                <span className="ml-auto">
+                  {format(new Date(r.submitted_at), "d MMM HH:mm", { locale: fr })}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                {questions.map((q) => {
+                  const ans = (r.answers as Record<string, unknown>)?.[q.id];
+                  const display = Array.isArray(ans) ? ans.join(", ") : String(ans ?? "—");
+                  return (
+                    <div key={q.id} className="text-xs">
+                      <div className="text-muted-foreground">{q.label}</div>
+                      <div className="whitespace-pre-wrap">{display}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuestionChart({
+  question,
+  responses,
+}: {
+  question: DetailQuestion;
+  responses: DetailResponse[];
+}) {
+  const chartable = ["single_choice", "multi_choice", "rating", "yes_no"].includes(question.type);
+
+  const data = useMemo(() => {
+    const counts = new Map<string, number>();
+    const inc = (k: string) => counts.set(k, (counts.get(k) ?? 0) + 1);
+
+    if (question.type === "yes_no") {
+      counts.set("Oui", 0);
+      counts.set("Non", 0);
+    } else if (question.type === "rating") {
+      for (let i = 1; i <= 5; i++) counts.set(String(i), 0);
+    } else if (question.type === "single_choice" || question.type === "multi_choice") {
+      const opts = Array.isArray(question.options) ? (question.options as string[]) : [];
+      opts.forEach((o) => counts.set(String(o), 0));
+    }
+
+    for (const r of responses) {
+      const v = (r.answers as Record<string, unknown>)?.[question.id];
+      if (v == null) continue;
+      if (Array.isArray(v)) v.forEach((x) => inc(String(x)));
+      else inc(String(v));
+    }
+    return Array.from(counts.entries()).map(([name, count]) => ({ name, count }));
+  }, [question, responses]);
+
+  const answered = responses.filter((r) => {
+    const v = (r.answers as Record<string, unknown>)?.[question.id];
+    return v != null && !(Array.isArray(v) && v.length === 0) && String(v).trim() !== "";
+  }).length;
+
+  if (!chartable) {
+    // text / long_text → list of responses
+    const texts = responses
+      .map((r) => {
+        const v = (r.answers as Record<string, unknown>)?.[question.id];
+        return { id: r.id, name: r.respondent_name ?? "Anonyme", text: v == null ? "" : String(v) };
+      })
+      .filter((t) => t.text.trim() !== "");
+    return (
+      <Card className="p-3 space-y-2">
+        <div className="text-sm font-medium">{question.label}</div>
+        <div className="text-xs text-muted-foreground">{texts.length} réponse(s) textuelle(s)</div>
+        {texts.length > 0 && (
+          <ul className="text-xs space-y-1 max-h-40 overflow-y-auto">
+            {texts.map((t) => (
+              <li key={t.id} className="border-l-2 border-muted pl-2">
+                <span className="text-muted-foreground">{t.name} —</span> {t.text}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-medium">{question.label}</div>
+        <Badge variant="outline" className="text-[10px]">{answered} réponse(s)</Badge>
+      </div>
+      <div className="h-48 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 8 }}>
+            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+            <Tooltip cursor={{ fill: "hsl(var(--muted))" }} />
+            <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+              {data.map((_, i) => (
+                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </Card>
   );
 }
