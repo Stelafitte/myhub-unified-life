@@ -12,6 +12,7 @@ import { SpaceMeetingsTab } from "./space-meetings-tab";
 import { DocumentsTab } from "./documents-tab";
 import { SpaceFilesTab } from "./space-files-tab";
 import { SpaceWhatsappTab } from "./space-whatsapp-tab";
+import { SpacePollsTab } from "./space-polls-tab";
 import { CollabDashboard } from "./collab-dashboard";
 import { getSpaceTree, getSpaceActivity } from "@/lib/collab.functions";
 import { useAuth } from "@/lib/auth-context";
