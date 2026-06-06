@@ -30,6 +30,8 @@ import {
   Check,
   X,
   FileText,
+  Search,
+  MessageCircle,
 } from "lucide-react";
 import { WhatsappImportDialog } from "./whatsapp-import-dialog";
 import { format, formatDistanceToNow } from "date-fns";
