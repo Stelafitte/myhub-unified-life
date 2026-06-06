@@ -281,3 +281,96 @@ export const getSpaceActivity = createServerFn({ method: "GET" })
 
     return { messages: messages ?? [], links: links ?? [] };
   });
+
+/** Recherche de contacts pour @ mentions. */
+export const searchMentionContacts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ q: z.string().max(80).optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const q = (data.q ?? "").trim();
+    let query = supabase
+      .from("contacts")
+      .select("id,first_name,last_name,organization,email")
+      .eq("user_id", userId)
+      .limit(8);
+    if (q) {
+      query = query.or(
+        `first_name.ilike.%${q}%,last_name.ilike.%${q}%,organization.ilike.%${q}%`,
+      );
+    }
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+    return { contacts: rows ?? [] };
+  });
+
+/** Nombre de suggestions WA en attente. */
+export const countPendingWaSuggestions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { count, error } = await supabase
+      .from("wa_suggestions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", "pending");
+    if (error) throw new Error(error.message);
+    return { count: count ?? 0 };
+  });
+
+/** Recherche globale pour le picker "+ Lier". */
+export const searchLinkable = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ q: z.string().min(1).max(120) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const q = data.q.trim();
+    const like = `%${q}%`;
+    const [emails, tasks, meetings, contacts, documents] = await Promise.all([
+      supabase
+        .from("emails")
+        .select("id,subject,from_address,received_at")
+        .eq("user_id", userId)
+        .or(`subject.ilike.${like},from_address.ilike.${like}`)
+        .order("received_at", { ascending: false })
+        .limit(8),
+      supabase
+        .from("tasks")
+        .select("id,title,status,due_at")
+        .eq("user_id", userId)
+        .ilike("title", like)
+        .limit(8),
+      supabase
+        .from("meetings")
+        .select("id,title,start_at")
+        .eq("user_id", userId)
+        .ilike("title", like)
+        .order("start_at", { ascending: false })
+        .limit(8),
+      supabase
+        .from("contacts")
+        .select("id,first_name,last_name,organization")
+        .eq("user_id", userId)
+        .or(
+          `first_name.ilike.${like},last_name.ilike.${like},organization.ilike.${like}`,
+        )
+        .limit(8),
+      supabase
+        .from("documents")
+        .select("id,filename,mime_type")
+        .eq("user_id", userId)
+        .ilike("filename", like)
+        .limit(8),
+    ]);
+    return {
+      email: emails.data ?? [],
+      task: tasks.data ?? [],
+      meeting: meetings.data ?? [],
+      contact: contacts.data ?? [],
+      document: documents.data ?? [],
+    };
+  });
