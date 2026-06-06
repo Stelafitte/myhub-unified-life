@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
@@ -10,11 +11,13 @@ import {
   X,
   Loader2,
   Link2,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { listSpaceLinks, unlinkEntity } from "@/lib/collab.functions";
+import { LinkPickerDialog } from "./link-picker-dialog";
 
 interface Props {
   spaceId: string;
@@ -86,6 +89,7 @@ export function SpaceLinksTab({ spaceId }: Props) {
   const unlinkFn = useServerFn(unlinkEntity);
   const qc = useQueryClient();
   const queryKey = ["space-links", spaceId];
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey,
@@ -101,82 +105,88 @@ export function SpaceLinksTab({ spaceId }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-10 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
-      </div>
-    );
-  }
-
   const links = (data?.links ?? []) as LinkRow[];
-  if (links.length === 0) {
-    return (
-      <div className="text-center py-12 text-sm text-muted-foreground">
-        <Link2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-        Aucune entité liée à cet espace.
-        <div className="text-xs mt-1">
-          Lie un email, une tâche, une réunion ou un document depuis son menu d'action.
-        </div>
-      </div>
-    );
-  }
-
   const grouped = links.reduce<Record<string, LinkRow[]>>((acc, l) => {
     (acc[l.entity_type] ??= []).push(l);
     return acc;
   }, {});
 
   return (
-    <div className="p-4 space-y-6">
-      {Object.entries(grouped).map(([type, rows]) => {
-        const Icon = ICONS[type] ?? Link2;
-        return (
-          <section key={type}>
-            <div className="flex items-center gap-2 mb-2">
-              <Icon className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold">{LABELS[type] ?? type}</h3>
-              <Badge variant="secondary">{rows.length}</Badge>
-            </div>
-            <div className="border rounded-md divide-y">
-              {rows.map((l) => {
-                const href = entityHref(l);
-                const content = (
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{entityLabel(l)}</div>
-                    {l.note && (
-                      <div className="text-xs text-muted-foreground truncate italic">
-                        {l.note}
+    <div className="p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold">Entités liées</h2>
+        <Button size="sm" onClick={() => setPickerOpen(true)}>
+          <Plus className="h-3.5 w-3.5 mr-1" /> Lier
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-10 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+      ) : links.length === 0 ? (
+        <div className="text-center py-12 text-sm text-muted-foreground">
+          <Link2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          Aucune entité liée à cet espace.
+          <div className="text-xs mt-1">
+            Clique sur « Lier » pour rechercher et attacher un email, une tâche, une
+            réunion, un contact ou un document.
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(grouped).map(([type, rows]) => {
+            const Icon = ICONS[type] ?? Link2;
+            return (
+              <section key={type}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                  <h3 className="text-sm font-semibold">{LABELS[type] ?? type}</h3>
+                  <Badge variant="secondary">{rows.length}</Badge>
+                </div>
+                <div className="border rounded-md divide-y">
+                  {rows.map((l) => {
+                    const href = entityHref(l);
+                    const content = (
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{entityLabel(l)}</div>
+                        {l.note && (
+                          <div className="text-xs text-muted-foreground truncate italic">
+                            {l.note}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-                return (
-                  <div key={l.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/40">
-                    {href ? (
-                      <Link to={href} className="flex-1 min-w-0 hover:underline">
-                        {content}
-                      </Link>
-                    ) : (
-                      content
-                    )}
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={() => remove.mutate(l.id)}
-                      title="Délier"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })}
+                    );
+                    return (
+                      <div key={l.id} className="flex items-center gap-2 px-3 py-2 hover:bg-muted/40">
+                        {href ? (
+                          <Link to={href} className="flex-1 min-w-0 hover:underline">
+                            {content}
+                          </Link>
+                        ) : (
+                          content
+                        )}
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => remove.mutate(l.id)}
+                          title="Délier"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      <LinkPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} spaceId={spaceId} />
     </div>
   );
 }

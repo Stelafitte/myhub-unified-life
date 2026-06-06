@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, MessageSquare, Link2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Loader2, MessageSquare, Link2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getSpaceActivity, getSpaceTree } from "@/lib/collab.functions";
+import { Button } from "@/components/ui/button";
+import { getSpaceActivity, getSpaceTree, countPendingWaSuggestions } from "@/lib/collab.functions";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -14,6 +16,7 @@ interface Props {
 export function CollabDashboard({ onSelect }: Props) {
   const activityFn = useServerFn(getSpaceActivity);
   const treeFn = useServerFn(getSpaceTree);
+  const waFn = useServerFn(countPendingWaSuggestions);
 
   const { data: activity, isLoading } = useQuery({
     queryKey: ["collab-activity-all"],
@@ -22,6 +25,10 @@ export function CollabDashboard({ onSelect }: Props) {
   const { data: tree } = useQuery({
     queryKey: ["collab-tree"],
     queryFn: () => treeFn(),
+  });
+  const { data: waCount } = useQuery({
+    queryKey: ["wa-suggestions-count"],
+    queryFn: () => waFn(),
   });
 
   const spaceName = (id: string) =>
@@ -37,6 +44,20 @@ export function CollabDashboard({ onSelect }: Props) {
           Activité récente sur tous tes espaces (7 derniers jours).
         </p>
       </header>
+
+      {(waCount?.count ?? 0) > 0 && (
+        <div className="rounded-lg border bg-accent/40 px-4 py-3 flex items-center gap-3">
+          <Sparkles className="h-5 w-5 text-primary shrink-0" />
+          <div className="flex-1 text-sm">
+            <span className="font-medium">{waCount?.count} suggestion(s) WhatsApp</span>{" "}
+            <span className="text-muted-foreground">à valider.</span>
+          </div>
+          <Link to="/collaborate/review">
+            <Button size="sm">Valider</Button>
+          </Link>
+        </div>
+      )}
+
 
       {isLoading ? (
         <div className="flex justify-center py-10 text-muted-foreground">
