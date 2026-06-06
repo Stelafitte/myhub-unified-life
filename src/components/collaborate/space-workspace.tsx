@@ -87,7 +87,7 @@ export function SpaceWorkspace() {
                   <TabsTrigger value="meetings" className="gap-1">
                     <CalendarClock className="h-3.5 w-3.5" /> Réunions
                   </TabsTrigger>
-                  <TabsTrigger value="files" disabled className="gap-1 opacity-50">
+                  <TabsTrigger value="files" className="gap-1">
                     <Paperclip className="h-3.5 w-3.5" /> Fichiers
                   </TabsTrigger>
                   <TabsTrigger value="wa" disabled className="gap-1 opacity-50">
