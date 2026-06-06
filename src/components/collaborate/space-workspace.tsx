@@ -91,7 +91,7 @@ export function SpaceWorkspace() {
                   <TabsTrigger value="files" className="gap-1">
                     <Paperclip className="h-3.5 w-3.5" /> Fichiers
                   </TabsTrigger>
-                  <TabsTrigger value="wa" disabled className="gap-1 opacity-50">
+                  <TabsTrigger value="wa" className="gap-1">
                     <Smartphone className="h-3.5 w-3.5" /> WhatsApp
                   </TabsTrigger>
                   <TabsTrigger value="polls" disabled className="gap-1 opacity-50">
