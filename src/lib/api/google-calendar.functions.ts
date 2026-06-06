@@ -864,4 +864,102 @@ export const deleteGoogleCalendarConnection = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * Push a single calendar event to Google (create or update).
+ * - No google_event_id → POST and stores google_event_id.
+ * - Has google_event_id → PATCH.
+ * Safe to call on event create/update inside MyHub Pro.
+ */
+export const pushCalendarEvent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ eventId: z.string().uuid() }))
+  .handler(async ({ data, context }) => {
+    const { userId } = context as { userId: string };
+
+    const { data: ev, error: evErr } = await supabaseAdmin
+      .from("calendar_events")
+      .select(
+        "id, user_id, title, description, location, start_at, end_at, is_all_day, recurrence_rule, google_event_id, gcal_connection_id, category",
+      )
+      .eq("id", data.eventId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (evErr || !ev) throw new Error("Événement introuvable");
+
+    let connectionId = ev.gcal_connection_id as string | null;
+    if (!connectionId) {
+      const { data: conn } = await supabaseAdmin
+        .from("google_calendar_connections")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .eq("category", ev.category === "perso" ? "perso" : "pro")
+        .in("sync_direction", ["bidirectional", "push"])
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (!conn) return { ok: false, skipped: true, reason: "no_connection" as const };
+      connectionId = conn.id as string;
+    }
+
+    const { data: conn, error: connErr } = await supabaseAdmin
+      .from("google_calendar_connections")
+      .select("id, access_token, refresh_token, expires_at, calendar_id, sync_direction")
+      .eq("id", connectionId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (connErr || !conn) throw new Error("Connexion Google introuvable");
+    if (conn.sync_direction === "pull") return { ok: false, skipped: true, reason: "pull_only" as const };
+
+    let accessToken = conn.access_token as string;
+    if (!conn.expires_at || new Date(conn.expires_at).getTime() <= Date.now() + 60_000) {
+      const refreshed = await refreshAccessToken(conn.refresh_token as string);
+      accessToken = refreshed.accessToken;
+      await supabaseAdmin
+        .from("google_calendar_connections")
+        .update({ access_token: accessToken, expires_at: refreshed.expiresAt, updated_at: new Date().toISOString() })
+        .eq("id", conn.id);
+    }
+
+    const calendarId = encodeURIComponent((conn.calendar_id as string) || "primary");
+    const payload = buildGooglePayload(ev);
+
+    if (ev.google_event_id) {
+      const res = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events/${encodeURIComponent(ev.google_event_id)}`,
+        {
+          method: "PATCH",
+          headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!res.ok) throw new Error(`Google PATCH failed (${res.status}): ${await res.text().catch(() => "")}`);
+      return { ok: true, action: "updated" as const, googleEventId: ev.google_event_id };
+    }
+
+    const res = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`,
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      },
+    );
+    if (!res.ok) throw new Error(`Google POST failed (${res.status}): ${await res.text().catch(() => "")}`);
+    const body = (await res.json()) as { id?: string };
+    if (!body.id) throw new Error("Google did not return an event id");
+
+    await supabaseAdmin
+      .from("calendar_events")
+      .update({
+        google_event_id: body.id,
+        external_id: body.id,
+        source: "google",
+        gcal_connection_id: connectionId,
+        sync_direction: "bidirectional",
+      })
+      .eq("id", ev.id);
+
+    return { ok: true, action: "created" as const, googleEventId: body.id };
+  });
 
