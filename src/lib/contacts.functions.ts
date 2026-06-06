@@ -55,8 +55,10 @@ async function computeSmartMembers(
   rules: SmartRules,
 ): Promise<string[]> {
   // Start from all user's contacts.
-  let q = supabase.from("contacts").select("id, organization, tags, sources, email").eq("user_id", userId);
-  const { data: contacts, error } = await q;
+  const { data: contacts, error } = await supabase
+    .from("contacts")
+    .select("id, organization, tags, sources, email")
+    .eq("user_id", userId);
   if (error) throw new Error(error.message);
 
   let pool = (contacts ?? []) as Array<{
