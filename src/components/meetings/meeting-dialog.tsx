@@ -169,7 +169,7 @@ export function MeetingDialog({
   const [acceptedCount, setAcceptedCount] = useState(0);
 
   // --- Poll mode state ---
-  const [pollMode, setPollMode] = useState(false);
+  const [pollMode, setPollMode] = useState(initialPollMode);
   const [pollSlots, setPollSlots] = useState<{ id?: string; startAt: string; endAt: string }[]>([]);
   const [pollDeadline, setPollDeadline] = useState<string>("");
   const [existingPoll, setExistingPoll] = useState<{ id: string; public_token: string; status?: string } | null>(null);
