@@ -217,24 +217,37 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
     const before = draft.slice(0, caret).replace(/\/[a-z]*$/i, "");
     setDraft(before + draft.slice(caret));
 
-    if (cmd === "ia") {
-      setAiOpen(true);
-      return;
+    switch (cmd) {
+      case "ia":
+        setAiOpen(true);
+        return;
+      case "tache":
+        setTaskOpen(true);
+        return;
+      case "reunion":
+        setMeetingPollMode(false);
+        setMeetingOpen(true);
+        return;
+      case "sondage":
+        setMeetingPollMode(true);
+        setMeetingOpen(true);
+        return;
+      case "doc":
+        setDocOpen(true);
+        return;
     }
-    // For task/meeting/poll/doc, navigate to the relevant module. Linking will
-    // be done from that module via the existing entity menus, then surfaced in
-    // the Liens tab of this space.
-    const targets: Record<ChatSlashCommand, string> = {
-      tache: "/tasks",
-      reunion: "/meetings",
-      sondage: "/meetings",
-      doc: "/documents",
-      ia: "/collaborate",
-    };
-    toast.info(`Ouvre ${cmd === "sondage" ? "Réunions (sondage)" : cmd}…`, {
-      description: "Crée l'entité puis reviens l'attacher via « + Lier ».",
-    });
-    navigate({ to: targets[cmd] });
+  };
+
+  const autoLink = async (
+    entityType: "task" | "meeting" | "document",
+    entityId: string,
+  ) => {
+    try {
+      await linkFn({ data: { spaceId, entityType, entityId } });
+      toast.success("Lié à l'espace");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur de liaison");
+    }
   };
 
   const onFiles = async (files: FileList | null) => {
