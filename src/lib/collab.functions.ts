@@ -426,3 +426,32 @@ export const listSpaceMeetings = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return { meetings: meetings ?? [], linkByMeetingId };
   });
+
+/** Liste les documents (fichiers) liés à un espace. */
+export const listSpaceFiles = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: links, error: lErr } = await supabase
+      .from("collab_space_links")
+      .select("id,entity_id,user_id,created_at,note")
+      .eq("space_id", data.spaceId)
+      .eq("entity_type", "document");
+    if (lErr) throw new Error(lErr.message);
+    const ids = (links ?? []).map((l) => l.entity_id);
+    const linkByDocId: Record<string, { linkId: string; uploaderId: string; linkedAt: string }> = {};
+    for (const l of links ?? []) {
+      linkByDocId[l.entity_id] = { linkId: l.id, uploaderId: l.user_id, linkedAt: l.created_at };
+    }
+    if (!ids.length) return { files: [], linkByDocId };
+    const { data: files, error } = await supabase
+      .from("documents")
+      .select(
+        "id,filename,original_filename,file_size,mime_type,storage_path,is_sensitive,local_only,user_id,created_at,description,tags",
+      )
+      .in("id", ids)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { files: files ?? [], linkByDocId };
+  });
