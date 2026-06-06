@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SurveyTokenRouteImport } from './routes/survey.$token'
 import { Route as SpaceTokenRouteImport } from './routes/space.$token'
 import { Route as PollTokenRouteImport } from './routes/poll.$token'
+import { Route as AuthenticatedWhatsappRouteImport } from './routes/_authenticated/whatsapp'
 import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
 import { Route as AuthenticatedStatsRouteImport } from './routes/_authenticated/stats'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -80,6 +81,11 @@ const PollTokenRoute = PollTokenRouteImport.update({
   id: '/poll/$token',
   path: '/poll/$token',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedWhatsappRoute = AuthenticatedWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedTasksRoute = AuthenticatedTasksRouteImport.update({
   id: '/tasks',
@@ -231,6 +237,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/stats': typeof AuthenticatedStatsRoute
   '/tasks': typeof AuthenticatedTasksRoute
+  '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
   '/survey/$token': typeof SurveyTokenRoute
@@ -264,6 +271,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/stats': typeof AuthenticatedStatsRoute
   '/tasks': typeof AuthenticatedTasksRoute
+  '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
   '/survey/$token': typeof SurveyTokenRoute
@@ -299,6 +307,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/stats': typeof AuthenticatedStatsRoute
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
+  '/_authenticated/whatsapp': typeof AuthenticatedWhatsappRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
   '/survey/$token': typeof SurveyTokenRoute
@@ -334,6 +343,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stats'
     | '/tasks'
+    | '/whatsapp'
     | '/poll/$token'
     | '/space/$token'
     | '/survey/$token'
@@ -367,6 +377,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stats'
     | '/tasks'
+    | '/whatsapp'
     | '/poll/$token'
     | '/space/$token'
     | '/survey/$token'
@@ -401,6 +412,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/stats'
     | '/_authenticated/tasks'
+    | '/_authenticated/whatsapp'
     | '/poll/$token'
     | '/space/$token'
     | '/survey/$token'
@@ -487,6 +499,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/poll/$token'
       preLoaderRoute: typeof PollTokenRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/whatsapp': {
+      id: '/_authenticated/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof AuthenticatedWhatsappRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/tasks': {
       id: '/_authenticated/tasks'
@@ -708,6 +727,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStatsRoute: typeof AuthenticatedStatsRoute
   AuthenticatedTasksRoute: typeof AuthenticatedTasksRoute
+  AuthenticatedWhatsappRoute: typeof AuthenticatedWhatsappRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -727,6 +747,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStatsRoute: AuthenticatedStatsRoute,
   AuthenticatedTasksRoute: AuthenticatedTasksRoute,
+  AuthenticatedWhatsappRoute: AuthenticatedWhatsappRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
