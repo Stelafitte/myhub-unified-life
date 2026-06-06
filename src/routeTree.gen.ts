@@ -14,6 +14,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SpaceTokenRouteImport } from './routes/space.$token'
 import { Route as PollTokenRouteImport } from './routes/poll.$token'
 import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
 import { Route as AuthenticatedStatsRouteImport } from './routes/_authenticated/stats'
@@ -60,6 +61,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SpaceTokenRoute = SpaceTokenRouteImport.update({
+  id: '/space/$token',
+  path: '/space/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PollTokenRoute = PollTokenRouteImport.update({
@@ -207,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/stats': typeof AuthenticatedStatsRoute
   '/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
+  '/space/$token': typeof SpaceTokenRoute
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
@@ -236,6 +243,7 @@ export interface FileRoutesByTo {
   '/stats': typeof AuthenticatedStatsRoute
   '/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
+  '/space/$token': typeof SpaceTokenRoute
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
@@ -267,6 +275,7 @@ export interface FileRoutesById {
   '/_authenticated/stats': typeof AuthenticatedStatsRoute
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
   '/poll/$token': typeof PollTokenRoute
+  '/space/$token': typeof SpaceTokenRoute
   '/_authenticated/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/_authenticated/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
@@ -298,6 +307,7 @@ export interface FileRouteTypes {
     | '/stats'
     | '/tasks'
     | '/poll/$token'
+    | '/space/$token'
     | '/collaborate/review'
     | '/api/google-calendar/callback'
     | '/collaborate/space/$spaceId'
@@ -327,6 +337,7 @@ export interface FileRouteTypes {
     | '/stats'
     | '/tasks'
     | '/poll/$token'
+    | '/space/$token'
     | '/collaborate/review'
     | '/api/google-calendar/callback'
     | '/collaborate/space/$spaceId'
@@ -357,6 +368,7 @@ export interface FileRouteTypes {
     | '/_authenticated/stats'
     | '/_authenticated/tasks'
     | '/poll/$token'
+    | '/space/$token'
     | '/_authenticated/collaborate/review'
     | '/api/google-calendar/callback'
     | '/_authenticated/collaborate/space/$spaceId'
@@ -372,6 +384,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   PollTokenRoute: typeof PollTokenRoute
+  SpaceTokenRoute: typeof SpaceTokenRoute
   ApiGoogleCalendarCallbackRoute: typeof ApiGoogleCalendarCallbackRoute
   ApiPublicHooksRsvpRemindersRoute: typeof ApiPublicHooksRsvpRemindersRoute
   ApiPublicPollTokenFilesRoute: typeof ApiPublicPollTokenFilesRoute
@@ -412,6 +425,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/space/$token': {
+      id: '/space/$token'
+      path: '/space/$token'
+      fullPath: '/space/$token'
+      preLoaderRoute: typeof SpaceTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/poll/$token': {
@@ -659,6 +679,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   PollTokenRoute: PollTokenRoute,
+  SpaceTokenRoute: SpaceTokenRoute,
   ApiGoogleCalendarCallbackRoute: ApiGoogleCalendarCallbackRoute,
   ApiPublicHooksRsvpRemindersRoute: ApiPublicHooksRsvpRemindersRoute,
   ApiPublicPollTokenFilesRoute: ApiPublicPollTokenFilesRoute,
