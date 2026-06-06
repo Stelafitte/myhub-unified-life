@@ -15,6 +15,7 @@ import { SpaceWhatsappTab } from "./space-whatsapp-tab";
 import { SpacePollsTab } from "./space-polls-tab";
 import { SpaceShareButton } from "./space-share-button";
 import { CollabDashboard } from "./collab-dashboard";
+import { GroupFormDialog } from "@/components/contacts/group-form-dialog";
 import { getSpaceTree, getSpaceActivity } from "@/lib/collab.functions";
 import { useAuth } from "@/lib/auth-context";
 import { formatDistanceToNow } from "date-fns";
@@ -30,6 +31,7 @@ export function SpaceWorkspace() {
   const { user } = useAuth();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [rightOpen, setRightOpen] = useState(true);
+  const [groupFromSpaceOpen, setGroupFromSpaceOpen] = useState(false);
 
   const treeFn = useServerFn(getSpaceTree);
   const { data: tree } = useQuery({
@@ -162,9 +164,21 @@ export function SpaceWorkspace() {
                 )}
               </div>
             </div>
+            <Button size="sm" variant="outline" className="w-full justify-start" onClick={() => setGroupFromSpaceOpen(true)}>
+              👥 Créer un groupe depuis cet espace
+            </Button>
           </aside>
         )}
       </main>
+      {active && (
+        <GroupFormDialog
+          open={groupFromSpaceOpen}
+          onOpenChange={setGroupFromSpaceOpen}
+          onCreated={() => setGroupFromSpaceOpen(false)}
+          defaultSpaceId={active.id}
+          defaultType="space"
+        />
+      )}
     </div>
   );
 }

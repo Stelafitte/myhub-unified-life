@@ -46,6 +46,9 @@ import { confirmDialog } from "@/lib/confirm-dialog";
 import { ContactGroupsPanel } from "@/components/contacts/contact-groups-panel";
 import { ContactConnectionsBar } from "@/components/contacts/contact-connections-bar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { getContactGroupMemberships } from "@/lib/contacts.functions";
 
 type Contact = {
   id: string;
@@ -817,6 +820,11 @@ function ContactDetail({
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeFrom, setComposeFrom] = useState<string>(accounts[0]?.id ?? "");
+  const membershipsFn = useServerFn(getContactGroupMemberships);
+  const { data: memberships } = useQuery({
+    queryKey: ["contact-group-memberships", contact.id],
+    queryFn: () => membershipsFn({ data: { contactId: contact.id } }),
+  });
 
   useEffect(() => setNotes(contact.notes ?? ""), [contact.id, contact.notes]);
 
@@ -949,6 +957,29 @@ function ContactDetail({
             </div>
           </Section>
         )}
+
+        {/* Groupes & Projets */}
+        <Section title="Groupes & Projets">
+          {(memberships?.groups ?? []).length === 0 ? (
+            <div className="text-xs italic text-muted-foreground">Aucun groupe</div>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {(memberships?.groups ?? []).map((g) => (
+                <Badge
+                  key={g.id}
+                  variant="outline"
+                  className="gap-1 text-[10px]"
+                  style={g.color ? { borderColor: g.color, color: g.color } : undefined}
+                >
+                  <span>{g.icon ?? "👥"}</span>
+                  {g.name}
+                  {g.space_id && <span className="opacity-60">· espace</span>}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </Section>
+
 
         {/* Email history */}
         <Section
