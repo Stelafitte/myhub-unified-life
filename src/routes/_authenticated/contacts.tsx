@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
 import { confirmDialog } from "@/lib/confirm-dialog";
 import { ContactGroupsPanel } from "@/components/contacts/contact-groups-panel";
+import { ContactConnectionsBar } from "@/components/contacts/contact-connections-bar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 type Contact = {
