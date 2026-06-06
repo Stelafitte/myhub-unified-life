@@ -95,7 +95,8 @@ export const syncGoogleContacts = createServerFn({ method: "POST" })
           const avatar = p.photos?.[0]?.url ?? null;
           const primaryEmail = emails[0];
 
-          let existing: { id: string; sources: string[] | null; external_ids: Record<string, string> | null } | null = null;
+          type ExistingContact = { id: string; sources: string[] | null; external_ids: Record<string, string> | null };
+          let existing: ExistingContact | null = null;
           if (primaryEmail) {
             const { data: match } = await supabaseAdmin
               .from("contacts")
@@ -103,7 +104,7 @@ export const syncGoogleContacts = createServerFn({ method: "POST" })
               .eq("user_id", userId)
               .contains("email", [primaryEmail])
               .maybeSingle();
-            existing = match as typeof existing;
+            existing = (match as ExistingContact | null) ?? null;
           }
           if (!existing) {
             const { data: byId } = await supabaseAdmin
@@ -112,7 +113,7 @@ export const syncGoogleContacts = createServerFn({ method: "POST" })
               .eq("user_id", userId)
               .contains("external_ids", { google: p.resourceName })
               .maybeSingle();
-            existing = byId as typeof existing;
+            existing = (byId as ExistingContact | null) ?? null;
           }
 
           if (existing) {
