@@ -16,6 +16,7 @@ interface Props {
 export function CollabDashboard({ onSelect }: Props) {
   const activityFn = useServerFn(getSpaceActivity);
   const treeFn = useServerFn(getSpaceTree);
+  const waFn = useServerFn(countPendingWaSuggestions);
 
   const { data: activity, isLoading } = useQuery({
     queryKey: ["collab-activity-all"],
@@ -24,6 +25,10 @@ export function CollabDashboard({ onSelect }: Props) {
   const { data: tree } = useQuery({
     queryKey: ["collab-tree"],
     queryFn: () => treeFn(),
+  });
+  const { data: waCount } = useQuery({
+    queryKey: ["wa-suggestions-count"],
+    queryFn: () => waFn(),
   });
 
   const spaceName = (id: string) =>
