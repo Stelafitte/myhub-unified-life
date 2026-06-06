@@ -10,6 +10,7 @@ import { SpaceLinksTab } from "./space-links-tab";
 import { SpaceTasksTab } from "./space-tasks-tab";
 import { SpaceMeetingsTab } from "./space-meetings-tab";
 import { DocumentsTab } from "./documents-tab";
+import { SpaceFilesTab } from "./space-files-tab";
 import { CollabDashboard } from "./collab-dashboard";
 import { getSpaceTree, getSpaceActivity } from "@/lib/collab.functions";
 import { useAuth } from "@/lib/auth-context";
