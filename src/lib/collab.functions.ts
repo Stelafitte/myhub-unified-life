@@ -793,9 +793,18 @@ export const getSpaceSurveyDetail = createServerFn({ method: "GET" })
     return { survey, questions: questions ?? [], responses: responses ?? [] };
   });
 
-/** Lecture publique d'un espace via son token (anon ok si is_public). */
+/** Lecture publique d'un espace via son token (anon ok si is_public).
+ *  Si guest_token fourni et valide, élève le rôle (viewer / contributor)
+ *  → contributor voit aussi les sondages clôturés. */
 export const getPublicSpace = createServerFn({ method: "GET" })
-  .inputValidator((input) => z.object({ token: z.string().min(8).max(64) }).parse(input))
+  .inputValidator((input) =>
+    z
+      .object({
+        token: z.string().min(8).max(64),
+        guest_token: z.string().min(8).max(64).optional(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data }) => {
     const { createClient } = await import("@supabase/supabase-js");
     const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
@@ -809,15 +818,30 @@ export const getPublicSpace = createServerFn({ method: "GET" })
       .eq("is_public", true)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!space) return { space: null, surveys: [], polls: [] };
+    if (!space) return { space: null, surveys: [], polls: [], guest: null };
 
-    const [{ data: surveys }, { data: links }] = await Promise.all([
-      sb
-        .from("collab_surveys")
-        .select("id,title,description,public_token,status,deadline,allow_anonymous")
+    // Optional guest lookup
+    let guest: { id: string; name: string; role: "viewer" | "contributor" } | null = null;
+    if (data.guest_token) {
+      const { data: g } = await sb
+        .from("collab_guests")
+        .select("id,name,role,space_id")
+        .eq("access_token", data.guest_token)
         .eq("space_id", space.id)
-        .eq("status", "open")
-        .order("created_at", { ascending: false }),
+        .maybeSingle();
+      if (g) guest = { id: g.id, name: g.name, role: (g.role as "viewer" | "contributor") ?? "viewer" };
+    }
+
+    const isContributor = guest?.role === "contributor";
+
+    let surveysQ = sb
+      .from("collab_surveys")
+      .select("id,title,description,public_token,status,deadline,allow_anonymous")
+      .eq("space_id", space.id)
+      .order("created_at", { ascending: false });
+    if (!isContributor) surveysQ = surveysQ.eq("status", "open");
+    const [{ data: surveys }, { data: links }] = await Promise.all([
+      surveysQ,
       sb
         .from("collab_space_links")
         .select("entity_id")
@@ -828,15 +852,99 @@ export const getPublicSpace = createServerFn({ method: "GET" })
     const meetingIds = (links ?? []).map((l) => l.entity_id);
     let polls: Array<{ id: string; title: string; public_token: string; status: string; deadline: string | null }> = [];
     if (meetingIds.length > 0) {
-      const { data: pollRows } = await sb
+      let pollsQ = sb
         .from("meeting_polls")
         .select("id,title,public_token,status,deadline")
-        .in("meeting_id", meetingIds)
-        .eq("status", "open");
+        .in("meeting_id", meetingIds);
+      if (!isContributor) pollsQ = pollsQ.eq("status", "open");
+      const { data: pollRows } = await pollsQ;
       polls = pollRows ?? [];
     }
 
-    return { space, surveys: surveys ?? [], polls };
+    return { space, surveys: surveys ?? [], polls, guest };
+  });
+
+/** Liste les invités d'un espace (owner only). */
+export const listSpaceGuests = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: rows, error } = await supabase
+      .from("collab_guests")
+      .select("id,name,email,role,access_token,status,created_at")
+      .eq("space_id", data.spaceId)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { guests: rows ?? [] };
+  });
+
+/** Ajoute un invité (génère un access_token unique). */
+export const addSpaceGuest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        spaceId: z.string().uuid(),
+        name: z.string().min(1).max(160),
+        email: z.string().email().max(255).nullable().optional(),
+        role: z.enum(["viewer", "contributor"]).default("viewer"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase
+      .from("collab_guests")
+      .insert({
+        space_id: data.spaceId,
+        user_id: userId,
+        name: data.name,
+        email: data.email ?? null,
+        role: data.role,
+      })
+      .select("id,name,email,role,access_token,status,created_at")
+      .single();
+    if (error) throw new Error(error.message);
+    return { guest: row };
+  });
+
+/** Met à jour le rôle d'un invité. */
+export const updateSpaceGuestRole = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        role: z.enum(["viewer", "contributor"]),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("collab_guests")
+      .update({ role: data.role })
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Supprime un invité. */
+export const removeSpaceGuest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("collab_guests")
+      .delete()
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 /** Active/désactive l'accès public d'un espace + description publique. */

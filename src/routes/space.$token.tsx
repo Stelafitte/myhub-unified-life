@@ -1,15 +1,19 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, ClipboardList, CalendarClock, ExternalLink } from "lucide-react";
+import { Loader2, ClipboardList, CalendarClock, ExternalLink, UserCheck } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { z } from "zod";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getPublicSpace } from "@/lib/collab.functions";
 
+const searchSchema = z.object({ g: z.string().optional() });
+
 export const Route = createFileRoute("/space/$token")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: "Espace public" },
@@ -22,10 +26,11 @@ export const Route = createFileRoute("/space/$token")({
 
 function PublicSpacePage() {
   const { token } = Route.useParams();
+  const { g: guestToken } = useSearch({ from: "/space/$token" });
   const fn = useServerFn(getPublicSpace);
   const { data, isLoading } = useQuery({
-    queryKey: ["public-space", token],
-    queryFn: () => fn({ data: { token } }),
+    queryKey: ["public-space", token, guestToken ?? ""],
+    queryFn: () => fn({ data: { token, guest_token: guestToken } }),
   });
 
   if (isLoading) {
@@ -47,7 +52,9 @@ function PublicSpacePage() {
     );
   }
 
-  const { space, surveys, polls } = data;
+  const { space, surveys, polls, guest } = data;
+  const guestLink = (path: string) =>
+    guest ? `${path}${path.includes("?") ? "&" : "?"}g=${guestToken}` : path;
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 space-y-6">
@@ -64,7 +71,15 @@ function PublicSpacePage() {
           </span>
           <div>
             <h1 className="text-2xl font-semibold">{space.name}</h1>
-            <Badge variant="outline" className="text-[10px] mt-1">Espace public</Badge>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="outline" className="text-[10px]">Espace public</Badge>
+              {guest && (
+                <Badge variant="secondary" className="text-[10px] gap-1">
+                  <UserCheck className="h-3 w-3" />
+                  {guest.name} · {guest.role === "contributor" ? "Contributeur" : "Lecteur"}
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
         {space.public_description && (
@@ -77,18 +92,23 @@ function PublicSpacePage() {
       <section className="space-y-3">
         <h2 className="text-sm font-semibold flex items-center gap-2">
           <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          Sondages d'opinion ouverts
+          Sondages d'opinion
           <Badge variant="secondary">{surveys.length}</Badge>
         </h2>
         {surveys.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun sondage ouvert.</p>
+          <p className="text-sm text-muted-foreground">Aucun sondage disponible.</p>
         ) : (
           <ul className="space-y-2">
             {surveys.map((s) => (
               <li key={s.id}>
                 <Card className="p-3 flex items-start gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{s.title}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{s.title}</span>
+                      {s.status !== "open" && (
+                        <Badge variant="outline" className="text-[10px] bg-muted">Clôturé</Badge>
+                      )}
+                    </div>
                     {s.description && (
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
                         {s.description}
@@ -100,11 +120,13 @@ function PublicSpacePage() {
                       </div>
                     )}
                   </div>
-                  <Button asChild size="sm">
-                    <a href={`/survey/${s.public_token}`}>
-                      Répondre <ExternalLink className="h-3 w-3 ml-1" />
-                    </a>
-                  </Button>
+                  {s.status === "open" && (
+                    <Button asChild size="sm">
+                      <a href={guestLink(`/survey/${s.public_token}`)}>
+                        Répondre <ExternalLink className="h-3 w-3 ml-1" />
+                      </a>
+                    </Button>
+                  )}
                 </Card>
               </li>
             ))}
@@ -115,29 +137,36 @@ function PublicSpacePage() {
       <section className="space-y-3">
         <h2 className="text-sm font-semibold flex items-center gap-2">
           <CalendarClock className="h-4 w-4 text-muted-foreground" />
-          Sondages de réunion ouverts
+          Sondages de réunion
           <Badge variant="secondary">{polls.length}</Badge>
         </h2>
         {polls.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun sondage de réunion ouvert.</p>
+          <p className="text-sm text-muted-foreground">Aucun sondage de réunion.</p>
         ) : (
           <ul className="space-y-2">
             {polls.map((p) => (
               <li key={p.id}>
                 <Card className="p-3 flex items-start gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{p.title}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{p.title}</span>
+                      {p.status !== "open" && (
+                        <Badge variant="outline" className="text-[10px] bg-muted">Clôturé</Badge>
+                      )}
+                    </div>
                     {p.deadline && (
                       <div className="text-xs text-muted-foreground mt-1">
                         jusqu'au {format(new Date(p.deadline), "d MMM yyyy HH:mm", { locale: fr })}
                       </div>
                     )}
                   </div>
-                  <Button asChild size="sm">
-                    <a href={`/poll/${p.public_token}`}>
-                      Voter <ExternalLink className="h-3 w-3 ml-1" />
-                    </a>
-                  </Button>
+                  {p.status === "open" && (
+                    <Button asChild size="sm">
+                      <a href={guestLink(`/poll/${p.public_token}`)}>
+                        Voter <ExternalLink className="h-3 w-3 ml-1" />
+                      </a>
+                    </Button>
+                  )}
                 </Card>
               </li>
             ))}
