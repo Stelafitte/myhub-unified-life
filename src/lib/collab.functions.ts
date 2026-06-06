@@ -224,31 +224,11 @@ export const listSpaceLinks = createServerFn({ method: "GET" })
     };
 
     const [emails, tasks, meetings, documents, contacts] = await Promise.all([
-      enrich<{ id: string; subject: string | null; from_address: string | null; received_at: string | null }>(
-        "emails",
-        grouped.email,
-        "id,subject,from_address,received_at",
-      ),
-      enrich<{ id: string; title: string | null; status: string | null; due_at: string | null }>(
-        "tasks",
-        grouped.task,
-        "id,title,status,due_at",
-      ),
-      enrich<{ id: string; title: string | null; start_at: string | null; end_at: string | null; status: string | null }>(
-        "meetings",
-        grouped.meeting,
-        "id,title,start_at,end_at,status",
-      ),
-      enrich<{ id: string; filename: string | null; mime_type: string | null }>(
-        "documents",
-        grouped.document,
-        "id,filename,mime_type",
-      ),
-      enrich<{ id: string; first_name: string | null; last_name: string | null; organization: string | null }>(
-        "contacts",
-        grouped.contact,
-        "id,first_name,last_name,organization",
-      ),
+      enrich("emails", grouped.email, "id,subject,from_address,received_at"),
+      enrich("tasks", grouped.task, "id,title,status,due_at"),
+      enrich("meetings", grouped.meeting, "id,title,start_at,end_at,status"),
+      enrich("documents", grouped.document, "id,filename,mime_type"),
+      enrich("contacts", grouped.contact, "id,first_name,last_name,organization"),
     ]);
 
     const enriched = (links ?? []).map((l) => {
