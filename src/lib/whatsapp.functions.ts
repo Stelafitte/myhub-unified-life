@@ -162,3 +162,96 @@ export const getWaWebhookSetup = createServerFn({ method: "POST" })
       subscribed_fields: ["messages", "message_template_status_update"],
     };
   });
+
+/** Send an outbound WhatsApp text message via Meta Cloud API. */
+export const sendWaMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        connection_id: z.string().uuid(),
+        to: z.string().min(5).max(32), // E.164 without +, ex: 33612345678
+        body: z.string().min(1).max(4096),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: conn, error: connErr } = await supabase
+      .from("wa_business_connections")
+      .select("id,phone_number_id,access_token,is_active")
+      .eq("id", data.connection_id)
+      .maybeSingle();
+    if (connErr) throw new Error(connErr.message);
+    if (!conn) throw new Error("Connexion introuvable");
+    if (!conn.is_active) throw new Error("Connexion inactive");
+
+    const to = data.to.replace(/[^\d]/g, "");
+
+    const res = await fetch(
+      `https://graph.facebook.com/${GRAPH_VERSION}/${encodeURIComponent(conn.phone_number_id)}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${conn.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to,
+          type: "text",
+          text: { preview_url: false, body: data.body },
+        }),
+      },
+    );
+
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = json?.error?.message ?? `HTTP ${res.status}`;
+      throw new Error(`Envoi WhatsApp échoué: ${msg}`);
+    }
+
+    const wa_message_id: string | undefined = json?.messages?.[0]?.id;
+    if (wa_message_id) {
+      await supabase.from("wa_messages").insert({
+        connection_id: conn.id,
+        user_id: userId,
+        wa_message_id,
+        from_number: to,
+        is_from_me: true,
+        type: "text",
+        content: data.body,
+        status: "sent",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return { ok: true, wa_message_id: wa_message_id ?? null };
+  });
+
+/** List recent WhatsApp messages for a connection (in + out). */
+export const listWaMessages = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        connection_id: z.string().uuid(),
+        peer_number: z.string().min(3).max(32).optional(),
+        limit: z.number().int().min(1).max(200).default(50),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("wa_messages")
+      .select("id,wa_message_id,from_number,from_name,is_from_me,type,content,media_mime_type,status,timestamp,ai_category,ai_action_suggested")
+      .eq("connection_id", data.connection_id)
+      .order("timestamp", { ascending: false })
+      .limit(data.limit);
+    if (data.peer_number) q = q.eq("from_number", data.peer_number.replace(/[^\d]/g, ""));
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
