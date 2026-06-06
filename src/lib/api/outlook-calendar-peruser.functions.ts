@@ -134,7 +134,7 @@ export const syncOutlookCalendar = createServerFn({ method: "POST" })
             errors.push((err as Error).message);
           }
         }
-        nextLink = (body["@odata.nextLink"] as string | undefined) ?? null;
+        nextLink = body["@odata.nextLink"] ?? null;
       }
     }
 
