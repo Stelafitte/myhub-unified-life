@@ -238,6 +238,68 @@ export type Database = {
           },
         ]
       }
+      collab_contact_groups: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          group_type: string
+          icon: string | null
+          id: string
+          is_smart: boolean
+          last_synced_at: string | null
+          member_count: number
+          name: string
+          smart_rules: Json
+          source: string
+          space_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          group_type?: string
+          icon?: string | null
+          id?: string
+          is_smart?: boolean
+          last_synced_at?: string | null
+          member_count?: number
+          name: string
+          smart_rules?: Json
+          source?: string
+          space_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          group_type?: string
+          icon?: string | null
+          id?: string
+          is_smart?: boolean
+          last_synced_at?: string | null
+          member_count?: number
+          name?: string
+          smart_rules?: Json
+          source?: string
+          space_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_contact_groups_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collab_document_comments: {
         Row: {
           anchor_from: number | null
@@ -575,6 +637,51 @@ export type Database = {
             columns: ["space_id"]
             isOneToOne: false
             referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_group_members: {
+        Row: {
+          added_by: string
+          contact_id: string | null
+          created_at: string
+          external_email: string | null
+          external_name: string | null
+          group_id: string
+          id: string
+        }
+        Insert: {
+          added_by?: string
+          contact_id?: string | null
+          created_at?: string
+          external_email?: string | null
+          external_name?: string | null
+          group_id: string
+          id?: string
+        }
+        Update: {
+          added_by?: string
+          contact_id?: string | null
+          created_at?: string
+          external_email?: string | null
+          external_name?: string | null
+          group_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_group_members_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "collab_contact_groups"
             referencedColumns: ["id"]
           },
         ]
