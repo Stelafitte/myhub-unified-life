@@ -374,3 +374,28 @@ export const searchLinkable = createServerFn({ method: "GET" })
       document: documents.data ?? [],
     };
   });
+
+/** Liste les tâches liées à un espace + map linkId par tâche. */
+export const listSpaceTasks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: links, error: lErr } = await supabase
+      .from("collab_space_links")
+      .select("id,entity_id")
+      .eq("space_id", data.spaceId)
+      .eq("entity_type", "task");
+    if (lErr) throw new Error(lErr.message);
+    const ids = (links ?? []).map((l) => l.entity_id);
+    const linkByTaskId: Record<string, string> = {};
+    for (const l of links ?? []) linkByTaskId[l.entity_id] = l.id;
+    if (!ids.length) return { tasks: [], linkByTaskId };
+    const { data: tasks, error } = await supabase
+      .from("tasks")
+      .select("*")
+      .in("id", ids)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { tasks: tasks ?? [], linkByTaskId };
+  });
