@@ -31,6 +31,7 @@ export function SpaceWorkspace() {
   const { user } = useAuth();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [rightOpen, setRightOpen] = useState(true);
+  const [groupFromSpaceOpen, setGroupFromSpaceOpen] = useState(false);
 
   const treeFn = useServerFn(getSpaceTree);
   const { data: tree } = useQuery({
