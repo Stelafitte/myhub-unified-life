@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { MeetingDialog } from "@/components/meetings/meeting-dialog";
 import { listSpacePolls, linkEntityToSpace } from "@/lib/collab.functions";
+import { SpaceSurveysSection } from "./space-surveys-section";
 
 interface Props {
   spaceId: string;
@@ -70,8 +71,10 @@ export function SpacePollsTab({ spaceId }: Props) {
   };
 
   return (
-    <div className="flex flex-col h-full p-4 gap-3">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className="flex flex-col h-full p-4 gap-4 overflow-y-auto">
+      <SpaceSurveysSection spaceId={spaceId} />
+
+      <div className="flex items-center justify-between gap-2 flex-wrap pt-2 border-t">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Sondages de créneaux</h2>
           <Badge variant="secondary">{polls.length}</Badge>
