@@ -1,7 +1,7 @@
 // MyHub Pro v1.0
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { LayoutDashboard, Inbox, CheckSquare, Calendar, Users, ClipboardList, Settings, Lock, CalendarClock, FolderOpen, BarChart3, Shield } from "lucide-react";
+import { LayoutDashboard, Inbox, CheckSquare, Calendar, Users, ClipboardList, Settings, Lock, CalendarClock, FolderOpen, BarChart3, Shield, Handshake } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -27,6 +27,7 @@ const baseItems = [
   { title: "Réunions", url: "/meetings", icon: CalendarClock },
   { title: "Documents", url: "/documents", icon: FolderOpen },
   { title: "Contacts", url: "/contacts", icon: Users },
+  { title: "Collaboratif", url: "/collaborate", icon: Handshake },
   { title: "Plan d'opération", url: "/plan-operation", icon: ClipboardList },
   { title: "Stats", url: "/stats", icon: BarChart3 },
 ] as const;
