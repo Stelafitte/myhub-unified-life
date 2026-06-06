@@ -14,7 +14,6 @@ import {
   Search,
   Loader2,
   Lock,
-  FileIcon,
   Link2,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -26,10 +25,9 @@ import {
   uploadToStorage,
   downloadAsBlob,
   removeFromStorage,
-  getSignedUrl,
   type DocumentRow,
 } from "@/lib/documents";
-import { iconFor, colorFor, formatBytes } from "@/lib/file-icons";
+import { categorize, iconFor, colorFor, formatBytes } from "@/lib/file-icons";
 import { DocumentPreviewSheet } from "@/components/documents/document-preview-sheet";
 import { LinkPickerDialog } from "./link-picker-dialog";
 import { confirmDialog } from "@/lib/confirm-dialog";
