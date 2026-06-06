@@ -132,13 +132,15 @@ export function MeetingDialog({
   initial,
   onSaved,
   onOpenMeeting,
+  initialPollMode = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   meetingId?: string | null;
   initial?: Partial<MeetingFormValue>;
-  onSaved?: () => void;
+  onSaved?: (id?: string) => void;
   onOpenMeeting?: (id: string) => void;
+  initialPollMode?: boolean;
 }) {
   const { user } = useAuth();
   const [form, setForm] = useState<MeetingFormValue>(empty);
