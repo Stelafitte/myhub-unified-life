@@ -217,7 +217,7 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
     // For task/meeting/poll/doc, navigate to the relevant module. Linking will
     // be done from that module via the existing entity menus, then surfaced in
     // the Liens tab of this space.
-    const targets: Record<typeof cmd, string> = {
+    const targets: Record<ChatSlashCommand, string> = {
       tache: "/tasks",
       reunion: "/meetings",
       sondage: "/meetings",
