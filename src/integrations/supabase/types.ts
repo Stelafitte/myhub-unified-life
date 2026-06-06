@@ -2502,6 +2502,195 @@ export type Database = {
         }
         Relationships: []
       }
+      wa_business_connections: {
+        Row: {
+          access_token: string
+          created_at: string
+          display_name: string | null
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          phone_number: string
+          phone_number_id: string
+          updated_at: string
+          user_id: string
+          wa_business_account_id: string
+          webhook_verify_token: string | null
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          phone_number: string
+          phone_number_id: string
+          updated_at?: string
+          user_id: string
+          wa_business_account_id: string
+          webhook_verify_token?: string | null
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          phone_number?: string
+          phone_number_id?: string
+          updated_at?: string
+          user_id?: string
+          wa_business_account_id?: string
+          webhook_verify_token?: string | null
+        }
+        Relationships: []
+      }
+      wa_groups: {
+        Row: {
+          connection_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          last_message_at: string | null
+          name: string
+          participant_count: number | null
+          space_id: string | null
+          updated_at: string
+          user_id: string
+          wa_group_id: string
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_message_at?: string | null
+          name: string
+          participant_count?: number | null
+          space_id?: string | null
+          updated_at?: string
+          user_id: string
+          wa_group_id: string
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_message_at?: string | null
+          name?: string
+          participant_count?: number | null
+          space_id?: string | null
+          updated_at?: string
+          user_id?: string
+          wa_group_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_groups_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "wa_business_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_groups_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wa_messages: {
+        Row: {
+          ai_action_suggested: string | null
+          ai_category: string | null
+          ai_processed: boolean
+          connection_id: string
+          content: string | null
+          created_at: string
+          from_name: string | null
+          from_number: string | null
+          group_id: string | null
+          group_name: string | null
+          id: string
+          is_from_me: boolean
+          media_mime_type: string | null
+          media_url: string | null
+          space_id: string | null
+          status: string | null
+          timestamp: string
+          type: string
+          user_id: string
+          wa_message_id: string
+        }
+        Insert: {
+          ai_action_suggested?: string | null
+          ai_category?: string | null
+          ai_processed?: boolean
+          connection_id: string
+          content?: string | null
+          created_at?: string
+          from_name?: string | null
+          from_number?: string | null
+          group_id?: string | null
+          group_name?: string | null
+          id?: string
+          is_from_me?: boolean
+          media_mime_type?: string | null
+          media_url?: string | null
+          space_id?: string | null
+          status?: string | null
+          timestamp: string
+          type?: string
+          user_id: string
+          wa_message_id: string
+        }
+        Update: {
+          ai_action_suggested?: string | null
+          ai_category?: string | null
+          ai_processed?: boolean
+          connection_id?: string
+          content?: string | null
+          created_at?: string
+          from_name?: string | null
+          from_number?: string | null
+          group_id?: string | null
+          group_name?: string | null
+          id?: string
+          is_from_me?: boolean
+          media_mime_type?: string | null
+          media_url?: string | null
+          space_id?: string | null
+          status?: string | null
+          timestamp?: string
+          type?: string
+          user_id?: string
+          wa_message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wa_messages_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "wa_business_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wa_messages_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wa_suggestions: {
         Row: {
           created_at: string
