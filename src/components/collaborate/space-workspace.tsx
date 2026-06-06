@@ -9,6 +9,7 @@ import { SpaceChat } from "./space-chat";
 import { SpaceLinksTab } from "./space-links-tab";
 import { SpaceTasksTab } from "./space-tasks-tab";
 import { SpaceMeetingsTab } from "./space-meetings-tab";
+import { DocumentsTab } from "./documents-tab";
 import { CollabDashboard } from "./collab-dashboard";
 import { getSpaceTree, getSpaceActivity } from "@/lib/collab.functions";
 import { useAuth } from "@/lib/auth-context";
@@ -76,7 +77,7 @@ export function SpaceWorkspace() {
                   <TabsTrigger value="links" className="gap-1">
                     <Link2 className="h-3.5 w-3.5" /> Liens
                   </TabsTrigger>
-                  <TabsTrigger value="docs" disabled className="gap-1 opacity-50">
+                  <TabsTrigger value="docs" className="gap-1">
                     <FileText className="h-3.5 w-3.5" /> Docs
                   </TabsTrigger>
                   <TabsTrigger value="tasks" className="gap-1">
@@ -102,7 +103,9 @@ export function SpaceWorkspace() {
                 <TabsContent value="links" className="flex-1 min-h-0 mt-2 overflow-y-auto">
                   <SpaceLinksTab spaceId={active.id} />
                 </TabsContent>
-                <TabsContent value="docs">{COMING_SOON}</TabsContent>
+                <TabsContent value="docs" className="flex-1 min-h-0 mt-2 overflow-y-auto p-3">
+                  <DocumentsTab spaceId={active.id} />
+                </TabsContent>
                 <TabsContent value="tasks" className="flex-1 min-h-0 mt-2 overflow-y-auto">
                   <SpaceTasksTab spaceId={active.id} />
                 </TabsContent>
