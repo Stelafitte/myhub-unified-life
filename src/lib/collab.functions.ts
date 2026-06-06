@@ -399,3 +399,30 @@ export const listSpaceTasks = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return { tasks: tasks ?? [], linkByTaskId };
   });
+
+/** Liste les réunions liées à un espace + map linkId par meeting. */
+export const listSpaceMeetings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: links, error: lErr } = await supabase
+      .from("collab_space_links")
+      .select("id,entity_id")
+      .eq("space_id", data.spaceId)
+      .eq("entity_type", "meeting");
+    if (lErr) throw new Error(lErr.message);
+    const ids = (links ?? []).map((l) => l.entity_id);
+    const linkByMeetingId: Record<string, string> = {};
+    for (const l of links ?? []) linkByMeetingId[l.entity_id] = l.id;
+    if (!ids.length) return { meetings: [], linkByMeetingId };
+    const { data: meetings, error } = await supabase
+      .from("meetings")
+      .select(
+        "id,title,description,start_at,end_at,location,is_online,online_link,online_provider,status,organizer_name,organizer_email",
+      )
+      .in("id", ids)
+      .order("start_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { meetings: meetings ?? [], linkByMeetingId };
+  });
