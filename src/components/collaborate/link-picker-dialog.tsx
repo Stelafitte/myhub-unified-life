@@ -12,6 +12,7 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   spaceId: string;
+  restrictTypes?: EntityType[];
 }
 
 type EntityType = "email" | "task" | "meeting" | "contact" | "document";
