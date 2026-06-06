@@ -1454,6 +1454,60 @@ export type Database = {
         }
         Relationships: []
       }
+      icloud_connections: {
+        Row: {
+          app_password_encrypted: string
+          app_password_iv: string
+          app_password_tag: string
+          apple_id: string
+          carddav_addressbook_url: string | null
+          carddav_principal_url: string | null
+          category: string
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          last_sync_at: string | null
+          sync_direction: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_password_encrypted: string
+          app_password_iv: string
+          app_password_tag: string
+          apple_id: string
+          carddav_addressbook_url?: string | null
+          carddav_principal_url?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_sync_at?: string | null
+          sync_direction?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_password_encrypted?: string
+          app_password_iv?: string
+          app_password_tag?: string
+          apple_id?: string
+          carddav_addressbook_url?: string | null
+          carddav_principal_url?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_sync_at?: string | null
+          sync_direction?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       invitations: {
         Row: {
           accepted_at: string | null
