@@ -958,6 +958,29 @@ function ContactDetail({
           </Section>
         )}
 
+        {/* Groupes & Projets */}
+        <Section title="Groupes & Projets">
+          {(memberships?.groups ?? []).length === 0 ? (
+            <div className="text-xs italic text-muted-foreground">Aucun groupe</div>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {(memberships?.groups ?? []).map((g) => (
+                <Badge
+                  key={g.id}
+                  variant="outline"
+                  className="gap-1 text-[10px]"
+                  style={g.color ? { borderColor: g.color, color: g.color } : undefined}
+                >
+                  <span>{g.icon ?? "👥"}</span>
+                  {g.name}
+                  {g.space_id && <span className="opacity-60">· espace</span>}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </Section>
+
+
         {/* Email history */}
         <Section
           title="Emails échangés"
