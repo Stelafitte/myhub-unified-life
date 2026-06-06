@@ -238,8 +238,8 @@ export const syncICloudContacts = createServerFn({ method: "POST" })
         last_name: parsed.last_name,
         organization: parsed.organization,
         role: parsed.role,
-        emails: parsed.email,
-        phones: parsed.phone,
+        email: parsed.email,
+        phone: parsed.phone,
         notes: parsed.notes,
       };
 
