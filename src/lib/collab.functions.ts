@@ -882,3 +882,87 @@ export const getSpacePublicSettings = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return { space: row };
   });
+
+/** Lecture publique d'un sondage via son token (questions + métadonnées espace). */
+export const getPublicSurvey = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ token: z.string().min(8).max(64) }).parse(input))
+  .handler(async ({ data }) => {
+    const { createClient } = await import("@supabase/supabase-js");
+    const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
+    const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY!;
+    const sb = createClient(url, key);
+
+    const { data: survey, error } = await sb
+      .from("collab_surveys")
+      .select("id,title,description,status,deadline,allow_anonymous,public_token,space_id")
+      .eq("public_token", data.token)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!survey) return { survey: null, questions: [], space: null };
+
+    const [{ data: questions }, { data: space }] = await Promise.all([
+      sb
+        .from("collab_survey_questions")
+        .select("id,label,type,options,required,position")
+        .eq("survey_id", survey.id)
+        .order("position", { ascending: true }),
+      sb
+        .from("collab_spaces")
+        .select("id,name,icon,color")
+        .eq("id", survey.space_id)
+        .maybeSingle(),
+    ]);
+
+    return { survey, questions: questions ?? [], space };
+  });
+
+/** Soumission anonyme/identifiée d'une réponse à un sondage public. */
+export const submitPublicSurveyResponse = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        token: z.string().min(8).max(64),
+        respondent_name: z.string().max(160).nullable().optional(),
+        respondent_email: z.string().email().max(255).nullable().optional(),
+        answers: z.record(z.string(), z.unknown()),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { createClient } = await import("@supabase/supabase-js");
+    const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
+    const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY!;
+    const sb = createClient(url, key);
+
+    const { data: survey, error: sErr } = await sb
+      .from("collab_surveys")
+      .select("id,status,allow_anonymous")
+      .eq("public_token", data.token)
+      .maybeSingle();
+    if (sErr) throw new Error(sErr.message);
+    if (!survey) throw new Error("Sondage introuvable");
+    if (survey.status !== "open") throw new Error("Sondage clôturé");
+    if (!survey.allow_anonymous && !data.respondent_email) {
+      throw new Error("Email requis pour ce sondage");
+    }
+
+    // Anti-doublon par email si fourni
+    if (data.respondent_email) {
+      const { data: existing } = await sb
+        .from("collab_survey_responses")
+        .select("id")
+        .eq("survey_id", survey.id)
+        .eq("respondent_email", data.respondent_email)
+        .maybeSingle();
+      if (existing) throw new Error("Vous avez déjà répondu à ce sondage");
+    }
+
+    const { error: iErr } = await sb.from("collab_survey_responses").insert({
+      survey_id: survey.id,
+      respondent_name: data.respondent_name ?? null,
+      respondent_email: data.respondent_email ?? null,
+      answers: data.answers,
+    });
+    if (iErr) throw new Error(iErr.message);
+    return { ok: true };
+  });
