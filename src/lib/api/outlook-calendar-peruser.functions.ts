@@ -79,8 +79,9 @@ export const syncOutlookCalendar = createServerFn({ method: "POST" })
         const pageRes: Response = await fetch(nextLink, {
           headers: { Authorization: `Bearer ${accessToken}`, Prefer: 'outlook.timezone="UTC"' },
         });
-        const body: Record<string, unknown> = await pageRes.json().catch(() => ({}));
-        const res = pageRes;
+        const body: { value?: OutlookEvent[]; ["@odata.nextLink"]?: string; error?: { message?: string } } =
+          await pageRes.json().catch(() => ({}));
+        if (!pageRes.ok) throw new Error(`Outlook events error (${pageRes.status}): ${body.error?.message ?? "unknown"}`);
         if (!res.ok) throw new Error(`Outlook events error (${res.status}): ${body.error?.message ?? "unknown"}`);
         const events: OutlookEvent[] = body.value ?? [];
 
