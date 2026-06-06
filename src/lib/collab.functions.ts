@@ -792,3 +792,93 @@ export const getSpaceSurveyDetail = createServerFn({ method: "GET" })
 
     return { survey, questions: questions ?? [], responses: responses ?? [] };
   });
+
+/** Lecture publique d'un espace via son token (anon ok si is_public). */
+export const getPublicSpace = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ token: z.string().min(8).max(64) }).parse(input))
+  .handler(async ({ data }) => {
+    const { createClient } = await import("@supabase/supabase-js");
+    const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
+    const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY!;
+    const sb = createClient(url, key);
+
+    const { data: space, error } = await sb
+      .from("collab_spaces")
+      .select("id,name,icon,color,public_description,public_token,is_public")
+      .eq("public_token", data.token)
+      .eq("is_public", true)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!space) return { space: null, surveys: [], polls: [] };
+
+    const [{ data: surveys }, { data: links }] = await Promise.all([
+      sb
+        .from("collab_surveys")
+        .select("id,title,description,public_token,status,deadline,allow_anonymous")
+        .eq("space_id", space.id)
+        .eq("status", "open")
+        .order("created_at", { ascending: false }),
+      sb
+        .from("collab_space_links")
+        .select("entity_id")
+        .eq("space_id", space.id)
+        .eq("entity_type", "meeting"),
+    ]);
+
+    const meetingIds = (links ?? []).map((l) => l.entity_id);
+    let polls: Array<{ id: string; title: string; public_token: string; status: string; deadline: string | null }> = [];
+    if (meetingIds.length > 0) {
+      const { data: pollRows } = await sb
+        .from("meeting_polls")
+        .select("id,title,public_token,status,deadline")
+        .in("meeting_id", meetingIds)
+        .eq("status", "open");
+      polls = pollRows ?? [];
+    }
+
+    return { space, surveys: surveys ?? [], polls };
+  });
+
+/** Active/désactive l'accès public d'un espace + description publique. */
+export const setSpacePublic = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        spaceId: z.string().uuid(),
+        is_public: z.boolean(),
+        public_description: z.string().max(2000).nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase
+      .from("collab_spaces")
+      .update({
+        is_public: data.is_public,
+        public_description: data.public_description ?? null,
+      })
+      .eq("id", data.spaceId)
+      .eq("user_id", userId)
+      .select("id,is_public,public_token,public_description")
+      .single();
+    if (error) throw new Error(error.message);
+    return { space: row };
+  });
+
+/** Récupère les paramètres publics d'un espace (token, is_public, description). */
+export const getSpacePublicSettings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase
+      .from("collab_spaces")
+      .select("id,is_public,public_token,public_description")
+      .eq("id", data.spaceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return { space: row };
+  });
