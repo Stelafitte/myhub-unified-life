@@ -820,6 +820,11 @@ function ContactDetail({
   const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeFrom, setComposeFrom] = useState<string>(accounts[0]?.id ?? "");
+  const membershipsFn = useServerFn(getContactGroupMemberships);
+  const { data: memberships } = useQuery({
+    queryKey: ["contact-group-memberships", contact.id],
+    queryFn: () => membershipsFn({ data: { contactId: contact.id } }),
+  });
 
   useEffect(() => setNotes(contact.notes ?? ""), [contact.id, contact.notes]);
 
