@@ -2104,6 +2104,54 @@ export type Database = {
         }
         Relationships: []
       }
+      outlook_connections: {
+        Row: {
+          access_token: string
+          category: string
+          created_at: string
+          expires_at: string
+          id: string
+          is_active: boolean
+          label: string
+          last_sync_at: string | null
+          outlook_email: string | null
+          refresh_token: string
+          sync_direction: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          category?: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_sync_at?: string | null
+          outlook_email?: string | null
+          refresh_token: string
+          sync_direction?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          category?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_sync_at?: string | null
+          outlook_email?: string | null
+          refresh_token?: string
+          sync_direction?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
