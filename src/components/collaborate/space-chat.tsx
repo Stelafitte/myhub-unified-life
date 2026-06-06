@@ -5,16 +5,19 @@ import { Loader2, Send, Smartphone, Sparkles, Trash2, Mic, Paperclip, X } from "
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { listSpaceMessages, postSpaceMessage, deleteSpaceMessage } from "@/lib/collab.functions";
+import { listSpaceMessages, postSpaceMessage, deleteSpaceMessage, linkEntityToSpace } from "@/lib/collab.functions";
 import { useVoiceDictation } from "@/hooks/use-voice-dictation";
 import { ChatMentionPopover } from "./chat-mention-popover";
 import { ChatSlashMenu, type ChatSlashCommand } from "./chat-slash-menu";
+import { CreateDocDialog } from "./create-doc-dialog";
 import { AiAssistantModal } from "@/components/ai/ai-assistant-modal";
+import { TaskPanel } from "@/components/tasks/task-panel";
+import { MeetingDialog } from "@/components/meetings/meeting-dialog";
+import { DEFAULT_SECTIONS, type Task } from "@/lib/tasks-model";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { useNavigate } from "@tanstack/react-router";
 
 interface Props {
   spaceId: string;
