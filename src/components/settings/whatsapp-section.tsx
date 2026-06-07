@@ -220,6 +220,23 @@ export function WhatsAppSection() {
                 phone_id: {c.phone_number_id} · waba: {c.wa_business_account_id}
               </div>
               <div className="flex gap-2 pt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setForm({
+                      id: c.id,
+                      phone_number_id: c.phone_number_id,
+                      wa_business_account_id: c.wa_business_account_id,
+                      access_token: "",
+                      phone_number: c.phone_number,
+                      display_name: c.display_name ?? "",
+                    });
+                    setOpen(true);
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-2" /> Éditer
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => handleShowWebhook(c.id)}>
                   <Webhook className="h-4 w-4 mr-2" /> Webhook
                 </Button>
@@ -227,6 +244,7 @@ export function WhatsAppSection() {
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
+
             </CardContent>
           </Card>
         ))
