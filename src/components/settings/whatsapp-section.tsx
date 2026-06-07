@@ -22,6 +22,7 @@ import {
 } from "@/lib/whatsapp.functions";
 
 type FormState = {
+  id?: string;
   phone_number_id: string;
   wa_business_account_id: string;
   access_token: string;
@@ -30,12 +31,14 @@ type FormState = {
 };
 
 const EMPTY: FormState = {
+  id: undefined,
   phone_number_id: "",
   wa_business_account_id: "",
   access_token: "",
   phone_number: "",
   display_name: "",
 };
+
 
 export function WhatsAppSection() {
   const qc = useQueryClient();
