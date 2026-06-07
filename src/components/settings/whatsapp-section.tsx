@@ -253,15 +253,18 @@ export function WhatsAppSection() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Connecter WhatsApp Business</DialogTitle>
+            <DialogTitle>{form.id ? "Éditer la connexion WhatsApp" : "Connecter WhatsApp Business"}</DialogTitle>
             <DialogDescription>
-              Récupère ces informations dans Meta Business Suite → WhatsApp → API Setup.
+              {form.id
+                ? "Modifie les identifiants. Laisse le token vide pour conserver l'actuel."
+                : "Récupère ces informations dans Meta Business Suite → WhatsApp → API Setup."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Field label="Phone Number ID *" value={form.phone_number_id} onChange={(v) => setForm({ ...form, phone_number_id: v })} placeholder="123456789012345" />
             <Field label="WhatsApp Business Account ID *" value={form.wa_business_account_id} onChange={(v) => setForm({ ...form, wa_business_account_id: v })} placeholder="987654321098765" />
-            <Field label="Access Token (permanent) *" value={form.access_token} onChange={(v) => setForm({ ...form, access_token: v })} placeholder="EAAxxxxxx…" type="password" />
+            <Field label={form.id ? "Access Token (laisser vide pour conserver)" : "Access Token (permanent) *"} value={form.access_token} onChange={(v) => setForm({ ...form, access_token: v })} placeholder="EAAxxxxxx…" type="password" />
+
             <Field label="Numéro affiché *" value={form.phone_number} onChange={(v) => setForm({ ...form, phone_number: v })} placeholder="+33612345678" />
             <Field label="Nom affiché" value={form.display_name} onChange={(v) => setForm({ ...form, display_name: v })} placeholder="Mon Business" />
           </div>
