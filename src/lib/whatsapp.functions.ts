@@ -4,6 +4,40 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const GRAPH_VERSION = "v20.0";
 
+/** Return WA credentials stored as backend secrets, to pre-fill the form. */
+export const getWaSecretsDefaults = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const phone_number_id = process.env.WHATSAPP_PHONE_NUMBER_ID ?? "";
+    const wa_business_account_id = process.env.WHATSAPP_WABA_ID ?? "";
+    const access_token = process.env.WHATSAPP_ACCESS_TOKEN ?? "";
+    let phone_number = "";
+    let display_name = "";
+    if (phone_number_id && access_token) {
+      try {
+        const res = await fetch(
+          `https://graph.facebook.com/${GRAPH_VERSION}/${encodeURIComponent(phone_number_id)}?fields=display_phone_number,verified_name`,
+          { headers: { Authorization: `Bearer ${access_token}` } },
+        );
+        if (res.ok) {
+          const b = await res.json();
+          phone_number = b.display_phone_number ?? "";
+          display_name = b.verified_name ?? "";
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    return {
+      has_secrets: !!(phone_number_id && access_token && wa_business_account_id),
+      phone_number_id,
+      wa_business_account_id,
+      access_token,
+      phone_number,
+      display_name,
+    };
+  });
+
 /** List WA Business connections for the current user. */
 export const listWaConnections = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
