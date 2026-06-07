@@ -141,21 +141,6 @@ async function sendSpaceMessageToWhatsapp({
     });
   }
 
-
-  const waMessageId = json?.messages?.[0]?.id ?? `local-${crypto.randomUUID()}`;
-  await supabase.from("wa_messages").insert({
-    connection_id: conn.id,
-    user_id: userId,
-    space_id: spaceId,
-    wa_message_id: waMessageId,
-    from_number: to,
-    is_from_me: true,
-    type: "text",
-    content,
-    status: "sent",
-    timestamp: new Date().toISOString(),
-  });
-
   return { attempted: true, sent: true, reason: null, wa_message_id: waMessageId };
 }
 
