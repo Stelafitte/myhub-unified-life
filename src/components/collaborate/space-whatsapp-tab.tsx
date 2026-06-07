@@ -187,13 +187,13 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
             </div>
             <div>
               <Label htmlFor="wa-phone" className="text-xs">
-                Numéro de téléphone
+                Numéro destinataire
               </Label>
               <Input
                 id="wa-phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+33 6 12 34 56 78"
+                placeholder="WhatsApp perso, ex. +33 6 12 34 56 78"
               />
             </div>
             <div>
