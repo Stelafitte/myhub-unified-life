@@ -18,6 +18,7 @@ import {
   setWaConnectionActive,
   deleteWaConnection,
   getWaWebhookSetup,
+  getWaSecretsDefaults,
 } from "@/lib/whatsapp.functions";
 
 type FormState = {
