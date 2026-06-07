@@ -54,6 +54,8 @@ const KIND_META: Record<WaSuggestion["kind"], { label: string; icon: React.React
   decision: { label: "Décision", icon: <MessageSquareQuote className="h-3.5 w-3.5" /> },
 };
 
+const normalizePhone = (value: string) => value.replace(/[^\d]/g, "");
+
 export function SpaceWhatsappTab({ spaceId }: Props) {
   const infoFn = useServerFn(getSpaceWaInfo);
   const importsFn = useServerFn(listSpaceWaImports);
@@ -155,6 +157,7 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
   const spaceName = infoQ.data?.space?.name ?? "Espace";
   const pending = sugQ.data?.suggestions ?? [];
   const imports = importsQ.data?.imports ?? [];
+  const canSendLive = normalizePhone(phone).length >= 5;
 
   return (
     <div className="p-4 space-y-4 max-w-4xl mx-auto">
@@ -215,6 +218,11 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
               Enregistrer
             </Button>
           </div>
+          {!canSendLive && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              Les messages écrits dans le chat sont ajoutés au fil Hub. Pour les envoyer aussi sur WhatsApp, renseignez le numéro destinataire ci-dessus puis enregistrez.
+            </div>
+          )}
         </CardContent>
       </Card>
 
