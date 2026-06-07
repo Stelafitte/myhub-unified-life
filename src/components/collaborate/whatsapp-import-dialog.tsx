@@ -53,6 +53,7 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [spaces, setSpaces] = useState<SpaceOpt[]>([]);
   const [targetSpaceId, setTargetSpaceId] = useState(spaceId);
   const importFn = useServerFn(importWhatsapp);
