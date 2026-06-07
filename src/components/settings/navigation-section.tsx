@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, RotateCcw, LayoutDashboard, Inbox, CheckSquare, Calendar, Users, ClipboardList, Lock, CalendarClock, FolderOpen, BarChart3 } from "lucide-react";
+import { GripVertical, RotateCcw, LayoutDashboard, Inbox, CheckSquare, Calendar, Users, ClipboardList, Lock, CalendarClock, FolderOpen, BarChart3, Handshake, MessageCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavOrder } from "@/lib/use-nav-order";
@@ -16,6 +16,8 @@ const NAV_ITEMS: Record<string, { title: string; icon: React.ComponentType<{ cla
   "/meetings": { title: "Réunions", icon: CalendarClock },
   "/documents": { title: "Documents", icon: FolderOpen },
   "/contacts": { title: "Contacts", icon: Users },
+  "/collaborate": { title: "Collaboratif", icon: Handshake },
+  "/whatsapp": { title: "WhatsApp", icon: MessageCircle },
   "/plan-operation": { title: "Plan d'opération", icon: ClipboardList },
   "/stats": { title: "Stats", icon: BarChart3 },
 };
