@@ -50,7 +50,7 @@ function parseWhatsAppExport(content: string): ParsedMessage[] {
   let current: ParsedMessage | null = null;
 
   for (const line of lines) {
-    const m = line.match(MESSAGE_REGEX_FR);
+    const m = line.match(MESSAGE_REGEX_BRACKET) ?? line.match(MESSAGE_REGEX_DASH);
     if (m) {
       if (current) out.push(current);
       const [, d, mo, y, hh, mm, ss, senderRaw, contentRaw] = m;
