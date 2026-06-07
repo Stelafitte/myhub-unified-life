@@ -208,10 +208,11 @@ export const getWaWebhookSetup = createServerFn({ method: "POST" })
     }
 
     return {
-      webhook_url: `/api/public/whatsapp/webhook`,
+      webhook_url: `https://myhub-unified-life.lovable.app/api/public/whatsapp/webhook`,
       verify_token: token,
       subscribed_fields: ["messages", "message_template_status_update"],
     };
+
   });
 
 /** Send an outbound WhatsApp text message via Meta Cloud API. */
