@@ -158,10 +158,15 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
           metadata: vars.attachments.length ? { attachments: vars.attachments } : undefined,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (result) => {
       setDraft("");
       setAttachments([]);
       qc.invalidateQueries({ queryKey });
+      if (result.whatsapp?.sent) {
+        toast.success("Message envoyé dans le fil et sur WhatsApp");
+      } else if (result.whatsapp?.reason) {
+        toast.warning(result.whatsapp.reason);
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });

@@ -54,6 +54,8 @@ const KIND_META: Record<WaSuggestion["kind"], { label: string; icon: React.React
   decision: { label: "Décision", icon: <MessageSquareQuote className="h-3.5 w-3.5" /> },
 };
 
+const normalizePhone = (value: string) => value.replace(/[^\d]/g, "");
+
 export function SpaceWhatsappTab({ spaceId }: Props) {
   const infoFn = useServerFn(getSpaceWaInfo);
   const importsFn = useServerFn(listSpaceWaImports);
@@ -155,6 +157,7 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
   const spaceName = infoQ.data?.space?.name ?? "Espace";
   const pending = sugQ.data?.suggestions ?? [];
   const imports = importsQ.data?.imports ?? [];
+  const canSendLive = normalizePhone(phone).length >= 5;
 
   return (
     <div className="p-4 space-y-4 max-w-4xl mx-auto">
@@ -184,13 +187,13 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
             </div>
             <div>
               <Label htmlFor="wa-phone" className="text-xs">
-                Numéro de téléphone
+                Numéro destinataire
               </Label>
               <Input
                 id="wa-phone"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+33 6 12 34 56 78"
+                placeholder="WhatsApp perso, ex. +33 6 12 34 56 78"
               />
             </div>
             <div>
@@ -215,6 +218,11 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
               Enregistrer
             </Button>
           </div>
+          {!canSendLive && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              Les messages écrits dans le chat sont ajoutés au fil Hub. Pour les envoyer aussi sur WhatsApp, renseignez le numéro destinataire ci-dessus puis enregistrez.
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -299,11 +307,11 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
         </CardContent>
       </Card>
 
-      {/* Timeline messages importés */}
+      {/* Timeline du fil WhatsApp */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <MessageCircle className="h-4 w-4" /> Timeline des messages
+            <MessageCircle className="h-4 w-4" /> Fil WhatsApp
             {tlQuery.data?.messages.length ? (
               <Badge variant="secondary">{tlQuery.data.messages.length}</Badge>
             ) : null}
@@ -339,7 +347,7 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
             </div>
           ) : !tlQuery.data?.messages.length ? (
             <p className="text-sm text-muted-foreground text-center py-6">
-              Aucun message importé pour le moment. Utilisez « Importer un export » pour ajouter une discussion WhatsApp.
+              Aucun message pour le moment. Utilisez « Importer un export » ou écrivez dans le chat de l’espace.
             </p>
           ) : (
             <ul className="divide-y max-h-[480px] overflow-y-auto">
