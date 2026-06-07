@@ -115,10 +115,16 @@ export function WhatsAppSection() {
   };
 
   const handleSave = async () => {
-    if (!form.phone_number_id || !form.wa_business_account_id || !form.access_token || !form.phone_number) {
+    const isEdit = !!form.id;
+    if (!form.phone_number_id || !form.wa_business_account_id || !form.phone_number) {
       toast.error("Tous les champs marqués * sont requis");
       return;
     }
+    if (!isEdit && !form.access_token) {
+      toast.error("Access token requis");
+      return;
+    }
+
     setSaving(true);
     try {
       await saveFn({ data: form });
