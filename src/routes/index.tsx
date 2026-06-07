@@ -917,13 +917,7 @@ function Footer() {
           >
             Contact
           </div>
-          <a
-            href="mailto:chu@myhub-pro.fr"
-            className="text-slate-600 hover:text-slate-900"
-          >
-            chu@myhub-pro.fr
-          </a>
-          <p className="text-slate-500 text-xs mt-3">Bordeaux, France</p>
+          <p className="text-slate-600">Bordeaux, France</p>
         </div>
       </div>
 
