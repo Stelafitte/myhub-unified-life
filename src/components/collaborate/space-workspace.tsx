@@ -77,7 +77,7 @@ export function SpaceWorkspace() {
               </header>
 
               <Tabs defaultValue="chat" className="flex-1 flex flex-col min-h-0">
-                <TabsList className="mx-3 mt-2 w-fit">
+                <TabsList className="mx-3 mt-2 w-fit max-w-[calc(100%-1.5rem)] overflow-x-auto flex-nowrap justify-start">
                   <TabsTrigger value="chat" className="gap-1">
                     <Hash className="h-3.5 w-3.5" /> Chat
                   </TabsTrigger>
