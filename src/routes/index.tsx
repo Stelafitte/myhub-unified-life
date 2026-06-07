@@ -132,7 +132,7 @@ function Nav() {
 
         <div className="flex items-center gap-2">
           <Link
-            to="/auth"
+            to="/login"
             className="hidden sm:inline-flex text-sm font-medium px-3 py-2 rounded-md text-slate-700 hover:text-slate-900"
           >
             Se connecter
