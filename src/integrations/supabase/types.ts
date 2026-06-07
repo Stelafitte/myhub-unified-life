@@ -492,6 +492,51 @@ export type Database = {
         }
         Relationships: []
       }
+      collab_guest_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          guest_id: string
+          id: string
+          ip: string | null
+          last_seen_at: string
+          otp_code: string | null
+          otp_expires_at: string | null
+          session_token: string
+          space_id: string
+          user_agent: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          guest_id: string
+          id?: string
+          ip?: string | null
+          last_seen_at?: string
+          otp_code?: string | null
+          otp_expires_at?: string | null
+          session_token?: string
+          space_id: string
+          user_agent?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          guest_id?: string
+          id?: string
+          ip?: string | null
+          last_seen_at?: string
+          otp_code?: string | null
+          otp_expires_at?: string | null
+          session_token?: string
+          space_id?: string
+          user_agent?: string | null
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       collab_guests: {
         Row: {
           access_token: string
@@ -501,6 +546,7 @@ export type Database = {
           last_active_at: string | null
           metadata: Json
           name: string
+          permissions: Json
           phone: string | null
           role: string
           space_id: string
@@ -516,6 +562,7 @@ export type Database = {
           last_active_at?: string | null
           metadata?: Json
           name: string
+          permissions?: Json
           phone?: string | null
           role?: string
           space_id: string
@@ -531,6 +578,7 @@ export type Database = {
           last_active_at?: string | null
           metadata?: Json
           name?: string
+          permissions?: Json
           phone?: string | null
           role?: string
           space_id?: string
