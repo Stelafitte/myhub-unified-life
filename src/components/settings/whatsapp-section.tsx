@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageCircle, Plus, Trash2, CheckCircle2, XCircle, Webhook, Copy } from "lucide-react";
+import { MessageCircle, Plus, Trash2, CheckCircle2, XCircle, Webhook, Copy, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
