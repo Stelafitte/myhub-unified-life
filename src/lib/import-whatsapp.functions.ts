@@ -19,9 +19,12 @@ interface AiDetection {
 }
 
 // ---------- Regex ----------
-// Supports both "15/03/2024 à 09:32 - X: msg" and "[15/03/2024 09:32:11] X: msg"
-const MESSAGE_REGEX_FR =
-  /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*(?:à|[,]?)\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*[-–]\s*([^:]+?):\s*(.*)$/;
+// Format 1 : "15/03/2024 à 09:32 - X: msg" ou "15/03/2024, 09:32 - X: msg"
+const MESSAGE_REGEX_DASH =
+  /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*(?:à|,)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?\s*[-–]\s*([^:]+?):\s*(.*)$/;
+// Format 2 : "[15/03/2024 09:32:11] X: msg" (export iOS)
+const MESSAGE_REGEX_BRACKET =
+  /^\[(\d{1,2})\/(\d{1,2})\/(\d{2,4})[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?\]\s*([^:]+?):\s*(.*)$/;
 const SYSTEM_HINTS = [
   "a ajouté",
   "a quitté",
@@ -47,7 +50,7 @@ function parseWhatsAppExport(content: string): ParsedMessage[] {
   let current: ParsedMessage | null = null;
 
   for (const line of lines) {
-    const m = line.match(MESSAGE_REGEX_FR);
+    const m = line.match(MESSAGE_REGEX_BRACKET) ?? line.match(MESSAGE_REGEX_DASH);
     if (m) {
       if (current) out.push(current);
       const [, d, mo, y, hh, mm, ss, senderRaw, contentRaw] = m;
