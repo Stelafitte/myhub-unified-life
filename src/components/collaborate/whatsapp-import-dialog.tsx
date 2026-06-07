@@ -179,6 +179,11 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
                 </p>
               </div>
             )}
+            {errorMsg && !busy && (
+              <div className="text-xs rounded-md border border-destructive/40 bg-destructive/10 text-destructive p-2.5 whitespace-pre-wrap">
+                ⚠ {errorMsg}
+              </div>
+            )}
           </div>
         )}
 
