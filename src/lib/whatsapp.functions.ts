@@ -93,7 +93,7 @@ export const saveWaConnection = createServerFn({ method: "POST" })
         id: z.string().uuid().optional(),
         phone_number_id: z.string().min(1).max(64),
         wa_business_account_id: z.string().min(1).max(64),
-        access_token: z.string().min(10).max(4096),
+        access_token: z.string().max(4096).optional().default(""),
         phone_number: z.string().min(1).max(64),
         display_name: z.string().max(255).optional().nullable(),
       })
@@ -101,10 +101,26 @@ export const saveWaConnection = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+
+    // If editing without a new token, fetch the existing one.
+    let token = data.access_token;
+    if (data.id && (!token || token.length < 10)) {
+      const { data: existing, error: fetchErr } = await supabase
+        .from("wa_business_connections")
+        .select("access_token")
+        .eq("id", data.id)
+        .single();
+      if (fetchErr) throw new Error(fetchErr.message);
+      token = existing.access_token;
+    }
+    if (!token || token.length < 10) {
+      throw new Error("Access token requis");
+    }
+
     // Test first
     const test = await fetch(
       `https://graph.facebook.com/${GRAPH_VERSION}/${encodeURIComponent(data.phone_number_id)}?fields=display_phone_number,verified_name`,
-      { headers: { Authorization: `Bearer ${data.access_token}` } },
+      { headers: { Authorization: `Bearer ${token}` } },
     );
     if (!test.ok) {
       const body = await test.json().catch(() => ({}));
@@ -116,7 +132,7 @@ export const saveWaConnection = createServerFn({ method: "POST" })
       user_id: userId,
       phone_number_id: data.phone_number_id,
       wa_business_account_id: data.wa_business_account_id,
-      access_token: data.access_token,
+      access_token: token,
       phone_number: data.phone_number,
       display_name: data.display_name ?? null,
       is_active: true,
@@ -138,6 +154,7 @@ export const saveWaConnection = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { id: inserted.id, webhook_verify_token: inserted.webhook_verify_token };
   });
+
 
 /** Toggle active state. */
 export const setWaConnectionActive = createServerFn({ method: "POST" })
