@@ -3,6 +3,109 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const EntityType = z.enum(["email", "task", "meeting", "document", "contact"]);
+const GRAPH_VERSION = "v20.0";
+
+function normalizePhone(value: string | null | undefined) {
+  return (value ?? "").replace(/[^\d]/g, "");
+}
+
+async function sendSpaceMessageToWhatsapp({
+  supabase,
+  userId,
+  spaceId,
+  content,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
+  userId: string;
+  spaceId: string;
+  content: string;
+}) {
+  const { data: space, error: spaceErr } = await supabase
+    .from("collab_spaces")
+    .select("id,name,whatsapp_phone_number,whatsapp_group_id,wa_group_name")
+    .eq("id", spaceId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (spaceErr) throw new Error(spaceErr.message);
+
+  const to = normalizePhone(space?.whatsapp_phone_number);
+  if (!to) {
+    const looksLikeWaSpace =
+      !!space?.whatsapp_group_id ||
+      !!space?.wa_group_name ||
+      (space?.name ?? "").toLowerCase().startsWith("wa :");
+    return {
+      attempted: false,
+      sent: false,
+      reason: looksLikeWaSpace
+        ? "Cet espace vient d’un export de groupe WhatsApp : l’envoi automatique est possible seulement vers un numéro individuel renseigné dans l’onglet WhatsApp."
+        : null,
+      wa_message_id: null,
+    };
+  }
+
+  const { data: conn, error: connErr } = await supabase
+    .from("wa_business_connections")
+    .select("id,phone_number_id,access_token,is_active")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (connErr) throw new Error(connErr.message);
+  if (!conn) {
+    return {
+      attempted: true,
+      sent: false,
+      reason: "Aucune connexion WhatsApp Business active.",
+      wa_message_id: null,
+    };
+  }
+
+  const res = await fetch(
+    `https://graph.facebook.com/${GRAPH_VERSION}/${encodeURIComponent(conn.phone_number_id)}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${conn.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to,
+        type: "text",
+        text: { preview_url: false, body: content },
+      }),
+    },
+  );
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return {
+      attempted: true,
+      sent: false,
+      reason: json?.error?.message ?? `HTTP ${res.status}`,
+      wa_message_id: null,
+    };
+  }
+
+  const waMessageId = json?.messages?.[0]?.id ?? `local-${crypto.randomUUID()}`;
+  await supabase.from("wa_messages").insert({
+    connection_id: conn.id,
+    user_id: userId,
+    space_id: spaceId,
+    wa_message_id: waMessageId,
+    from_number: to,
+    is_from_me: true,
+    type: "text",
+    content,
+    status: "sent",
+    timestamp: new Date().toISOString(),
+  });
+
+  return { attempted: true, sent: true, reason: null, wa_message_id: waMessageId };
+}
 
 /** Arborescence parent/enfant des espaces de l'utilisateur. */
 export const getSpaceTree = createServerFn({ method: "GET" })
@@ -118,7 +221,32 @@ export const postSpaceMessage = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    return { id: row.id };
+    const whatsapp =
+      (data.type ?? "text") === "text"
+        ? await sendSpaceMessageToWhatsapp({
+            supabase,
+            userId,
+            spaceId: data.spaceId,
+            content: data.content,
+          })
+        : { attempted: false, sent: false, reason: null, wa_message_id: null };
+
+    if (whatsapp.attempted) {
+      await supabase
+        .from("collab_messages")
+        .update({
+          metadata: {
+            ...(data.metadata ?? {}),
+            whatsapp_sent: whatsapp.sent,
+            whatsapp_error: whatsapp.sent ? null : whatsapp.reason,
+            wa_message_id: whatsapp.wa_message_id,
+          } as never,
+        })
+        .eq("id", row.id)
+        .eq("user_id", userId);
+    }
+
+    return { id: row.id, whatsapp };
   });
 
 /** Supprime un message (seulement le sien). */
