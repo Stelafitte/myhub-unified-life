@@ -53,6 +53,7 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [spaces, setSpaces] = useState<SpaceOpt[]>([]);
   const [targetSpaceId, setTargetSpaceId] = useState(spaceId);
   const importFn = useServerFn(importWhatsapp);
@@ -76,12 +77,14 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
     setBusy(false);
     setProgress(0);
     setResult(null);
+    setErrorMsg(null);
   };
 
   const handleSubmit = async () => {
     if (!file || !targetSpaceId) return;
     setBusy(true);
     setProgress(15);
+    setErrorMsg(null);
     try {
       const text = await file.text();
       setProgress(35);
@@ -96,11 +99,21 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
       })) as ImportResult;
       setProgress(100);
       setResult(res);
-      toast.success(`Import terminé : ${res.imported} messages`);
+      if (res.imported === 0) {
+        toast.warning("Aucun message détecté dans ce fichier");
+        setErrorMsg(
+          `Aucun message reconnu dans « ${file.name} ». Vérifiez qu'il s'agit bien d'un export WhatsApp (.txt) ou du fichier _chat.txt extrait du .zip.`,
+        );
+      } else {
+        toast.success(`Import terminé : ${res.imported} messages`);
+      }
       onDone?.();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Échec de l'import";
+      const raw = e instanceof Error ? e.message : String(e);
+      const msg = raw && raw.trim().length > 0 ? raw : "Échec de l'import (erreur inconnue)";
+      console.error("WhatsApp import failed", e);
       toast.error(msg);
+      setErrorMsg(msg);
       setBusy(false);
       setProgress(0);
     }
@@ -164,6 +177,11 @@ export function WhatsappImportDialog({ open, onOpenChange, spaceId, spaceName, o
                   <Loader2 className="h-3 w-3 animate-spin" />
                   Import et analyse IA en cours…
                 </p>
+              </div>
+            )}
+            {errorMsg && !busy && (
+              <div className="text-xs rounded-md border border-destructive/40 bg-destructive/10 text-destructive p-2.5 whitespace-pre-wrap">
+                ⚠ {errorMsg}
               </div>
             )}
           </div>
