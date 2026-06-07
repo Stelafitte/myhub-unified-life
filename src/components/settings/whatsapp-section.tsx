@@ -162,12 +162,15 @@ export function WhatsAppSection() {
   const handleShowWebhook = async (id: string) => {
     try {
       const info = await webhookFn({ data: { id } });
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      setWebhookInfo({ ...info, webhook_url: `${origin}${info.webhook_url}` });
+      const url = info.webhook_url.startsWith("http")
+        ? info.webhook_url
+        : `${typeof window !== "undefined" ? window.location.origin : ""}${info.webhook_url}`;
+      setWebhookInfo({ ...info, webhook_url: url });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     }
   };
+
 
   const copy = (txt: string) => {
     navigator.clipboard.writeText(txt);
