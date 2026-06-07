@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
@@ -34,6 +35,7 @@ import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCollaborateRouteImport } from './routes/_authenticated/collaborate'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as ApiPublicLandingRequestRouteImport } from './routes/api/public/landing-request'
 import { Route as ApiOutlookOauthCallbackRouteImport } from './routes/api/outlook-oauth/callback'
 import { Route as ApiGoogleCalendarCallbackRouteImport } from './routes/api/google-calendar/callback'
 import { Route as AuthenticatedCollaborateReviewRouteImport } from './routes/_authenticated/collaborate.review'
@@ -51,6 +53,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MentionsLegalesRoute = MentionsLegalesRouteImport.update({
+  id: '/mentions-legales',
+  path: '/mentions-legales',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -169,6 +176,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiPublicLandingRequestRoute = ApiPublicLandingRequestRouteImport.update({
+  id: '/api/public/landing-request',
+  path: '/api/public/landing-request',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiOutlookOauthCallbackRoute = ApiOutlookOauthCallbackRouteImport.update({
   id: '/api/outlook-oauth/callback',
   path: '/api/outlook-oauth/callback',
@@ -219,6 +231,7 @@ const AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -244,6 +257,7 @@ export interface FileRoutesByFullPath {
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
+  '/api/public/landing-request': typeof ApiPublicLandingRequestRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -253,6 +267,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -278,6 +293,7 @@ export interface FileRoutesByTo {
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
+  '/api/public/landing-request': typeof ApiPublicLandingRequestRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -289,6 +305,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/mentions-legales': typeof MentionsLegalesRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
@@ -314,6 +331,7 @@ export interface FileRoutesById {
   '/_authenticated/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
+  '/api/public/landing-request': typeof ApiPublicLandingRequestRoute
   '/_authenticated/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -325,6 +343,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/mentions-legales'
     | '/privacy'
     | '/reset-password'
     | '/admin'
@@ -350,6 +369,7 @@ export interface FileRouteTypes {
     | '/collaborate/review'
     | '/api/google-calendar/callback'
     | '/api/outlook-oauth/callback'
+    | '/api/public/landing-request'
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
@@ -359,6 +379,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/mentions-legales'
     | '/privacy'
     | '/reset-password'
     | '/admin'
@@ -384,6 +405,7 @@ export interface FileRouteTypes {
     | '/collaborate/review'
     | '/api/google-calendar/callback'
     | '/api/outlook-oauth/callback'
+    | '/api/public/landing-request'
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
@@ -394,6 +416,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/login'
+    | '/mentions-legales'
     | '/privacy'
     | '/reset-password'
     | '/_authenticated/admin'
@@ -419,6 +442,7 @@ export interface FileRouteTypes {
     | '/_authenticated/collaborate/review'
     | '/api/google-calendar/callback'
     | '/api/outlook-oauth/callback'
+    | '/api/public/landing-request'
     | '/_authenticated/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
@@ -430,6 +454,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  MentionsLegalesRoute: typeof MentionsLegalesRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   PollTokenRoute: typeof PollTokenRoute
@@ -437,6 +462,7 @@ export interface RootRouteChildren {
   SurveyTokenRoute: typeof SurveyTokenRoute
   ApiGoogleCalendarCallbackRoute: typeof ApiGoogleCalendarCallbackRoute
   ApiOutlookOauthCallbackRoute: typeof ApiOutlookOauthCallbackRoute
+  ApiPublicLandingRequestRoute: typeof ApiPublicLandingRequestRoute
   ApiPublicHooksRsvpRemindersRoute: typeof ApiPublicHooksRsvpRemindersRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicPollTokenFilesRoute: typeof ApiPublicPollTokenFilesRoute
@@ -456,6 +482,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mentions-legales': {
+      id: '/mentions-legales'
+      path: '/mentions-legales'
+      fullPath: '/mentions-legales'
+      preLoaderRoute: typeof MentionsLegalesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -619,6 +652,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/landing-request': {
+      id: '/api/public/landing-request'
+      path: '/api/public/landing-request'
+      fullPath: '/api/public/landing-request'
+      preLoaderRoute: typeof ApiPublicLandingRequestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/outlook-oauth/callback': {
       id: '/api/outlook-oauth/callback'
       path: '/api/outlook-oauth/callback'
@@ -758,6 +798,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  MentionsLegalesRoute: MentionsLegalesRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   PollTokenRoute: PollTokenRoute,
@@ -765,6 +806,7 @@ const rootRouteChildren: RootRouteChildren = {
   SurveyTokenRoute: SurveyTokenRoute,
   ApiGoogleCalendarCallbackRoute: ApiGoogleCalendarCallbackRoute,
   ApiOutlookOauthCallbackRoute: ApiOutlookOauthCallbackRoute,
+  ApiPublicLandingRequestRoute: ApiPublicLandingRequestRoute,
   ApiPublicHooksRsvpRemindersRoute: ApiPublicHooksRsvpRemindersRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicPollTokenFilesRoute: ApiPublicPollTokenFilesRoute,

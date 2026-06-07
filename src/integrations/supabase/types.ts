@@ -1541,6 +1541,51 @@ export type Database = {
         }
         Relationships: []
       }
+      landing_requests: {
+        Row: {
+          created_at: string
+          email: string
+          first_name: string
+          id: string
+          institution: string | null
+          ip_address: string | null
+          last_name: string
+          message: string | null
+          specialty: string | null
+          status: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          first_name: string
+          id?: string
+          institution?: string | null
+          ip_address?: string | null
+          last_name: string
+          message?: string | null
+          specialty?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          first_name?: string
+          id?: string
+          institution?: string | null
+          ip_address?: string | null
+          last_name?: string
+          message?: string | null
+          specialty?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       meeting_agenda_items: {
         Row: {
           created_at: string
