@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageCircle, Plus, Trash2, CheckCircle2, XCircle, Webhook, Copy } from "lucide-react";
+import { MessageCircle, Plus, Trash2, CheckCircle2, XCircle, Webhook, Copy, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import {
 } from "@/lib/whatsapp.functions";
 
 type FormState = {
+  id?: string;
   phone_number_id: string;
   wa_business_account_id: string;
   access_token: string;
@@ -30,12 +31,14 @@ type FormState = {
 };
 
 const EMPTY: FormState = {
+  id: undefined,
   phone_number_id: "",
   wa_business_account_id: "",
   access_token: "",
   phone_number: "",
   display_name: "",
 };
+
 
 export function WhatsAppSection() {
   const qc = useQueryClient();
@@ -112,10 +115,16 @@ export function WhatsAppSection() {
   };
 
   const handleSave = async () => {
-    if (!form.phone_number_id || !form.wa_business_account_id || !form.access_token || !form.phone_number) {
+    const isEdit = !!form.id;
+    if (!form.phone_number_id || !form.wa_business_account_id || !form.phone_number) {
       toast.error("Tous les champs marqués * sont requis");
       return;
     }
+    if (!isEdit && !form.access_token) {
+      toast.error("Access token requis");
+      return;
+    }
+
     setSaving(true);
     try {
       await saveFn({ data: form });
@@ -211,6 +220,23 @@ export function WhatsAppSection() {
                 phone_id: {c.phone_number_id} · waba: {c.wa_business_account_id}
               </div>
               <div className="flex gap-2 pt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setForm({
+                      id: c.id,
+                      phone_number_id: c.phone_number_id,
+                      wa_business_account_id: c.wa_business_account_id,
+                      access_token: "",
+                      phone_number: c.phone_number,
+                      display_name: c.display_name ?? "",
+                    });
+                    setOpen(true);
+                  }}
+                >
+                  <Pencil className="h-4 w-4 mr-2" /> Éditer
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => handleShowWebhook(c.id)}>
                   <Webhook className="h-4 w-4 mr-2" /> Webhook
                 </Button>
@@ -218,6 +244,7 @@ export function WhatsAppSection() {
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
+
             </CardContent>
           </Card>
         ))
@@ -226,15 +253,18 @@ export function WhatsAppSection() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Connecter WhatsApp Business</DialogTitle>
+            <DialogTitle>{form.id ? "Éditer la connexion WhatsApp" : "Connecter WhatsApp Business"}</DialogTitle>
             <DialogDescription>
-              Récupère ces informations dans Meta Business Suite → WhatsApp → API Setup.
+              {form.id
+                ? "Modifie les identifiants. Laisse le token vide pour conserver l'actuel."
+                : "Récupère ces informations dans Meta Business Suite → WhatsApp → API Setup."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <Field label="Phone Number ID *" value={form.phone_number_id} onChange={(v) => setForm({ ...form, phone_number_id: v })} placeholder="123456789012345" />
             <Field label="WhatsApp Business Account ID *" value={form.wa_business_account_id} onChange={(v) => setForm({ ...form, wa_business_account_id: v })} placeholder="987654321098765" />
-            <Field label="Access Token (permanent) *" value={form.access_token} onChange={(v) => setForm({ ...form, access_token: v })} placeholder="EAAxxxxxx…" type="password" />
+            <Field label={form.id ? "Access Token (laisser vide pour conserver)" : "Access Token (permanent) *"} value={form.access_token} onChange={(v) => setForm({ ...form, access_token: v })} placeholder="EAAxxxxxx…" type="password" />
+
             <Field label="Numéro affiché *" value={form.phone_number} onChange={(v) => setForm({ ...form, phone_number: v })} placeholder="+33612345678" />
             <Field label="Nom affiché" value={form.display_name} onChange={(v) => setForm({ ...form, display_name: v })} placeholder="Mon Business" />
           </div>
