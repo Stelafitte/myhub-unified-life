@@ -45,6 +45,25 @@ async function sendSpaceMessageToWhatsapp({
     };
   }
 
+  // Reject the demo placeholder explicitly
+  if (to === "33612345678") {
+    return {
+      attempted: true,
+      sent: false,
+      reason:
+        "Le numéro destinataire est encore l’exemple « +33 6 12 34 56 78 ». Remplacez-le par votre vrai numéro WhatsApp dans l’onglet WhatsApp puis enregistrez.",
+      wa_message_id: null,
+    };
+  }
+
+  // Prefer global secrets (always fresh), fallback to per-user stored connection
+  const envToken = process.env.WHATSAPP_ACCESS_TOKEN;
+  const envPhoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+  let accessToken: string | null = envToken ?? null;
+  let phoneNumberId: string | null = envPhoneId ?? null;
+  let connectionId: string | null = null;
+
   const { data: conn, error: connErr } = await supabase
     .from("wa_business_connections")
     .select("id,phone_number_id,access_token,is_active")
@@ -54,21 +73,28 @@ async function sendSpaceMessageToWhatsapp({
     .limit(1)
     .maybeSingle();
   if (connErr) throw new Error(connErr.message);
-  if (!conn) {
+  if (conn) {
+    connectionId = conn.id;
+    if (!accessToken) accessToken = conn.access_token;
+    if (!phoneNumberId) phoneNumberId = conn.phone_number_id;
+  }
+
+  if (!accessToken || !phoneNumberId) {
     return {
       attempted: true,
       sent: false,
-      reason: "Aucune connexion WhatsApp Business active.",
+      reason:
+        "Aucune connexion WhatsApp Business active (token ou phone_number_id manquant).",
       wa_message_id: null,
     };
   }
 
   const res = await fetch(
-    `https://graph.facebook.com/${GRAPH_VERSION}/${encodeURIComponent(conn.phone_number_id)}/messages`,
+    `https://graph.facebook.com/${GRAPH_VERSION}/${encodeURIComponent(phoneNumberId)}/messages`,
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${conn.access_token}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -82,13 +108,39 @@ async function sendSpaceMessageToWhatsapp({
   );
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
+    const metaMsg = json?.error?.message ?? `HTTP ${res.status}`;
+    const code = json?.error?.code;
+    const sub = json?.error?.error_subcode;
+    const hint =
+      code === 190 || /authentication/i.test(metaMsg)
+        ? " — Le token WhatsApp est invalide ou expiré. Régénérez WHATSAPP_ACCESS_TOKEN dans les secrets."
+        : code === 131030 || code === 131026
+          ? " — Le numéro destinataire n’a pas autorisé la réception (en mode test, ajoutez-le aux numéros autorisés dans Meta Business)."
+          : "";
     return {
       attempted: true,
       sent: false,
-      reason: json?.error?.message ?? `HTTP ${res.status}`,
+      reason: `WhatsApp: ${metaMsg}${sub ? ` (sub ${sub})` : ""}${hint}`,
       wa_message_id: null,
     };
   }
+
+  const waMessageId = json?.messages?.[0]?.id ?? `local-${crypto.randomUUID()}`;
+  if (connectionId) {
+    await supabase.from("wa_messages").insert({
+      connection_id: connectionId,
+      user_id: userId,
+      space_id: spaceId,
+      wa_message_id: waMessageId,
+      from_number: to,
+      is_from_me: true,
+      type: "text",
+      content,
+      status: "sent",
+      timestamp: new Date().toISOString(),
+    });
+  }
+
 
   const waMessageId = json?.messages?.[0]?.id ?? `local-${crypto.randomUUID()}`;
   await supabase.from("wa_messages").insert({
