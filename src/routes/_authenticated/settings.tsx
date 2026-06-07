@@ -63,7 +63,12 @@ function SettingsPage() {
         <TabsContent value="contacts"><ContactsSection /></TabsContent>
         <TabsContent value="sync"><SyncSection /></TabsContent>
         <TabsContent value="integrations"><IntegrationsSection /></TabsContent>
-        <TabsContent value="whatsapp"><WhatsAppSection /></TabsContent>
+        <TabsContent value="whatsapp">
+          <div className="space-y-4">
+            <WhatsAppSection />
+            <WhatsAppLinkSection />
+          </div>
+        </TabsContent>
         <TabsContent value="ai"><AiSection /></TabsContent>
         <TabsContent value="notifications"><NotificationsSection /></TabsContent>
         <TabsContent value="meetings"><MeetingsSection /></TabsContent>
