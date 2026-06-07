@@ -2275,6 +2275,7 @@ export type Database = {
           id: string
           is_suspended: boolean
           last_name: string | null
+          nav_order: string[] | null
           onboarding_completed_at: string | null
           quota_emails: number
           quota_storage_mb: number
@@ -2292,6 +2293,7 @@ export type Database = {
           id: string
           is_suspended?: boolean
           last_name?: string | null
+          nav_order?: string[] | null
           onboarding_completed_at?: string | null
           quota_emails?: number
           quota_storage_mb?: number
@@ -2309,6 +2311,7 @@ export type Database = {
           id?: string
           is_suspended?: boolean
           last_name?: string | null
+          nav_order?: string[] | null
           onboarding_completed_at?: string | null
           quota_emails?: number
           quota_storage_mb?: number
