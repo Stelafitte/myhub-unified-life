@@ -34,6 +34,7 @@ import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCollaborateRouteImport } from './routes/_authenticated/collaborate'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as ApiPublicLandingRequestRouteImport } from './routes/api/public/landing-request'
 import { Route as ApiOutlookOauthCallbackRouteImport } from './routes/api/outlook-oauth/callback'
 import { Route as ApiGoogleCalendarCallbackRouteImport } from './routes/api/google-calendar/callback'
 import { Route as AuthenticatedCollaborateReviewRouteImport } from './routes/_authenticated/collaborate.review'
@@ -169,6 +170,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiPublicLandingRequestRoute = ApiPublicLandingRequestRouteImport.update({
+  id: '/api/public/landing-request',
+  path: '/api/public/landing-request',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiOutlookOauthCallbackRoute = ApiOutlookOauthCallbackRouteImport.update({
   id: '/api/outlook-oauth/callback',
   path: '/api/outlook-oauth/callback',
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
+  '/api/public/landing-request': typeof ApiPublicLandingRequestRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -278,6 +285,7 @@ export interface FileRoutesByTo {
   '/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
+  '/api/public/landing-request': typeof ApiPublicLandingRequestRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -314,6 +322,7 @@ export interface FileRoutesById {
   '/_authenticated/collaborate/review': typeof AuthenticatedCollaborateReviewRoute
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
+  '/api/public/landing-request': typeof ApiPublicLandingRequestRoute
   '/_authenticated/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
@@ -350,6 +359,7 @@ export interface FileRouteTypes {
     | '/collaborate/review'
     | '/api/google-calendar/callback'
     | '/api/outlook-oauth/callback'
+    | '/api/public/landing-request'
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
@@ -384,6 +394,7 @@ export interface FileRouteTypes {
     | '/collaborate/review'
     | '/api/google-calendar/callback'
     | '/api/outlook-oauth/callback'
+    | '/api/public/landing-request'
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
@@ -419,6 +430,7 @@ export interface FileRouteTypes {
     | '/_authenticated/collaborate/review'
     | '/api/google-calendar/callback'
     | '/api/outlook-oauth/callback'
+    | '/api/public/landing-request'
     | '/_authenticated/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
@@ -437,6 +449,7 @@ export interface RootRouteChildren {
   SurveyTokenRoute: typeof SurveyTokenRoute
   ApiGoogleCalendarCallbackRoute: typeof ApiGoogleCalendarCallbackRoute
   ApiOutlookOauthCallbackRoute: typeof ApiOutlookOauthCallbackRoute
+  ApiPublicLandingRequestRoute: typeof ApiPublicLandingRequestRoute
   ApiPublicHooksRsvpRemindersRoute: typeof ApiPublicHooksRsvpRemindersRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   ApiPublicPollTokenFilesRoute: typeof ApiPublicPollTokenFilesRoute
@@ -619,6 +632,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/landing-request': {
+      id: '/api/public/landing-request'
+      path: '/api/public/landing-request'
+      fullPath: '/api/public/landing-request'
+      preLoaderRoute: typeof ApiPublicLandingRequestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/outlook-oauth/callback': {
       id: '/api/outlook-oauth/callback'
       path: '/api/outlook-oauth/callback'
@@ -765,6 +785,7 @@ const rootRouteChildren: RootRouteChildren = {
   SurveyTokenRoute: SurveyTokenRoute,
   ApiGoogleCalendarCallbackRoute: ApiGoogleCalendarCallbackRoute,
   ApiOutlookOauthCallbackRoute: ApiOutlookOauthCallbackRoute,
+  ApiPublicLandingRequestRoute: ApiPublicLandingRequestRoute,
   ApiPublicHooksRsvpRemindersRoute: ApiPublicHooksRsvpRemindersRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   ApiPublicPollTokenFilesRoute: ApiPublicPollTokenFilesRoute,
