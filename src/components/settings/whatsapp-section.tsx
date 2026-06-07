@@ -18,6 +18,7 @@ import {
   setWaConnectionActive,
   deleteWaConnection,
   getWaWebhookSetup,
+  getWaSecretsDefaults,
 } from "@/lib/whatsapp.functions";
 
 type FormState = {
@@ -44,6 +45,31 @@ export function WhatsAppSection() {
   const toggleFn = useServerFn(setWaConnectionActive);
   const deleteFn = useServerFn(deleteWaConnection);
   const webhookFn = useServerFn(getWaWebhookSetup);
+  const secretsFn = useServerFn(getWaSecretsDefaults);
+  const [importing, setImporting] = useState(false);
+
+  const handleImportSecrets = async () => {
+    setImporting(true);
+    try {
+      const s = await secretsFn();
+      if (!s.has_secrets) {
+        toast.error("Aucun secret WhatsApp configuré côté backend");
+        return;
+      }
+      setForm({
+        phone_number_id: s.phone_number_id,
+        wa_business_account_id: s.wa_business_account_id,
+        access_token: s.access_token,
+        phone_number: s.phone_number || "",
+        display_name: s.display_name || "",
+      });
+      toast.success("Champs pré-remplis depuis les secrets");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const { data: connections = [], isLoading } = useQuery({
     queryKey: ["wa-connections"],
@@ -212,13 +238,18 @@ export function WhatsAppSection() {
             <Field label="Numéro affiché *" value={form.phone_number} onChange={(v) => setForm({ ...form, phone_number: v })} placeholder="+33612345678" />
             <Field label="Nom affiché" value={form.display_name} onChange={(v) => setForm({ ...form, display_name: v })} placeholder="Mon Business" />
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={handleTest} disabled={testing}>
-              {testing ? "Test…" : "Tester"}
+          <DialogFooter className="gap-2 sm:justify-between">
+            <Button variant="secondary" onClick={handleImportSecrets} disabled={importing}>
+              {importing ? "Import…" : "Importer depuis les secrets"}
             </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Enregistrement…" : "Enregistrer"}
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleTest} disabled={testing}>
+                {testing ? "Test…" : "Tester"}
+              </Button>
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? "Enregistrement…" : "Enregistrer"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
