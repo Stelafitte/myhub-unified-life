@@ -299,11 +299,11 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
         </CardContent>
       </Card>
 
-      {/* Timeline messages importés */}
+      {/* Timeline du fil WhatsApp */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <MessageCircle className="h-4 w-4" /> Timeline des messages
+            <MessageCircle className="h-4 w-4" /> Fil WhatsApp
             {tlQuery.data?.messages.length ? (
               <Badge variant="secondary">{tlQuery.data.messages.length}</Badge>
             ) : null}
@@ -339,7 +339,7 @@ export function SpaceWhatsappTab({ spaceId }: Props) {
             </div>
           ) : !tlQuery.data?.messages.length ? (
             <p className="text-sm text-muted-foreground text-center py-6">
-              Aucun message importé pour le moment. Utilisez « Importer un export » pour ajouter une discussion WhatsApp.
+              Aucun message pour le moment. Utilisez « Importer un export » ou écrivez dans le chat de l’espace.
             </p>
           ) : (
             <ul className="divide-y max-h-[480px] overflow-y-auto">

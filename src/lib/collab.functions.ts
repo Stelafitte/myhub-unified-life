@@ -718,7 +718,7 @@ export const listSpacePolls = createServerFn({ method: "GET" })
     };
   });
 
-/** Timeline des messages WhatsApp importés dans un espace. */
+/** Timeline du fil WhatsApp d'un espace : historique importé + messages Hub ajoutés ensuite. */
 export const listSpaceWaTimeline = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -739,7 +739,6 @@ export const listSpaceWaTimeline = createServerFn({ method: "POST" })
       .from("collab_messages")
       .select("id,content,sender_name,message_at,metadata,type")
       .eq("space_id", data.spaceId)
-      .eq("metadata->>is_imported", "true")
       .order("message_at", { ascending: false })
       .limit(data.limit ?? 200);
 
