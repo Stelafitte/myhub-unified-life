@@ -16,6 +16,7 @@ import { AiSection } from "@/components/settings/ai-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { NavigationSection } from "@/components/settings/navigation-section";
 import { WhatsAppSection } from "@/components/settings/whatsapp-section";
+import { WhatsAppLinkSection } from "@/components/settings/whatsapp-link-section";
 
 
 
