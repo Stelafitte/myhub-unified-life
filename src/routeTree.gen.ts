@@ -39,6 +39,7 @@ import { Route as ApiPublicLandingRequestRouteImport } from './routes/api/public
 import { Route as ApiOutlookOauthCallbackRouteImport } from './routes/api/outlook-oauth/callback'
 import { Route as ApiGoogleCalendarCallbackRouteImport } from './routes/api/google-calendar/callback'
 import { Route as AuthenticatedCollaborateReviewRouteImport } from './routes/_authenticated/collaborate.review'
+import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 import { Route as ApiPublicHooksRsvpRemindersRouteImport } from './routes/api/public/hooks/rsvp-reminders'
 import { Route as AuthenticatedCollaborateSpaceSpaceIdRouteImport } from './routes/_authenticated/collaborate.space.$spaceId'
@@ -198,6 +199,12 @@ const AuthenticatedCollaborateReviewRoute =
     path: '/review',
     getParentRoute: () => AuthenticatedCollaborateRoute,
   } as any)
+const LovableEmailQueueProcessRoute =
+  LovableEmailQueueProcessRouteImport.update({
+    id: '/lovable/email/queue/process',
+    path: '/lovable/email/queue/process',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWhatsappWebhookRoute =
   ApiPublicWhatsappWebhookRouteImport.update({
     id: '/api/public/whatsapp/webhook',
@@ -261,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
   '/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
@@ -297,6 +305,7 @@ export interface FileRoutesByTo {
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
   '/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
@@ -335,6 +344,7 @@ export interface FileRoutesById {
   '/_authenticated/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
   '/_authenticated/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
@@ -373,6 +383,7 @@ export interface FileRouteTypes {
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
+    | '/lovable/email/queue/process'
     | '/api/public/poll/$token/files'
     | '/collaborate/space/$spaceId/doc/$docId'
   fileRoutesByTo: FileRoutesByTo
@@ -409,6 +420,7 @@ export interface FileRouteTypes {
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
+    | '/lovable/email/queue/process'
     | '/api/public/poll/$token/files'
     | '/collaborate/space/$spaceId/doc/$docId'
   id:
@@ -446,6 +458,7 @@ export interface FileRouteTypes {
     | '/_authenticated/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
+    | '/lovable/email/queue/process'
     | '/api/public/poll/$token/files'
     | '/_authenticated/collaborate/space/$spaceId/doc/$docId'
   fileRoutesById: FileRoutesById
@@ -465,6 +478,7 @@ export interface RootRouteChildren {
   ApiPublicLandingRequestRoute: typeof ApiPublicLandingRequestRoute
   ApiPublicHooksRsvpRemindersRoute: typeof ApiPublicHooksRsvpRemindersRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
+  LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
   ApiPublicPollTokenFilesRoute: typeof ApiPublicPollTokenFilesRoute
 }
 
@@ -680,6 +694,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCollaborateReviewRouteImport
       parentRoute: typeof AuthenticatedCollaborateRoute
     }
+    '/lovable/email/queue/process': {
+      id: '/lovable/email/queue/process'
+      path: '/lovable/email/queue/process'
+      fullPath: '/lovable/email/queue/process'
+      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/whatsapp/webhook': {
       id: '/api/public/whatsapp/webhook'
       path: '/api/public/whatsapp/webhook'
@@ -809,6 +830,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicLandingRequestRoute: ApiPublicLandingRequestRoute,
   ApiPublicHooksRsvpRemindersRoute: ApiPublicHooksRsvpRemindersRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
+  LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
   ApiPublicPollTokenFilesRoute: ApiPublicPollTokenFilesRoute,
 }
 export const routeTree = rootRouteImport
