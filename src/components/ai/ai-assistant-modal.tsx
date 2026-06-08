@@ -265,6 +265,16 @@ export function AiAssistantModal({
     }, 50);
   };
 
+  const openExpenseDialog = (turn: Turn) => {
+    const emailIds = Array.from(turn.selectedMatches).filter(id =>
+      turn.result?.matches.find(m => m.id === id)?.kind === "email"
+    );
+    if (emailIds.length === 0) { toast.error("Sélectionnez au moins un email."); return; }
+    setExpenseEmailIds(emailIds);
+    setExpenseInstruction(turn.prompt);
+    setExpenseOpen(true);
+  };
+
   const generateExpenseFor = async (turn: Turn) => {
     const emailIds = Array.from(turn.selectedMatches).filter(id =>
       turn.result?.matches.find(m => m.id === id)?.kind === "email"
