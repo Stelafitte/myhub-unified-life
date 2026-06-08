@@ -144,6 +144,19 @@ export function AiAssistantModal({
     setTurns((t) => [...t, { id, mode: currentMode, prompt: q, result: null, chatReply: null, error: null, selectedMatches: new Set(), actions: [], proposing: false }]);
     setPrompt("");
     try {
+      // Détection : note de frais → recherche d'emails + génération auto
+      const isExpenseIntent = /\bnotes?\s+de\s+frais\b|\bndf\b|\bexpense\s+report\b/i.test(q);
+      if (isExpenseIntent) {
+        const res = await run({ data: { prompt: q, contextRoute: window.location.pathname, forceEntity: "emails" } });
+        setTurns((t) => t.map((x) => (x.id === id ? { ...x, result: res, selectedMatches: new Set(res.matches.map(m => m.id)) } : x)));
+        const emailIds = res.matches.filter(m => m.kind === "email").map(m => m.id);
+        if (emailIds.length === 0) {
+          toast.info("Aucun email correspondant trouvé.");
+        } else {
+          await runExpenseReport(id, emailIds, q);
+        }
+        return;
+      }
       if (currentMode === "chat") {
         // 0) Pilotage instantané de l'inbox (next/prev/close/first/last) — sans LLM.
         //    On laisse la priorité à un verbe d'action explicite (supprime/archive…).
