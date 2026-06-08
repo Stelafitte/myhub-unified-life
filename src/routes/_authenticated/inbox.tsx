@@ -223,7 +223,6 @@ function InboxPage() {
   const [themesOpen, setThemesOpen] = useState(false);
   const [dragTheme, setDragTheme] = useState<string | null>(null);
   const [dropTargetTheme, setDropTargetTheme] = useState<string | null>(null);
-  const [dragEmailCount, setDragEmailCount] = useState<number>(0);
   const [dropTargetSidebarThemeId, setDropTargetSidebarThemeId] = useState<string | null>(null);
   const [relaunching, setRelaunching] = useState(false);
   const [aiRanking, setAiRanking] = useState(true);
