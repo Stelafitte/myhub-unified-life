@@ -1421,7 +1421,14 @@ function InboxPage() {
             <Input
               placeholder="Rechercher…" withMic
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                // Sur mobile, dès qu'on tape, bascule vers la liste filtrée
+                if (isMobileInbox && e.target.value.trim() && mobileView !== "list") {
+                  setMobileView("list");
+                  try { window.history.pushState({ inboxList: true }, ""); } catch { /* ignore */ }
+                }
+              }}
               className="pl-8"
             />
           </div>
