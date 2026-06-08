@@ -186,12 +186,28 @@ export function ThemesManagerDialog({
     toast.success("Thèmes fusionnés");
   };
 
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    const r = await createFn({ data: { name: newName.trim() } });
+  const handleCreate = async (parentId: string | null = null, name?: string) => {
+    const finalName = (name ?? newName).trim();
+    if (!finalName) return;
+    const r = await createFn({ data: { name: finalName, parent_id: parentId } });
     if (!r.theme) toast.error(r.error ?? "Erreur");
-    setNewName("");
+    if (parentId) {
+      setSubName("");
+      setAddingSubFor(null);
+    } else {
+      setNewName("");
+    }
     await refresh();
+    onChanged?.();
+  };
+
+  const handleSetParent = async (id: string, parentId: string | null) => {
+    setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, parent_id: parentId } : t)));
+    const r = await setParentFn({ data: { id, parent_id: parentId } });
+    if (!r.ok) {
+      toast.error(r.error ?? "Erreur");
+      await refresh();
+    }
     onChanged?.();
   };
 
