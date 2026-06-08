@@ -12,6 +12,7 @@ import {
   setThemeUtility,
   setThemeScope,
   autoDetectThemeScopes,
+  reclassifyThemesInPeriod,
   type Theme,
   type ThemeUtility,
   type ThemeScope,
@@ -123,11 +124,14 @@ export function ThemesManagerDialog({
   const setUtilityFn = useServerFn(setThemeUtility);
   const setScopeFn = useServerFn(setThemeScope);
   const autoDetectFn = useServerFn(autoDetectThemeScopes);
+  const reclassifyFn = useServerFn(reclassifyThemesInPeriod);
 
   const [themes, setThemes] = useState<Theme[]>([]);
   const [loading, setLoading] = useState(false);
   const [discovering, setDiscovering] = useState(false);
   const [detecting, setDetecting] = useState(false);
+  const [reclassifying, setReclassifying] = useState<null | "day" | "week" | "month">(null);
+  const [reclassifyProgress, setReclassifyProgress] = useState(0);
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [newName, setNewName] = useState("");
@@ -207,6 +211,34 @@ export function ThemesManagerDialog({
     onChanged?.();
   };
 
+  const handleReclassify = async (period: "day" | "week" | "month") => {
+    if (reclassifying) return;
+    setReclassifying(period);
+    setReclassifyProgress(0);
+    const labels = { day: "dernières 24h", week: "7 derniers jours", month: "30 derniers jours" };
+    toast.info(`Reclassement en cours (${labels[period]})…`);
+    try {
+      let total = 0;
+      // Loop until the batch returns 0 processed (safety cap: 30 batches = ~1200 emails)
+      for (let i = 0; i < 30; i++) {
+        const r = await reclassifyFn({ data: { period } });
+        if ("error" in r && r.error) {
+          toast.error(r.error as string);
+          break;
+        }
+        total += r.processed ?? 0;
+        setReclassifyProgress(total);
+        if (!r.processed) break;
+      }
+      toast.success(`${total} email(s) reclassé(s) sur ${labels[period]}`);
+      onChanged?.();
+      await refresh();
+    } finally {
+      setReclassifying(null);
+      setReclassifyProgress(0);
+    }
+  };
+
   const handleSetUtility = async (id: string, level: ThemeUtility) => {
     setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, utility_level: level } : t)));
     await setUtilityFn({ data: { id, utility_level: level } });
@@ -264,6 +296,36 @@ export function ThemesManagerDialog({
               Découverte IA
             </Button>
           </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-b px-6 py-3">
+          <span className="text-xs font-medium text-muted-foreground">Reclasser :</span>
+          {([
+            { key: "day", label: "24h" },
+            { key: "week", label: "7 jours" },
+            { key: "month", label: "30 jours" },
+          ] as const).map((p) => (
+            <Button
+              key={p.key}
+              size="sm"
+              variant="outline"
+              disabled={!!reclassifying}
+              onClick={() => handleReclassify(p.key)}
+              className="shrink-0"
+            >
+              {reclassifying === p.key ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              {p.label}
+            </Button>
+          ))}
+          {reclassifying && (
+            <span className="text-xs text-muted-foreground">
+              {reclassifyProgress} email(s) reclassé(s)…
+            </span>
+          )}
         </div>
 
         {mergeFrom && (

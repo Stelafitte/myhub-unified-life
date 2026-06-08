@@ -357,6 +357,179 @@ ${(r.body_text ?? "").slice(0, 1500)}`;
     return { processed };
   });
 
+// ---------- Reclassify by period ----------
+
+const PERIODS = ["day", "week", "month"] as const;
+type Period = (typeof PERIODS)[number];
+
+function periodCutoff(period: Period): string {
+  const now = new Date();
+  const d = new Date(now);
+  if (period === "day") d.setDate(d.getDate() - 1);
+  else if (period === "week") d.setDate(d.getDate() - 7);
+  else d.setMonth(d.getMonth() - 1);
+  return d.toISOString();
+}
+
+export const reclassifyThemesInPeriod = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ period: z.enum(PERIODS), batchSize: z.number().int().min(1).max(80).optional() }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) return { processed: 0, remaining: 0, error: "LOVABLE_API_KEY manquant" };
+
+    const cutoff = periodCutoff(data.period);
+    const batch = data.batchSize ?? 40;
+
+    // Count remaining BEFORE processing
+    const { count: totalBefore } = await supabase
+      .from("emails")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_sensitive", false)
+      .gte("received_at", cutoff);
+
+    // Load themes and sender memory
+    const { data: themesRows } = await supabase
+      .from("email_themes")
+      .select("id,name,description,keywords,utility_level,scope")
+      .eq("user_id", userId)
+      .is("archived_at", null);
+    const themes = (themesRows ?? []) as {
+      id: string;
+      name: string;
+      description: string | null;
+      keywords: string[];
+      utility_level?: string;
+      scope?: string;
+    }[];
+    const themeByName = new Map(themes.map((t) => [t.name.toLowerCase(), t]));
+
+    const { data: senderRows } = await supabase
+      .from("sender_theme_map")
+      .select("from_address,theme_id")
+      .eq("user_id", userId);
+    const senderMap = new Map((senderRows ?? []).map((s) => [s.from_address.toLowerCase(), s.theme_id]));
+
+    // Pick emails in period, oldest first so progress is visible
+    const { data: rows, error } = await supabase
+      .from("emails")
+      .select("id,subject,from_address,from_name,body_text,ai_summary,received_at,theme_processed_at")
+      .eq("user_id", userId)
+      .eq("is_sensitive", false)
+      .gte("received_at", cutoff)
+      .order("received_at", { ascending: true })
+      .limit(batch);
+    if (error) return { processed: 0, remaining: 0, error: error.message };
+    if (!rows || rows.length === 0) {
+      await refreshThemeCounts(supabase, userId);
+      return { processed: 0, remaining: 0, total: totalBefore ?? 0 };
+    }
+
+    const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["email_classify"]);
+    const themeList = themes
+      .map(
+        (t) =>
+          `- "${t.name}" [${t.scope ?? "perso"}/${t.utility_level ?? "modere"}]${t.description ? `: ${t.description}` : ""}${t.keywords.length ? ` [mots-clés: ${t.keywords.join(", ")}]` : ""}`,
+      )
+      .join("\n");
+
+    let processed = 0;
+    for (const r of rows) {
+      let themeId: string | null = null;
+      const sender = (r.from_address ?? "").toLowerCase();
+      if (sender && senderMap.has(sender)) {
+        themeId = senderMap.get(sender) ?? null;
+      }
+      if (!themeId) {
+        const user = `THÈMES EXISTANTS:
+${themeList || "(aucun)"}
+
+EMAIL À CLASSER:
+Sujet: ${r.subject ?? ""}
+De: ${r.from_name ?? ""} <${r.from_address ?? ""}>
+${r.ai_summary ? `Résumé: ${r.ai_summary}\n` : ""}Contenu:
+${(r.body_text ?? "").slice(0, 1500)}`;
+        try {
+          const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+            body: JSON.stringify({
+              model: "google/gemini-3-flash-preview",
+              messages: [
+                { role: "system", content: CLASSIFY_SYS + userPromptsBlock },
+                { role: "user", content: user },
+              ],
+              response_format: { type: "json_object" },
+            }),
+          });
+          if (resp.ok) {
+            const json = await resp.json();
+            const raw = json?.choices?.[0]?.message?.content ?? "{}";
+            const parsed = JSON.parse(raw) as {
+              theme?: string | null;
+              new_theme?: { name: string; description?: string; keywords?: string[]; scope?: string } | null;
+            };
+            if (parsed.theme) {
+              const match = themeByName.get(parsed.theme.toLowerCase());
+              if (match) themeId = match.id;
+            }
+            if (!themeId && parsed.new_theme?.name) {
+              const nt = parsed.new_theme;
+              const scope = nt.scope === "pro" ? "pro" : "perso";
+              const { data: inserted } = await supabase
+                .from("email_themes")
+                .upsert(
+                  {
+                    user_id: userId,
+                    name: nt.name.slice(0, 80),
+                    description: (nt.description ?? "").slice(0, 280),
+                    keywords: (nt.keywords ?? []).slice(0, 10),
+                    source: "ai",
+                    scope,
+                  },
+                  { onConflict: "user_id,name" },
+                )
+                .select("id,name,description,keywords")
+                .single();
+              if (inserted) {
+                themeId = inserted.id;
+                themes.push(inserted as typeof themes[number]);
+                themeByName.set(inserted.name.toLowerCase(), inserted as typeof themes[number]);
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const now = new Date().toISOString();
+      await supabase
+        .from("emails")
+        .update({ ai_theme_id: themeId, theme_processed_at: now })
+        .eq("id", r.id);
+      if (themeId) {
+        await supabase
+          .from("email_themes")
+          .update({ last_email_at: r.received_at ?? now })
+          .eq("id", themeId);
+      }
+      processed++;
+    }
+
+    await refreshThemeCounts(supabase, userId);
+
+    // Remaining = emails in period not yet re-processed in THIS run.
+    // We mark the cutoff of "this run" by theme_processed_at >= startTs.
+    // Simpler: estimate via (totalBefore - processed) — minus already-processed-in-this-run before this batch.
+    // For UX, just return totalBefore so the client can loop until processed===0.
+    return { processed, remaining: Math.max(0, (totalBefore ?? 0) - processed), total: totalBefore ?? 0 };
+  });
+
 // ---------- Manual overrides ----------
 
 async function refreshThemeCounts(
