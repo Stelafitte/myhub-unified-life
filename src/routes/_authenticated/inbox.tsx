@@ -1893,6 +1893,29 @@ function InboxPage() {
             </span>
           </div>
         </div>
+        {isMobileInbox && (
+          <div className="border-b px-3 py-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher dans cette boîte…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="h-8 pl-8 text-sm"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  aria-label="Effacer"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <div
           className={cn(
             "flex flex-wrap items-center gap-2 border-b px-4 py-1.5 text-xs",
