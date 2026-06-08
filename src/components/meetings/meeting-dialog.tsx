@@ -59,11 +59,31 @@ function generateJitsiLink(dateInput?: string): string {
 }
 
 type Importance = "low" | "normal" | "high" | "critical";
-const IMPORTANCE_META: Record<Importance, { label: string; cls: string }> = {
-  low: { label: "Faible", cls: "bg-muted text-muted-foreground" },
-  normal: { label: "Normal", cls: "bg-secondary text-secondary-foreground" },
-  high: { label: "Élevé", cls: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200" },
-  critical: { label: "Critique", cls: "bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200" },
+const IMPORTANCE_META: Record<Importance, { label: string; cls: string; dialogBg: string }> = {
+  low: {
+    label: "Faible",
+    cls: "bg-muted text-muted-foreground",
+    dialogBg:
+      "bg-gradient-to-b from-muted/40 via-background to-background dark:from-muted/20",
+  },
+  normal: {
+    label: "Normal",
+    cls: "bg-secondary text-secondary-foreground",
+    dialogBg:
+      "bg-gradient-to-b from-secondary/60 via-secondary/20 to-background dark:from-secondary/40 dark:via-secondary/10",
+  },
+  high: {
+    label: "Élevé",
+    cls: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200",
+    dialogBg:
+      "bg-gradient-to-b from-amber-200/70 via-amber-100/40 to-background dark:from-amber-900/40 dark:via-amber-900/15 dark:to-background",
+  },
+  critical: {
+    label: "Critique",
+    cls: "bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200",
+    dialogBg:
+      "bg-gradient-to-b from-red-300/70 via-red-200/40 to-background dark:from-red-900/50 dark:via-red-900/20 dark:to-background",
+  },
 };
 
 type Participant = { email: string; name?: string; role: "required" | "optional" };
@@ -954,7 +974,7 @@ export function MeetingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className={cn("max-w-6xl max-h-[90vh] overflow-y-auto transition-colors", IMPORTANCE_META[form.importance].dialogBg)}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             {form.id ? "Modifier la réunion" : "Nouvelle réunion"}
