@@ -209,7 +209,7 @@ export function GroupFormDialog({
                   <SelectItem value="manual">Manuel</SelectItem>
                   <SelectItem value="smart">🤖 Smart (règles)</SelectItem>
                   <SelectItem value="space">Depuis un espace</SelectItem>
-                  <SelectItem value="whatsapp">📱 Depuis WhatsApp</SelectItem>
+                  
                 </SelectContent>
               </Select>
             </div>

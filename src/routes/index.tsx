@@ -355,13 +355,7 @@ function Features() {
       icon: Users,
       emoji: "🤝",
       title: "Espaces collaboratifs",
-      desc: "Créez des espaces de travail par projet (CNPCV, SFC, UMCV, Recherche…). Chat, documents partagés, sondages et gestion des groupes WhatsApp.",
-    },
-    {
-      icon: MessageCircle,
-      emoji: "📱",
-      title: "Intégration WhatsApp",
-      desc: "Recevez et analysez vos groupes WhatsApp professionnels directement dans le Hub. L'IA extrait automatiquement les actions et décisions.",
+      desc: "Créez des espaces de travail par projet (CNPCV, SFC, UMCV, Recherche…). Chat, documents partagés, sondages et tâches partagées entre membres.",
     },
     {
       icon: ShieldCheck,
@@ -570,7 +564,7 @@ function Integrations() {
     "OneDrive",
     "OneNote",
     "Zoom",
-    "WhatsApp Business",
+    
   ];
   return (
     <section className="py-16 md:py-20">

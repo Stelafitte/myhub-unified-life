@@ -96,9 +96,6 @@ export function SpaceWorkspace() {
                   <TabsTrigger value="files" className="gap-1">
                     <Paperclip className="h-3.5 w-3.5" /> Fichiers
                   </TabsTrigger>
-                  <TabsTrigger value="wa" className="gap-1">
-                    <Smartphone className="h-3.5 w-3.5" /> WhatsApp
-                  </TabsTrigger>
                   <TabsTrigger value="polls" className="gap-1">
                     <Vote className="h-3.5 w-3.5" /> Sondages
                   </TabsTrigger>
@@ -121,9 +118,6 @@ export function SpaceWorkspace() {
                 </TabsContent>
                 <TabsContent value="files" className="flex-1 min-h-0 mt-2 overflow-y-auto">
                   <SpaceFilesTab spaceId={active.id} />
-                </TabsContent>
-                <TabsContent value="wa" className="flex-1 min-h-0 mt-2 overflow-y-auto">
-                  <SpaceWhatsappTab spaceId={active.id} />
                 </TabsContent>
                 <TabsContent value="polls" className="flex-1 min-h-0 mt-2 overflow-y-auto">
                   <SpacePollsTab spaceId={active.id} />

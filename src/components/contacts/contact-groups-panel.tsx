@@ -225,11 +225,6 @@ export function ContactGroupsPanel() {
                         <Sparkles className="size-3" /> IA
                       </Badge>
                     )}
-                    {g.group_type === "whatsapp" && (
-                      <Badge className="text-[10px] gap-1 bg-green-600 hover:bg-green-600">
-                        <MessageSquare className="size-3" /> WA
-                      </Badge>
-                    )}
                     {g.is_smart && (
                       <Badge className="text-[10px] gap-1 bg-violet-600 hover:bg-violet-600">
                         <Bot className="size-3" /> Smart

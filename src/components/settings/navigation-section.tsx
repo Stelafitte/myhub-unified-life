@@ -17,7 +17,6 @@ const NAV_ITEMS: Record<string, { title: string; icon: React.ComponentType<{ cla
   "/documents": { title: "Documents", icon: FolderOpen },
   "/contacts": { title: "Contacts", icon: Users },
   "/collaborate": { title: "Collaboratif", icon: Handshake },
-  "/whatsapp": { title: "WhatsApp", icon: MessageCircle },
   "/plan-operation": { title: "Plan d'opération", icon: ClipboardList },
   "/stats": { title: "Stats", icon: BarChart3 },
 };
