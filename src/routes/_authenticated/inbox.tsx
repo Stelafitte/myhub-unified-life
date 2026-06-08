@@ -686,13 +686,13 @@ function InboxPage() {
     }
     if (query.trim()) {
       const q = query.toLowerCase();
-      list = list.filter(
-        (e) =>
-          (e.subject ?? "").toLowerCase().includes(q) ||
-          (e.from_address ?? "").toLowerCase().includes(q) ||
-          (e.from_name ?? "").toLowerCase().includes(q) ||
-          (e.body_text ?? "").toLowerCase().includes(q),
-      );
+      list = list.filter((e) => {
+        const fields = [e.subject, e.from_address, e.from_name, e.body_text];
+        for (const f of fields) if (f && smartMatch(q, f)) return true;
+        if (e.from_address && q.includes(e.from_address.toLowerCase())) return true;
+        if (e.from_name && q.includes(e.from_name.toLowerCase())) return true;
+        return false;
+      });
     }
     return list;
   }, [emails, filter, query, unreadSnapshot]);
