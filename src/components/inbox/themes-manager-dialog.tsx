@@ -277,11 +277,24 @@ export function ThemesManagerDialog({
   const archived = themes.filter((t) => t.archived_at);
   const proCount = active.filter((t) => t.scope === "pro").length;
   const persoCount = active.filter((t) => t.scope === "perso").length;
-  const visible = active.filter(
-    (t) =>
-      t.scope === tab &&
-      (!searchQuery.trim() || t.name.toLowerCase().includes(searchQuery.trim().toLowerCase())),
+  const q = searchQuery.trim().toLowerCase();
+  const inTab = active.filter((t) => t.scope === tab);
+  const matches = (t: Theme) => !q || t.name.toLowerCase().includes(q);
+  const childrenOf = new Map<string, Theme[]>();
+  for (const t of inTab) {
+    if (!t.parent_id) continue;
+    const arr = childrenOf.get(t.parent_id) ?? [];
+    arr.push(t);
+    childrenOf.set(t.parent_id, arr);
+  }
+  // A root is visible if it matches, or any of its children match.
+  const rootsAll = inTab.filter((t) => !t.parent_id || !inTab.some((p) => p.id === t.parent_id));
+  const visibleRoots = rootsAll.filter(
+    (t) => matches(t) || (childrenOf.get(t.id) ?? []).some(matches),
   );
+  // Potential parents for the "move under" select, scoped to current tab and excluding self.
+  const parentChoicesFor = (t: Theme) =>
+    inTab.filter((p) => p.id !== t.id && !p.parent_id);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
