@@ -1294,6 +1294,7 @@ export type Database = {
           keywords: string[]
           last_email_at: string | null
           name: string
+          parent_id: string | null
           scope: string
           source: string
           updated_at: string
@@ -1310,6 +1311,7 @@ export type Database = {
           keywords?: string[]
           last_email_at?: string | null
           name: string
+          parent_id?: string | null
           scope?: string
           source?: string
           updated_at?: string
@@ -1326,13 +1328,22 @@ export type Database = {
           keywords?: string[]
           last_email_at?: string | null
           name?: string
+          parent_id?: string | null
           scope?: string
           source?: string
           updated_at?: string
           user_id?: string
           utility_level?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "email_themes_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "email_themes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_unsubscribe_tokens: {
         Row: {

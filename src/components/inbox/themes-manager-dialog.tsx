@@ -11,6 +11,7 @@ import {
   discoverThemes,
   setThemeUtility,
   setThemeScope,
+  setThemeParent,
   autoDetectThemeScopes,
   reclassifyThemesInPeriod,
   type Theme,
@@ -29,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Pencil, Archive, ArchiveRestore, Trash2, GitMerge, Plus, Loader2, Wand2, Briefcase, Heart, Search } from "lucide-react";
+import { Sparkles, Pencil, Archive, ArchiveRestore, Trash2, GitMerge, Plus, Loader2, Wand2, Briefcase, Heart, Search, CornerDownRight, FolderTree } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { confirmDialog } from "@/lib/confirm-dialog";
@@ -125,6 +126,7 @@ export function ThemesManagerDialog({
   const setScopeFn = useServerFn(setThemeScope);
   const autoDetectFn = useServerFn(autoDetectThemeScopes);
   const reclassifyFn = useServerFn(reclassifyThemesInPeriod);
+  const setParentFn = useServerFn(setThemeParent);
 
   const [themes, setThemes] = useState<Theme[]>([]);
   const [loading, setLoading] = useState(false);
@@ -138,6 +140,8 @@ export function ThemesManagerDialog({
   const [mergeFrom, setMergeFrom] = useState<string | null>(null);
   const [tab, setTab] = useState<"pro" | "perso">("pro");
   const [searchQuery, setSearchQuery] = useState("");
+  const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
+  const [subName, setSubName] = useState("");
 
   const refresh = async () => {
     setLoading(true);
@@ -182,12 +186,28 @@ export function ThemesManagerDialog({
     toast.success("Thèmes fusionnés");
   };
 
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    const r = await createFn({ data: { name: newName.trim() } });
+  const handleCreate = async (parentId: string | null = null, name?: string) => {
+    const finalName = (name ?? newName).trim();
+    if (!finalName) return;
+    const r = await createFn({ data: { name: finalName, parent_id: parentId } });
     if (!r.theme) toast.error(r.error ?? "Erreur");
-    setNewName("");
+    if (parentId) {
+      setSubName("");
+      setAddingSubFor(null);
+    } else {
+      setNewName("");
+    }
     await refresh();
+    onChanged?.();
+  };
+
+  const handleSetParent = async (id: string, parentId: string | null) => {
+    setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, parent_id: parentId } : t)));
+    const r = await setParentFn({ data: { id, parent_id: parentId } });
+    if (!r.ok) {
+      toast.error(r.error ?? "Erreur");
+      await refresh();
+    }
     onChanged?.();
   };
 
@@ -257,11 +277,24 @@ export function ThemesManagerDialog({
   const archived = themes.filter((t) => t.archived_at);
   const proCount = active.filter((t) => t.scope === "pro").length;
   const persoCount = active.filter((t) => t.scope === "perso").length;
-  const visible = active.filter(
-    (t) =>
-      t.scope === tab &&
-      (!searchQuery.trim() || t.name.toLowerCase().includes(searchQuery.trim().toLowerCase())),
+  const q = searchQuery.trim().toLowerCase();
+  const inTab = active.filter((t) => t.scope === tab);
+  const matches = (t: Theme) => !q || t.name.toLowerCase().includes(q);
+  const childrenOf = new Map<string, Theme[]>();
+  for (const t of inTab) {
+    if (!t.parent_id) continue;
+    const arr = childrenOf.get(t.parent_id) ?? [];
+    arr.push(t);
+    childrenOf.set(t.parent_id, arr);
+  }
+  // A root is visible if it matches, or any of its children match.
+  const rootsAll = inTab.filter((t) => !t.parent_id || !inTab.some((p) => p.id === t.parent_id));
+  const visibleRoots = rootsAll.filter(
+    (t) => matches(t) || (childrenOf.get(t.id) ?? []).some(matches),
   );
+  // Potential parents for the "move under" select, scoped to current tab and excluding self.
+  const parentChoicesFor = (t: Theme) =>
+    inTab.filter((p) => p.id !== t.id && !p.parent_id);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -282,7 +315,7 @@ export function ThemesManagerDialog({
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               className="h-8 min-w-0 flex-1"
             />
-            <Button size="sm" onClick={handleCreate} disabled={!newName.trim()} className="shrink-0">
+            <Button size="sm" onClick={() => handleCreate()} disabled={!newName.trim()} className="shrink-0">
               <Plus className="h-3.5 w-3.5" /> Ajouter
             </Button>
           </div>
@@ -359,78 +392,126 @@ export function ThemesManagerDialog({
           <TabsContent value={tab} className="mt-2 min-w-0">
             <div className="max-h-[48vh] overflow-y-auto pr-1">
               {loading && <div className="py-4 text-center text-sm text-muted-foreground">Chargement…</div>}
-              {!loading && visible.length === 0 && (
+              {!loading && visibleRoots.length === 0 && (
                 <div className="py-6 text-center text-sm text-muted-foreground">
                   Aucun thème {tab === "pro" ? "professionnel" : "personnel"}. Utilisez « Détecter Pro/Perso » ou changez la portée d'un thème.
                 </div>
               )}
               <ul className="divide-y">
-                {visible.map((t) => (
-                  <li key={t.id} className="py-2">
-                    {editing === t.id ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && handleRename(t.id)}
-                          className="h-7 max-w-xs"
-                          autoFocus
-                        />
-                        <Button size="sm" className="h-7" onClick={() => handleRename(t.id)}>OK</Button>
-                        <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditing(null)}>Annuler</Button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-1.5">
-                        {/* Ligne 1 : nom + meta */}
-                        <div className="flex min-w-0 items-center gap-2">
-                          <span className="truncate text-sm font-medium">{t.name}</span>
-                          <Badge variant="secondary" className="shrink-0 text-[10px]">{t.email_count}</Badge>
-                          <Badge variant="outline" className="shrink-0 text-[10px]">{t.source}</Badge>
-                        </div>
-                        {t.description && (
-                          <div className="truncate text-xs text-muted-foreground">{t.description}</div>
-                        )}
-                        {/* Ligne 2 : contrôles */}
+                {visibleRoots.map((root) => {
+                  const subs = (childrenOf.get(root.id) ?? []).filter((c) => !q || matches(c) || matches(root));
+                  const renderRow = (t: Theme, isChild: boolean) => (
+                    <li key={t.id} className={cn("py-2", isChild && "pl-6")}>
+                      {editing === t.id ? (
                         <div className="flex flex-wrap items-center gap-2">
-                          <UtilitySelector
-                            value={t.utility_level}
-                            onChange={(lvl) => handleSetUtility(t.id, lvl)}
+                          <Input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleRename(t.id)}
+                            className="h-7 max-w-xs"
+                            autoFocus
                           />
-                          <ScopeToggle
-                            value={t.scope}
-                            onChange={(s) => handleSetScope(t.id, s)}
-                          />
-                          <div className="ml-auto flex items-center gap-0.5">
-                            {mergeFrom && mergeFrom !== t.id ? (
-                              <Button size="sm" variant="default" className="h-7" onClick={() => handleMerge(t.id)}>
-                                Fusionner ici
-                              </Button>
-                            ) : (
-                              <>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" title="Renommer"
-                                  onClick={() => { setEditing(t.id); setEditName(t.name); }}>
-                                  <Pencil className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" title="Fusionner avec…"
-                                  onClick={() => setMergeFrom(t.id)}>
-                                  <GitMerge className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7" title="Archiver"
-                                  onClick={() => handleArchive(t)}>
-                                  <Archive className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Supprimer"
-                                  onClick={() => handleDelete(t)}>
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </>
+                          <Button size="sm" className="h-7" onClick={() => handleRename(t.id)}>OK</Button>
+                          <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditing(null)}>Annuler</Button>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex min-w-0 items-center gap-2">
+                            {isChild && <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                            <span className="truncate text-sm font-medium">{t.name}</span>
+                            <Badge variant="secondary" className="shrink-0 text-[10px]">{t.email_count}</Badge>
+                            <Badge variant="outline" className="shrink-0 text-[10px]">{t.source}</Badge>
+                          </div>
+                          {t.description && (
+                            <div className="truncate text-xs text-muted-foreground">{t.description}</div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <UtilitySelector
+                              value={t.utility_level}
+                              onChange={(lvl) => handleSetUtility(t.id, lvl)}
+                            />
+                            {!isChild && (
+                              <ScopeToggle value={t.scope} onChange={(s) => handleSetScope(t.id, s)} />
                             )}
+                            {/* Parent selector — only for items that themselves have no children (avoid 2-level hierarchies) */}
+                            {(childrenOf.get(t.id) ?? []).length === 0 && parentChoicesFor(t).length > 0 && (
+                              <Select
+                                value={t.parent_id ?? "__root__"}
+                                onValueChange={(v) => handleSetParent(t.id, v === "__root__" ? null : v)}
+                              >
+                                <SelectTrigger className="h-7 w-auto gap-1 text-[11px]" title="Rattacher à un thème parent">
+                                  <FolderTree className="h-3 w-3" />
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__root__" className="text-xs">Racine (aucun parent)</SelectItem>
+                                  {parentChoicesFor(t).map((p) => (
+                                    <SelectItem key={p.id} value={p.id} className="text-xs">↳ {p.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                            <div className="ml-auto flex items-center gap-0.5">
+                              {mergeFrom && mergeFrom !== t.id ? (
+                                <Button size="sm" variant="default" className="h-7" onClick={() => handleMerge(t.id)}>
+                                  Fusionner ici
+                                </Button>
+                              ) : (
+                                <>
+                                  {!isChild && (
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" title="Ajouter un sous-thème"
+                                      onClick={() => { setAddingSubFor(t.id); setSubName(""); }}>
+                                      <Plus className="h-3.5 w-3.5" />
+                                    </Button>
+                                  )}
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Renommer"
+                                    onClick={() => { setEditing(t.id); setEditName(t.name); }}>
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Fusionner avec…"
+                                    onClick={() => setMergeFrom(t.id)}>
+                                    <GitMerge className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" title="Archiver"
+                                    onClick={() => handleArchive(t)}>
+                                    <Archive className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" title="Supprimer"
+                                    onClick={() => handleDelete(t)}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </li>
-                ))}
+                      )}
+                    </li>
+                  );
+                  return (
+                    <div key={root.id}>
+                      {renderRow(root, false)}
+                      {addingSubFor === root.id && (
+                        <div className="flex items-center gap-2 py-2 pl-6">
+                          <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <Input
+                            autoFocus
+                            placeholder="Nom du sous-thème…"
+                            value={subName}
+                            onChange={(e) => setSubName(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleCreate(root.id, subName)}
+                            className="h-7 max-w-xs text-xs"
+                          />
+                          <Button size="sm" className="h-7" onClick={() => handleCreate(root.id, subName)} disabled={!subName.trim()}>OK</Button>
+                          <Button size="sm" variant="ghost" className="h-7" onClick={() => { setAddingSubFor(null); setSubName(""); }}>Annuler</Button>
+                        </div>
+                      )}
+                      <ul className="divide-y">
+                        {subs.map((c) => renderRow(c, true))}
+                      </ul>
+                    </div>
+                  );
+                })}
               </ul>
 
               {archived.length > 0 && tab === "perso" && (
