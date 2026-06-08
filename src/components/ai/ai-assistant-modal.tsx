@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
-import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History, Reply, ReplyAll, Star, Clock, Shield, ShieldOff, RefreshCw, Minimize2, Maximize2, Mic, MicOff } from "lucide-react";
+import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History, Reply, ReplyAll, Star, Clock, Shield, ShieldOff, RefreshCw, Minimize2, Maximize2, Mic, MicOff, Receipt } from "lucide-react";
+import { generateExpenseReport } from "@/lib/api/expense-report.functions";
 import { useVoiceConversation } from "@/hooks/use-voice-conversation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -99,6 +100,7 @@ export function AiAssistantModal({
   const sendFn = useServerFn(sendEmail);
   const planFn = useServerFn(aiVoiceCommandPlan);
   const execFn = useServerFn(aiVoiceCommandExecute);
+  const expenseFn = useServerFn(generateExpenseReport);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -257,6 +259,93 @@ export function AiAssistantModal({
       else if (kind === "document") navigate({ to: "/plan-operation", search: { documentId: id } as any });
       else if (kind === "contact") navigate({ to: "/contacts", search: { contactId: id } as any });
     }, 50);
+  };
+
+  const generateExpenseFor = async (turn: Turn) => {
+    const emailIds = Array.from(turn.selectedMatches).filter(id =>
+      turn.result?.matches.find(m => m.id === id)?.kind === "email"
+    );
+    if (emailIds.length === 0) { toast.error("Sélectionnez au moins un email."); return; }
+    setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, proposing: true } : t));
+    try {
+      toast.info("L'IA analyse les emails…");
+      const res = await expenseFn({ data: { emailIds, instruction: turn.prompt } });
+      if (res.items.length === 0) {
+        toast.error("Aucune dépense détectée dans ces emails.");
+        setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, chatReply: `Aucune dépense détectée.${res.notes ? "\n\n" + res.notes : ""}` } : t));
+        return;
+      }
+
+      // Download CSV
+      const csvBlob = new Blob(["\uFEFF" + res.csv], { type: "text/csv;charset=utf-8" });
+      const csvUrl = URL.createObjectURL(csvBlob);
+      const csvLink = document.createElement("a");
+      csvLink.href = csvUrl;
+      csvLink.download = `${res.title}.csv`;
+      csvLink.click();
+      setTimeout(() => URL.revokeObjectURL(csvUrl), 5000);
+
+      // Generate PDF with jsPDF
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+      let y = 18;
+      doc.setFontSize(16);
+      doc.text(res.title, 14, y);
+      y += 8;
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      if (res.periodFrom) {
+        doc.text(`Période : ${res.periodFrom}${res.periodTo && res.periodTo !== res.periodFrom ? ` → ${res.periodTo}` : ""}`, 14, y);
+        y += 6;
+      }
+      doc.text(`Généré le ${new Date().toLocaleDateString("fr-FR")} · ${res.items.length} ligne(s)`, 14, y);
+      y += 8;
+      doc.setTextColor(0);
+      doc.setFontSize(9);
+      // Header
+      doc.setFont("helvetica", "bold");
+      doc.text("Date", 14, y);
+      doc.text("Description", 38, y);
+      doc.text("Fournisseur", 110, y);
+      doc.text("Montant TTC", 196, y, { align: "right" });
+      y += 2;
+      doc.line(14, y, 196, y);
+      y += 5;
+      doc.setFont("helvetica", "normal");
+      for (const it of res.items) {
+        if (y > 275) { doc.addPage(); y = 18; }
+        doc.text(it.date ?? "—", 14, y);
+        const desc = doc.splitTextToSize(it.description || "", 70);
+        doc.text(desc, 38, y);
+        doc.text((it.vendor || "").slice(0, 30), 110, y);
+        doc.text(`${it.amount_ttc.toFixed(2)} ${it.currency}`, 196, y, { align: "right" });
+        y += Math.max(5, desc.length * 4);
+      }
+      y += 4;
+      doc.line(14, y, 196, y);
+      y += 6;
+      doc.setFont("helvetica", "bold");
+      doc.text(`Total : ${res.total.toFixed(2)} ${res.currency}`, 196, y, { align: "right" });
+      if (res.notes) {
+        y += 10;
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8);
+        const n = doc.splitTextToSize("Notes IA : " + res.notes, 180);
+        doc.text(n, 14, y);
+      }
+      doc.save(`${res.title}.pdf`);
+
+      const summary = `✅ Note de frais générée à partir de ${emailIds.length} email(s) :\n\n` +
+        res.items.map((it, i) => `${i + 1}. ${it.date ?? "—"} · ${it.description} · ${it.vendor} — ${it.amount_ttc.toFixed(2)} ${it.currency}`).join("\n") +
+        `\n\n💰 Total : ${res.total.toFixed(2)} ${res.currency}\n\n📄 PDF et CSV téléchargés.${res.notes ? "\n\nℹ️ " + res.notes : ""}`;
+      setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, chatReply: summary } : t));
+      toast.success("Note de frais générée");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erreur");
+      setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, error: e?.message ?? "Erreur" } : t));
+    } finally {
+      setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, proposing: false } : t));
+    }
   };
 
   const proposeFor = async (turn: Turn, kind: ProposedAction["kind"]) => {
@@ -504,6 +593,14 @@ export function AiAssistantModal({
                       </Button>
                     );
                   })}
+                  {(() => {
+                    const hasEmailSel = Array.from(t.selectedMatches).some(id => t.result?.matches.find(x => x.id === id)?.kind === "email");
+                    return (
+                      <Button size="sm" variant="outline" disabled={t.proposing || !hasEmailSel} onClick={() => generateExpenseFor(t)} className="h-7 gap-1.5 text-xs">
+                        <Receipt className="h-3.5 w-3.5" />Note de frais
+                      </Button>
+                    );
+                  })()}
                   {t.proposing && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                 </div>
 
