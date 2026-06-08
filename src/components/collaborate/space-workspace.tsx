@@ -192,6 +192,10 @@ export function SpaceWorkspace() {
                   </TabsTrigger>
                 </TabsList>
 
+                <SpaceContactGroupsBar key={`${active.id}-${contactGroupsKey}`} spaceId={active.id} />
+
+
+
                 <TabsContent value="chat" className="flex-1 min-h-0 mt-2">
                   {user && <SpaceChat spaceId={active.id} currentUserId={user.id} />}
                 </TabsContent>
