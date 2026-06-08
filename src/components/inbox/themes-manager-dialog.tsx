@@ -211,7 +211,35 @@ export function ThemesManagerDialog({
     onChanged?.();
   };
 
-  const handleSetUtility = async (id: string, level: ThemeUtility) => {
+  const handleReclassify = async (period: "day" | "week" | "month") => {
+    if (reclassifying) return;
+    setReclassifying(period);
+    setReclassifyProgress(0);
+    const labels = { day: "dernières 24h", week: "7 derniers jours", month: "30 derniers jours" };
+    toast.info(`Reclassement en cours (${labels[period]})…`);
+    try {
+      let total = 0;
+      // Loop until the batch returns 0 processed (safety cap: 30 batches = ~1200 emails)
+      for (let i = 0; i < 30; i++) {
+        const r = await reclassifyFn({ data: { period } });
+        if ("error" in r && r.error) {
+          toast.error(r.error as string);
+          break;
+        }
+        total += r.processed ?? 0;
+        setReclassifyProgress(total);
+        if (!r.processed) break;
+      }
+      toast.success(`${total} email(s) reclassé(s) sur ${labels[period]}`);
+      onChanged?.();
+      await refresh();
+    } finally {
+      setReclassifying(null);
+      setReclassifyProgress(0);
+    }
+  };
+
+
     setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, utility_level: level } : t)));
     await setUtilityFn({ data: { id, utility_level: level } });
     onChanged?.();
