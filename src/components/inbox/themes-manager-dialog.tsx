@@ -239,7 +239,7 @@ export function ThemesManagerDialog({
     }
   };
 
-
+  const handleSetUtility = async (id: string, level: ThemeUtility) => {
     setThemes((prev) => prev.map((t) => (t.id === id ? { ...t, utility_level: level } : t)));
     await setUtilityFn({ data: { id, utility_level: level } });
     onChanged?.();
