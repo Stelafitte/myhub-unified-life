@@ -147,7 +147,30 @@ function groupThemes(
   const active = themes.filter((t) => !t.archived_at && (byTheme.get(t.id) ?? 0) > 0);
   const map = new Map<string, { theme: Theme; label: string }[]>();
   const flat: Theme[] = [];
+  // Index par id pour résoudre le parent explicite (parent_id).
+  const byId = new Map<string, Theme>();
+  for (const t of themes) byId.set(t.id, t);
+  const handledByParentId = new Set<string>();
   for (const t of active) {
+    if (t.parent_id) {
+      const parent = byId.get(t.parent_id);
+      if (parent) {
+        const parentName = parent.name;
+        const arr = map.get(parentName) ?? [];
+        // Si le parent est lui-même actif, on l'inclut comme premier item.
+        if (!arr.some((i) => i.theme.id === parent.id) && (byTheme.get(parent.id) ?? 0) > 0) {
+          arr.push({ theme: parent, label: parent.name });
+          handledByParentId.add(parent.id);
+        }
+        arr.push({ theme: t, label: t.name });
+        map.set(parentName, arr);
+        handledByParentId.add(t.id);
+        continue;
+      }
+    }
+  }
+  for (const t of active) {
+    if (handledByParentId.has(t.id)) continue;
     const parsed = splitThemeName(t.name);
     if (parsed) {
       const arr = map.get(parsed.parent) ?? [];
