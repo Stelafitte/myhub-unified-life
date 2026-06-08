@@ -53,6 +53,8 @@ interface Props {
 export function SpaceTree({ activeSpaceId, onSelect }: Props) {
   const treeFn = useServerFn(getSpaceTree);
   const createFn = useServerFn(createSpace);
+  const deleteFn = useServerFn(deleteSpace);
+  const renameFn = useServerFn(renameSpace);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -65,6 +67,9 @@ export function SpaceTree({ activeSpaceId, onSelect }: Props) {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [newParent, setNewParent] = useState<string>("__root__");
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
 
   const create = useMutation({
     mutationFn: (vars: { name: string; parentId: string | null }) =>
@@ -75,6 +80,28 @@ export function SpaceTree({ activeSpaceId, onSelect }: Props) {
       setCreating(false);
       setNewName("");
       setNewParent("__root__");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { spaceId: id } }),
+    onSuccess: (res) => {
+      toast.success(`Supprimé (${res.deleted} élément${res.deleted > 1 ? "s" : ""})`);
+      qc.invalidateQueries({ queryKey: ["collab-tree"] });
+      if (deleting && activeSpaceId === deleting.id) onSelect(null);
+      setDeleting(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const rename = useMutation({
+    mutationFn: (vars: { id: string; name: string }) =>
+      renameFn({ data: { spaceId: vars.id, name: vars.name } }),
+    onSuccess: () => {
+      toast.success("Renommé");
+      qc.invalidateQueries({ queryKey: ["collab-tree"] });
+      setRenaming(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
