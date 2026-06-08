@@ -355,17 +355,46 @@ export function ExpenseReportDialog({
                 ℹ️ {notes}
               </div>
             )}
+
+            {showSend && (
+              <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+                <Label className="text-xs flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Envoyer la note de frais par email</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Input value={mailTo} onChange={(e) => setMailTo(e.target.value)} placeholder="destinataire@exemple.fr" className="h-8 text-sm" />
+                  <Select value={mailAccountId} onValueChange={setMailAccountId}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Compte d'envoi" /></SelectTrigger>
+                    <SelectContent>
+                      {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name} ({a.type})</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Textarea value={mailMessage} onChange={(e) => setMailMessage(e.target.value)} placeholder="Message (optionnel — un texte par défaut sera utilisé)" className="min-h-[70px] text-sm" />
+                <p className="text-[11px] text-muted-foreground">PJ : PDF récapitulatif + CSV{attachments.length > 0 ? ` + ${attachments.length} pièce(s) jointe(s)` : ""}.</p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setShowSend(false)} disabled={sending}>Annuler</Button>
+                  <Button size="sm" onClick={sendByEmail} disabled={sending} className="gap-1.5">
+                    {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    Envoyer
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </ScrollArea>
 
-        <DialogFooter className="flex-row gap-2 sm:justify-between">
+        <DialogFooter className="flex-row gap-2 sm:justify-between flex-wrap">
           <Button variant="outline" onClick={() => analyze(false)} disabled={loading} className="gap-1.5">
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Re-analyser{attachments.length > 0 ? " avec PJ" : ""}
           </Button>
-          <Button onClick={downloadZip} disabled={loading || items.length === 0} className="gap-1.5">
-            <Download className="h-3.5 w-3.5" /> Télécharger ZIP
-          </Button>
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" onClick={() => setShowSend(v => !v)} disabled={loading || items.length === 0} className="gap-1.5">
+              <Mail className="h-3.5 w-3.5" /> Envoyer par email
+            </Button>
+            <Button onClick={downloadZip} disabled={loading || items.length === 0} className="gap-1.5">
+              <Download className="h-3.5 w-3.5" /> Télécharger ZIP
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
