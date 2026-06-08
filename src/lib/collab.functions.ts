@@ -426,13 +426,16 @@ export const getSpaceActivity = createServerFn({ method: "GET" })
     const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
     let msgQ = supabase
       .from("collab_messages")
-      .select("id,space_id,content,sender_name,message_at,type")
+      .select("id,space_id,content,sender_name,message_at,type,metadata")
       .eq("user_id", userId)
       .gte("message_at", since)
       .order("message_at", { ascending: false })
       .limit(50);
     if (data.spaceId) msgQ = msgQ.eq("space_id", data.spaceId);
-    const { data: messages } = await msgQ;
+    const { data: messagesRaw } = await msgQ;
+    const messages = (messagesRaw ?? []).filter(
+      (m) => (m.metadata as { is_imported?: boolean } | null)?.is_imported !== true,
+    );
 
     let linkQ = supabase
       .from("collab_space_links")
