@@ -121,6 +121,7 @@ export function choiceDialog(
 export function ConfirmDialogHost() {
   const [pending, setPending] = useState<Pending | null>(currentPending);
   const [prompt, setPrompt] = useState<PendingPrompt | null>(currentPrompt);
+  const [choice, setChoice] = useState<PendingChoice | null>(currentChoice);
   const [value, setValue] = useState("");
 
   useEffect(() => {
