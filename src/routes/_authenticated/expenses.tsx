@@ -31,6 +31,7 @@ const STATUS_LABEL: Record<string, { label: string; variant: "default" | "second
 
 function ExpensesPage() {
   const { user } = useAuth();
+  const search = useSearch({ from: "/_authenticated/expenses" }) as ExpensesSearch;
   const listFn = useServerFn(listReports);
   const delFn = useServerFn(deleteReport);
   const tplFn = useServerFn(listTemplates);
@@ -53,6 +54,12 @@ function ExpensesPage() {
     finally { setLoading(false); }
   };
   useEffect(() => { void reload(); }, []);
+
+  // Auto-open a report when navigated with ?reportId=... (e.g. from AI mail dialog).
+  useEffect(() => {
+    if (search.reportId) setEditingId(search.reportId);
+  }, [search.reportId]);
+
 
   const remove = async (id: string) => {
     if (!confirm("Supprimer cette note de frais ?")) return;
