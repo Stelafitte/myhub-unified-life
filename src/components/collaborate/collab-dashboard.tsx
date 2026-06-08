@@ -35,6 +35,7 @@ export function CollabDashboard({ onSelect }: Props) {
     tree?.spaces.find((s) => s.id === id)?.name ?? "(espace)";
   const spaceIcon = (id: string) =>
     tree?.spaces.find((s) => s.id === id)?.icon ?? "📁";
+  const isWaSpace = (id: string) => /^wa\s*:/i.test(spaceName(id).trim());
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -60,10 +61,10 @@ export function CollabDashboard({ onSelect }: Props) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {(activity?.messages ?? []).length === 0 && (
+              {(activity?.messages ?? []).filter((m) => !isWaSpace(m.space_id)).length === 0 && (
                 <div className="text-xs text-muted-foreground">Rien de récent.</div>
               )}
-              {(activity?.messages ?? []).slice(0, 10).map((m) => (
+              {(activity?.messages ?? []).filter((m) => !isWaSpace(m.space_id)).slice(0, 10).map((m) => (
                 <button
                   key={m.id}
                   type="button"
@@ -89,10 +90,10 @@ export function CollabDashboard({ onSelect }: Props) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {(activity?.links ?? []).length === 0 && (
+              {(activity?.links ?? []).filter((l) => !isWaSpace(l.space_id)).length === 0 && (
                 <div className="text-xs text-muted-foreground">Aucun lien récent.</div>
               )}
-              {(activity?.links ?? []).slice(0, 10).map((l) => (
+              {(activity?.links ?? []).filter((l) => !isWaSpace(l.space_id)).slice(0, 10).map((l) => (
                 <button
                   key={l.id}
                   type="button"
