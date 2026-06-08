@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Share2, Copy, ExternalLink, Loader2, UserPlus, Trash2, Users } from "lucide-react";
+import { Share2, Copy, ExternalLink, Loader2, UserPlus, Trash2, Users, Mail, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -29,9 +30,11 @@ import {
   setSpacePublic,
   listSpaceGuests,
   addSpaceGuest,
+  addSpaceGuestsFromGroup,
   updateSpaceGuestRole,
   removeSpaceGuest,
 } from "@/lib/collab.functions";
+import { listContactGroups } from "@/lib/contacts.functions";
 
 export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const [open, setOpen] = useState(false);
@@ -39,8 +42,10 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const setFn = useServerFn(setSpacePublic);
   const listGuestsFn = useServerFn(listSpaceGuests);
   const addGuestFn = useServerFn(addSpaceGuest);
+  const addGroupFn = useServerFn(addSpaceGuestsFromGroup);
   const updateGuestRoleFn = useServerFn(updateSpaceGuestRole);
   const removeGuestFn = useServerFn(removeSpaceGuest);
+  const listGroupsFn = useServerFn(listContactGroups);
   const qc = useQueryClient();
   const key = ["space-public", spaceId];
   const guestsKey = ["space-guests", spaceId];
@@ -59,13 +64,26 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   });
   const guests = guestsQ.data?.guests ?? [];
 
+  const groupsQ = useQuery({
+    queryKey: ["contact-groups"],
+    queryFn: () => listGroupsFn(),
+    enabled: open,
+  });
+  const groups = groupsQ.data?.groups ?? [];
+
   const [isPublic, setIsPublic] = useState(false);
   const [desc, setDesc] = useState("");
   const [saving, setSaving] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [guestRole, setGuestRole] = useState<"viewer" | "contributor">("viewer");
+  const [sendMail, setSendMail] = useState(true);
   const [addingGuest, setAddingGuest] = useState(false);
+
+  const [selectedGroup, setSelectedGroup] = useState<string>("");
+  const [groupRole, setGroupRole] = useState<"viewer" | "contributor">("viewer");
+  const [groupSendMail, setGroupSendMail] = useState(true);
+  const [addingGroup, setAddingGroup] = useState(false);
 
   const handleOpenChange = (v: boolean) => {
     setOpen(v);
@@ -106,17 +124,30 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
 
   const handleAddGuest = async () => {
     if (!guestName.trim()) return toast.error("Nom requis");
+    if (sendMail && !guestEmail.trim()) return toast.error("Email requis pour envoyer une invitation");
     setAddingGuest(true);
     try {
-      await addGuestFn({
+      const res = await addGuestFn({
         data: {
           spaceId,
           name: guestName.trim(),
           email: guestEmail.trim() || null,
           role: guestRole,
+          sendInvitation: sendMail && !!guestEmail.trim(),
+          appOrigin: baseUrl,
         },
       });
-      toast.success("Invité ajouté");
+      if (res.emailSent) {
+        toast.success("Invité ajouté · email envoyé");
+      } else if (sendMail && guestEmail.trim()) {
+        toast.success(
+          res.emailReason === "space_not_public"
+            ? "Invité ajouté (rendez l'espace public pour envoyer l'email)"
+            : "Invité ajouté (email non envoyé)",
+        );
+      } else {
+        toast.success("Invité ajouté");
+      }
       setGuestName("");
       setGuestEmail("");
       setGuestRole("viewer");
@@ -125,6 +156,36 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
       setAddingGuest(false);
+    }
+  };
+
+  const handleAddGroup = async () => {
+    if (!selectedGroup) return toast.error("Sélectionnez un groupe");
+    setAddingGroup(true);
+    try {
+      const res = await addGroupFn({
+        data: {
+          spaceId,
+          groupId: selectedGroup,
+          role: groupRole,
+          sendInvitation: groupSendMail,
+          appOrigin: baseUrl,
+        },
+      });
+      if (res.added === 0) {
+        toast.info("Aucun nouveau contact à ajouter (déjà invités ou sans email)");
+      } else {
+        toast.success(
+          `${res.added} invité${res.added > 1 ? "s" : ""} ajouté${res.added > 1 ? "s" : ""}` +
+            (groupSendMail ? ` · ${res.invited} email${res.invited > 1 ? "s" : ""} envoyé${res.invited > 1 ? "s" : ""}` : ""),
+        );
+      }
+      setSelectedGroup("");
+      qc.invalidateQueries({ queryKey: guestsKey });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setAddingGroup(false);
     }
   };
 
@@ -200,7 +261,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
             </div>
 
             {space.is_public && (
-              <div className="space-y-2 border-t pt-4">
+              <div className="space-y-3 border-t pt-4">
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <Label className="text-sm font-semibold">Invités avec accès personnel</Label>
@@ -210,31 +271,77 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
                   Les <strong>contributeurs</strong> voient aussi les sondages clôturés. Les <strong>lecteurs</strong> n'ont accès qu'aux sondages ouverts.
                 </p>
 
-                <div className="grid sm:grid-cols-[1fr_1fr_auto_auto] gap-1.5 items-end">
-                  <Input
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                    placeholder="Nom"
-                    className="h-8 text-sm"
-                  />
-                  <Input
-                    value={guestEmail}
-                    onChange={(e) => setGuestEmail(e.target.value)}
-                    placeholder="Email (optionnel)"
-                    className="h-8 text-sm"
-                  />
-                  <Select value={guestRole} onValueChange={(v) => setGuestRole(v as "viewer" | "contributor")}>
-                    <SelectTrigger className="h-8 text-xs w-[130px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="viewer">Lecteur</SelectItem>
-                      <SelectItem value="contributor">Contributeur</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" onClick={handleAddGuest} disabled={addingGuest}>
-                    {addingGuest ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
-                  </Button>
+                {/* Add individual */}
+                <div className="space-y-2 rounded-md border p-3">
+                  <div className="text-xs font-medium text-muted-foreground">Ajouter un invité</div>
+                  <div className="grid sm:grid-cols-[1fr_1fr_auto_auto] gap-1.5 items-end">
+                    <Input
+                      value={guestName}
+                      onChange={(e) => setGuestName(e.target.value)}
+                      placeholder="Nom"
+                      className="h-8 text-sm"
+                    />
+                    <Input
+                      value={guestEmail}
+                      onChange={(e) => setGuestEmail(e.target.value)}
+                      placeholder="Email"
+                      type="email"
+                      className="h-8 text-sm"
+                    />
+                    <Select value={guestRole} onValueChange={(v) => setGuestRole(v as "viewer" | "contributor")}>
+                      <SelectTrigger className="h-8 text-xs w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="viewer">Lecteur</SelectItem>
+                        <SelectItem value="contributor">Contributeur</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" onClick={handleAddGuest} disabled={addingGuest}>
+                      {addingGuest ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <Checkbox checked={sendMail} onCheckedChange={(v) => setSendMail(!!v)} />
+                    <Mail className="h-3 w-3" />
+                    Envoyer un email d'invitation
+                  </label>
+                </div>
+
+                {/* Add from group */}
+                <div className="space-y-2 rounded-md border p-3">
+                  <div className="text-xs font-medium text-muted-foreground">Inviter un groupe de contacts</div>
+                  <div className="grid sm:grid-cols-[1fr_auto_auto] gap-1.5 items-end">
+                    <Select value={selectedGroup} onValueChange={setSelectedGroup}>
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder={groups.length ? "Choisir un groupe…" : "Aucun groupe"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {groups.map((g) => (
+                          <SelectItem key={g.id as string} value={g.id as string}>
+                            {(g.name as string)} {g.member_count ? `(${g.member_count})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={groupRole} onValueChange={(v) => setGroupRole(v as "viewer" | "contributor")}>
+                      <SelectTrigger className="h-8 text-xs w-[130px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="viewer">Lecteur</SelectItem>
+                        <SelectItem value="contributor">Contributeur</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" onClick={handleAddGroup} disabled={addingGroup || !selectedGroup}>
+                      {addingGroup ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <Checkbox checked={groupSendMail} onCheckedChange={(v) => setGroupSendMail(!!v)} />
+                    <Mail className="h-3 w-3" />
+                    Envoyer un email d'invitation à chaque contact
+                  </label>
                 </div>
 
                 {guests.length > 0 && (
