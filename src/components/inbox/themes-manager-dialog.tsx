@@ -124,6 +124,7 @@ export function ThemesManagerDialog({
   const setUtilityFn = useServerFn(setThemeUtility);
   const setScopeFn = useServerFn(setThemeScope);
   const autoDetectFn = useServerFn(autoDetectThemeScopes);
+  const reclassifyFn = useServerFn(reclassifyThemesInPeriod);
 
   const [themes, setThemes] = useState<Theme[]>([]);
   const [loading, setLoading] = useState(false);
