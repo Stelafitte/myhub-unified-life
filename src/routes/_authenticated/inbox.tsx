@@ -2218,8 +2218,10 @@ function InboxPage() {
                   }}
                   onDragOver={(ev) => {
                     if (!isRealTheme) return;
-                    const src = ev.dataTransfer.types.includes("application/x-theme-id");
-                    if (!src) return;
+                    const types = ev.dataTransfer.types;
+                    const hasTheme = types.includes("application/x-theme-id");
+                    const hasEmails = types.includes("application/x-email-ids");
+                    if (!hasTheme && !hasEmails) return;
                     ev.preventDefault();
                     ev.dataTransfer.dropEffect = "move";
                     if (dropTargetTheme !== item.key) setDropTargetTheme(item.key);
@@ -2230,30 +2232,39 @@ function InboxPage() {
                   onDrop={async (ev) => {
                     if (!isRealTheme) return;
                     const fromId = ev.dataTransfer.getData("application/x-theme-id");
+                    const emailIdsRaw = ev.dataTransfer.getData("application/x-email-ids");
                     setDragTheme(null);
                     setDropTargetTheme(null);
-                    if (!fromId || fromId === item.key) return;
                     ev.preventDefault();
-                    const fromName = themeById.get(fromId)?.name ?? "ce thème";
-                    const intoName = item.label;
-                    const ok = await confirmDialog(
-                      `Fusionner « ${fromName} » dans « ${intoName} » ?\n\nTous les mails seront déplacés, les futurs mails des mêmes expéditeurs y seront classés automatiquement, et le thème « ${fromName} » sera supprimé.`,
-                      { confirmLabel: "Fusionner" },
-                    );
-                    if (!ok) return;
-                    // Optimiste : reclasse localement et retire le thème source.
-                    setEmails((prev) =>
-                      prev.map((x) => (x.ai_theme_id === fromId ? { ...x, ai_theme_id: item.key } : x)),
-                    );
-                    setThemes((prev) => prev.filter((t) => t.id !== fromId));
-                    try {
-                      const res = await mergeThemesFn({ data: { fromId, intoId: item.key } });
-                      if (!res?.ok) throw new Error(res?.error ?? "Échec de la fusion");
-                      toast.success(`« ${fromName} » fusionné dans « ${intoName} »`);
-                    } catch (err) {
-                      toast.error(err instanceof Error ? err.message : "Échec de la fusion");
-                      // Recharge en cas d'échec pour resynchroniser.
-                      await refreshThemes();
+                    if (fromId && fromId !== item.key) {
+                      const fromName = themeById.get(fromId)?.name ?? "ce thème";
+                      const intoName = item.label;
+                      const ok = await confirmDialog(
+                        `Fusionner « ${fromName} » dans « ${intoName} » ?\n\nTous les mails seront déplacés, les futurs mails des mêmes expéditeurs y seront classés automatiquement, et le thème « ${fromName} » sera supprimé.`,
+                        { confirmLabel: "Fusionner" },
+                      );
+                      if (!ok) return;
+                      setEmails((prev) =>
+                        prev.map((x) => (x.ai_theme_id === fromId ? { ...x, ai_theme_id: item.key } : x)),
+                      );
+                      setThemes((prev) => prev.filter((t) => t.id !== fromId));
+                      try {
+                        const res = await mergeThemesFn({ data: { fromId, intoId: item.key } });
+                        if (!res?.ok) throw new Error(res?.error ?? "Échec de la fusion");
+                        toast.success(`« ${fromName} » fusionné dans « ${intoName} »`);
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Échec de la fusion");
+                        await refreshThemes();
+                      }
+                      return;
+                    }
+                    if (emailIdsRaw) {
+                      try {
+                        const ids = JSON.parse(emailIdsRaw) as string[];
+                        if (Array.isArray(ids) && ids.length) {
+                          await moveEmailsToThemeWithLearning(ids, item.key);
+                        }
+                      } catch { /* ignore */ }
                     }
                   }}
                   onClick={() => toggleTheme(item.key)}
