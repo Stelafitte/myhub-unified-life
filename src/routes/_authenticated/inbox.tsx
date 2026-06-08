@@ -722,7 +722,8 @@ function InboxPage() {
         else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
         else if (filter.startsWith("theme:")) {
           const id = filter.slice(6);
-          list = list.filter((e) => e.ai_theme_id === id);
+          const ids = new Set([id, ...(themeDescendantsById.get(id) ?? [])]);
+          list = list.filter((e) => e.ai_theme_id && ids.has(e.ai_theme_id));
         }
       }
     }
@@ -744,7 +745,7 @@ function InboxPage() {
       });
     }
     return list;
-  }, [emails, filter, query, unreadSnapshot]);
+  }, [emails, filter, query, unreadSnapshot, themeDescendantsById]);
 
   // Bug 1 fix : capture/relâche le snapshot des non-lus selon la vue active.
   useEffect(() => {
@@ -1437,8 +1438,8 @@ function InboxPage() {
     const fromTheme = themes.find((t) => t.id === fromId);
     const intoTheme = themes.find((t) => t.id === intoId);
     const fromName = fromTheme?.name ?? "ce thème";
-    // Empêche un cycle simple : si la cible est déjà enfant de la source.
-    if (intoTheme?.parent_id === fromId) {
+    const fromDescendants = themeDescendantsById.get(fromId) ?? [];
+    if (intoTheme?.parent_id === fromId || fromDescendants.includes(intoId)) {
       toast.error(`Impossible : « ${intoName} » est déjà un sous-thème de « ${fromName} »`);
       return;
     }
@@ -1457,14 +1458,11 @@ function InboxPage() {
     if (action === "subtheme") {
       // Optimiste : marque le thème source comme enfant.
       setThemes((prev) =>
-        prev.map((t) => (t.id === fromId ? { ...t, parent_id: intoId } : t)),
+        prev.map((t) => (t.id === fromId ? { ...t, parent_id: intoId, scope: intoTheme?.scope ?? t.scope } : t)),
       );
-      const { error } = await supabase
-        .from("email_themes")
-        .update({ parent_id: intoId })
-        .eq("id", fromId);
-      if (error) {
-        toast.error(error.message);
+      const res = await setThemeParentFn({ data: { id: fromId, parent_id: intoId } });
+      if (!res.ok) {
+        toast.error(res.error ?? "Impossible de créer le sous-thème");
         await refreshThemes();
         return;
       }
