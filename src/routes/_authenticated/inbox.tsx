@@ -67,6 +67,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { relativeTime } from "@/lib/relative-time";
 import { cacheEmails, loadCachedEmails, type CachedEmail } from "@/lib/inbox-cache";
+import { InboxSearchInput } from "@/components/inbox/inbox-search-input";
+import { smartMatch } from "@/lib/smart-search";
 import { QuickAddOvh } from "@/components/inbox/quick-add-ovh";
 import { useSecureVault } from "@/lib/secure-vault-context";
 import { VaultPinDialog } from "@/components/security/vault-pin-dialog";
