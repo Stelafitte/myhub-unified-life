@@ -2043,7 +2043,7 @@ function InboxPage() {
             if (item.kind === "header") {
               const allInTheme = item.ids.length > 0 && item.ids.every((id) => checked.has(id));
               const someInTheme = !allInTheme && item.ids.some((id) => checked.has(id));
-              const isRealTheme = item.key !== NO_THEME;
+              const isRealTheme = item.key !== "__none__";
               const isDragging = dragTheme === item.key;
               const isDropTarget = dropTargetTheme === item.key && dragTheme && dragTheme !== item.key;
               return (
