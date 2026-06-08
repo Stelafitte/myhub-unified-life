@@ -36,6 +36,7 @@ export function SpaceWorkspace() {
   const [rightOpen, setRightOpen] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
   const [groupFromSpaceOpen, setGroupFromSpaceOpen] = useState(false);
+  const [contactGroupsKey, setContactGroupsKey] = useState(0);
 
   const treeFn = useServerFn(getSpaceTree);
   const { data: tree } = useQuery({
