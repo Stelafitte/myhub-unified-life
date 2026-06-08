@@ -90,10 +90,10 @@ export function CollabDashboard({ onSelect }: Props) {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {(activity?.links ?? []).length === 0 && (
+              {(activity?.links ?? []).filter((l) => !isWaSpace(l.space_id)).length === 0 && (
                 <div className="text-xs text-muted-foreground">Aucun lien récent.</div>
               )}
-              {(activity?.links ?? []).slice(0, 10).map((l) => (
+              {(activity?.links ?? []).filter((l) => !isWaSpace(l.space_id)).slice(0, 10).map((l) => (
                 <button
                   key={l.id}
                   type="button"
