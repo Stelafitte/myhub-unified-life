@@ -1763,9 +1763,13 @@ function InboxPage() {
                             <button
                               key={t.id}
                               onClick={() => setFilter(`theme:${t.id}`)}
+                              {...themeDropHandlers(t.id, t.name)}
                               className={cn(
                                 "flex w-full items-center justify-start gap-2 rounded-md px-2 py-1 text-left transition-colors",
                                 active ? "bg-accent" : "hover:bg-accent/50",
+                                dragTheme === t.id && "opacity-40",
+                                dropTargetSidebarThemeId === t.id &&
+                                  "ring-2 ring-primary ring-inset bg-primary/15",
                               )}
                               title={t.description ?? t.name}
                             >
