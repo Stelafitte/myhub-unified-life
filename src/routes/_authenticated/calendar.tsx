@@ -379,8 +379,13 @@ function AgendaPage() {
   useEffect(() => { if (user) { load().then(() => runSync(true)); } }, [user]);
   useEffect(() => {
     const onOnline = () => { if (user) load(); };
+    const onCalendarSynced = () => { if (user) load(); };
     window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
+    window.addEventListener("calendar-synced", onCalendarSynced);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("calendar-synced", onCalendarSynced);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
