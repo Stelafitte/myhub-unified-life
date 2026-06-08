@@ -100,6 +100,7 @@ export function AiAssistantModal({
   const sendFn = useServerFn(sendEmail);
   const planFn = useServerFn(aiVoiceCommandPlan);
   const execFn = useServerFn(aiVoiceCommandExecute);
+  const expenseFn = useServerFn(generateExpenseReport);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
