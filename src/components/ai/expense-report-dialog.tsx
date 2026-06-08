@@ -6,9 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Plus, Trash2, Paperclip, X, Download, RefreshCw, Receipt } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Plus, Trash2, Paperclip, X, Download, RefreshCw, Receipt, Mail, Send } from "lucide-react";
 import { toast } from "sonner";
 import { generateExpenseReport, type ExpenseItem } from "@/lib/api/expense-report.functions";
+import { sendEmail } from "@/lib/api/email-send.functions";
+import { supabase } from "@/integrations/supabase/client";
+
+type MailAccount = { id: string; name: string; type: string };
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < buf.length; i += chunk) bin += String.fromCharCode(...buf.subarray(i, i + chunk));
+  return btoa(bin);
+}
 
 type LocalAtt = { name: string; mime: string; size: number; dataBase64: string; blob: Blob };
 
@@ -103,84 +116,81 @@ export function ExpenseReportDialog({
 
   const total = items.reduce((s, it) => s + (Number(it.amount_ttc) || 0), 0);
 
+  const buildPdfAndCsv = async (): Promise<{ pdfBlob: Blob; csv: string; safeTitle: string }> => {
+    const { jsPDF } = await import("jspdf");
+    const header = ["Date", "Description", "Catégorie", "Fournisseur", "Référence", "Montant HT", "TVA", "Montant TTC", "Devise"];
+    const esc = (v: unknown) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [header.join(";"), ...items.map(it => [
+      it.date ?? "", it.description, it.category, it.vendor, it.reference,
+      it.amount_ht ?? "", it.tva ?? "", it.amount_ttc, it.currency,
+    ].map(esc).join(";"))].join("\n");
+
+    const doc = new jsPDF();
+    let y = 18;
+    doc.setFontSize(16); doc.text(title || "Note de frais", 14, y); y += 8;
+    doc.setFontSize(10); doc.setTextColor(100);
+    doc.text(`Généré le ${new Date().toLocaleDateString("fr-FR")} · ${items.length} ligne(s)`, 14, y); y += 8;
+    doc.setTextColor(0); doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("Date", 14, y); doc.text("Description", 38, y); doc.text("Fournisseur", 110, y);
+    doc.text("Montant TTC", 196, y, { align: "right" }); y += 2;
+    doc.line(14, y, 196, y); y += 5;
+    doc.setFont("helvetica", "normal");
+    for (const it of items) {
+      if (y > 275) { doc.addPage(); y = 18; }
+      doc.text(it.date ?? "—", 14, y);
+      const desc = doc.splitTextToSize(it.description || "", 70);
+      doc.text(desc, 38, y);
+      doc.text((it.vendor || "").slice(0, 30), 110, y);
+      doc.text(`${Number(it.amount_ttc).toFixed(2)} ${it.currency}`, 196, y, { align: "right" });
+      y += Math.max(5, desc.length * 4);
+    }
+    y += 4; doc.line(14, y, 196, y); y += 6;
+    doc.setFont("helvetica", "bold");
+    doc.text(`Total : ${total.toFixed(2)} ${currency}`, 196, y, { align: "right" });
+    if (notes) {
+      y += 10; doc.setFont("helvetica", "italic"); doc.setFontSize(8);
+      const n = doc.splitTextToSize("Notes IA : " + notes, 180);
+      doc.text(n, 14, y);
+    }
+    const imgAtts = attachments.filter(a => a.mime.startsWith("image/"));
+    const otherAtts = attachments.filter(a => !a.mime.startsWith("image/"));
+    if (imgAtts.length > 0) {
+      doc.addPage(); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
+      doc.text("Pièces jointes (images)", 14, 18);
+      for (const att of imgAtts) {
+        try {
+          doc.addPage();
+          doc.setFontSize(9); doc.setFont("helvetica", "italic"); doc.text(att.name, 14, 12);
+          const fmt = att.mime.includes("png") ? "PNG" : att.mime.includes("webp") ? "WEBP" : "JPEG";
+          doc.addImage(`data:${att.mime};base64,${att.dataBase64}`, fmt, 14, 16, 180, 250, undefined, "FAST");
+        } catch { /* skip */ }
+      }
+    }
+    if (otherAtts.length > 0) {
+      doc.addPage(); doc.setFontSize(14); doc.setFont("helvetica", "bold");
+      doc.text("Autres pièces jointes", 14, 18);
+      doc.setFontSize(10); doc.setFont("helvetica", "normal");
+      let yy = 28;
+      for (const a of otherAtts) { doc.text(`• ${a.name}`, 14, yy); yy += 6; }
+    }
+
+    const pdfBlob = doc.output("blob");
+    const safeTitle = (title || "Note de frais").replace(/[^\w\- ]+/g, "_");
+    return { pdfBlob, csv, safeTitle };
+  };
+
   const downloadZip = async () => {
     if (items.length === 0) { toast.error("Aucune ligne à exporter"); return; }
     setLoading(true);
     try {
-      const [{ jsPDF }, JSZipMod] = await Promise.all([
-        import("jspdf"),
-        import("jszip"),
-      ]);
+      const JSZipMod = await import("jszip");
       const JSZip = (JSZipMod as any).default ?? JSZipMod;
-
-      // CSV
-      const header = ["Date", "Description", "Catégorie", "Fournisseur", "Référence", "Montant HT", "TVA", "Montant TTC", "Devise"];
-      const esc = (v: unknown) => {
-        const s = v === null || v === undefined ? "" : String(v);
-        return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-      };
-      const csv = [header.join(";"), ...items.map(it => [
-        it.date ?? "", it.description, it.category, it.vendor, it.reference,
-        it.amount_ht ?? "", it.tva ?? "", it.amount_ttc, it.currency,
-      ].map(esc).join(";"))].join("\n");
-
-      // PDF récap + images en annexe
-      const doc = new jsPDF();
-      let y = 18;
-      doc.setFontSize(16); doc.text(title || "Note de frais", 14, y); y += 8;
-      doc.setFontSize(10); doc.setTextColor(100);
-      doc.text(`Généré le ${new Date().toLocaleDateString("fr-FR")} · ${items.length} ligne(s)`, 14, y); y += 8;
-      doc.setTextColor(0); doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
-      doc.text("Date", 14, y); doc.text("Description", 38, y); doc.text("Fournisseur", 110, y);
-      doc.text("Montant TTC", 196, y, { align: "right" }); y += 2;
-      doc.line(14, y, 196, y); y += 5;
-      doc.setFont("helvetica", "normal");
-      for (const it of items) {
-        if (y > 275) { doc.addPage(); y = 18; }
-        doc.text(it.date ?? "—", 14, y);
-        const desc = doc.splitTextToSize(it.description || "", 70);
-        doc.text(desc, 38, y);
-        doc.text((it.vendor || "").slice(0, 30), 110, y);
-        doc.text(`${Number(it.amount_ttc).toFixed(2)} ${it.currency}`, 196, y, { align: "right" });
-        y += Math.max(5, desc.length * 4);
-      }
-      y += 4; doc.line(14, y, 196, y); y += 6;
-      doc.setFont("helvetica", "bold");
-      doc.text(`Total : ${total.toFixed(2)} ${currency}`, 196, y, { align: "right" });
-      if (notes) {
-        y += 10; doc.setFont("helvetica", "italic"); doc.setFontSize(8);
-        const n = doc.splitTextToSize("Notes IA : " + notes, 180);
-        doc.text(n, 14, y);
-      }
-      // Annexe images
-      const imgAtts = attachments.filter(a => a.mime.startsWith("image/"));
-      const otherAtts = attachments.filter(a => !a.mime.startsWith("image/"));
-      if (imgAtts.length > 0) {
-        doc.addPage(); doc.setFontSize(14); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
-        doc.text("Pièces jointes (images)", 14, 18);
-        for (const att of imgAtts) {
-          try {
-            doc.addPage();
-            doc.setFontSize(9); doc.setFont("helvetica", "italic"); doc.text(att.name, 14, 12);
-            const fmt = att.mime.includes("png") ? "PNG" : att.mime.includes("webp") ? "WEBP" : "JPEG";
-            doc.addImage(`data:${att.mime};base64,${att.dataBase64}`, fmt, 14, 16, 180, 250, undefined, "FAST");
-          } catch { /* skip */ }
-        }
-      }
-      if (otherAtts.length > 0) {
-        doc.addPage(); doc.setFontSize(14); doc.setFont("helvetica", "bold");
-        doc.text("Autres pièces jointes (dans le ZIP)", 14, 18);
-        doc.setFontSize(10); doc.setFont("helvetica", "normal");
-        let yy = 28;
-        for (const a of otherAtts) { doc.text(`• ${a.name}`, 14, yy); yy += 6; }
-      }
-
-      const pdfBlob = doc.output("blob");
-
-      // ZIP
+      const { pdfBlob, csv, safeTitle } = await buildPdfAndCsv();
       const zip = new JSZip();
-      const safeTitle = (title || "Note de frais").replace(/[^\w\- ]+/g, "_");
       zip.file(`${safeTitle}.pdf`, pdfBlob);
       zip.file(`${safeTitle}.csv`, "\uFEFF" + csv);
       if (attachments.length > 0) {
@@ -199,6 +209,61 @@ export function ExpenseReportDialog({
       setLoading(false);
     }
   };
+
+  const sendFn = useServerFn(sendEmail);
+  const [accounts, setAccounts] = useState<MailAccount[]>([]);
+  const [showSend, setShowSend] = useState(false);
+  const [mailTo, setMailTo] = useState("");
+  const [mailAccountId, setMailAccountId] = useState("");
+  const [mailMessage, setMailMessage] = useState("");
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      const { data } = await supabase.from("accounts").select("id,name,type").order("created_at");
+      const list = (data ?? []) as MailAccount[];
+      setAccounts(list);
+      if (list.length > 0 && !mailAccountId) setMailAccountId(list[0].id);
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const sendByEmail = async () => {
+    if (items.length === 0) { toast.error("Aucune ligne à envoyer"); return; }
+    if (!mailTo.trim()) { toast.error("Destinataire requis"); return; }
+    if (!mailAccountId) { toast.error("Sélectionnez un compte d'envoi"); return; }
+    setSending(true);
+    try {
+      const { pdfBlob, csv, safeTitle } = await buildPdfAndCsv();
+      const pdfB64 = await blobToBase64(pdfBlob);
+      const csvBlob = new Blob(["\uFEFF" + csv], { type: "text/csv" });
+      const csvB64 = await blobToBase64(csvBlob);
+      const atts: { name: string; type: string; size: number; contentBase64: string }[] = [
+        { name: `${safeTitle}.pdf`, type: "application/pdf", size: pdfBlob.size, contentBase64: pdfB64 },
+        { name: `${safeTitle}.csv`, type: "text/csv", size: csvBlob.size, contentBase64: csvB64 },
+      ];
+      for (const a of attachments) {
+        atts.push({ name: a.name, type: a.mime, size: a.size, contentBase64: a.dataBase64 });
+      }
+      const body = (mailMessage.trim() || `Bonjour,\n\nVeuillez trouver ci-joint la note de frais "${title || safeTitle}".\n\nTotal : ${total.toFixed(2)} ${currency} — ${items.length} ligne(s).\n\nCordialement,\nDr Stéphane LAFITTE`);
+      await sendFn({ data: {
+        account_id: mailAccountId,
+        to: mailTo.trim(),
+        subject: title || `Note de frais — ${new Date().toLocaleDateString("fr-FR")}`,
+        body,
+        attachments: atts,
+      }});
+      toast.success("Note de frais envoyée par email");
+      setShowSend(false);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erreur d'envoi");
+    } finally {
+      setSending(false);
+    }
+  };
+
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -290,17 +355,46 @@ export function ExpenseReportDialog({
                 ℹ️ {notes}
               </div>
             )}
+
+            {showSend && (
+              <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+                <Label className="text-xs flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> Envoyer la note de frais par email</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Input value={mailTo} onChange={(e) => setMailTo(e.target.value)} placeholder="destinataire@exemple.fr" className="h-8 text-sm" />
+                  <Select value={mailAccountId} onValueChange={setMailAccountId}>
+                    <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Compte d'envoi" /></SelectTrigger>
+                    <SelectContent>
+                      {accounts.map(a => <SelectItem key={a.id} value={a.id}>{a.name} ({a.type})</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Textarea value={mailMessage} onChange={(e) => setMailMessage(e.target.value)} placeholder="Message (optionnel — un texte par défaut sera utilisé)" className="min-h-[70px] text-sm" />
+                <p className="text-[11px] text-muted-foreground">PJ : PDF récapitulatif + CSV{attachments.length > 0 ? ` + ${attachments.length} pièce(s) jointe(s)` : ""}.</p>
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setShowSend(false)} disabled={sending}>Annuler</Button>
+                  <Button size="sm" onClick={sendByEmail} disabled={sending} className="gap-1.5">
+                    {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    Envoyer
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </ScrollArea>
 
-        <DialogFooter className="flex-row gap-2 sm:justify-between">
+        <DialogFooter className="flex-row gap-2 sm:justify-between flex-wrap">
           <Button variant="outline" onClick={() => analyze(false)} disabled={loading} className="gap-1.5">
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Re-analyser{attachments.length > 0 ? " avec PJ" : ""}
           </Button>
-          <Button onClick={downloadZip} disabled={loading || items.length === 0} className="gap-1.5">
-            <Download className="h-3.5 w-3.5" /> Télécharger ZIP
-          </Button>
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" onClick={() => setShowSend(v => !v)} disabled={loading || items.length === 0} className="gap-1.5">
+              <Mail className="h-3.5 w-3.5" /> Envoyer par email
+            </Button>
+            <Button onClick={downloadZip} disabled={loading || items.length === 0} className="gap-1.5">
+              <Download className="h-3.5 w-3.5" /> Télécharger ZIP
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
