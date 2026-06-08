@@ -288,7 +288,10 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
           <section>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold">Dépenses ({items.length})</h3>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-wrap">
+                <Button size="sm" variant="default" onClick={() => setAiBatchOpen(true)} className="gap-1 h-7 text-xs">
+                  <Sparkles className="h-3 w-3" /> Analyser par IA
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1 h-7 text-xs">
                   <Mail className="h-3 w-3" /> Depuis un email
                 </Button>
