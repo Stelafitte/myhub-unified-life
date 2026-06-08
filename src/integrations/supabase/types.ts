@@ -1492,6 +1492,210 @@ export type Database = {
           },
         ]
       }
+      expense_items: {
+        Row: {
+          amount_ht: number | null
+          amount_ttc: number
+          category: string
+          created_at: string
+          date: string
+          description: string
+          has_receipt: boolean
+          id: string
+          km_distance: number | null
+          km_rate: number | null
+          position: number
+          receipt_document_id: string | null
+          receipt_path: string | null
+          report_id: string
+          source_email_id: string | null
+          tva_rate: number | null
+          user_id: string
+          vendor: string | null
+        }
+        Insert: {
+          amount_ht?: number | null
+          amount_ttc?: number
+          category: string
+          created_at?: string
+          date: string
+          description: string
+          has_receipt?: boolean
+          id?: string
+          km_distance?: number | null
+          km_rate?: number | null
+          position?: number
+          receipt_document_id?: string | null
+          receipt_path?: string | null
+          report_id: string
+          source_email_id?: string | null
+          tva_rate?: number | null
+          user_id: string
+          vendor?: string | null
+        }
+        Update: {
+          amount_ht?: number | null
+          amount_ttc?: number
+          category?: string
+          created_at?: string
+          date?: string
+          description?: string
+          has_receipt?: boolean
+          id?: string
+          km_distance?: number | null
+          km_rate?: number | null
+          position?: number
+          receipt_document_id?: string | null
+          receipt_path?: string | null
+          report_id?: string
+          source_email_id?: string | null
+          tva_rate?: number | null
+          user_id?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_items_receipt_document_id_fkey"
+            columns: ["receipt_document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_items_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "expense_reports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expense_items_source_email_id_fkey"
+            columns: ["source_email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_reports: {
+        Row: {
+          advance_amount: number
+          amount_to_reimburse: number
+          created_at: string
+          currency: string
+          iban: string | null
+          id: string
+          identification: Json
+          mission_context: string | null
+          mission_number: string | null
+          mission_object: string | null
+          notes: string | null
+          organization: string | null
+          payment_method: string | null
+          signature_date: string | null
+          signature_location: string
+          source_email_id: string | null
+          status: string
+          title: string
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          advance_amount?: number
+          amount_to_reimburse?: number
+          created_at?: string
+          currency?: string
+          iban?: string | null
+          id?: string
+          identification?: Json
+          mission_context?: string | null
+          mission_number?: string | null
+          mission_object?: string | null
+          notes?: string | null
+          organization?: string | null
+          payment_method?: string | null
+          signature_date?: string | null
+          signature_location?: string
+          source_email_id?: string | null
+          status?: string
+          title: string
+          total_amount?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          advance_amount?: number
+          amount_to_reimburse?: number
+          created_at?: string
+          currency?: string
+          iban?: string | null
+          id?: string
+          identification?: Json
+          mission_context?: string | null
+          mission_number?: string | null
+          mission_object?: string | null
+          notes?: string | null
+          organization?: string | null
+          payment_method?: string | null
+          signature_date?: string | null
+          signature_location?: string
+          source_email_id?: string | null
+          status?: string
+          title?: string
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expense_reports_source_email_id_fkey"
+            columns: ["source_email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      expense_templates: {
+        Row: {
+          ai_mapping: Json
+          created_at: string
+          file_path: string | null
+          file_type: string | null
+          id: string
+          is_active: boolean
+          mime_type: string | null
+          name: string
+          organization: string
+          user_id: string
+        }
+        Insert: {
+          ai_mapping?: Json
+          created_at?: string
+          file_path?: string | null
+          file_type?: string | null
+          id?: string
+          is_active?: boolean
+          mime_type?: string | null
+          name: string
+          organization: string
+          user_id: string
+        }
+        Update: {
+          ai_mapping?: Json
+          created_at?: string
+          file_path?: string | null
+          file_type?: string | null
+          id?: string
+          is_active?: boolean
+          mime_type?: string | null
+          name?: string
+          organization?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       folder_routing_history: {
         Row: {
           ai_score: number | null
