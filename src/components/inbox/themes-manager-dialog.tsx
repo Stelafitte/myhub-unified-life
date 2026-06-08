@@ -130,6 +130,8 @@ export function ThemesManagerDialog({
   const [loading, setLoading] = useState(false);
   const [discovering, setDiscovering] = useState(false);
   const [detecting, setDetecting] = useState(false);
+  const [reclassifying, setReclassifying] = useState<null | "day" | "week" | "month">(null);
+  const [reclassifyProgress, setReclassifyProgress] = useState(0);
   const [editing, setEditing] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [newName, setNewName] = useState("");
