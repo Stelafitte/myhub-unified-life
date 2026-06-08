@@ -33,6 +33,7 @@ import {
   addSpaceGuestsFromGroup,
   updateSpaceGuestRole,
   removeSpaceGuest,
+  notifySpaceGuests,
 } from "@/lib/collab.functions";
 import { listContactGroups } from "@/lib/contacts.functions";
 
@@ -45,6 +46,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const addGroupFn = useServerFn(addSpaceGuestsFromGroup);
   const updateGuestRoleFn = useServerFn(updateSpaceGuestRole);
   const removeGuestFn = useServerFn(removeSpaceGuest);
+  const notifyFn = useServerFn(notifySpaceGuests);
   const listGroupsFn = useServerFn(listContactGroups);
   const qc = useQueryClient();
   const key = ["space-public", spaceId];
@@ -84,6 +86,39 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const [groupRole, setGroupRole] = useState<"viewer" | "contributor">("viewer");
   const [groupSendMail, setGroupSendMail] = useState(true);
   const [addingGroup, setAddingGroup] = useState(false);
+
+  const [notifySubject, setNotifySubject] = useState("");
+  const [notifyMessage, setNotifyMessage] = useState("");
+  const [notifyTargets, setNotifyTargets] = useState<Record<string, boolean>>({});
+  const [notifying, setNotifying] = useState(false);
+
+  const handleNotify = async () => {
+    if (!notifySubject.trim() || !notifyMessage.trim()) {
+      return toast.error("Sujet et message requis");
+    }
+    const selectedIds = Object.entries(notifyTargets).filter(([, v]) => v).map(([k]) => k);
+    setNotifying(true);
+    try {
+      const res = await notifyFn({
+        data: {
+          spaceId,
+          guestIds: selectedIds.length ? selectedIds : undefined,
+          subjectLine: notifySubject.trim(),
+          message: notifyMessage.trim(),
+          appOrigin: baseUrl,
+        },
+      });
+      if (res.sent === 0) toast.info("Aucun email envoyé (vérifiez les invités avec email)");
+      else toast.success(`${res.sent} email${res.sent > 1 ? "s" : ""} envoyé${res.sent > 1 ? "s" : ""}${res.failed ? ` · ${res.failed} échec(s)` : ""}`);
+      setNotifySubject("");
+      setNotifyMessage("");
+      setNotifyTargets({});
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setNotifying(false);
+    }
+  };
 
   const handleOpenChange = (v: boolean) => {
     setOpen(v);
