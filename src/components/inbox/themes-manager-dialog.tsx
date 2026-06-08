@@ -12,6 +12,7 @@ import {
   setThemeUtility,
   setThemeScope,
   autoDetectThemeScopes,
+  reclassifyThemesInPeriod,
   type Theme,
   type ThemeUtility,
   type ThemeScope,
