@@ -79,6 +79,7 @@ import {
   seedThemesFromFolders,
   setEmailTheme,
   mergeThemes,
+  setThemeParent,
   type Theme,
 } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
@@ -242,6 +243,7 @@ function InboxPage() {
   const seedFoldersFn = useServerFn(seedThemesFromFolders);
   const setEmailThemeFn = useServerFn(setEmailTheme);
   const mergeThemesFn = useServerFn(mergeThemes);
+  const setThemeParentFn = useServerFn(setThemeParent);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
   const [dragTheme, setDragTheme] = useState<string | null>(null);
@@ -643,6 +645,22 @@ function InboxPage() {
     const m = new Map<string, Theme>();
     themes.forEach((t) => m.set(t.id, t));
     return m;
+  }, [themes]);
+
+  const themeDescendantsById = useMemo(() => {
+    const children = new Map<string, string[]>();
+    for (const t of themes) {
+      if (!t.parent_id) continue;
+      const arr = children.get(t.parent_id) ?? [];
+      arr.push(t.id);
+      children.set(t.parent_id, arr);
+    }
+    const collect = (id: string, seen = new Set<string>()): string[] => {
+      if (seen.has(id)) return [];
+      seen.add(id);
+      return (children.get(id) ?? []).flatMap((childId) => [childId, ...collect(childId, seen)]);
+    };
+    return new Map(themes.map((t) => [t.id, collect(t.id)]));
   }, [themes]);
 
   const isSpam = (e: Email) => e.spam_label === "spam" || e.spam_label === "phishing";
