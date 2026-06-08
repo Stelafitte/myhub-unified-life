@@ -79,6 +79,7 @@ import {
   seedThemesFromFolders,
   setEmailTheme,
   mergeThemes,
+  setThemeParent,
   type Theme,
 } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
@@ -126,60 +127,41 @@ export const Route = createFileRoute("/_authenticated/inbox")({
   component: InboxPage,
 });
 
-const PARENT_SEPARATORS = [" / ", " > ", " – ", " — ", " : ", " - "];
-function splitThemeName(name: string): { parent: string; child: string } | null {
-  for (const sep of PARENT_SEPARATORS) {
-    const i = name.indexOf(sep);
-    if (i > 0) {
-      return { parent: name.slice(0, i).trim(), child: name.slice(i + sep.length).trim() };
-    }
-  }
-  return null;
-}
-
 function groupThemes(
   themes: Theme[],
   byTheme: Map<string, number>,
 ): {
-  grouped: { name: string; items: { theme: Theme; label: string }[]; total: number }[];
+  grouped: { name: string; parent: Theme; children: Theme[]; total: number }[];
   standalone: Theme[];
 } {
-  const active = themes.filter((t) => !t.archived_at && (byTheme.get(t.id) ?? 0) > 0);
-  const map = new Map<string, { theme: Theme; label: string }[]>();
-  const flat: Theme[] = [];
-  // Index par id pour résoudre le parent explicite (parent_id).
+  const active = themes.filter((t) => !t.archived_at);
   const byId = new Map<string, Theme>();
   for (const t of themes) byId.set(t.id, t);
-  const handledByParentId = new Set<string>();
+  const childrenByParent = new Map<string, Theme[]>();
   for (const t of active) {
-    if (t.parent_id) {
-      const parent = byId.get(t.parent_id);
-      if (parent) {
-        const parentName = parent.name;
-        const arr = map.get(parentName) ?? [];
-        // Si le parent est lui-même actif, on l'inclut comme premier item.
-        if (!arr.some((i) => i.theme.id === parent.id) && (byTheme.get(parent.id) ?? 0) > 0) {
-          arr.push({ theme: parent, label: parent.name });
-          handledByParentId.add(parent.id);
-        }
-        arr.push({ theme: t, label: t.name });
-        map.set(parentName, arr);
-        handledByParentId.add(t.id);
-        continue;
-      }
-    }
+    const parent = t.parent_id ? byId.get(t.parent_id) : null;
+    if (!parent || parent.archived_at) continue;
+    const arr = childrenByParent.get(parent.id) ?? [];
+    arr.push(t);
+    childrenByParent.set(parent.id, arr);
   }
-  for (const t of active) {
-    if (handledByParentId.has(t.id)) continue;
-    const parsed = splitThemeName(t.name);
-    if (parsed) {
-      const arr = map.get(parsed.parent) ?? [];
-      arr.push({ theme: t, label: parsed.child });
-      map.set(parsed.parent, arr);
-    } else {
-      flat.push(t);
-    }
-  }
+  const grouped = [...childrenByParent.entries()]
+    .map(([parentId, children]) => {
+      const parent = byId.get(parentId)!;
+      const sortedChildren = children.sort((a, b) => (byTheme.get(b.id) ?? 0) - (byTheme.get(a.id) ?? 0));
+      return {
+        name: parent.name,
+        parent,
+        children: sortedChildren,
+        total: (byTheme.get(parent.id) ?? 0) + sortedChildren.reduce((s, t) => s + (byTheme.get(t.id) ?? 0), 0),
+      };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  const childIds = new Set([...childrenByParent.values()].flat().map((t) => t.id));
+  const parentIds = new Set(childrenByParent.keys());
+  const flat = active.filter((t) => !childIds.has(t.id) && !parentIds.has(t.id) && (byTheme.get(t.id) ?? 0) > 0);
+  const map = new Map<string, { theme: Theme; label: string }[]>();
   // Try to group remaining by significant first word (>=4 chars) if 2+ share it
   const byFirst = new Map<string, Theme[]>();
   for (const t of flat) {
@@ -204,13 +186,17 @@ function groupThemes(
   }
   for (const t of flat) if (!usedIds.has(t.id)) standalone.push(t);
 
-  const grouped = [...map.entries()]
-    .map(([name, items]) => ({
+  for (const [name, items] of map.entries()) {
+    const [parentItem, ...children] = items.sort((a, b) => (byTheme.get(b.theme.id) ?? 0) - (byTheme.get(a.theme.id) ?? 0));
+    if (!parentItem) continue;
+    grouped.push({
       name,
-      items: items.sort((a, b) => (byTheme.get(b.theme.id) ?? 0) - (byTheme.get(a.theme.id) ?? 0)),
+      parent: parentItem.theme,
+      children: children.map((i) => i.theme),
       total: items.reduce((s, i) => s + (byTheme.get(i.theme.id) ?? 0), 0),
-    }))
-    .sort((a, b) => b.total - a.total);
+    });
+  }
+  grouped.sort((a, b) => b.total - a.total);
 
   return { grouped, standalone };
 }
@@ -242,6 +228,7 @@ function InboxPage() {
   const seedFoldersFn = useServerFn(seedThemesFromFolders);
   const setEmailThemeFn = useServerFn(setEmailTheme);
   const mergeThemesFn = useServerFn(mergeThemes);
+  const setThemeParentFn = useServerFn(setThemeParent);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
   const [dragTheme, setDragTheme] = useState<string | null>(null);
@@ -645,6 +632,22 @@ function InboxPage() {
     return m;
   }, [themes]);
 
+  const themeDescendantsById = useMemo(() => {
+    const children = new Map<string, string[]>();
+    for (const t of themes) {
+      if (!t.parent_id) continue;
+      const arr = children.get(t.parent_id) ?? [];
+      arr.push(t.id);
+      children.set(t.parent_id, arr);
+    }
+    const collect = (id: string, seen = new Set<string>()): string[] => {
+      if (seen.has(id)) return [];
+      seen.add(id);
+      return (children.get(id) ?? []).flatMap((childId) => [childId, ...collect(childId, seen)]);
+    };
+    return new Map(themes.map((t) => [t.id, collect(t.id)]));
+  }, [themes]);
+
   const isSpam = (e: Email) => e.spam_label === "spam" || e.spam_label === "phishing";
   const isPromo = (e: Email) => e.spam_label === "promo";
   const isTrashed = (e: Email) => !!e.deleted_at;
@@ -708,7 +711,8 @@ function InboxPage() {
         else if (filter === "theme:__none__") list = list.filter((e) => !e.ai_theme_id);
         else if (filter.startsWith("theme:")) {
           const id = filter.slice(6);
-          list = list.filter((e) => e.ai_theme_id === id);
+          const ids = new Set([id, ...(themeDescendantsById.get(id) ?? [])]);
+          list = list.filter((e) => e.ai_theme_id && ids.has(e.ai_theme_id));
         }
       }
     }
@@ -730,7 +734,7 @@ function InboxPage() {
       });
     }
     return list;
-  }, [emails, filter, query, unreadSnapshot]);
+  }, [emails, filter, query, unreadSnapshot, themeDescendantsById]);
 
   // Bug 1 fix : capture/relâche le snapshot des non-lus selon la vue active.
   useEffect(() => {
@@ -787,6 +791,26 @@ function InboxPage() {
       if (ua !== ub) return ub - ua;
       return tb - ta;
     };
+    // Ajoute les parents même s'ils n'ont pas de mail direct, afin que les sous-thèmes
+    // restent visibles sous leur thème dans la colonne de liste des mails.
+    for (const key of [...groups.keys()]) {
+      let childKey = key;
+      let parentId = themeById.get(childKey)?.parent_id ?? null;
+      const seenParents = new Set<string>();
+      while (parentId && !seenParents.has(parentId)) {
+        seenParents.add(parentId);
+        const childTs = groups.get(childKey)?.ts ?? 0;
+        const parentGroup = groups.get(parentId);
+        if (parentGroup) {
+          if (childTs > parentGroup.ts) parentGroup.ts = childTs;
+        } else {
+          groups.set(parentId, { ts: childTs, emails: [] });
+        }
+        childKey = parentId;
+        parentId = themeById.get(childKey)?.parent_id ?? null;
+      }
+    }
+
     // Sépare en racines (sans parent, ou parent absent du groupe) et enfants.
     const allKeys = [...groups.keys()];
     const isRoot = (k: string) => {
@@ -807,6 +831,12 @@ function InboxPage() {
     for (const arr of childrenOf.values()) arr.sort(cmp);
 
     const out: RenderItem[] = [];
+    const collectIds = (key: string, seen = new Set<string>()): string[] => {
+      if (seen.has(key)) return [];
+      seen.add(key);
+      const own = groups.get(key)?.emails.map((e) => e.id) ?? [];
+      return [...own, ...(childrenOf.get(key) ?? []).flatMap((childKey) => collectIds(childKey, seen))];
+    };
     const emit = (key: string, depth: number) => {
       const g = groups.get(key);
       if (!g) return;
@@ -817,12 +847,13 @@ function InboxPage() {
       );
       const t = key === NO_THEME ? null : themeById.get(key);
       const collapsed = collapsedThemes.has(key);
+      const ids = collectIds(key);
       out.push({
         kind: "header",
         key,
         label: t?.name ?? "Sans thème",
-        count: g.emails.length,
-        ids: g.emails.map((e) => e.id),
+        count: ids.length,
+        ids,
         depth,
       });
       if (!collapsed) {
@@ -1423,8 +1454,8 @@ function InboxPage() {
     const fromTheme = themes.find((t) => t.id === fromId);
     const intoTheme = themes.find((t) => t.id === intoId);
     const fromName = fromTheme?.name ?? "ce thème";
-    // Empêche un cycle simple : si la cible est déjà enfant de la source.
-    if (intoTheme?.parent_id === fromId) {
+    const fromDescendants = themeDescendantsById.get(fromId) ?? [];
+    if (intoTheme?.parent_id === fromId || fromDescendants.includes(intoId)) {
       toast.error(`Impossible : « ${intoName} » est déjà un sous-thème de « ${fromName} »`);
       return;
     }
@@ -1443,14 +1474,11 @@ function InboxPage() {
     if (action === "subtheme") {
       // Optimiste : marque le thème source comme enfant.
       setThemes((prev) =>
-        prev.map((t) => (t.id === fromId ? { ...t, parent_id: intoId } : t)),
+        prev.map((t) => (t.id === fromId ? { ...t, parent_id: intoId, scope: intoTheme?.scope ?? t.scope } : t)),
       );
-      const { error } = await supabase
-        .from("email_themes")
-        .update({ parent_id: intoId })
-        .eq("id", fromId);
-      if (error) {
-        toast.error(error.message);
+      const res = await setThemeParentFn({ data: { id: fromId, parent_id: intoId } });
+      if (!res.ok) {
+        toast.error(res.error ?? "Impossible de créer le sous-thème");
         await refreshThemes();
         return;
       }
@@ -1858,9 +1886,10 @@ function InboxPage() {
                         <span className="text-[10px] text-muted-foreground">{g.total}</span>
                       </summary>
                       <div className="ml-3 border-l border-border/50 pl-1">
-                        {g.items.map(({ theme: t, label }) => {
+                        {[g.parent, ...g.children].map((t) => {
                           const n = counts.byTheme.get(t.id) ?? 0;
                           const active = filter === `theme:${t.id}`;
+                          const isChild = t.parent_id === g.parent.id;
                           return (
                             <button
                               key={t.id}
@@ -1875,10 +1904,11 @@ function InboxPage() {
                               )}
                               title={t.description ?? t.name}
                             >
+                              {isChild && <span className="shrink-0 text-primary/70">↳</span>}
                               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-primary/10 text-[10px]">
                                 {t.icon ?? "🏷️"}
                               </span>
-                              <span className="flex-1 truncate text-xs">{label}</span>
+                              <span className={cn("flex-1 truncate text-xs", isChild && "text-muted-foreground")}>{t.name}</span>
                               <span className="text-[10px] text-muted-foreground">{n}</span>
                             </button>
                           );
@@ -1917,8 +1947,19 @@ function InboxPage() {
               );
             };
 
-            const proThemes = themes.filter((t) => t.scope === "pro");
-            const persoThemes = themes.filter((t) => t.scope !== "pro");
+            const rootScopeOf = (theme: Theme): "pro" | "perso" => {
+              let current = theme;
+              const seen = new Set<string>();
+              while (current.parent_id && !seen.has(current.id)) {
+                seen.add(current.id);
+                const parent = themeById.get(current.parent_id);
+                if (!parent) break;
+                current = parent;
+              }
+              return current.scope === "pro" ? "pro" : "perso";
+            };
+            const proThemes = themes.filter((t) => rootScopeOf(t) === "pro");
+            const persoThemes = themes.filter((t) => rootScopeOf(t) !== "pro");
             const proTotal = proThemes.reduce((s, t) => s + (counts.byTheme.get(t.id) ?? 0), 0);
             const persoTotal = persoThemes.reduce((s, t) => s + (counts.byTheme.get(t.id) ?? 0), 0);
             const proContent = renderThemesBlock(proThemes);

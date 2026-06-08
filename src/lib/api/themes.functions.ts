@@ -652,15 +652,25 @@ export const setThemeParent = createServerFn({ method: "POST" })
       // Prevent 2-level cycle: parent must not itself be a child of this theme.
       const { data: parent } = await supabase
         .from("email_themes")
-        .select("parent_id")
+        .select("parent_id,scope")
         .eq("id", data.parent_id)
         .eq("user_id", userId)
         .single();
       if (parent?.parent_id === data.id) return { ok: false, error: "Cycle de parenté détecté" };
     }
+    let parentScope: ThemeScope | null = null;
+    if (data.parent_id) {
+      const { data: parent } = await supabase
+        .from("email_themes")
+        .select("scope")
+        .eq("id", data.parent_id)
+        .eq("user_id", userId)
+        .single();
+      if (parent?.scope === "pro" || parent?.scope === "perso") parentScope = parent.scope;
+    }
     const { error } = await supabase
       .from("email_themes")
-      .update({ parent_id: data.parent_id })
+      .update({ parent_id: data.parent_id, ...(parentScope ? { scope: parentScope } : {}) })
       .eq("id", data.id)
       .eq("user_id", userId);
     return { ok: !error, error: error?.message };
