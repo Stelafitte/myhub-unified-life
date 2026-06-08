@@ -3,7 +3,6 @@ import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { deduplicateCalendarEventsForUser } from "@/lib/calendar-dedup.server";
 
 const SCOPES = [
   "https://www.googleapis.com/auth/calendar",
@@ -275,6 +274,7 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
   .inputValidator(z.object({}).optional())
   .handler(async ({ context }) => {
     const { userId } = context as { userId: string };
+    const { deduplicateCalendarEventsForUser } = await import("@/lib/calendar-dedup.server");
     let totalDeduped = 0;
 
     try {
