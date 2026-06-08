@@ -93,7 +93,7 @@ export function SpaceContactGroupsBar({ spaceId }: { spaceId: string }) {
   const load = useCallback(async () => {
     try {
       const r = await listFn();
-      const all = (r.groups ?? []) as Group[];
+      const all = (r.groups ?? []) as unknown as Group[];
       setGroups(all.filter((g) => g.space_id === spaceId));
     } catch {
       // ignore
