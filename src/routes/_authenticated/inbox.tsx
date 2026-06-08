@@ -127,17 +127,6 @@ export const Route = createFileRoute("/_authenticated/inbox")({
   component: InboxPage,
 });
 
-const PARENT_SEPARATORS = [" / ", " > ", " – ", " — ", " : ", " - "];
-function splitThemeName(name: string): { parent: string; child: string } | null {
-  for (const sep of PARENT_SEPARATORS) {
-    const i = name.indexOf(sep);
-    if (i > 0) {
-      return { parent: name.slice(0, i).trim(), child: name.slice(i + sep.length).trim() };
-    }
-  }
-  return null;
-}
-
 function groupThemes(
   themes: Theme[],
   byTheme: Map<string, number>,
