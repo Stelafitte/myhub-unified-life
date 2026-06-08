@@ -109,6 +109,7 @@ type TaskRow = {
 };
 
 type EventCategory = "pro_recurring" | "pro_oneoff" | "perso_recurring" | "perso_oneoff";
+type Importance = "low" | "normal" | "high" | "critical";
 
 type UnifiedEvent = {
   id: string;
@@ -125,6 +126,7 @@ type UnifiedEvent = {
   isAllDay: boolean;
   hasVideo: boolean;
   category: EventCategory;
+  importance: Importance;
   raw: DbEvent | TaskRow;
 };
 
@@ -162,6 +164,26 @@ const CATEGORY_LABELS: Record<EventCategory, string> = {
 };
 
 const CATEGORY_COLOR_STORAGE_KEY = "myhub.calendar.categoryColors.v1";
+
+const IMPORTANCE_VISUAL: Record<Importance, { eventMix: number; panelTint: number }> = {
+  low: { eventMix: 48, panelTint: 5 },
+  normal: { eventMix: 68, panelTint: 10 },
+  high: { eventMix: 88, panelTint: 18 },
+  critical: { eventMix: 100, panelTint: 30 },
+};
+
+function normalizeImportance(value: unknown): Importance {
+  return value === "low" || value === "high" || value === "critical" ? value : "normal";
+}
+
+function eventColorByImportance(color: string, importance: Importance): string {
+  return `color-mix(in oklab, ${color} ${IMPORTANCE_VISUAL[importance].eventMix}%, var(--background))`;
+}
+
+function eventPanelBackground(color: string, importance: Importance): string {
+  const tint = IMPORTANCE_VISUAL[importance].panelTint;
+  return `linear-gradient(180deg, color-mix(in oklab, ${color} ${tint}%, var(--card)) 0%, var(--card) 48%, var(--card) 100%)`;
+}
 
 function loadCategoryColors(): Record<EventCategory, string> {
   if (typeof window === "undefined") return { ...DEFAULT_CATEGORY_COLORS };
