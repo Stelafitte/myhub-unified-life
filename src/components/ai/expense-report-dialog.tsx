@@ -6,9 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Plus, Trash2, Paperclip, X, Download, RefreshCw, Receipt } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Plus, Trash2, Paperclip, X, Download, RefreshCw, Receipt, Mail, Send } from "lucide-react";
 import { toast } from "sonner";
 import { generateExpenseReport, type ExpenseItem } from "@/lib/api/expense-report.functions";
+import { sendEmail } from "@/lib/api/email-send.functions";
+import { supabase } from "@/integrations/supabase/client";
+
+type MailAccount = { id: string; name: string; type: string };
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < buf.length; i += chunk) bin += String.fromCharCode(...buf.subarray(i, i + chunk));
+  return btoa(bin);
+}
 
 type LocalAtt = { name: string; mime: string; size: number; dataBase64: string; blob: Blob };
 
