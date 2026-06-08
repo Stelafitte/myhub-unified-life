@@ -2288,25 +2288,7 @@ function InboxPage() {
                     setDropTargetTheme(null);
                     ev.preventDefault();
                     if (fromId && fromId !== item.key) {
-                      const fromName = themeById.get(fromId)?.name ?? "ce thème";
-                      const intoName = item.label;
-                      const ok = await confirmDialog(
-                        `Fusionner « ${fromName} » dans « ${intoName} » ?\n\nTous les mails seront déplacés, les futurs mails des mêmes expéditeurs y seront classés automatiquement, et le thème « ${fromName} » sera supprimé.`,
-                        { confirmLabel: "Fusionner" },
-                      );
-                      if (!ok) return;
-                      setEmails((prev) =>
-                        prev.map((x) => (x.ai_theme_id === fromId ? { ...x, ai_theme_id: item.key } : x)),
-                      );
-                      setThemes((prev) => prev.filter((t) => t.id !== fromId));
-                      try {
-                        const res = await mergeThemesFn({ data: { fromId, intoId: item.key } });
-                        if (!res?.ok) throw new Error(res?.error ?? "Échec de la fusion");
-                        toast.success(`« ${fromName} » fusionné dans « ${intoName} »`);
-                      } catch (err) {
-                        toast.error(err instanceof Error ? err.message : "Échec de la fusion");
-                        await refreshThemes();
-                      }
+                      await handleThemeOnThemeDrop(fromId, item.key, item.label);
                       return;
                     }
                     if (emailIdsRaw) {
