@@ -126,6 +126,7 @@ export function ThemesManagerDialog({
   const setScopeFn = useServerFn(setThemeScope);
   const autoDetectFn = useServerFn(autoDetectThemeScopes);
   const reclassifyFn = useServerFn(reclassifyThemesInPeriod);
+  const setParentFn = useServerFn(setThemeParent);
 
   const [themes, setThemes] = useState<Theme[]>([]);
   const [loading, setLoading] = useState(false);
@@ -139,6 +140,8 @@ export function ThemesManagerDialog({
   const [mergeFrom, setMergeFrom] = useState<string | null>(null);
   const [tab, setTab] = useState<"pro" | "perso">("pro");
   const [searchQuery, setSearchQuery] = useState("");
+  const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
+  const [subName, setSubName] = useState("");
 
   const refresh = async () => {
     setLoading(true);
