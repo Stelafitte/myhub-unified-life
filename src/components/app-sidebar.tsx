@@ -28,7 +28,6 @@ const baseItems = [
   { title: "Documents", url: "/documents", icon: FolderOpen },
   { title: "Contacts", url: "/contacts", icon: Users },
   { title: "Collaboratif", url: "/collaborate", icon: Handshake },
-  { title: "WhatsApp", url: "/whatsapp", icon: MessageCircle },
   { title: "Plan d'opération", url: "/plan-operation", icon: ClipboardList },
   { title: "Stats", url: "/stats", icon: BarChart3 },
 ] as const;

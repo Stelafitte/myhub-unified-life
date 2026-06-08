@@ -45,18 +45,6 @@ export function CollabDashboard({ onSelect }: Props) {
         </p>
       </header>
 
-      {(waCount?.count ?? 0) > 0 && (
-        <div className="rounded-lg border bg-accent/40 px-4 py-3 flex items-center gap-3">
-          <Sparkles className="h-5 w-5 text-primary shrink-0" />
-          <div className="flex-1 text-sm">
-            <span className="font-medium">{waCount?.count} suggestion(s) WhatsApp</span>{" "}
-            <span className="text-muted-foreground">à valider.</span>
-          </div>
-          <Link to="/collaborate/review">
-            <Button size="sm">Valider</Button>
-          </Link>
-        </div>
-      )}
 
 
       {isLoading ? (

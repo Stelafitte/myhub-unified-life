@@ -45,7 +45,6 @@ function SettingsPage() {
           <TabsTrigger value="contacts">👥 Contacts</TabsTrigger>
           <TabsTrigger value="sync">🔄 Synchronisation</TabsTrigger>
           <TabsTrigger value="integrations">🔌 Intégrations</TabsTrigger>
-          <TabsTrigger value="whatsapp">💬 WhatsApp</TabsTrigger>
           <TabsTrigger value="ai">✨ IA</TabsTrigger>
           <TabsTrigger value="notifications">🔔 Notifications</TabsTrigger>
           <TabsTrigger value="meetings">🗓️ Réunions</TabsTrigger>
@@ -63,12 +62,6 @@ function SettingsPage() {
         <TabsContent value="contacts"><ContactsSection /></TabsContent>
         <TabsContent value="sync"><SyncSection /></TabsContent>
         <TabsContent value="integrations"><IntegrationsSection /></TabsContent>
-        <TabsContent value="whatsapp">
-          <div className="space-y-4">
-            <WhatsAppSection />
-            <WhatsAppLinkSection />
-          </div>
-        </TabsContent>
         <TabsContent value="ai"><AiSection /></TabsContent>
         <TabsContent value="notifications"><NotificationsSection /></TabsContent>
         <TabsContent value="meetings"><MeetingsSection /></TabsContent>

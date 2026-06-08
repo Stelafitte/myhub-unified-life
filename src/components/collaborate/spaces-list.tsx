@@ -83,15 +83,6 @@ export function SpacesList() {
                   Ouvrir
                 </Button>
               </Link>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full"
-                onClick={() => setImportSpace(s)}
-              >
-                <Smartphone className="h-4 w-4 mr-2" />
-                Importer historique WhatsApp
-              </Button>
             </CardContent>
           </Card>
         ))}

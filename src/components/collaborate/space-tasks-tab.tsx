@@ -79,10 +79,8 @@ export function SpaceTasksTab({ spaceId }: Props) {
 
   // Augment tasks for badges via tags (kanban-view affiche les tags)
   const augmented = tasks.map((t) => {
-    const isWa = t.source_app === "whatsapp";
     const isAi = (t.tags ?? []).some((x) => x === "ai" || x === "ai-suggested") || !!t.source_email_id;
     const extras: string[] = [];
-    if (isWa) extras.push("📱 WA");
     if (isAi) extras.push("✨ IA");
     return { ...t, tags: [...(t.tags ?? []), ...extras] };
   });
