@@ -303,7 +303,7 @@ export function AiAssistantModal({
       doc.setTextColor(0);
       doc.setFontSize(9);
       // Header
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text("Date", 14, y);
       doc.text("Description", 38, y);
       doc.text("Fournisseur", 110, y);
@@ -311,7 +311,7 @@ export function AiAssistantModal({
       y += 2;
       doc.line(14, y, 196, y);
       y += 5;
-      doc.setFont(undefined, "normal");
+      doc.setFont("helvetica", "normal");
       for (const it of res.items) {
         if (y > 275) { doc.addPage(); y = 18; }
         doc.text(it.date ?? "—", 14, y);
@@ -324,11 +324,11 @@ export function AiAssistantModal({
       y += 4;
       doc.line(14, y, 196, y);
       y += 6;
-      doc.setFont(undefined, "bold");
+      doc.setFont("helvetica", "bold");
       doc.text(`Total : ${res.total.toFixed(2)} ${res.currency}`, 196, y, { align: "right" });
       if (res.notes) {
         y += 10;
-        doc.setFont(undefined, "italic");
+        doc.setFont("helvetica", "italic");
         doc.setFontSize(8);
         const n = doc.splitTextToSize("Notes IA : " + res.notes, 180);
         doc.text(n, 14, y);
