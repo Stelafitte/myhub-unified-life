@@ -134,12 +134,14 @@ function GlobalSearchBar() {
 
   return (
     <>
-      <form onSubmit={onSubmit} className="mx-1 flex min-w-0 w-full max-w-[560px] flex-1 items-center gap-1.5 sm:mx-3">
+      <form onSubmit={onSubmit} className="mx-1 flex min-w-0 w-full max-w-[560px] flex-1 items-center gap-1.5 sm:mx-3 max-sm:focus-within:absolute max-sm:focus-within:left-12 max-sm:focus-within:right-2 max-sm:focus-within:top-2 max-sm:focus-within:z-50 max-sm:focus-within:mx-0 max-sm:focus-within:max-w-none max-sm:focus-within:bg-background">
         <div className="relative w-full">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             ref={inputRef}
-            type="search"
+            type="text"
+            inputMode="search"
+            enterKeyHint="search"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="Rechercher dans MyHub Pro…"
