@@ -79,10 +79,49 @@ export function promptDialog(
     emitPrompt({ message, ...(options ?? {}), resolve });
   });
 }
+// ---------- Choice (multi-button) ----------
+
+export type ChoiceOption = {
+  key: string;
+  label: string;
+  variant?: "default" | "primary" | "destructive";
+};
+
+export type ChoiceDialogOptions = {
+  title?: string;
+  choices: ChoiceOption[];
+  cancelLabel?: string;
+};
+
+type PendingChoice = ChoiceDialogOptions & {
+  message: string;
+  resolve: (value: string | null) => void;
+};
+
+const choiceListeners = new Set<(p: PendingChoice | null) => void>();
+let currentChoice: PendingChoice | null = null;
+
+function emitChoice(p: PendingChoice | null) {
+  currentChoice = p;
+  for (const l of choiceListeners) l(p);
+}
+
+/** In-app multi-choice dialog. Returns the chosen option key or null if cancelled. */
+export function choiceDialog(
+  message: string,
+  options: ChoiceDialogOptions,
+): Promise<string | null> {
+  if (typeof window === "undefined") return Promise.resolve(null);
+  return new Promise((resolve) => {
+    emitChoice({ message, ...options, resolve });
+  });
+}
+
 
 export function ConfirmDialogHost() {
   const [pending, setPending] = useState<Pending | null>(currentPending);
   const [prompt, setPrompt] = useState<PendingPrompt | null>(currentPrompt);
+  const [choice, setChoice] = useState<PendingChoice | null>(currentChoice);
   const [value, setValue] = useState("");
 
   useEffect(() => {
@@ -104,6 +143,14 @@ export function ConfirmDialogHost() {
     };
   }, []);
 
+  useEffect(() => {
+    const l = (p: PendingChoice | null) => setChoice(p);
+    choiceListeners.add(l);
+    return () => {
+      choiceListeners.delete(l);
+    };
+  }, []);
+
   const close = (result: boolean) => {
     if (pending) pending.resolve(result);
     emit(null);
@@ -112,6 +159,11 @@ export function ConfirmDialogHost() {
   const closePrompt = (result: string | null) => {
     if (prompt) prompt.resolve(result);
     emitPrompt(null);
+  };
+
+  const closeChoice = (result: string | null) => {
+    if (choice) choice.resolve(result);
+    emitChoice(null);
   };
 
   return (
@@ -209,6 +261,46 @@ export function ConfirmDialogHost() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={!!choice}
+        onOpenChange={(open) => {
+          if (!open) closeChoice(null);
+        }}
+      >
+        <AlertDialogContent className="max-w-md gap-0 overflow-hidden p-0 shadow-2xl">
+          <div className="flex items-center gap-3 border-b bg-primary/10 px-5 py-3">
+            <HelpCircle className="h-5 w-5 text-primary" />
+            <div className="text-sm font-semibold">
+              {choice?.title ?? "Choisir une action"}
+            </div>
+          </div>
+          <div className="whitespace-pre-wrap px-5 py-4 text-sm text-foreground">
+            {choice?.message}
+          </div>
+          <AlertDialogFooter className="flex-wrap gap-2 border-t bg-muted/30 px-5 py-3">
+            <AlertDialogCancel onClick={() => closeChoice(null)}>
+              {choice?.cancelLabel ?? "Annuler"}
+            </AlertDialogCancel>
+            {(choice?.choices ?? []).map((c) => (
+              <AlertDialogAction
+                key={c.key}
+                onClick={() => closeChoice(c.key)}
+                className={
+                  c.variant === "destructive"
+                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    : c.variant === "default"
+                      ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                      : undefined
+                }
+              >
+                {c.label}
+              </AlertDialogAction>
+            ))}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
+
