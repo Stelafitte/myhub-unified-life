@@ -268,6 +268,39 @@ export function ExpenseReportDialog({
     }
   };
 
+  const createDraftAndOpen = async () => {
+    if (items.length === 0) { toast.error("Aucune ligne à enregistrer"); return; }
+    setCreatingDraft(true);
+    try {
+      const r = await createDraftFn({
+        data: {
+          title: title || `Note de frais — ${new Date().toLocaleDateString("fr-FR")}`,
+          notes: notes || null,
+          currency,
+          items: items.map((it) => ({
+            date: it.date,
+            description: it.description,
+            category: it.category,
+            vendor: it.vendor,
+            amount_ttc: it.amount_ttc,
+            amount_ht: it.amount_ht,
+            tva: it.tva,
+            source_email_id: it.source_email_id,
+          })),
+        },
+      });
+      toast.success("Brouillon créé dans Notes de frais");
+      onOpenChange(false);
+      navigate({ to: "/expenses", search: { reportId: r.id } as any });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erreur création brouillon");
+    } finally {
+      setCreatingDraft(false);
+    }
+  };
+
+
+
 
 
   return (
