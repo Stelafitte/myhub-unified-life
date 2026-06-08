@@ -143,6 +143,14 @@ export function ConfirmDialogHost() {
     };
   }, []);
 
+  useEffect(() => {
+    const l = (p: PendingChoice | null) => setChoice(p);
+    choiceListeners.add(l);
+    return () => {
+      choiceListeners.delete(l);
+    };
+  }, []);
+
   const close = (result: boolean) => {
     if (pending) pending.resolve(result);
     emit(null);
@@ -151,6 +159,11 @@ export function ConfirmDialogHost() {
   const closePrompt = (result: string | null) => {
     if (prompt) prompt.resolve(result);
     emitPrompt(null);
+  };
+
+  const closeChoice = (result: string | null) => {
+    if (choice) choice.resolve(result);
+    emitChoice(null);
   };
 
   return (
