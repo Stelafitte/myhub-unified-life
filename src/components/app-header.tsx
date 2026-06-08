@@ -134,21 +134,23 @@ function GlobalSearchBar() {
 
   return (
     <>
-      <form onSubmit={onSubmit} className="mx-1 flex w-full max-w-[560px] flex-1 items-center gap-1.5 sm:mx-3">
+      <form onSubmit={onSubmit} className="mx-1 flex min-w-0 w-full max-w-[560px] flex-1 items-center gap-1.5 sm:mx-3 max-sm:focus-within:absolute max-sm:focus-within:left-12 max-sm:focus-within:right-2 max-sm:focus-within:top-2 max-sm:focus-within:z-50 max-sm:focus-within:mx-0 max-sm:focus-within:max-w-none max-sm:focus-within:bg-background">
         <div className="relative w-full">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             ref={inputRef}
-            type="search"
+            type="text"
+            inputMode="search"
+            enterKeyHint="search"
             value={value}
             onChange={(e) => setValue(e.target.value)}
             placeholder="Rechercher dans MyHub Pro…"
             aria-label="Recherche globale"
-            className="h-9 w-full rounded-md border border-border/60 bg-muted/40 pl-8 pr-28 text-sm text-foreground placeholder:text-muted-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40"
+            className="h-9 w-full min-w-0 rounded-md border border-border/60 bg-muted/40 pl-8 pr-16 text-sm text-foreground placeholder:text-muted-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-ring/40 sm:pr-28"
           />
           <MicButton
             targetRef={inputRef}
-            className="absolute right-20 top-1/2 -translate-y-1/2"
+            className="absolute right-8 top-1/2 -translate-y-1/2 sm:right-20"
             iconSize={14}
           />
           {value && (
@@ -156,7 +158,7 @@ function GlobalSearchBar() {
               type="button"
               onClick={clear}
               aria-label="Effacer"
-              className="absolute right-12 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground sm:right-12"
             >
               <X className="h-3.5 w-3.5" />
             </button>
