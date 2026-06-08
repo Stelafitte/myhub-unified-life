@@ -144,6 +144,19 @@ export function AiAssistantModal({
     setTurns((t) => [...t, { id, mode: currentMode, prompt: q, result: null, chatReply: null, error: null, selectedMatches: new Set(), actions: [], proposing: false }]);
     setPrompt("");
     try {
+      // Détection : note de frais → recherche d'emails + génération auto
+      const isExpenseIntent = /\bnotes?\s+de\s+frais\b|\bndf\b|\bexpense\s+report\b/i.test(q);
+      if (isExpenseIntent) {
+        const res = await run({ data: { prompt: q, contextRoute: window.location.pathname, forceEntity: "emails" } });
+        setTurns((t) => t.map((x) => (x.id === id ? { ...x, result: res, selectedMatches: new Set(res.matches.map(m => m.id)) } : x)));
+        const emailIds = res.matches.filter(m => m.kind === "email").map(m => m.id);
+        if (emailIds.length === 0) {
+          toast.info("Aucun email correspondant trouvé.");
+        } else {
+          await runExpenseReport(id, emailIds, q);
+        }
+        return;
+      }
       if (currentMode === "chat") {
         // 0) Pilotage instantané de l'inbox (next/prev/close/first/last) — sans LLM.
         //    On laisse la priorité à un verbe d'action explicite (supprime/archive…).
@@ -275,18 +288,15 @@ export function AiAssistantModal({
     setExpenseOpen(true);
   };
 
-  const generateExpenseFor = async (turn: Turn) => {
-    const emailIds = Array.from(turn.selectedMatches).filter(id =>
-      turn.result?.matches.find(m => m.id === id)?.kind === "email"
-    );
+  const runExpenseReport = async (turnId: string, emailIds: string[], instruction: string) => {
     if (emailIds.length === 0) { toast.error("Sélectionnez au moins un email."); return; }
-    setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, proposing: true } : t));
+    setTurns(ts => ts.map(t => t.id === turnId ? { ...t, proposing: true } : t));
     try {
-      toast.info("L'IA analyse les emails…");
-      const res = await expenseFn({ data: { emailIds, instruction: turn.prompt } });
+      toast.info("L'IA analyse les emails et leurs pièces jointes…");
+      const res = await expenseFn({ data: { emailIds, instruction } });
       if (res.items.length === 0) {
         toast.error("Aucune dépense détectée dans ces emails.");
-        setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, chatReply: `Aucune dépense détectée.${res.notes ? "\n\n" + res.notes : ""}` } : t));
+        setTurns(ts => ts.map(t => t.id === turnId ? { ...t, chatReply: `Aucune dépense détectée.${res.notes ? "\n\n" + res.notes : ""}` } : t));
         return;
       }
 
@@ -316,7 +326,6 @@ export function AiAssistantModal({
       y += 8;
       doc.setTextColor(0);
       doc.setFontSize(9);
-      // Header
       doc.setFont("helvetica", "bold");
       doc.text("Date", 14, y);
       doc.text("Description", 38, y);
@@ -352,14 +361,21 @@ export function AiAssistantModal({
       const summary = `✅ Note de frais générée à partir de ${emailIds.length} email(s) :\n\n` +
         res.items.map((it, i) => `${i + 1}. ${it.date ?? "—"} · ${it.description} · ${it.vendor} — ${it.amount_ttc.toFixed(2)} ${it.currency}`).join("\n") +
         `\n\n💰 Total : ${res.total.toFixed(2)} ${res.currency}\n\n📄 PDF et CSV téléchargés.${res.notes ? "\n\nℹ️ " + res.notes : ""}`;
-      setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, chatReply: summary } : t));
+      setTurns(ts => ts.map(t => t.id === turnId ? { ...t, chatReply: summary } : t));
       toast.success("Note de frais générée");
     } catch (e: any) {
       toast.error(e?.message ?? "Erreur");
-      setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, error: e?.message ?? "Erreur" } : t));
+      setTurns(ts => ts.map(t => t.id === turnId ? { ...t, error: e?.message ?? "Erreur" } : t));
     } finally {
-      setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, proposing: false } : t));
+      setTurns(ts => ts.map(t => t.id === turnId ? { ...t, proposing: false } : t));
     }
+  };
+
+  const generateExpenseFor = async (turn: Turn) => {
+    const emailIds = Array.from(turn.selectedMatches).filter(id =>
+      turn.result?.matches.find(m => m.id === id)?.kind === "email"
+    );
+    await runExpenseReport(turn.id, emailIds, turn.prompt);
   };
 
   const proposeFor = async (turn: Turn, kind: ProposedAction["kind"]) => {
