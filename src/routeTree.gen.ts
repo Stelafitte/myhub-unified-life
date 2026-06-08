@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SurveyTokenRouteImport } from './routes/survey.$token'
 import { Route as SpaceTokenRouteImport } from './routes/space.$token'
 import { Route as PollTokenRouteImport } from './routes/poll.$token'
+import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AuthenticatedWhatsappRouteImport } from './routes/_authenticated/whatsapp'
 import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
 import { Route as AuthenticatedStatsRouteImport } from './routes/_authenticated/stats'
@@ -35,10 +36,13 @@ import { Route as AuthenticatedContactsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedCollaborateRouteImport } from './routes/_authenticated/collaborate'
 import { Route as AuthenticatedCalendarRouteImport } from './routes/_authenticated/calendar'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as ApiPublicLandingRequestRouteImport } from './routes/api/public/landing-request'
 import { Route as ApiOutlookOauthCallbackRouteImport } from './routes/api/outlook-oauth/callback'
 import { Route as ApiGoogleCalendarCallbackRouteImport } from './routes/api/google-calendar/callback'
 import { Route as AuthenticatedCollaborateReviewRouteImport } from './routes/_authenticated/collaborate.review'
+import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
+import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 import { Route as ApiPublicHooksRsvpRemindersRouteImport } from './routes/api/public/hooks/rsvp-reminders'
@@ -88,6 +92,11 @@ const SpaceTokenRoute = SpaceTokenRouteImport.update({
 const PollTokenRoute = PollTokenRouteImport.update({
   id: '/poll/$token',
   path: '/poll/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
+  id: '/email/unsubscribe',
+  path: '/email/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedWhatsappRoute = AuthenticatedWhatsappRouteImport.update({
@@ -177,6 +186,11 @@ const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
+  id: '/lovable/email/suppression',
+  path: '/lovable/email/suppression',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicLandingRequestRoute = ApiPublicLandingRequestRouteImport.update({
   id: '/api/public/landing-request',
   path: '/api/public/landing-request',
@@ -198,6 +212,18 @@ const AuthenticatedCollaborateReviewRoute =
     id: '/review',
     path: '/review',
     getParentRoute: () => AuthenticatedCollaborateRoute,
+  } as any)
+const LovableEmailTransactionalSendRoute =
+  LovableEmailTransactionalSendRouteImport.update({
+    id: '/lovable/email/transactional/send',
+    path: '/lovable/email/transactional/send',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const LovableEmailTransactionalPreviewRoute =
+  LovableEmailTransactionalPreviewRouteImport.update({
+    id: '/lovable/email/transactional/preview',
+    path: '/lovable/email/transactional/preview',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const LovableEmailQueueProcessRoute =
   LovableEmailQueueProcessRouteImport.update({
@@ -258,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/stats': typeof AuthenticatedStatsRoute
   '/tasks': typeof AuthenticatedTasksRoute
   '/whatsapp': typeof AuthenticatedWhatsappRoute
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
   '/survey/$token': typeof SurveyTokenRoute
@@ -265,10 +292,13 @@ export interface FileRoutesByFullPath {
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
   '/api/public/landing-request': typeof ApiPublicLandingRequestRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
   '/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
@@ -295,6 +325,7 @@ export interface FileRoutesByTo {
   '/stats': typeof AuthenticatedStatsRoute
   '/tasks': typeof AuthenticatedTasksRoute
   '/whatsapp': typeof AuthenticatedWhatsappRoute
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
   '/survey/$token': typeof SurveyTokenRoute
@@ -302,10 +333,13 @@ export interface FileRoutesByTo {
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
   '/api/public/landing-request': typeof ApiPublicLandingRequestRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
   '/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
@@ -334,6 +368,7 @@ export interface FileRoutesById {
   '/_authenticated/stats': typeof AuthenticatedStatsRoute
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
   '/_authenticated/whatsapp': typeof AuthenticatedWhatsappRoute
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
   '/survey/$token': typeof SurveyTokenRoute
@@ -341,10 +376,13 @@ export interface FileRoutesById {
   '/api/google-calendar/callback': typeof ApiGoogleCalendarCallbackRoute
   '/api/outlook-oauth/callback': typeof ApiOutlookOauthCallbackRoute
   '/api/public/landing-request': typeof ApiPublicLandingRequestRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/_authenticated/collaborate/space/$spaceId': typeof AuthenticatedCollaborateSpaceSpaceIdRouteWithChildren
   '/api/public/hooks/rsvp-reminders': typeof ApiPublicHooksRsvpRemindersRoute
   '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
   '/api/public/poll/$token/files': typeof ApiPublicPollTokenFilesRoute
   '/_authenticated/collaborate/space/$spaceId/doc/$docId': typeof AuthenticatedCollaborateSpaceSpaceIdDocDocIdRoute
 }
@@ -373,6 +411,7 @@ export interface FileRouteTypes {
     | '/stats'
     | '/tasks'
     | '/whatsapp'
+    | '/email/unsubscribe'
     | '/poll/$token'
     | '/space/$token'
     | '/survey/$token'
@@ -380,10 +419,13 @@ export interface FileRouteTypes {
     | '/api/google-calendar/callback'
     | '/api/outlook-oauth/callback'
     | '/api/public/landing-request'
+    | '/lovable/email/suppression'
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
     | '/api/public/poll/$token/files'
     | '/collaborate/space/$spaceId/doc/$docId'
   fileRoutesByTo: FileRoutesByTo
@@ -410,6 +452,7 @@ export interface FileRouteTypes {
     | '/stats'
     | '/tasks'
     | '/whatsapp'
+    | '/email/unsubscribe'
     | '/poll/$token'
     | '/space/$token'
     | '/survey/$token'
@@ -417,10 +460,13 @@ export interface FileRouteTypes {
     | '/api/google-calendar/callback'
     | '/api/outlook-oauth/callback'
     | '/api/public/landing-request'
+    | '/lovable/email/suppression'
     | '/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
     | '/api/public/poll/$token/files'
     | '/collaborate/space/$spaceId/doc/$docId'
   id:
@@ -448,6 +494,7 @@ export interface FileRouteTypes {
     | '/_authenticated/stats'
     | '/_authenticated/tasks'
     | '/_authenticated/whatsapp'
+    | '/email/unsubscribe'
     | '/poll/$token'
     | '/space/$token'
     | '/survey/$token'
@@ -455,10 +502,13 @@ export interface FileRouteTypes {
     | '/api/google-calendar/callback'
     | '/api/outlook-oauth/callback'
     | '/api/public/landing-request'
+    | '/lovable/email/suppression'
     | '/_authenticated/collaborate/space/$spaceId'
     | '/api/public/hooks/rsvp-reminders'
     | '/api/public/whatsapp/webhook'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
     | '/api/public/poll/$token/files'
     | '/_authenticated/collaborate/space/$spaceId/doc/$docId'
   fileRoutesById: FileRoutesById
@@ -470,15 +520,19 @@ export interface RootRouteChildren {
   MentionsLegalesRoute: typeof MentionsLegalesRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   PollTokenRoute: typeof PollTokenRoute
   SpaceTokenRoute: typeof SpaceTokenRoute
   SurveyTokenRoute: typeof SurveyTokenRoute
   ApiGoogleCalendarCallbackRoute: typeof ApiGoogleCalendarCallbackRoute
   ApiOutlookOauthCallbackRoute: typeof ApiOutlookOauthCallbackRoute
   ApiPublicLandingRequestRoute: typeof ApiPublicLandingRequestRoute
+  LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   ApiPublicHooksRsvpRemindersRoute: typeof ApiPublicHooksRsvpRemindersRoute
   ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
+  LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
+  LovableEmailTransactionalSendRoute: typeof LovableEmailTransactionalSendRoute
   ApiPublicPollTokenFilesRoute: typeof ApiPublicPollTokenFilesRoute
 }
 
@@ -545,6 +599,13 @@ declare module '@tanstack/react-router' {
       path: '/poll/$token'
       fullPath: '/poll/$token'
       preLoaderRoute: typeof PollTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/email/unsubscribe': {
+      id: '/email/unsubscribe'
+      path: '/email/unsubscribe'
+      fullPath: '/email/unsubscribe'
+      preLoaderRoute: typeof EmailUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/whatsapp': {
@@ -666,6 +727,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/lovable/email/suppression': {
+      id: '/lovable/email/suppression'
+      path: '/lovable/email/suppression'
+      fullPath: '/lovable/email/suppression'
+      preLoaderRoute: typeof LovableEmailSuppressionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/landing-request': {
       id: '/api/public/landing-request'
       path: '/api/public/landing-request'
@@ -693,6 +761,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/collaborate/review'
       preLoaderRoute: typeof AuthenticatedCollaborateReviewRouteImport
       parentRoute: typeof AuthenticatedCollaborateRoute
+    }
+    '/lovable/email/transactional/send': {
+      id: '/lovable/email/transactional/send'
+      path: '/lovable/email/transactional/send'
+      fullPath: '/lovable/email/transactional/send'
+      preLoaderRoute: typeof LovableEmailTransactionalSendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/transactional/preview': {
+      id: '/lovable/email/transactional/preview'
+      path: '/lovable/email/transactional/preview'
+      fullPath: '/lovable/email/transactional/preview'
+      preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/lovable/email/queue/process': {
       id: '/lovable/email/queue/process'
@@ -822,15 +904,19 @@ const rootRouteChildren: RootRouteChildren = {
   MentionsLegalesRoute: MentionsLegalesRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   PollTokenRoute: PollTokenRoute,
   SpaceTokenRoute: SpaceTokenRoute,
   SurveyTokenRoute: SurveyTokenRoute,
   ApiGoogleCalendarCallbackRoute: ApiGoogleCalendarCallbackRoute,
   ApiOutlookOauthCallbackRoute: ApiOutlookOauthCallbackRoute,
   ApiPublicLandingRequestRoute: ApiPublicLandingRequestRoute,
+  LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   ApiPublicHooksRsvpRemindersRoute: ApiPublicHooksRsvpRemindersRoute,
   ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
+  LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
+  LovableEmailTransactionalSendRoute: LovableEmailTransactionalSendRoute,
   ApiPublicPollTokenFilesRoute: ApiPublicPollTokenFilesRoute,
 }
 export const routeTree = rootRouteImport
