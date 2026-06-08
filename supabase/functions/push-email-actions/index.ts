@@ -355,11 +355,11 @@ Deno.serve(async (req) => {
 
   try {
     if (account.type === "gmail") {
-      await pushGmail(email.message_id, action);
+      await pushGmail(messageId, action);
     } else if (account.type === "outlook") {
-      await pushOutlook(email.message_id, action);
+      await pushOutlook(messageId, action);
     } else if (account.type === "imap") {
-      await pushImap(account, email.message_id, action);
+      await pushImap(account, messageId, action);
     } else {
       return jsonResponse({ error: `unsupported account type: ${account.type}` }, 422);
     }
