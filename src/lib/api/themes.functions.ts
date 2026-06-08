@@ -231,11 +231,12 @@ export const classifyPendingThemes = createServerFn({ method: "POST" })
     // Load themes
     const { data: themesRows } = await supabase
       .from("email_themes")
-      .select("id,name,description,keywords,utility_level,scope")
+      .select("id,name,description,keywords,utility_level,scope,parent_id")
       .eq("user_id", userId)
       .is("archived_at", null);
-    const themes = (themesRows ?? []) as { id: string; name: string; description: string | null; keywords: string[]; utility_level?: string; scope?: string }[];
+    const themes = (themesRows ?? []) as { id: string; name: string; description: string | null; keywords: string[]; utility_level?: string; scope?: string; parent_id?: string | null }[];
     const themeByName = new Map(themes.map((t) => [t.name.toLowerCase(), t]));
+    const themeById = new Map(themes.map((t) => [t.id, t]));
 
     // Load sender memory
     const { data: senderRows } = await supabase
@@ -259,7 +260,11 @@ export const classifyPendingThemes = createServerFn({ method: "POST" })
     const userPromptsBlock = await loadActivePromptsBlock(supabase, userId, ["email_classify"]);
 
     const themeList = themes
-      .map((t) => `- "${t.name}" [${t.scope ?? "perso"}/${t.utility_level ?? "modere"}]${t.description ? `: ${t.description}` : ""}${t.keywords.length ? ` [mots-clés: ${t.keywords.join(", ")}]` : ""}`)
+      .map((t) => {
+        const parent = t.parent_id ? themeById.get(t.parent_id) : null;
+        const label = parent ? `${parent.name} › ${t.name}` : t.name;
+        return `- "${label}" [${t.scope ?? "perso"}/${t.utility_level ?? "modere"}]${t.description ? `: ${t.description}` : ""}${t.keywords.length ? ` [mots-clés: ${t.keywords.join(", ")}]` : ""}`;
+      })
       .join("\n");
 
     let processed = 0;
