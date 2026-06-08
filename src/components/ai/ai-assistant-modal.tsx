@@ -95,6 +95,9 @@ export function AiAssistantModal({
   const [minimized, setMinimized] = useState(false);
   const [voiceLivePreview, setVoiceLivePreview] = useState("");
   const [pendingVoiceAction, setPendingVoiceAction] = useState<VoiceActionPlan | null>(null);
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const [expenseEmailIds, setExpenseEmailIds] = useState<string[]>([]);
+  const [expenseInstruction, setExpenseInstruction] = useState("");
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const chatFn = useServerFn(aiChat);
