@@ -1235,6 +1235,82 @@ function InboxPage() {
     });
   };
 
+  // Déplacement explicite (drag&drop) d'un ensemble de mails vers un thème,
+  // avec apprentissage par expéditeur dans sender_theme_map.
+  const moveEmailsToThemeWithLearning = async (ids: string[], themeId: string) => {
+    if (!ids.length || !user) return;
+    const prevByIdMap = new Map(
+      emails.filter((x) => ids.includes(x.id)).map((x) => [x.id, x.ai_theme_id ?? null] as const),
+    );
+    const moved = emails.filter((x) => ids.includes(x.id));
+    const senders = Array.from(
+      new Set(
+        moved
+          .map((x) => (x.from_address ?? "").toLowerCase().trim())
+          .filter((s): s is string => !!s),
+      ),
+    );
+    setEmails((prev) =>
+      prev.map((x) =>
+        ids.includes(x.id)
+          ? { ...x, ai_theme_id: themeId, theme_processed_at: new Date().toISOString() }
+          : x,
+      ),
+    );
+    clearChecked();
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase
+      .from("emails")
+      .update({ ai_theme_id: themeId, theme_processed_at: nowIso })
+      .in("id", ids);
+    if (error) {
+      // Rollback
+      setEmails((prev) =>
+        prev.map((x) => (prevByIdMap.has(x.id) ? { ...x, ai_theme_id: prevByIdMap.get(x.id)! } : x)),
+      );
+      toast.error(error.message);
+      return;
+    }
+    // Apprentissage : règle expéditeur → thème.
+    if (senders.length) {
+      const rows = senders.map((s) => ({ user_id: user.id, from_address: s, theme_id: themeId }));
+      await supabase
+        .from("sender_theme_map")
+        .upsert(rows, { onConflict: "user_id,from_address" });
+    }
+    // Feedback IA pour chaque mail déplacé.
+    const themeName = themes.find((t) => t.id === themeId)?.name ?? null;
+    await supabase.from("ai_feedback").insert(
+      moved.map((m) => ({
+        user_id: user.id,
+        email_id: m.id,
+        from_address: m.from_address,
+        subject: m.subject,
+        original_category: themes.find((t) => t.id === prevByIdMap.get(m.id))?.name ?? null,
+        corrected_category: themeName,
+      })),
+    );
+    const undoFn = async () => {
+      await Promise.all(
+        Array.from(prevByIdMap.entries()).map(([id, val]) =>
+          supabase.from("emails").update({ ai_theme_id: val }).eq("id", id),
+        ),
+      );
+      setEmails((prev) =>
+        prev.map((x) => (prevByIdMap.has(x.id) ? { ...x, ai_theme_id: prevByIdMap.get(x.id)! } : x)),
+      );
+      toast.success("Déplacement annulé");
+    };
+    toast.success(
+      `${ids.length} email(s) déplacé(s) vers « ${themeName ?? "ce thème"} » — règle apprise`,
+      {
+        duration: 6000,
+        action: { label: "Annuler", onClick: () => { void undoFn(); } },
+      },
+    );
+    void refreshThemes();
+  };
+
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     setReaderOpen(true);
