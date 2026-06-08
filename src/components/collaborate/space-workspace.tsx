@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { PanelRightClose, PanelRightOpen, Hash, Link2, FileText, CheckSquare, CalendarClock, Vote, Paperclip, Menu, Info } from "lucide-react";
+import { PanelRightClose, PanelRightOpen, Hash, Link2, FileText, CheckSquare, CalendarClock, Vote, Paperclip, Menu, Info, UserPlus } from "lucide-react";
 import { SpaceTree } from "./space-tree";
 import { SpaceChat } from "./space-chat";
 import { SpaceLinksTab } from "./space-links-tab";
@@ -138,6 +138,16 @@ export function SpaceWorkspace() {
                 <div className="min-w-0 flex-1">
                   <h2 className="font-semibold truncate text-sm sm:text-base">{active.name}</h2>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5"
+                  onClick={() => setGroupFromSpaceOpen(true)}
+                  title="Créer un groupe de contacts depuis cet espace"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Groupe contacts</span>
+                </Button>
                 <SpaceShareButton spaceId={active.id} />
                 <Button
                   variant="ghost"
