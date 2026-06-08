@@ -425,13 +425,18 @@ export function ExpenseReportDialog({
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Re-analyser{attachments.length > 0 ? " avec PJ" : ""}
           </Button>
-          <div className="flex gap-2 ml-auto">
+          <div className="flex gap-2 ml-auto flex-wrap justify-end">
             <Button variant="outline" onClick={() => setShowSend(v => !v)} disabled={loading || items.length === 0} className="gap-1.5">
-              <Mail className="h-3.5 w-3.5" /> Envoyer par email
+              <Mail className="h-3.5 w-3.5" /> Envoyer
             </Button>
-            <Button onClick={downloadZip} disabled={loading || items.length === 0} className="gap-1.5">
-              <Download className="h-3.5 w-3.5" /> Télécharger ZIP
+            <Button variant="outline" onClick={downloadZip} disabled={loading || items.length === 0} className="gap-1.5">
+              <Download className="h-3.5 w-3.5" /> ZIP
             </Button>
+            <Button onClick={createDraftAndOpen} disabled={loading || creatingDraft || items.length === 0} className="gap-1.5">
+              {creatingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileEdit className="h-3.5 w-3.5" />}
+              Ouvrir dans Notes de frais
+            </Button>
+
           </div>
         </DialogFooter>
       </DialogContent>
