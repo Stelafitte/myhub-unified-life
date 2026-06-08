@@ -142,45 +142,37 @@ function groupThemes(
   themes: Theme[],
   byTheme: Map<string, number>,
 ): {
-  grouped: { name: string; items: { theme: Theme; label: string }[]; total: number }[];
+  grouped: { name: string; parent: Theme; children: Theme[]; total: number }[];
   standalone: Theme[];
 } {
-  const active = themes.filter((t) => !t.archived_at && (byTheme.get(t.id) ?? 0) > 0);
-  const map = new Map<string, { theme: Theme; label: string }[]>();
-  const flat: Theme[] = [];
-  // Index par id pour résoudre le parent explicite (parent_id).
+  const active = themes.filter((t) => !t.archived_at);
   const byId = new Map<string, Theme>();
   for (const t of themes) byId.set(t.id, t);
-  const handledByParentId = new Set<string>();
+  const childrenByParent = new Map<string, Theme[]>();
   for (const t of active) {
-    if (t.parent_id) {
-      const parent = byId.get(t.parent_id);
-      if (parent) {
-        const parentName = parent.name;
-        const arr = map.get(parentName) ?? [];
-        // Si le parent est lui-même actif, on l'inclut comme premier item.
-        if (!arr.some((i) => i.theme.id === parent.id) && (byTheme.get(parent.id) ?? 0) > 0) {
-          arr.push({ theme: parent, label: parent.name });
-          handledByParentId.add(parent.id);
-        }
-        arr.push({ theme: t, label: t.name });
-        map.set(parentName, arr);
-        handledByParentId.add(t.id);
-        continue;
-      }
-    }
+    const parent = t.parent_id ? byId.get(t.parent_id) : null;
+    if (!parent || parent.archived_at) continue;
+    const arr = childrenByParent.get(parent.id) ?? [];
+    arr.push(t);
+    childrenByParent.set(parent.id, arr);
   }
-  for (const t of active) {
-    if (handledByParentId.has(t.id)) continue;
-    const parsed = splitThemeName(t.name);
-    if (parsed) {
-      const arr = map.get(parsed.parent) ?? [];
-      arr.push({ theme: t, label: parsed.child });
-      map.set(parsed.parent, arr);
-    } else {
-      flat.push(t);
-    }
-  }
+  const grouped = [...childrenByParent.entries()]
+    .map(([parentId, children]) => {
+      const parent = byId.get(parentId)!;
+      const sortedChildren = children.sort((a, b) => (byTheme.get(b.id) ?? 0) - (byTheme.get(a.id) ?? 0));
+      return {
+        name: parent.name,
+        parent,
+        children: sortedChildren,
+        total: (byTheme.get(parent.id) ?? 0) + sortedChildren.reduce((s, t) => s + (byTheme.get(t.id) ?? 0), 0),
+      };
+    })
+    .sort((a, b) => b.total - a.total);
+
+  const childIds = new Set([...childrenByParent.values()].flat().map((t) => t.id));
+  const parentIds = new Set(childrenByParent.keys());
+  const flat = active.filter((t) => !childIds.has(t.id) && !parentIds.has(t.id) && (byTheme.get(t.id) ?? 0) > 0);
+  const map = new Map<string, { theme: Theme; label: string }[]>();
   // Try to group remaining by significant first word (>=4 chars) if 2+ share it
   const byFirst = new Map<string, Theme[]>();
   for (const t of flat) {
@@ -205,13 +197,17 @@ function groupThemes(
   }
   for (const t of flat) if (!usedIds.has(t.id)) standalone.push(t);
 
-  const grouped = [...map.entries()]
-    .map(([name, items]) => ({
+  for (const [name, items] of map.entries()) {
+    const [parentItem, ...children] = items.sort((a, b) => (byTheme.get(b.theme.id) ?? 0) - (byTheme.get(a.theme.id) ?? 0));
+    if (!parentItem) continue;
+    grouped.push({
       name,
-      items: items.sort((a, b) => (byTheme.get(b.theme.id) ?? 0) - (byTheme.get(a.theme.id) ?? 0)),
+      parent: parentItem.theme,
+      children: children.map((i) => i.theme),
       total: items.reduce((s, i) => s + (byTheme.get(i.theme.id) ?? 0), 0),
-    }))
-    .sort((a, b) => b.total - a.total);
+    });
+  }
+  grouped.sort((a, b) => b.total - a.total);
 
   return { grouped, standalone };
 }
