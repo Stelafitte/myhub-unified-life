@@ -1171,7 +1171,11 @@ export const addSpaceGuestsFromGroup = createServerFn({ method: "POST" })
       contactsById = Object.fromEntries(
         (cs ?? []).map((c) => [
           c.id,
-          { email: c.email, first_name: c.first_name, last_name: c.last_name },
+          {
+            email: Array.isArray(c.email) ? c.email[0] ?? null : (c.email ?? null),
+            first_name: c.first_name,
+            last_name: c.last_name,
+          },
         ]),
       );
     }
