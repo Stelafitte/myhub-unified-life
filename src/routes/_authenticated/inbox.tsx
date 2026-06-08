@@ -1345,24 +1345,7 @@ function InboxPage() {
       setDragTheme(null);
       setDropTargetSidebarThemeId(null);
       if (fromTheme && fromTheme !== themeId) {
-        const fromName = themes.find((t) => t.id === fromTheme)?.name ?? "ce thème";
-        const ok = await confirmDialog(
-          `Fusionner « ${fromName} » dans « ${themeName} » ?\n\nTous les mails seront déplacés, les futurs mails des mêmes expéditeurs y seront classés automatiquement, et le thème « ${fromName} » sera supprimé.`,
-          { confirmLabel: "Fusionner" },
-        );
-        if (!ok) return;
-        setEmails((prev) =>
-          prev.map((x) => (x.ai_theme_id === fromTheme ? { ...x, ai_theme_id: themeId } : x)),
-        );
-        setThemes((prev) => prev.filter((t) => t.id !== fromTheme));
-        try {
-          const res = await mergeThemesFn({ data: { fromId: fromTheme, intoId: themeId } });
-          if (!res?.ok) throw new Error(res?.error ?? "Échec de la fusion");
-          toast.success(`« ${fromName} » fusionné dans « ${themeName} »`);
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Échec de la fusion");
-          await refreshThemes();
-        }
+        await handleThemeOnThemeDrop(fromTheme, themeId, themeName);
         return;
       }
       if (emailIdsRaw) {
@@ -1377,6 +1360,75 @@ function InboxPage() {
       }
     },
   });
+
+  // Demande à l'utilisateur s'il veut fusionner OU rattacher comme sous-thème,
+  // puis applique l'action choisie (optimiste + persistance).
+  const handleThemeOnThemeDrop = async (
+    fromId: string,
+    intoId: string,
+    intoName: string,
+  ) => {
+    if (fromId === intoId) return;
+    const fromTheme = themes.find((t) => t.id === fromId);
+    const intoTheme = themes.find((t) => t.id === intoId);
+    const fromName = fromTheme?.name ?? "ce thème";
+    // Empêche un cycle simple : si la cible est déjà enfant de la source.
+    if (intoTheme?.parent_id === fromId) {
+      toast.error(`Impossible : « ${intoName} » est déjà un sous-thème de « ${fromName} »`);
+      return;
+    }
+    const action = await choiceDialog(
+      `Que faire avec « ${fromName} » et « ${intoName} » ?`,
+      {
+        title: "Organiser les thèmes",
+        choices: [
+          { key: "subtheme", label: `↳ Sous-thème de « ${intoName} »`, variant: "primary" },
+          { key: "merge", label: "Fusionner", variant: "default" },
+        ],
+      },
+    );
+    if (!action) return;
+
+    if (action === "subtheme") {
+      // Optimiste : marque le thème source comme enfant.
+      setThemes((prev) =>
+        prev.map((t) => (t.id === fromId ? { ...t, parent_id: intoId } : t)),
+      );
+      const { error } = await supabase
+        .from("email_themes")
+        .update({ parent_id: intoId })
+        .eq("id", fromId);
+      if (error) {
+        toast.error(error.message);
+        await refreshThemes();
+        return;
+      }
+      toast.success(`« ${fromName} » est désormais sous-thème de « ${intoName} »`);
+      return;
+    }
+
+    if (action === "merge") {
+      const ok = await confirmDialog(
+        `Fusionner « ${fromName} » dans « ${intoName} » ?\n\nTous les mails seront déplacés, les futurs mails des mêmes expéditeurs y seront classés automatiquement, et le thème « ${fromName} » sera supprimé.`,
+        { confirmLabel: "Fusionner", destructive: true },
+      );
+      if (!ok) return;
+      setEmails((prev) =>
+        prev.map((x) => (x.ai_theme_id === fromId ? { ...x, ai_theme_id: intoId } : x)),
+      );
+      setThemes((prev) => prev.filter((t) => t.id !== fromId));
+      try {
+        const res = await mergeThemesFn({ data: { fromId, intoId } });
+        if (!res?.ok) throw new Error(res?.error ?? "Échec de la fusion");
+        toast.success(`« ${fromName} » fusionné dans « ${intoName} »`);
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Échec de la fusion");
+        await refreshThemes();
+      }
+    }
+  };
+
+
 
 
 
