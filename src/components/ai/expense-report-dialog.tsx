@@ -50,7 +50,10 @@ export function ExpenseReportDialog({
   initialInstruction?: string;
 }) {
   const expenseFn = useServerFn(generateExpenseReport);
+  const createDraftFn = useServerFn(createReportFromAIItems);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [creatingDraft, setCreatingDraft] = useState(false);
   const [items, setItems] = useState<ExpenseItem[]>([]);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
