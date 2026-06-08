@@ -1,78 +1,82 @@
-# Espace participant projet — architecture
+# Plan — Module Note de frais complet
 
-## Principe
+Gros chantier livré en une fois. Je ne touche à aucun autre module ; je conserve la dialog IA actuelle (`ExpenseReportDialog`) qui restera utilisable depuis l'assistant, mais ajoute un module dédié à `/expenses`.
 
-Le propriétaire invite un participant par email depuis l'app. Le participant reçoit un lien d'accès sécurisé qui lui donne **uniquement** accès à l'espace du projet concerné — rien d'autre de MyHub. Une seule page complète, identique à l'espace projet interne, avec droits ajustés par module.
+## 1. Migration Supabase
 
-## Flux d'invitation
+Tables `expense_reports`, `expense_items`, `expense_templates` (schéma exact du prompt) avec :
+- `GRANT SELECT, INSERT, UPDATE, DELETE … TO authenticated` + `GRANT ALL TO service_role` (obligatoire sinon Data API renvoie permission denied)
+- RLS `auth.uid() = user_id` (FOR ALL split en USING + WITH CHECK)
+- Trigger `set_updated_at` sur `expense_reports`
+- Bucket Storage privé `expense-receipts` + policies par utilisateur (préfixe `userId/…`) pour justificatifs et modèles uploadés
 
-```text
-Owner (MyHub)                    Participant
-    |                                 |
-    | 1. Ouvre projet X               |
-    | 2. "Inviter" → email + rôle     |
-    |                                 |
-    |---> email avec lien magique --->|
-    |     /p/{space_token}/{guest_token}
-    |                                 |
-    |                                 | 3. Clic lien
-    |                                 | 4. (Option) code OTP par email
-    |                                 | 5. Accède à l'espace projet
-```
+## 2. Route `/expenses` (sous `_authenticated`)
 
-Pas de mot de passe — lien magique + OTP email (déjà supporté par Lovable Cloud). Session limitée à ce projet uniquement.
+`src/routes/_authenticated/expenses.tsx` :
+- Liste des notes : titre, objet, date, statut (badge coloré Brouillon/Soumise/Approuvée/Rejetée/Payée), total
+- Boutons « + Nouvelle note » et « Importer un modèle »
+- Onglet « Modèles » : upload + liste des modèles analysés
+- Lien ajouté à la sidebar (`app-sidebar.tsx`)
 
-## Permissions par module (rôle "participant")
+## 3. Composants
 
-| Module    | Droit         |
-|-----------|---------------|
-| Chat      | Édition       |
-| Liens     | Édition       |
-| Documents | Édition       |
-| Tâches    | Visualisation |
-| Réunions  | Édition       |
-| Fichiers  | Édition       |
-| Sondages  | Édition       |
+- `src/components/expenses/expense-report-form.tsx` — formulaire complet :
+  - **Identification** (en dur, éditable) : Dr Stéphane LAFITTE / PU-PH / UMCV / CHU Bordeaux / RPPS optionnel
+  - **Mission** : intitulé, cadre (select), organisme, n° mission
+  - **Tableau dépenses** : ligne éditable avec date / catégorie (icônes) / description / justificatif (upload) / TTC / TVA% / HT (auto)
+  - Cas véhicule perso : km + barème 2024 (0.426 €/km < 5000 km) → montant auto
+  - Drag & drop réordonnancement (dnd-kit)
+  - Upload justificatif → Storage → lien `documents`
+  - **Récap** : total auto, avances, à rembourser, mode (virement/chèque), IBAN
+  - **Signature** : Bordeaux / aujourd'hui / Dr Stéphane LAFITTE
+  - **PJ** : liste numérotée + compteur + miniature
+- `src/components/expenses/expenses-list.tsx`
+- `src/components/expenses/import-from-email-dialog.tsx` — filtre emails par mots-clés, sélection, appel `extractExpenseFromEmail`, validation manuelle avant ajout
+- `src/components/expenses/template-upload-dialog.tsx` + liste modèles
 
-Le propriétaire garde tout (admin). Possibilité plus tard d'ajouter des rôles "viewer" ou "editor restreint".
+## 4. Server functions `src/lib/expense.functions.ts`
 
-## Base de données
+Toutes via `createServerFn` + `requireSupabaseAuth` :
+- CRUD : `listReports`, `getReport`, `createReport`, `updateReport`, `deleteReport`, `addItem`, `updateItem`, `deleteItem`, `reorderItems`
+- `extractExpenseFromEmail({ emailId })` — IA `google/gemini-3-flash-preview` lit body + PJ images, retourne `{ date, amount_ttc, category, description, vendor, tva_rate }` ; jamais d'insert auto
+- `analyzeExpenseTemplate({ templateId })` — analyse fichier (texte extrait), IA détecte champs/colonnes/zones, écrit `ai_mapping`
+- `fillExpenseTemplate({ reportId, templateId })` — applique mapping :
+  - Excel → SheetJS (`xlsx`)
+  - Word → `docx`
+  - PDF → `pdf-lib`
+  - Retourne `{ filename, mime, base64 }`
+- `generateExpensePDF({ reportId })` — jsPDF (déjà installé) : en-tête, identification, mission, tableau dépenses, récap, signature (Bordeaux, date, Dr S. LAFITTE), liste numérotée des PJ. Retourne base64.
+- Sauvegarde finalisée → insert dans `documents` (`source_type='expense'`).
 
-Tables existantes réutilisées :
-- `collab_spaces` (le projet)
-- `collab_guests` (déjà présent : token, email, statut)
-- `collab_messages`, `collab_documents`, `collab_space_links`, `collab_surveys`, etc.
+## 5. Dépendances
 
-Ajouts nécessaires :
-- `collab_guests.permissions` (jsonb) — droits par module pour ce participant
-- `collab_guest_sessions` — session active du guest (token, expires_at, last_seen)
-- RLS policies "guest" : le guest authentifié par son token peut lire/écrire dans son `space_id` uniquement, selon ses permissions
+À ajouter : `xlsx`, `pdf-lib`, `docx`, `@dnd-kit/core`, `@dnd-kit/sortable`. `jspdf` et `jszip` déjà installés.
 
-## Routing
+## 6. Module Documents
 
-- `/collaborate/:spaceId` → vue propriétaire (existante)
-- `/p/:spaceToken` → vue participant (nouvelle, publique mais gardée par token + OTP)
+Filtre « Notes de frais » via `source_type='expense'` — léger ajustement non intrusif.
 
-Même composant d'espace projet, mais :
-- header simplifié (nom du projet + nom participant, pas de nav MyHub)
-- modules masqués/lecture seule selon permissions
-- pas d'accès aux autres projets ni aux paramètres MyHub
+## Détails techniques
 
-## Étapes d'implémentation (proposées)
+- Storage : bucket privé `expense-receipts`, chemins `{userId}/{reportId}/{itemId}.ext` et `{userId}/templates/{templateId}.ext`
+- Imports server-only (`xlsx`, `pdf-lib`, `docx`) **dans le handler** via `await import(...)` pour éviter pollution du bundle client
+- `attachSupabaseAuth` déjà configuré (modules existants l'utilisent)
+- Dialog IA actuelle inchangée — coexiste avec ce nouveau module
 
-1. **Schéma** : ajouter `permissions` à `collab_guests` + table `collab_guest_sessions` + RLS guest.
-2. **Invitation** : bouton "Inviter" dans l'espace projet → serverFn qui crée le guest + envoie email (lien magique).
-3. **Auth guest** : route `/p/:token` → vérifie token, demande OTP email, ouvre session guest.
-4. **Layout participant** : nouveau shell minimal qui charge l'espace projet avec contexte "guest".
-5. **Permissions UI** : chaque module lit `guest.permissions[module]` et active édition/lecture/masqué.
-6. **Gestion** : panneau "Participants" pour le propriétaire (lister, modifier droits, révoquer).
+## Fichiers créés / modifiés
 
-## Notes techniques
+**Créés** :
+- `supabase/migrations/<timestamp>_expense_reports.sql`
+- `src/routes/_authenticated/expenses.tsx`
+- `src/components/expenses/expense-report-form.tsx`
+- `src/components/expenses/expenses-list.tsx`
+- `src/components/expenses/import-from-email-dialog.tsx`
+- `src/components/expenses/template-upload-dialog.tsx`
+- `src/components/expenses/category-icons.tsx`
+- `src/lib/expense.functions.ts`
 
-- Email d'invitation : utiliser l'auth Supabase (magic link) plutôt que de réinventer un système de token.
-- Audit : chaque action guest loggée dans `audit_log` avec `actor_id = guest.id`.
-- WhatsApp peut rester en option future (passerelle d'import), mais n'est plus dans le chemin critique.
+**Modifiés** :
+- `src/components/app-sidebar.tsx` (entrée « Notes de frais »)
+- `src/components/documents/…` (filtre source_type='expense', minimal)
 
----
-
-Tu veux que je commence par l'étape 1 (schéma + invitation) ou tu préfères qu'on ajuste d'abord les permissions / le flux d'auth (magic link seul vs magic link + OTP) ?
+Confirme et je lance migration + code.
