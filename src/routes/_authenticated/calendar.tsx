@@ -109,6 +109,7 @@ type TaskRow = {
 };
 
 type EventCategory = "pro_recurring" | "pro_oneoff" | "perso_recurring" | "perso_oneoff";
+type Importance = "low" | "normal" | "high" | "critical";
 
 type UnifiedEvent = {
   id: string;
@@ -125,6 +126,7 @@ type UnifiedEvent = {
   isAllDay: boolean;
   hasVideo: boolean;
   category: EventCategory;
+  importance: Importance;
   raw: DbEvent | TaskRow;
 };
 
@@ -162,6 +164,26 @@ const CATEGORY_LABELS: Record<EventCategory, string> = {
 };
 
 const CATEGORY_COLOR_STORAGE_KEY = "myhub.calendar.categoryColors.v1";
+
+const IMPORTANCE_VISUAL: Record<Importance, { eventMix: number; panelTint: number }> = {
+  low: { eventMix: 48, panelTint: 5 },
+  normal: { eventMix: 68, panelTint: 10 },
+  high: { eventMix: 88, panelTint: 18 },
+  critical: { eventMix: 100, panelTint: 30 },
+};
+
+function normalizeImportance(value: unknown): Importance {
+  return value === "low" || value === "high" || value === "critical" ? value : "normal";
+}
+
+function eventColorByImportance(color: string, importance: Importance): string {
+  return `color-mix(in oklab, ${color} ${IMPORTANCE_VISUAL[importance].eventMix}%, var(--background))`;
+}
+
+function eventPanelBackground(color: string, importance: Importance): string {
+  const tint = IMPORTANCE_VISUAL[importance].panelTint;
+  return `linear-gradient(180deg, color-mix(in oklab, ${color} ${tint}%, var(--card)) 0%, var(--card) 48%, var(--card) 100%)`;
+}
 
 function loadCategoryColors(): Record<EventCategory, string> {
   if (typeof window === "undefined") return { ...DEFAULT_CATEGORY_COLORS };
@@ -228,6 +250,7 @@ function AgendaPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [events, setEvents] = useState<DbEvent[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [eventImportanceById, setEventImportanceById] = useState<Record<string, Importance>>({});
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
   const lastClickRef = React.useRef<{ id: string; time: number } | null>(null);
   const handleSelectEvent = (e: UnifiedEvent) => {
@@ -317,14 +340,22 @@ function AgendaPage() {
     if (cEvs.length) setEvents(cEvs);
     if (cTks.length) setTasks(cTks as TaskRow[]);
     if (!navigator.onLine) return;
-    const [{ data: accs }, { data: evs }, { data: tks }] = await Promise.all([
+    const [{ data: accs }, { data: evs }, { data: tks }, { data: mtgs }] = await Promise.all([
       supabase.from("accounts").select("id,name,type,color,sync_direction").order("created_at"),
       supabase.from("calendar_events").select("*").order("start_at"),
       supabase.from("tasks").select("id,title,due_date,description").not("due_date", "is", null),
+      supabase.from("meetings").select("calendar_event_id, importance").not("calendar_event_id", "is", null),
     ]);
     if (accs) { setAccounts(accs as Account[]); cacheReplaceAll("accounts", accs as Account[]).catch(() => {}); }
     if (evs) { setEvents(evs as DbEvent[]); cacheReplaceAll("calendar_events", evs as DbEvent[]).catch(() => {}); }
     if (tks) { setTasks(tks as TaskRow[]); /* don't overwrite full tasks cache from partial select */ }
+    if (mtgs) {
+      const next: Record<string, Importance> = {};
+      (mtgs as { calendar_event_id: string | null; importance: unknown }[]).forEach((m) => {
+        if (m.calendar_event_id) next[m.calendar_event_id] = normalizeImportance(m.importance);
+      });
+      setEventImportanceById(next);
+    }
   };
 
   const runSync = async (silent = false) => {
@@ -419,6 +450,7 @@ function AgendaPage() {
           isAllDay: e.is_all_day,
           hasVideo: VIDEO_RX.test(blob),
           category: cat,
+          importance: eventImportanceById[e.id] ?? "normal",
           raw: e,
         });
       };
@@ -447,7 +479,7 @@ function AgendaPage() {
       }
     }
     return items.sort((a, b) => a.start.getTime() - b.start.getTime());
-  }, [events, tasks, accById, catColors, hiddenConns]);
+  }, [events, tasks, accById, catColors, hiddenConns, eventImportanceById]);
 
 
   // Range for current view
@@ -1015,7 +1047,7 @@ function MonthView({
                   key={e.id}
                   onClick={(ev) => { ev.stopPropagation(); onSelect(e); }}
                   className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] text-white"
-                  style={{ background: e.color }}
+                  style={{ background: eventColorByImportance(e.color, e.importance) }}
                 >
                   <span>{e.badge}</span>
                   <span className="truncate">{e.isAllDay ? "" : fmtTime(e.start) + " "}{e.title}</span>
@@ -1278,7 +1310,7 @@ function WeekOrDayView({
                           style={{
                             top: previewTop,
                             height: previewHeight,
-                            background: e.color,
+                            background: eventColorByImportance(e.color, e.importance),
                             left: `calc(${leftPct}% + 2px)`,
                             width: `calc(${widthPct}% - 4px)`,
                           }}
@@ -1311,7 +1343,7 @@ function WeekOrDayView({
                       </HoverCardTrigger>
                       <HoverCardContent side="right" className="w-72 text-xs">
                         <div className="flex items-center gap-2">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: e.color }} />
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: eventColorByImportance(e.color, e.importance) }} />
                           <span className="font-semibold">{e.title}</span>
                         </div>
                         <div className="mt-1 text-muted-foreground">
@@ -1361,7 +1393,7 @@ function ListView({ events, onSelect }: { events: UnifiedEvent[]; onSelect: (e: 
                   onClick={() => onSelect(e)}
                   className="flex w-full items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/40"
                 >
-                  <div className="h-10 w-1 shrink-0 rounded" style={{ background: e.color }} />
+                  <div className="h-10 w-1 shrink-0 rounded" style={{ background: eventColorByImportance(e.color, e.importance) }} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span>{e.badge}</span>
@@ -1721,7 +1753,7 @@ function EventDetail({
   };
   type MeetingState = {
     id: string;
-    importance: "low" | "normal" | "high" | "critical";
+    importance: Importance;
     notes: string;
     is_online: boolean;
     online_link: string;
@@ -1765,7 +1797,7 @@ function EventDetail({
     if (m) {
       setMeeting({
         id: m.id,
-        importance: (m.importance as MeetingState["importance"]) ?? "normal",
+        importance: normalizeImportance(m.importance),
         notes: m.notes ?? "",
         is_online: !!m.is_online,
         online_link: m.online_link ?? "",
@@ -1822,7 +1854,10 @@ function EventDetail({
     setMeeting({ ...m, ...patch });
     const { error } = await supabase.from("meetings").update(patch).eq("id", m.id);
     if (error) toast.error(error.message);
-    else requestAutoSync();
+    else {
+      onUpdated?.();
+      requestAutoSync();
+    }
   }
 
   useEffect(() => {
@@ -2008,12 +2043,15 @@ function EventDetail({
     }
   }
 
-  const importance = meeting?.importance ?? "normal";
+  const importance = meeting?.importance ?? event.importance;
 
   return (
-    <aside className="fixed inset-0 z-40 flex shrink-0 flex-col border-l bg-card lg:relative lg:inset-auto lg:z-auto lg:w-[420px]">
+    <aside
+      className="fixed inset-0 z-40 flex shrink-0 flex-col border-l bg-card lg:relative lg:inset-auto lg:z-auto lg:w-[420px]"
+      style={{ background: eventPanelBackground(event.color, importance) }}
+    >
       <header className="flex items-start gap-2 border-b p-4">
-        <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: event.color }} />
+        <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: eventColorByImportance(event.color, importance) }} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span>{event.badge}</span>
