@@ -1047,7 +1047,7 @@ function MonthView({
                   key={e.id}
                   onClick={(ev) => { ev.stopPropagation(); onSelect(e); }}
                   className="flex items-center gap-1 truncate rounded px-1 py-0.5 text-[10px] text-white"
-                  style={{ background: e.color }}
+                  style={{ background: eventColorByImportance(e.color, e.importance) }}
                 >
                   <span>{e.badge}</span>
                   <span className="truncate">{e.isAllDay ? "" : fmtTime(e.start) + " "}{e.title}</span>
@@ -1310,7 +1310,7 @@ function WeekOrDayView({
                           style={{
                             top: previewTop,
                             height: previewHeight,
-                            background: e.color,
+                            background: eventColorByImportance(e.color, e.importance),
                             left: `calc(${leftPct}% + 2px)`,
                             width: `calc(${widthPct}% - 4px)`,
                           }}
@@ -1343,7 +1343,7 @@ function WeekOrDayView({
                       </HoverCardTrigger>
                       <HoverCardContent side="right" className="w-72 text-xs">
                         <div className="flex items-center gap-2">
-                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: e.color }} />
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: eventColorByImportance(e.color, e.importance) }} />
                           <span className="font-semibold">{e.title}</span>
                         </div>
                         <div className="mt-1 text-muted-foreground">
@@ -1393,7 +1393,7 @@ function ListView({ events, onSelect }: { events: UnifiedEvent[]; onSelect: (e: 
                   onClick={() => onSelect(e)}
                   className="flex w-full items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/40"
                 >
-                  <div className="h-10 w-1 shrink-0 rounded" style={{ background: e.color }} />
+                  <div className="h-10 w-1 shrink-0 rounded" style={{ background: eventColorByImportance(e.color, e.importance) }} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span>{e.badge}</span>
