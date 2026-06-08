@@ -11,6 +11,7 @@ import {
   discoverThemes,
   setThemeUtility,
   setThemeScope,
+  setThemeParent,
   autoDetectThemeScopes,
   reclassifyThemesInPeriod,
   type Theme,
