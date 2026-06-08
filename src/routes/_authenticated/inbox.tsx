@@ -802,6 +802,24 @@ function InboxPage() {
       if (ua !== ub) return ub - ua;
       return tb - ta;
     };
+    // Ajoute les parents même s'ils n'ont pas de mail direct, afin que les sous-thèmes
+    // restent visibles sous leur thème dans la colonne de liste des mails.
+    for (const key of [...groups.keys()]) {
+      let childKey = key;
+      let parentId = themeById.get(childKey)?.parent_id ?? null;
+      while (parentId) {
+        const childTs = groups.get(childKey)?.ts ?? 0;
+        const parentGroup = groups.get(parentId);
+        if (parentGroup) {
+          if (childTs > parentGroup.ts) parentGroup.ts = childTs;
+        } else {
+          groups.set(parentId, { ts: childTs, emails: [] });
+        }
+        childKey = parentId;
+        parentId = themeById.get(childKey)?.parent_id ?? null;
+      }
+    }
+
     // Sépare en racines (sans parent, ou parent absent du groupe) et enfants.
     const allKeys = [...groups.keys()];
     const isRoot = (k: string) => {
@@ -822,6 +840,12 @@ function InboxPage() {
     for (const arr of childrenOf.values()) arr.sort(cmp);
 
     const out: RenderItem[] = [];
+    const collectIds = (key: string, seen = new Set<string>()): string[] => {
+      if (seen.has(key)) return [];
+      seen.add(key);
+      const own = groups.get(key)?.emails.map((e) => e.id) ?? [];
+      return [...own, ...(childrenOf.get(key) ?? []).flatMap((childKey) => collectIds(childKey, seen))];
+    };
     const emit = (key: string, depth: number) => {
       const g = groups.get(key);
       if (!g) return;
@@ -832,12 +856,13 @@ function InboxPage() {
       );
       const t = key === NO_THEME ? null : themeById.get(key);
       const collapsed = collapsedThemes.has(key);
+      const ids = collectIds(key);
       out.push({
         kind: "header",
         key,
         label: t?.name ?? "Sans thème",
-        count: g.emails.length,
-        ids: g.emails.map((e) => e.id),
+        count: ids.length,
+        ids,
         depth,
       });
       if (!collapsed) {
