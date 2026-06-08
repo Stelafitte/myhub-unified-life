@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChevronRight, Plus, Search, Globe2, Users, Megaphone, Loader2 } from "lucide-react";
+import { ChevronRight, Plus, Search, Globe2, Users, Megaphone, Loader2, MoreHorizontal, Trash2, Pencil, FolderPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,24 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getSpaceTree, createSpace } from "@/lib/collab.functions";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { getSpaceTree, createSpace, deleteSpace, renameSpace } from "@/lib/collab.functions";
 
 export interface SpaceNode {
   id: string;
@@ -36,6 +53,8 @@ interface Props {
 export function SpaceTree({ activeSpaceId, onSelect }: Props) {
   const treeFn = useServerFn(getSpaceTree);
   const createFn = useServerFn(createSpace);
+  const deleteFn = useServerFn(deleteSpace);
+  const renameFn = useServerFn(renameSpace);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -48,6 +67,9 @@ export function SpaceTree({ activeSpaceId, onSelect }: Props) {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [newParent, setNewParent] = useState<string>("__root__");
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null);
 
   const create = useMutation({
     mutationFn: (vars: { name: string; parentId: string | null }) =>
@@ -58,6 +80,28 @@ export function SpaceTree({ activeSpaceId, onSelect }: Props) {
       setCreating(false);
       setNewName("");
       setNewParent("__root__");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { spaceId: id } }),
+    onSuccess: (res) => {
+      toast.success(`Supprimé (${res.deleted} élément${res.deleted > 1 ? "s" : ""})`);
+      qc.invalidateQueries({ queryKey: ["collab-tree"] });
+      if (deleting && activeSpaceId === deleting.id) onSelect(null);
+      setDeleting(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const rename = useMutation({
+    mutationFn: (vars: { id: string; name: string }) =>
+      renameFn({ data: { spaceId: vars.id, name: vars.name } }),
+    onSuccess: () => {
+      toast.success("Renommé");
+      qc.invalidateQueries({ queryKey: ["collab-tree"] });
+      setRenaming(null);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -128,7 +172,45 @@ export function SpaceTree({ activeSpaceId, onSelect }: Props) {
             <span className="w-4" />
           )}
           <span className="shrink-0">{node.icon ?? "📁"}</span>
-          <span className="truncate">{node.name}</span>
+          <span className="truncate flex-1">{node.name}</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-muted rounded"
+                title="Actions"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setNewParent(node.id);
+                  setNewName("");
+                  setCreating(true);
+                }}
+              >
+                <FolderPlus className="h-4 w-4 mr-2" /> Nouveau sous-dossier
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setRenameValue(node.name);
+                  setRenaming({ id: node.id, name: node.name });
+                }}
+              >
+                <Pencil className="h-4 w-4 mr-2" /> Renommer
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={() => setDeleting({ id: node.id, name: node.name })}
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         {hasChildren && !isCollapsed && children.map((c) => renderNode(c, depth + 1))}
       </div>
@@ -238,6 +320,59 @@ export function SpaceTree({ activeSpaceId, onSelect }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!renaming} onOpenChange={(o) => !o && setRenaming(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Renommer l'espace</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Nouveau nom</Label>
+            <Input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRenaming(null)}>Annuler</Button>
+            <Button
+              disabled={!renameValue.trim() || rename.isPending}
+              onClick={() =>
+                renaming && rename.mutate({ id: renaming.id, name: renameValue.trim() })
+              }
+            >
+              {rename.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer « {deleting?.name} » ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'espace et tous ses sous-espaces, messages, liens et documents associés seront supprimés. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={del.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleting) del.mutate(deleting.id);
+              }}
+            >
+              {del.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

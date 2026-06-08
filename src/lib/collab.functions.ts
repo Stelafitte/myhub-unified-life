@@ -202,6 +202,61 @@ export const createSpace = createServerFn({ method: "POST" })
     return { space: row };
   });
 
+/** Supprime un espace (et tous ses descendants en cascade via la FK). */
+export const deleteSpace = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ spaceId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    // Récupère tous les descendants récursivement côté serveur
+    const { data: all } = await supabase
+      .from("collab_spaces")
+      .select("id,parent_id")
+      .eq("user_id", userId);
+    const ids = new Set<string>([data.spaceId]);
+    let added = true;
+    while (added) {
+      added = false;
+      for (const s of all ?? []) {
+        if (s.parent_id && ids.has(s.parent_id) && !ids.has(s.id)) {
+          ids.add(s.id);
+          added = true;
+        }
+      }
+    }
+    const { error } = await supabase
+      .from("collab_spaces")
+      .delete()
+      .in("id", Array.from(ids))
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true, deleted: ids.size };
+  });
+
+/** Renomme un espace. */
+export const renameSpace = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        spaceId: z.string().uuid(),
+        name: z.string().min(1).max(160),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("collab_spaces")
+      .update({ name: data.name })
+      .eq("id", data.spaceId)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 /** Messages chronologiques d'un espace. */
 export const listSpaceMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
