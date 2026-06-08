@@ -685,10 +685,17 @@ function InboxPage() {
       }
     }
     if (query.trim()) {
-      const q = query.toLowerCase();
+      const q = query.toLowerCase().trim();
       list = list.filter((e) => {
-        const fields = [e.subject, e.from_address, e.from_name, e.body_text];
-        for (const f of fields) if (f && smartMatch(q, f)) return true;
+        // Smart match (préfixe / initiales / sous-séquence) uniquement sur
+        // sujet et expéditeur — pas sur body_text, sinon toute requête un peu
+        // longue matche presque tous les mails par sous-séquence.
+        if (e.subject && smartMatch(q, e.subject)) return true;
+        if (e.from_address && smartMatch(q, e.from_address)) return true;
+        if (e.from_name && smartMatch(q, e.from_name)) return true;
+        // Corps : sous-chaîne stricte uniquement.
+        if (e.body_text && e.body_text.toLowerCase().includes(q)) return true;
+        // Cas où l'utilisateur a sélectionné une suggestion type "Nom <addr>".
         if (e.from_address && q.includes(e.from_address.toLowerCase())) return true;
         if (e.from_name && q.includes(e.from_name.toLowerCase())) return true;
         return false;
