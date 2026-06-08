@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,13 @@ import { listReports, deleteReport, listTemplates, deleteTemplate, analyzeExpens
 import { ExpenseReportForm } from "@/components/expenses/expense-report-form";
 import { TemplateUploadDialog } from "@/components/expenses/template-upload-dialog";
 
+type ExpensesSearch = { reportId?: string };
+
 export const Route = createFileRoute("/_authenticated/expenses")({
   component: ExpensesPage,
+  validateSearch: (s: Record<string, unknown>): ExpensesSearch => ({
+    reportId: typeof s.reportId === "string" ? s.reportId : undefined,
+  }),
 });
 
 const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
