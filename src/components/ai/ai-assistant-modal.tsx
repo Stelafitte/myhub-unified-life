@@ -596,7 +596,7 @@ export function AiAssistantModal({
                   {(() => {
                     const hasEmailSel = Array.from(t.selectedMatches).some(id => t.result?.matches.find(x => x.id === id)?.kind === "email");
                     return (
-                      <Button size="sm" variant="outline" disabled={t.proposing || !hasEmailSel} onClick={() => generateExpenseFor(t)} className="h-7 gap-1.5 text-xs">
+                      <Button size="sm" variant="outline" disabled={t.proposing || !hasEmailSel} onClick={() => openExpenseDialog(t)} className="h-7 gap-1.5 text-xs">
                         <Receipt className="h-3.5 w-3.5" />Note de frais
                       </Button>
                     );
