@@ -1945,8 +1945,19 @@ function InboxPage() {
               );
             };
 
-            const proThemes = themes.filter((t) => t.scope === "pro");
-            const persoThemes = themes.filter((t) => t.scope !== "pro");
+            const rootScopeOf = (theme: Theme): "pro" | "perso" => {
+              let current = theme;
+              const seen = new Set<string>();
+              while (current.parent_id && !seen.has(current.id)) {
+                seen.add(current.id);
+                const parent = themeById.get(current.parent_id);
+                if (!parent) break;
+                current = parent;
+              }
+              return current.scope === "pro" ? "pro" : "perso";
+            };
+            const proThemes = themes.filter((t) => rootScopeOf(t) === "pro");
+            const persoThemes = themes.filter((t) => rootScopeOf(t) !== "pro");
             const proTotal = proThemes.reduce((s, t) => s + (counts.byTheme.get(t.id) ?? 0), 0);
             const persoTotal = persoThemes.reduce((s, t) => s + (counts.byTheme.get(t.id) ?? 0), 0);
             const proContent = renderThemesBlock(proThemes);
