@@ -223,6 +223,7 @@ function InboxPage() {
   const [themesOpen, setThemesOpen] = useState(false);
   const [dragTheme, setDragTheme] = useState<string | null>(null);
   const [dropTargetTheme, setDropTargetTheme] = useState<string | null>(null);
+  const [dropTargetSidebarThemeId, setDropTargetSidebarThemeId] = useState<string | null>(null);
   const [relaunching, setRelaunching] = useState(false);
   const [aiRanking, setAiRanking] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -1233,6 +1234,152 @@ function InboxPage() {
     });
   };
 
+  // Déplacement explicite (drag&drop) d'un ensemble de mails vers un thème,
+  // avec apprentissage par expéditeur dans sender_theme_map.
+  const moveEmailsToThemeWithLearning = async (ids: string[], themeId: string) => {
+    if (!ids.length || !user) return;
+    const prevByIdMap = new Map(
+      emails.filter((x) => ids.includes(x.id)).map((x) => [x.id, x.ai_theme_id ?? null] as const),
+    );
+    const moved = emails.filter((x) => ids.includes(x.id));
+    const senders = Array.from(
+      new Set(
+        moved
+          .map((x) => (x.from_address ?? "").toLowerCase().trim())
+          .filter((s): s is string => !!s),
+      ),
+    );
+    setEmails((prev) =>
+      prev.map((x) =>
+        ids.includes(x.id)
+          ? { ...x, ai_theme_id: themeId, theme_processed_at: new Date().toISOString() }
+          : x,
+      ),
+    );
+    clearChecked();
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase
+      .from("emails")
+      .update({ ai_theme_id: themeId, theme_processed_at: nowIso })
+      .in("id", ids);
+    if (error) {
+      // Rollback
+      setEmails((prev) =>
+        prev.map((x) => (prevByIdMap.has(x.id) ? { ...x, ai_theme_id: prevByIdMap.get(x.id)! } : x)),
+      );
+      toast.error(error.message);
+      return;
+    }
+    // Apprentissage : règle expéditeur → thème.
+    if (senders.length) {
+      const rows = senders.map((s) => ({ user_id: user.id, from_address: s, theme_id: themeId }));
+      await supabase
+        .from("sender_theme_map")
+        .upsert(rows, { onConflict: "user_id,from_address" });
+    }
+    // Feedback IA pour chaque mail déplacé.
+    const themeName = themes.find((t) => t.id === themeId)?.name ?? null;
+    await supabase.from("ai_feedback").insert(
+      moved.map((m) => ({
+        user_id: user.id,
+        email_id: m.id,
+        from_address: m.from_address,
+        subject: m.subject,
+        original_category: themes.find((t) => t.id === prevByIdMap.get(m.id))?.name ?? null,
+        corrected_category: themeName,
+      })),
+    );
+    const undoFn = async () => {
+      await Promise.all(
+        Array.from(prevByIdMap.entries()).map(([id, val]) =>
+          supabase.from("emails").update({ ai_theme_id: val }).eq("id", id),
+        ),
+      );
+      setEmails((prev) =>
+        prev.map((x) => (prevByIdMap.has(x.id) ? { ...x, ai_theme_id: prevByIdMap.get(x.id)! } : x)),
+      );
+      toast.success("Déplacement annulé");
+    };
+    toast.success(
+      `${ids.length} email(s) déplacé(s) vers « ${themeName ?? "ce thème"} » — règle apprise`,
+      {
+        duration: 6000,
+        action: { label: "Annuler", onClick: () => { void undoFn(); } },
+      },
+    );
+    void refreshThemes();
+  };
+
+  // Handlers DnD réutilisables pour un bouton de thème (sidebar OU entête de liste).
+  // Accepte :
+  //  - un autre thème (fusion via mergeThemesFn)
+  //  - une sélection de mails (re-catégorisation + apprentissage par expéditeur)
+  const themeDropHandlers = (themeId: string, themeName: string) => ({
+    draggable: true,
+    onDragStart: (ev: React.DragEvent) => {
+      ev.dataTransfer.effectAllowed = "move";
+      ev.dataTransfer.setData("application/x-theme-id", themeId);
+      setDragTheme(themeId);
+    },
+    onDragEnd: () => {
+      setDragTheme(null);
+      setDropTargetSidebarThemeId(null);
+    },
+    onDragOver: (ev: React.DragEvent) => {
+      const types = ev.dataTransfer.types;
+      const isTheme = types.includes("application/x-theme-id");
+      const isEmails = types.includes("application/x-email-ids");
+      if (!isTheme && !isEmails) return;
+      if (isTheme && dragTheme === themeId) return;
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = "move";
+      if (dropTargetSidebarThemeId !== themeId) setDropTargetSidebarThemeId(themeId);
+    },
+    onDragLeave: () => {
+      if (dropTargetSidebarThemeId === themeId) setDropTargetSidebarThemeId(null);
+    },
+    onDrop: async (ev: React.DragEvent) => {
+      ev.preventDefault();
+      const fromTheme = ev.dataTransfer.getData("application/x-theme-id");
+      const emailIdsRaw = ev.dataTransfer.getData("application/x-email-ids");
+      setDragTheme(null);
+      setDropTargetSidebarThemeId(null);
+      if (fromTheme && fromTheme !== themeId) {
+        const fromName = themes.find((t) => t.id === fromTheme)?.name ?? "ce thème";
+        const ok = await confirmDialog(
+          `Fusionner « ${fromName} » dans « ${themeName} » ?\n\nTous les mails seront déplacés, les futurs mails des mêmes expéditeurs y seront classés automatiquement, et le thème « ${fromName} » sera supprimé.`,
+          { confirmLabel: "Fusionner" },
+        );
+        if (!ok) return;
+        setEmails((prev) =>
+          prev.map((x) => (x.ai_theme_id === fromTheme ? { ...x, ai_theme_id: themeId } : x)),
+        );
+        setThemes((prev) => prev.filter((t) => t.id !== fromTheme));
+        try {
+          const res = await mergeThemesFn({ data: { fromId: fromTheme, intoId: themeId } });
+          if (!res?.ok) throw new Error(res?.error ?? "Échec de la fusion");
+          toast.success(`« ${fromName} » fusionné dans « ${themeName} »`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Échec de la fusion");
+          await refreshThemes();
+        }
+        return;
+      }
+      if (emailIdsRaw) {
+        try {
+          const ids = JSON.parse(emailIdsRaw) as string[];
+          if (Array.isArray(ids) && ids.length) {
+            await moveEmailsToThemeWithLearning(ids, themeId);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+  });
+
+
+
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     setReaderOpen(true);
@@ -1615,9 +1762,13 @@ function InboxPage() {
                             <button
                               key={t.id}
                               onClick={() => setFilter(`theme:${t.id}`)}
+                              {...themeDropHandlers(t.id, t.name)}
                               className={cn(
                                 "flex w-full items-center justify-start gap-2 rounded-md px-2 py-1 text-left transition-colors",
                                 active ? "bg-accent" : "hover:bg-accent/50",
+                                dragTheme === t.id && "opacity-40",
+                                dropTargetSidebarThemeId === t.id &&
+                                  "ring-2 ring-primary ring-inset bg-primary/15",
                               )}
                               title={t.description ?? t.name}
                             >
@@ -1641,9 +1792,13 @@ function InboxPage() {
                         <button
                           key={t.id}
                           onClick={() => setFilter(`theme:${t.id}`)}
+                          {...themeDropHandlers(t.id, t.name)}
                           className={cn(
                             "flex w-full items-center justify-start gap-2 rounded-md px-3 py-1.5 text-left transition-colors",
                             active ? "bg-accent" : "hover:bg-accent/50",
+                            dragTheme === t.id && "opacity-40",
+                            dropTargetSidebarThemeId === t.id &&
+                              "ring-2 ring-primary ring-inset bg-primary/15",
                           )}
                           title={t.description ?? t.name}
                         >
@@ -2062,8 +2217,10 @@ function InboxPage() {
                   }}
                   onDragOver={(ev) => {
                     if (!isRealTheme) return;
-                    const src = ev.dataTransfer.types.includes("application/x-theme-id");
-                    if (!src) return;
+                    const types = ev.dataTransfer.types;
+                    const hasTheme = types.includes("application/x-theme-id");
+                    const hasEmails = types.includes("application/x-email-ids");
+                    if (!hasTheme && !hasEmails) return;
                     ev.preventDefault();
                     ev.dataTransfer.dropEffect = "move";
                     if (dropTargetTheme !== item.key) setDropTargetTheme(item.key);
@@ -2074,30 +2231,39 @@ function InboxPage() {
                   onDrop={async (ev) => {
                     if (!isRealTheme) return;
                     const fromId = ev.dataTransfer.getData("application/x-theme-id");
+                    const emailIdsRaw = ev.dataTransfer.getData("application/x-email-ids");
                     setDragTheme(null);
                     setDropTargetTheme(null);
-                    if (!fromId || fromId === item.key) return;
                     ev.preventDefault();
-                    const fromName = themeById.get(fromId)?.name ?? "ce thème";
-                    const intoName = item.label;
-                    const ok = await confirmDialog(
-                      `Fusionner « ${fromName} » dans « ${intoName} » ?\n\nTous les mails seront déplacés, les futurs mails des mêmes expéditeurs y seront classés automatiquement, et le thème « ${fromName} » sera supprimé.`,
-                      { confirmLabel: "Fusionner" },
-                    );
-                    if (!ok) return;
-                    // Optimiste : reclasse localement et retire le thème source.
-                    setEmails((prev) =>
-                      prev.map((x) => (x.ai_theme_id === fromId ? { ...x, ai_theme_id: item.key } : x)),
-                    );
-                    setThemes((prev) => prev.filter((t) => t.id !== fromId));
-                    try {
-                      const res = await mergeThemesFn({ data: { fromId, intoId: item.key } });
-                      if (!res?.ok) throw new Error(res?.error ?? "Échec de la fusion");
-                      toast.success(`« ${fromName} » fusionné dans « ${intoName} »`);
-                    } catch (err) {
-                      toast.error(err instanceof Error ? err.message : "Échec de la fusion");
-                      // Recharge en cas d'échec pour resynchroniser.
-                      await refreshThemes();
+                    if (fromId && fromId !== item.key) {
+                      const fromName = themeById.get(fromId)?.name ?? "ce thème";
+                      const intoName = item.label;
+                      const ok = await confirmDialog(
+                        `Fusionner « ${fromName} » dans « ${intoName} » ?\n\nTous les mails seront déplacés, les futurs mails des mêmes expéditeurs y seront classés automatiquement, et le thème « ${fromName} » sera supprimé.`,
+                        { confirmLabel: "Fusionner" },
+                      );
+                      if (!ok) return;
+                      setEmails((prev) =>
+                        prev.map((x) => (x.ai_theme_id === fromId ? { ...x, ai_theme_id: item.key } : x)),
+                      );
+                      setThemes((prev) => prev.filter((t) => t.id !== fromId));
+                      try {
+                        const res = await mergeThemesFn({ data: { fromId, intoId: item.key } });
+                        if (!res?.ok) throw new Error(res?.error ?? "Échec de la fusion");
+                        toast.success(`« ${fromName} » fusionné dans « ${intoName} »`);
+                      } catch (err) {
+                        toast.error(err instanceof Error ? err.message : "Échec de la fusion");
+                        await refreshThemes();
+                      }
+                      return;
+                    }
+                    if (emailIdsRaw) {
+                      try {
+                        const ids = JSON.parse(emailIdsRaw) as string[];
+                        if (Array.isArray(ids) && ids.length) {
+                          await moveEmailsToThemeWithLearning(ids, item.key);
+                        }
+                      } catch { /* ignore */ }
                     }
                   }}
                   onClick={() => toggleTheme(item.key)}
@@ -2384,8 +2550,18 @@ function InboxPage() {
                 onAction: () => remove(e),
               },
             ];
+            const dragIds = checked.has(e.id) ? Array.from(checked) : [e.id];
             return (
-              <li key={e.id} className="list-none">
+              <li
+                key={e.id}
+                className="list-none"
+                draggable={!isMobileInbox}
+                onDragStart={(ev) => {
+                  if (isMobileInbox) return;
+                  ev.dataTransfer.effectAllowed = "move";
+                  ev.dataTransfer.setData("application/x-email-ids", JSON.stringify(dragIds));
+                }}
+              >
                 {isMobileInbox ? (
                   <SwipeableRow leftActions={leftActions} rightActions={rightActions}>
                     {rowInner}
