@@ -215,5 +215,10 @@ RÈGLES :
     const title = `Note de frais ${periodFrom ?? new Date().toISOString().slice(0, 10)}${periodTo && periodTo !== periodFrom ? ` → ${periodTo}` : ""}`;
     const csv = buildCsv(items);
 
-    return { items, csv, title, total, currency, periodFrom, periodTo, notes: parsed.notes };
+    const notesParts: string[] = [];
+    if (fetchedAtts.length > 0) notesParts.push(`${fetchedAtts.length} pièce(s) jointe(s) analysée(s).`);
+    if (skippedAtts.length > 0) notesParts.push(`PJ ignorées : ${skippedAtts.join(", ")}.`);
+    if (parsed.notes) notesParts.push(parsed.notes);
+
+    return { items, csv, title, total, currency, periodFrom, periodTo, notes: notesParts.join(" ") };
   });
