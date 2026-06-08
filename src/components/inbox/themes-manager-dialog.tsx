@@ -302,7 +302,7 @@ export function ThemesManagerDialog({
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
               className="h-8 min-w-0 flex-1"
             />
-            <Button size="sm" onClick={handleCreate} disabled={!newName.trim()} className="shrink-0">
+            <Button size="sm" onClick={() => handleCreate()} disabled={!newName.trim()} className="shrink-0">
               <Plus className="h-3.5 w-3.5" /> Ajouter
             </Button>
           </div>
