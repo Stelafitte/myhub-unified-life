@@ -762,6 +762,12 @@ export function AiAssistantModal({
         {inputBar}
         {previews}
       </DialogContent>
+      <ExpenseReportDialog
+        open={expenseOpen}
+        onOpenChange={setExpenseOpen}
+        emailIds={expenseEmailIds}
+        initialInstruction={expenseInstruction}
+      />
     </Dialog>
   );
 }
