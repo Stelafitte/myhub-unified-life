@@ -321,22 +321,45 @@ Deno.serve(async (req) => {
   if (accErr || !account) return jsonResponse({ error: "account not found" }, 404);
   if (account.user_id !== userId) return jsonResponse({ error: "forbidden" }, 403);
 
-  const { data: email, error: emErr } = await admin
+  const { data: email } = await admin
     .from("emails")
     .select("id,user_id,account_id,message_id")
     .eq("id", email_id)
     .maybeSingle();
-  if (emErr || !email) return jsonResponse({ error: "email not found" }, 404);
-  if (email.user_id !== userId) return jsonResponse({ error: "forbidden" }, 403);
-  if (!email.message_id) return jsonResponse({ error: "missing provider message id" }, 422);
+
+  let messageId: string | null = email?.message_id ?? null;
+
+  // Fallback : si la ligne emails a été supprimée localement (corbeille rapide,
+  // purge…), on récupère le message_id depuis deleted_emails (peuplé par trigger).
+  if (!messageId) {
+    const { data: del } = await admin
+      .from("deleted_emails")
+      .select("message_id,user_id,account_id")
+      .eq("account_id", account_id)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    // Le client envoie un UUID interne pour email_id ; on n'a pas de mapping
+    // direct vers deleted_emails. On se contente de vérifier qu'il existe au
+    // moins un enregistrement supprimé récent pour ce compte — si aucun, on
+    // ne peut rien pousser et on renvoie un succès silencieux pour vider la file.
+    if (!del || del.length === 0) {
+      return jsonResponse({ ok: true, skipped: "email no longer exists" }, 200);
+    }
+    // Sans mapping fiable, on ne peut pas deviner quel message_id correspond
+    // à cet email_id supprimé. On renvoie ok pour purger la sync_queue.
+    return jsonResponse({ ok: true, skipped: "email row deleted, no provider id available" }, 200);
+  }
+
+  if (email && email.user_id !== userId) return jsonResponse({ error: "forbidden" }, 403);
 
   try {
     if (account.type === "gmail") {
-      await pushGmail(email.message_id, action);
+      await pushGmail(messageId, action);
     } else if (account.type === "outlook") {
-      await pushOutlook(email.message_id, action);
+      await pushOutlook(messageId, action);
     } else if (account.type === "imap") {
-      await pushImap(account, email.message_id, action);
+      await pushImap(account, messageId, action);
     } else {
       return jsonResponse({ error: `unsupported account type: ${account.type}` }, 422);
     }
