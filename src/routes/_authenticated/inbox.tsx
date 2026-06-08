@@ -2080,11 +2080,10 @@ function InboxPage() {
                     ev.preventDefault();
                     const fromName = themeById.get(fromId)?.name ?? "ce thème";
                     const intoName = item.label;
-                    const ok = await confirmDialog({
-                      title: "Fusionner les thèmes ?",
-                      description: `Tous les mails de « ${fromName} » seront déplacés dans « ${intoName} », et les futurs mails des mêmes expéditeurs y seront classés automatiquement. Le thème « ${fromName} » sera supprimé.`,
-                      confirmLabel: "Fusionner",
-                    });
+                    const ok = await confirmDialog(
+                      `Fusionner « ${fromName} » dans « ${intoName} » ?\n\nTous les mails seront déplacés, les futurs mails des mêmes expéditeurs y seront classés automatiquement, et le thème « ${fromName} » sera supprimé.`,
+                      { confirmLabel: "Fusionner" },
+                    );
                     if (!ok) return;
                     // Optimiste : reclasse localement et retire le thème source.
                     setEmails((prev) =>
