@@ -77,6 +77,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [aiBatchOpen, setAiBatchOpen] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
   const [pickedTpl, setPickedTpl] = useState<string>("");
 
