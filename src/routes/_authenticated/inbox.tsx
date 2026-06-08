@@ -796,7 +796,9 @@ function InboxPage() {
     for (const key of [...groups.keys()]) {
       let childKey = key;
       let parentId = themeById.get(childKey)?.parent_id ?? null;
-      while (parentId) {
+      const seenParents = new Set<string>();
+      while (parentId && !seenParents.has(parentId)) {
+        seenParents.add(parentId);
         const childTs = groups.get(childKey)?.ts ?? 0;
         const parentGroup = groups.get(parentId);
         if (parentGroup) {
