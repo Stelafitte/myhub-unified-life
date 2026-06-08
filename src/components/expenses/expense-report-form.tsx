@@ -10,9 +10,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import {
-  getReport, upsertReport, generateExpensePDFClient, fillExpenseTemplate, listTemplates,
+  getReport, upsertReport, fillExpenseTemplate, listTemplates,
   DEFAULT_IDENTIFICATION, CATEGORIES, KM_RATE_2024, type ExpenseCategory,
 } from "@/lib/expense.functions";
+import { generateExpensePDFClient } from "./expense-pdf";
 import { CATEGORY_META } from "./category-icons";
 import { ImportFromEmailDialog, type ImportedItem } from "./import-from-email-dialog";
 
@@ -107,7 +108,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       setMissionContext(rep.mission_context ?? "");
       setOrganization(rep.organization ?? "");
       setMissionNumber(rep.mission_number ?? "");
-      setIdent({ ...DEFAULT_IDENTIFICATION, ...(rep.identification ?? {}) });
+      setIdent({ ...DEFAULT_IDENTIFICATION, ...((rep.identification ?? {}) as Record<string, string>) });
       setAdvance(Number(rep.advance_amount) || 0);
       setPaymentMethod(rep.payment_method ?? "virement");
       setIban(rep.iban ?? "");
