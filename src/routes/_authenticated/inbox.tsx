@@ -78,6 +78,7 @@ import {
   discoverThemes,
   seedThemesFromFolders,
   setEmailTheme,
+  mergeThemes,
   type Theme,
 } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
