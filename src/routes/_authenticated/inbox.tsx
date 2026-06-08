@@ -2043,11 +2043,71 @@ function InboxPage() {
             if (item.kind === "header") {
               const allInTheme = item.ids.length > 0 && item.ids.every((id) => checked.has(id));
               const someInTheme = !allInTheme && item.ids.some((id) => checked.has(id));
+              const isRealTheme = item.key !== NO_THEME;
+              const isDragging = dragTheme === item.key;
+              const isDropTarget = dropTargetTheme === item.key && dragTheme && dragTheme !== item.key;
               return (
                 <li
                   key={`h:${item.key}`}
+                  draggable={isRealTheme}
+                  onDragStart={(ev) => {
+                    if (!isRealTheme) return;
+                    ev.dataTransfer.effectAllowed = "move";
+                    ev.dataTransfer.setData("application/x-theme-id", item.key);
+                    setDragTheme(item.key);
+                  }}
+                  onDragEnd={() => {
+                    setDragTheme(null);
+                    setDropTargetTheme(null);
+                  }}
+                  onDragOver={(ev) => {
+                    if (!isRealTheme) return;
+                    const src = ev.dataTransfer.types.includes("application/x-theme-id");
+                    if (!src) return;
+                    ev.preventDefault();
+                    ev.dataTransfer.dropEffect = "move";
+                    if (dropTargetTheme !== item.key) setDropTargetTheme(item.key);
+                  }}
+                  onDragLeave={() => {
+                    if (dropTargetTheme === item.key) setDropTargetTheme(null);
+                  }}
+                  onDrop={async (ev) => {
+                    if (!isRealTheme) return;
+                    const fromId = ev.dataTransfer.getData("application/x-theme-id");
+                    setDragTheme(null);
+                    setDropTargetTheme(null);
+                    if (!fromId || fromId === item.key) return;
+                    ev.preventDefault();
+                    const fromName = themeById.get(fromId)?.name ?? "ce thème";
+                    const intoName = item.label;
+                    const ok = await confirmDialog({
+                      title: "Fusionner les thèmes ?",
+                      description: `Tous les mails de « ${fromName} » seront déplacés dans « ${intoName} », et les futurs mails des mêmes expéditeurs y seront classés automatiquement. Le thème « ${fromName} » sera supprimé.`,
+                      confirmLabel: "Fusionner",
+                    });
+                    if (!ok) return;
+                    // Optimiste : reclasse localement et retire le thème source.
+                    setEmails((prev) =>
+                      prev.map((x) => (x.ai_theme_id === fromId ? { ...x, ai_theme_id: item.key } : x)),
+                    );
+                    setThemes((prev) => prev.filter((t) => t.id !== fromId));
+                    try {
+                      const res = await mergeThemesFn({ data: { fromId, intoId: item.key } });
+                      if (!res?.ok) throw new Error(res?.error ?? "Échec de la fusion");
+                      toast.success(`« ${fromName} » fusionné dans « ${intoName} »`);
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : "Échec de la fusion");
+                      // Recharge en cas d'échec pour resynchroniser.
+                      await loadThemes();
+                    }
+                  }}
                   onClick={() => toggleTheme(item.key)}
-                  className="sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20"
+                  className={cn(
+                    "sticky top-0 z-10 flex min-w-0 cursor-pointer items-center gap-2 border-b bg-primary/15 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-primary backdrop-blur hover:bg-primary/20",
+                    isDragging && "opacity-40",
+                    isDropTarget && "ring-2 ring-primary ring-inset bg-primary/30",
+                  )}
+                  title={isRealTheme ? "Glissez sur un autre thème pour fusionner" : undefined}
                 >
                   <input
                     type="checkbox"
