@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
 import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History, Reply, ReplyAll, Star, Clock, Shield, ShieldOff, RefreshCw, Minimize2, Maximize2, Mic, MicOff, Receipt } from "lucide-react";
 import { generateExpenseReport } from "@/lib/api/expense-report.functions";
+import { ExpenseReportDialog } from "@/components/ai/expense-report-dialog";
 import { useVoiceConversation } from "@/hooks/use-voice-conversation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
