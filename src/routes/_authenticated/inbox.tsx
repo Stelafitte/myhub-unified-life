@@ -83,7 +83,7 @@ import {
 } from "@/lib/api/themes.functions";
 import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
-import { confirmDialog } from "@/lib/confirm-dialog";
+import { confirmDialog, choiceDialog } from "@/lib/confirm-dialog";
 import { RecategorizePopover } from "@/components/inbox/recategorize-popover";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
 import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
