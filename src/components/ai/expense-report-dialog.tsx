@@ -7,9 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, Paperclip, X, Download, RefreshCw, Receipt, Mail, Send } from "lucide-react";
+import { Loader2, Plus, Trash2, Paperclip, X, Download, RefreshCw, Receipt, Mail, Send, FileEdit } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "@tanstack/react-router";
 import { generateExpenseReport, type ExpenseItem } from "@/lib/api/expense-report.functions";
+import { createReportFromAIItems } from "@/lib/expense.functions";
 import { sendEmail } from "@/lib/api/email-send.functions";
 import { supabase } from "@/integrations/supabase/client";
 
