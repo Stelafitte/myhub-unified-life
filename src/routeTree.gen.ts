@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
@@ -50,6 +51,11 @@ import { Route as AuthenticatedCollaborateSpaceSpaceIdRouteImport } from './rout
 import { Route as ApiPublicPollTokenFilesRouteImport } from './routes/api/public/poll/$token/files'
 import { Route as AuthenticatedCollaborateSpaceSpaceIdDocDocIdRouteImport } from './routes/_authenticated/collaborate.space.$spaceId.doc.$docId'
 
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -267,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/mentions-legales': typeof MentionsLegalesRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/collaborate': typeof AuthenticatedCollaborateRouteWithChildren
@@ -308,6 +315,7 @@ export interface FileRoutesByTo {
   '/mentions-legales': typeof MentionsLegalesRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/calendar': typeof AuthenticatedCalendarRoute
   '/collaborate': typeof AuthenticatedCollaborateRouteWithChildren
@@ -351,6 +359,7 @@ export interface FileRoutesById {
   '/mentions-legales': typeof MentionsLegalesRoute
   '/privacy': typeof PrivacyRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/calendar': typeof AuthenticatedCalendarRoute
   '/_authenticated/collaborate': typeof AuthenticatedCollaborateRouteWithChildren
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/mentions-legales'
     | '/privacy'
     | '/reset-password'
+    | '/unsubscribe'
     | '/admin'
     | '/calendar'
     | '/collaborate'
@@ -435,6 +445,7 @@ export interface FileRouteTypes {
     | '/mentions-legales'
     | '/privacy'
     | '/reset-password'
+    | '/unsubscribe'
     | '/admin'
     | '/calendar'
     | '/collaborate'
@@ -477,6 +488,7 @@ export interface FileRouteTypes {
     | '/mentions-legales'
     | '/privacy'
     | '/reset-password'
+    | '/unsubscribe'
     | '/_authenticated/admin'
     | '/_authenticated/calendar'
     | '/_authenticated/collaborate'
@@ -520,6 +532,7 @@ export interface RootRouteChildren {
   MentionsLegalesRoute: typeof MentionsLegalesRoute
   PrivacyRoute: typeof PrivacyRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  UnsubscribeRoute: typeof UnsubscribeRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   PollTokenRoute: typeof PollTokenRoute
   SpaceTokenRoute: typeof SpaceTokenRoute
@@ -538,6 +551,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -904,6 +924,7 @@ const rootRouteChildren: RootRouteChildren = {
   MentionsLegalesRoute: MentionsLegalesRoute,
   PrivacyRoute: PrivacyRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  UnsubscribeRoute: UnsubscribeRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   PollTokenRoute: PollTokenRoute,
   SpaceTokenRoute: SpaceTokenRoute,
