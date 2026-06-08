@@ -2,9 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
+const AttachmentSchema = z.object({
+  name: z.string().max(255),
+  mime: z.string().max(100),
+  dataBase64: z.string().max(8_000_000),
+});
+
 const Input = z.object({
-  emailIds: z.array(z.string().uuid()).min(1).max(50),
-  instruction: z.string().max(2000).optional().nullable(),
+  emailIds: z.array(z.string().uuid()).max(50).default([]),
+  instruction: z.string().max(4000).optional().nullable(),
+  attachments: z.array(AttachmentSchema).max(10).default([]),
 });
 
 const ItemSchema = z.object({
