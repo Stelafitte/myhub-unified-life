@@ -94,7 +94,7 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
         <span>
           <Paperclip className="mr-1 inline h-3 w-3" /> Cet email contient des pièces jointes non chargées.
         </span>
-        <Button size="sm" variant="outline" className="h-7 gap-1.5" onClick={recoverAttachments} disabled={recovering}>
+        <Button size="sm" variant="outline" className="h-7 gap-1.5" onClick={() => recoverAttachments()} disabled={recovering}>
           {recovering ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
           Récupérer les PJ
         </Button>
@@ -107,7 +107,7 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
       <div className="border-b bg-muted/30 px-4 py-2 space-y-1.5">
         <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
           <span className="flex items-center gap-1.5"><Paperclip className="h-3 w-3" /> {docs.length} pièce{docs.length > 1 ? "s" : ""} jointe{docs.length > 1 ? "s" : ""}</span>
-          <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[11px]" onClick={recoverAttachments} disabled={recovering} title="Re-vérifier les pièces jointes côté serveur">
+          <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[11px]" onClick={() => recoverAttachments()} disabled={recovering} title="Re-vérifier les pièces jointes côté serveur">
             {recovering ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
             Récupérer
           </Button>
