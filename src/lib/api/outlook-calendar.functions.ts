@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { deduplicateCalendarEventsForUser } from "@/lib/calendar-dedup.server";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/microsoft_outlook";
 
@@ -23,6 +22,7 @@ export const syncOutlookCalendarEvents = createServerFn({ method: "POST" })
   .inputValidator(z.object({}).optional())
   .handler(async ({ context }) => {
     const { userId } = context as { userId: string };
+    const { deduplicateCalendarEventsForUser } = await import("@/lib/calendar-dedup.server");
     let totalDeduped = 0;
 
     try {
