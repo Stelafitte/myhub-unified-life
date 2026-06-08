@@ -2097,7 +2097,7 @@ function InboxPage() {
                     } catch (err) {
                       toast.error(err instanceof Error ? err.message : "Échec de la fusion");
                       // Recharge en cas d'échec pour resynchroniser.
-                      await loadThemes();
+                      await refreshThemes();
                     }
                   }}
                   onClick={() => toggleTheme(item.key)}
