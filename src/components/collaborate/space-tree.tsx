@@ -320,6 +320,59 @@ export function SpaceTree({ activeSpaceId, onSelect }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!renaming} onOpenChange={(o) => !o && setRenaming(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Renommer l'espace</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Nouveau nom</Label>
+            <Input
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRenaming(null)}>Annuler</Button>
+            <Button
+              disabled={!renameValue.trim() || rename.isPending}
+              onClick={() =>
+                renaming && rename.mutate({ id: renaming.id, name: renameValue.trim() })
+              }
+            >
+              {rename.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer « {deleting?.name} » ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              L'espace et tous ses sous-espaces, messages, liens et documents associés seront supprimés. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={del.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleting) del.mutate(deleting.id);
+              }}
+            >
+              {del.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
