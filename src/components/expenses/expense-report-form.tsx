@@ -168,6 +168,25 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
     }]);
   };
 
+  const onAIBatchLines = (lines: AIExtractedLine[]) => {
+    setItems((prev) => {
+      const base = prev.length;
+      const additions = lines.map((l, i) => ({
+        ...emptyItem(base + i),
+        date: l.date,
+        category: l.category,
+        description: l.description,
+        vendor: l.vendor,
+        amount_ttc: l.amount_ttc,
+        tva_rate: l.tva_rate,
+        amount_ht: l.amount_ht,
+        source_email_id: l.source_email_id,
+      }));
+      return [...prev, ...additions];
+    });
+  };
+
+
   const save = async (newStatus?: string): Promise<string | null> => {
     if (!title.trim()) { toast.error("Titre requis"); return null; }
     setSaving(true);
