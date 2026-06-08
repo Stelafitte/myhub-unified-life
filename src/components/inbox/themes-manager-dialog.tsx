@@ -298,6 +298,36 @@ export function ThemesManagerDialog({
           </div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2 border-b px-6 py-3">
+          <span className="text-xs font-medium text-muted-foreground">Reclasser :</span>
+          {([
+            { key: "day", label: "24h" },
+            { key: "week", label: "7 jours" },
+            { key: "month", label: "30 jours" },
+          ] as const).map((p) => (
+            <Button
+              key={p.key}
+              size="sm"
+              variant="outline"
+              disabled={!!reclassifying}
+              onClick={() => handleReclassify(p.key)}
+              className="shrink-0"
+            >
+              {reclassifying === p.key ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" />
+              )}
+              {p.label}
+            </Button>
+          ))}
+          {reclassifying && (
+            <span className="text-xs text-muted-foreground">
+              {reclassifyProgress} email(s) reclassé(s)…
+            </span>
+          )}
+        </div>
+
         {mergeFrom && (
           <div className="mx-6 rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
             Fusion : sélectionnez le thème de destination dans la liste ci-dessous.{" "}
