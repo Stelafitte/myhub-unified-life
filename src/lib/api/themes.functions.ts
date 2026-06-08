@@ -734,16 +734,48 @@ export const mergeThemes = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     if (data.fromId === data.intoId) return { ok: false, error: "Identique" };
+
+    // 1) Apprentissage : pour chaque expéditeur distinct des mails du thème source,
+    //    créer/mettre à jour une règle sender_theme_map → thème cible.
+    const { data: senders } = await supabase
+      .from("emails")
+      .select("from_address")
+      .eq("user_id", userId)
+      .eq("ai_theme_id", data.fromId)
+      .not("from_address", "is", null);
+    const uniqSenders = Array.from(
+      new Set(
+        (senders ?? [])
+          .map((r: { from_address: string | null }) => (r.from_address ?? "").toLowerCase().trim())
+          .filter((s: string) => s.length > 0),
+      ),
+    );
+    if (uniqSenders.length > 0) {
+      const rows = uniqSenders.map((from_address) => ({
+        user_id: userId,
+        from_address,
+        theme_id: data.intoId,
+      }));
+      await supabase
+        .from("sender_theme_map")
+        .upsert(rows, { onConflict: "user_id,from_address" });
+    }
+
+    // 2) Réassigne tous les mails du thème source vers le thème cible.
     await supabase
       .from("emails")
       .update({ ai_theme_id: data.intoId })
       .eq("user_id", userId)
       .eq("ai_theme_id", data.fromId);
+
+    // 3) Bascule les anciennes règles d'expéditeur restantes vers le thème cible.
     await supabase
       .from("sender_theme_map")
       .update({ theme_id: data.intoId })
       .eq("user_id", userId)
       .eq("theme_id", data.fromId);
+
+    // 4) Supprime le thème source vidé.
     await supabase.from("email_themes").delete().eq("id", data.fromId).eq("user_id", userId);
     await refreshThemeCounts(supabase, userId);
     return { ok: true };
