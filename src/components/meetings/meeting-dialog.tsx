@@ -63,26 +63,30 @@ const IMPORTANCE_META: Record<Importance, { label: string; cls: string; dialogBg
   low: {
     label: "Faible",
     cls: "bg-muted text-muted-foreground",
+    // Très discret : à peine teinté, neutre.
     dialogBg:
-      "bg-gradient-to-b from-muted/40 via-background to-background dark:from-muted/20",
+      "bg-gradient-to-b from-sky-100/40 via-background to-background dark:from-sky-950/30",
   },
   normal: {
     label: "Normal",
     cls: "bg-secondary text-secondary-foreground",
+    // Teinte douce mais visible.
     dialogBg:
-      "bg-gradient-to-b from-secondary/60 via-secondary/20 to-background dark:from-secondary/40 dark:via-secondary/10",
+      "bg-gradient-to-b from-sky-200/70 via-sky-100/30 to-background dark:from-sky-900/50 dark:via-sky-900/20",
   },
   high: {
     label: "Élevé",
     cls: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200",
+    // Ambre marqué, halo prononcé.
     dialogBg:
-      "bg-gradient-to-b from-amber-200/70 via-amber-100/40 to-background dark:from-amber-900/40 dark:via-amber-900/15 dark:to-background",
+      "bg-gradient-to-b from-amber-300/80 via-amber-200/50 to-background dark:from-amber-800/60 dark:via-amber-900/25 dark:to-background",
   },
   critical: {
     label: "Critique",
     cls: "bg-red-100 text-red-900 dark:bg-red-900/40 dark:text-red-200",
+    // Rouge soutenu, alerte visuelle forte.
     dialogBg:
-      "bg-gradient-to-b from-red-300/70 via-red-200/40 to-background dark:from-red-900/50 dark:via-red-900/20 dark:to-background",
+      "bg-gradient-to-b from-red-400/85 via-red-300/55 to-red-100/20 dark:from-red-800/70 dark:via-red-900/35 dark:to-background",
   },
 };
 
