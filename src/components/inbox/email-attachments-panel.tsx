@@ -32,11 +32,24 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
       .eq("source_type", "email")
       .eq("source_id", emailId)
       .order("created_at", { ascending: false });
-    setDocs((data as DocumentRow[]) ?? []);
+    const rows = (data as DocumentRow[]) ?? [];
+    setDocs(rows);
     setLoading(false);
+    return rows;
   }
 
-  useEffect(() => { void load(); }, [emailId]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const rows = await load();
+      // Panel is only mounted when has_attachment=true → if no docs, auto-recover silently once.
+      if (!cancelled && rows.length === 0) {
+        await recoverAttachments(true);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailId]);
 
   async function openNative(d: DocumentRow) {
     if (!d.storage_path) return;
@@ -48,7 +61,7 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
     }
   }
 
-  async function recoverAttachments() {
+  async function recoverAttachments(silent = false) {
     setRecovering(true);
     try {
       const { data, error } = await supabase.functions.invoke("fetch-email-attachments", {
@@ -57,10 +70,11 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "Échec de la récupération");
       if (data.count > 0) toast.success(`${data.count} pièce${data.count > 1 ? "s" : ""} jointe${data.count > 1 ? "s" : ""} récupérée${data.count > 1 ? "s" : ""}`);
-      else toast.info("Aucune nouvelle pièce jointe trouvée");
+      else if (!silent) toast.info("Aucune nouvelle pièce jointe trouvée");
       await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Échec de la récupération");
+      if (!silent) toast.error(e instanceof Error ? e.message : "Échec de la récupération");
+      else console.warn("[attachments] auto-recover failed", e);
     } finally {
       setRecovering(false);
     }
