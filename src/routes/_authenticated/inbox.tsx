@@ -857,8 +857,10 @@ function InboxPage() {
         depth,
       });
       if (!collapsed) {
-        for (const e of g.emails) out.push({ kind: "email", email: e });
+        // Affiche d'abord les sous-thèmes juste sous leur parent : sinon les mails
+        // directs du parent repoussent les enfants plus bas et la hiérarchie paraît absente.
         for (const childKey of childrenOf.get(key) ?? []) emit(childKey, depth + 1);
+        for (const e of g.emails) out.push({ kind: "email", email: e });
       }
     };
     for (const k of rootKeys) emit(k, 0);
