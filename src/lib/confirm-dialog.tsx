@@ -261,6 +261,46 @@ export function ConfirmDialogHost() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={!!choice}
+        onOpenChange={(open) => {
+          if (!open) closeChoice(null);
+        }}
+      >
+        <AlertDialogContent className="max-w-md gap-0 overflow-hidden p-0 shadow-2xl">
+          <div className="flex items-center gap-3 border-b bg-primary/10 px-5 py-3">
+            <HelpCircle className="h-5 w-5 text-primary" />
+            <div className="text-sm font-semibold">
+              {choice?.title ?? "Choisir une action"}
+            </div>
+          </div>
+          <div className="whitespace-pre-wrap px-5 py-4 text-sm text-foreground">
+            {choice?.message}
+          </div>
+          <AlertDialogFooter className="flex-wrap gap-2 border-t bg-muted/30 px-5 py-3">
+            <AlertDialogCancel onClick={() => closeChoice(null)}>
+              {choice?.cancelLabel ?? "Annuler"}
+            </AlertDialogCancel>
+            {(choice?.choices ?? []).map((c) => (
+              <AlertDialogAction
+                key={c.key}
+                onClick={() => closeChoice(c.key)}
+                className={
+                  c.variant === "destructive"
+                    ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    : c.variant === "default"
+                      ? "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                      : undefined
+                }
+              >
+                {c.label}
+              </AlertDialogAction>
+            ))}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
+
