@@ -447,7 +447,7 @@ export const getSpaceActivity = createServerFn({ method: "GET" })
     if (data.spaceId) linkQ = linkQ.eq("space_id", data.spaceId);
     const { data: links } = await linkQ;
 
-    return { messages: messages ?? [], links: links ?? [] };
+    return { messages, links: links ?? [] };
   });
 
 /** Recherche de contacts pour @ mentions. */
