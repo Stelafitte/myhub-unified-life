@@ -1371,6 +1371,85 @@ export const removeSpaceGuest = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Envoie un email d'information (nouveau contenu, mise à jour…) à un ou plusieurs invités d'un espace. */
+export const notifySpaceGuests = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        spaceId: z.string().uuid(),
+        guestIds: z.array(z.string().uuid()).optional(),
+        subjectLine: z.string().min(1).max(200),
+        message: z.string().min(1).max(4000),
+        appOrigin: z.string().url().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const [{ data: space }, { data: profile }] = await Promise.all([
+      supabase
+        .from("collab_spaces")
+        .select("name,public_token,is_public,user_id")
+        .eq("id", data.spaceId)
+        .maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("display_name,first_name,last_name,email")
+        .eq("id", userId)
+        .maybeSingle(),
+    ]);
+    if (!space || space.user_id !== userId) throw new Error("Espace introuvable");
+    if (!space.is_public || !space.public_token) {
+      throw new Error("Rendez l'espace public pour pouvoir notifier les invités.");
+    }
+    let q = supabase
+      .from("collab_guests")
+      .select("id,name,email,access_token")
+      .eq("space_id", data.spaceId)
+      .eq("user_id", userId)
+      .not("email", "is", null);
+    if (data.guestIds && data.guestIds.length > 0) q = q.in("id", data.guestIds);
+    const { data: guests, error: gErr } = await q;
+    if (gErr) throw new Error(gErr.message);
+    const recipients = (guests ?? []).filter((g) => !!g.email && !!g.access_token);
+    if (recipients.length === 0) return { sent: 0, failed: 0 };
+
+    const inviterName =
+      profile?.display_name ||
+      [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+      profile?.email ||
+      "Un collaborateur";
+    const origin = data.appOrigin?.replace(/\/$/, "") ?? "";
+    const { sendTransactionalEmailServer } = await import("@/lib/email/send.server");
+    const stamp = Date.now();
+    let sent = 0;
+    let failed = 0;
+    for (const g of recipients) {
+      const accessUrl = `${origin}/space/${space.public_token}?g=${g.access_token}`;
+      try {
+        const res = await sendTransactionalEmailServer({
+          templateName: "space-update",
+          recipientEmail: g.email!,
+          idempotencyKey: `space-update-${g.id}-${stamp}`,
+          templateData: {
+            guestName: g.name,
+            inviterName,
+            spaceName: space.name,
+            subjectLine: data.subjectLine,
+            message: data.message,
+            accessUrl,
+          },
+        });
+        if (res.success) sent++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
+    return { sent, failed };
+  });
+
 /** Active/désactive l'accès public d'un espace + description publique. */
 export const setSpacePublic = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

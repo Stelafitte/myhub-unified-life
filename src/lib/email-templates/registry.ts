@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import { template as spaceInvitation } from './space-invitation'
+import { template as spaceUpdate } from './space-update'
 
 export interface TemplateEntry {
   component: ComponentType<any>
@@ -16,4 +17,5 @@ export interface TemplateEntry {
  */
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'space-invitation': spaceInvitation,
+  'space-update': spaceUpdate,
 }

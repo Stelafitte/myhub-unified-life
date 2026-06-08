@@ -33,6 +33,7 @@ import {
   addSpaceGuestsFromGroup,
   updateSpaceGuestRole,
   removeSpaceGuest,
+  notifySpaceGuests,
 } from "@/lib/collab.functions";
 import { listContactGroups } from "@/lib/contacts.functions";
 
@@ -45,6 +46,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const addGroupFn = useServerFn(addSpaceGuestsFromGroup);
   const updateGuestRoleFn = useServerFn(updateSpaceGuestRole);
   const removeGuestFn = useServerFn(removeSpaceGuest);
+  const notifyFn = useServerFn(notifySpaceGuests);
   const listGroupsFn = useServerFn(listContactGroups);
   const qc = useQueryClient();
   const key = ["space-public", spaceId];
@@ -84,6 +86,39 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const [groupRole, setGroupRole] = useState<"viewer" | "contributor">("viewer");
   const [groupSendMail, setGroupSendMail] = useState(true);
   const [addingGroup, setAddingGroup] = useState(false);
+
+  const [notifySubject, setNotifySubject] = useState("");
+  const [notifyMessage, setNotifyMessage] = useState("");
+  const [notifyTargets, setNotifyTargets] = useState<Record<string, boolean>>({});
+  const [notifying, setNotifying] = useState(false);
+
+  const handleNotify = async () => {
+    if (!notifySubject.trim() || !notifyMessage.trim()) {
+      return toast.error("Sujet et message requis");
+    }
+    const selectedIds = Object.entries(notifyTargets).filter(([, v]) => v).map(([k]) => k);
+    setNotifying(true);
+    try {
+      const res = await notifyFn({
+        data: {
+          spaceId,
+          guestIds: selectedIds.length ? selectedIds : undefined,
+          subjectLine: notifySubject.trim(),
+          message: notifyMessage.trim(),
+          appOrigin: baseUrl,
+        },
+      });
+      if (res.sent === 0) toast.info("Aucun email envoyé (vérifiez les invités avec email)");
+      else toast.success(`${res.sent} email${res.sent > 1 ? "s" : ""} envoyé${res.sent > 1 ? "s" : ""}${res.failed ? ` · ${res.failed} échec(s)` : ""}`);
+      setNotifySubject("");
+      setNotifyMessage("");
+      setNotifyTargets({});
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setNotifying(false);
+    }
+  };
 
   const handleOpenChange = (v: boolean) => {
     setOpen(v);
@@ -385,6 +420,56 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
                       </li>
                     ))}
                   </ul>
+                )}
+
+                {guests.length > 0 && (
+                  <div className="space-y-2 rounded-md border p-3 mt-3">
+                    <div className="flex items-center gap-2">
+                      <Send className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Label className="text-sm font-semibold">Notifier les invités</Label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Envoie un email d'information (nouveau contenu, nouvelle info, chat modifié…) avec leur lien personnel d'accès.
+                    </p>
+                    <Input
+                      value={notifySubject}
+                      onChange={(e) => setNotifySubject(e.target.value)}
+                      placeholder="Sujet (ex: Nouveau document partagé)"
+                      className="h-8 text-sm"
+                    />
+                    <Textarea
+                      value={notifyMessage}
+                      onChange={(e) => setNotifyMessage(e.target.value)}
+                      rows={3}
+                      placeholder="Votre message…"
+                    />
+                    <div className="space-y-1 max-h-32 overflow-y-auto border rounded p-2">
+                      <label className="flex items-center gap-2 text-xs cursor-pointer">
+                        <Checkbox
+                          checked={Object.values(notifyTargets).filter(Boolean).length === 0}
+                          onCheckedChange={() => setNotifyTargets({})}
+                        />
+                        <span className="text-muted-foreground">Tous les invités avec email</span>
+                      </label>
+                      {guests.filter((g) => !!g.email).map((g) => (
+                        <label key={g.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                          <Checkbox
+                            checked={!!notifyTargets[g.id]}
+                            onCheckedChange={(v) =>
+                              setNotifyTargets((s) => ({ ...s, [g.id]: !!v }))
+                            }
+                          />
+                          <span className="truncate">{g.name} <span className="text-muted-foreground">· {g.email}</span></span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="flex justify-end">
+                      <Button size="sm" onClick={handleNotify} disabled={notifying}>
+                        {notifying ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Mail className="h-3.5 w-3.5 mr-1" />}
+                        Envoyer
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
