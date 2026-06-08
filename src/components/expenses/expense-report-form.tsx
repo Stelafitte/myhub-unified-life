@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft } from "lucide-react";
+import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   getReport, upsertReport, fillExpenseTemplate, listTemplates,
@@ -16,6 +16,7 @@ import {
 import { generateExpensePDFClient } from "./expense-pdf";
 import { CATEGORY_META } from "./category-icons";
 import { ImportFromEmailDialog, type ImportedItem } from "./import-from-email-dialog";
+import { AIBatchExtractDialog, type AIExtractedLine } from "./ai-batch-extract-dialog";
 
 // helper not exported by server-fns — local copy
 type Item = {
@@ -76,6 +77,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [aiBatchOpen, setAiBatchOpen] = useState(false);
   const [templates, setTemplates] = useState<any[]>([]);
   const [pickedTpl, setPickedTpl] = useState<string>("");
 
@@ -165,6 +167,25 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       source_email_id: imp.source_email_id,
     }]);
   };
+
+  const onAIBatchLines = (lines: AIExtractedLine[]) => {
+    setItems((prev) => {
+      const base = prev.length;
+      const additions = lines.map((l, i) => ({
+        ...emptyItem(base + i),
+        date: l.date,
+        category: l.category,
+        description: l.description,
+        vendor: l.vendor,
+        amount_ttc: l.amount_ttc,
+        tva_rate: l.tva_rate,
+        amount_ht: l.amount_ht,
+        source_email_id: l.source_email_id,
+      }));
+      return [...prev, ...additions];
+    });
+  };
+
 
   const save = async (newStatus?: string): Promise<string | null> => {
     if (!title.trim()) { toast.error("Titre requis"); return null; }
@@ -267,7 +288,10 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
           <section>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold">Dépenses ({items.length})</h3>
-              <div className="flex gap-1">
+              <div className="flex gap-1 flex-wrap">
+                <Button size="sm" variant="default" onClick={() => setAiBatchOpen(true)} className="gap-1 h-7 text-xs">
+                  <Sparkles className="h-3 w-3" /> Analyser par IA
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1 h-7 text-xs">
                   <Mail className="h-3 w-3" /> Depuis un email
                 </Button>
@@ -387,6 +411,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       </ScrollArea>
 
       <ImportFromEmailDialog open={importOpen} onOpenChange={setImportOpen} onPick={onImportedFromEmail} />
+      <AIBatchExtractDialog open={aiBatchOpen} onOpenChange={setAiBatchOpen} onLines={onAIBatchLines} />
     </div>
   );
 }

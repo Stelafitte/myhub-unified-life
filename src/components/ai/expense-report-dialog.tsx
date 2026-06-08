@@ -7,9 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, Paperclip, X, Download, RefreshCw, Receipt, Mail, Send } from "lucide-react";
+import { Loader2, Plus, Trash2, Paperclip, X, Download, RefreshCw, Receipt, Mail, Send, FileEdit } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "@tanstack/react-router";
 import { generateExpenseReport, type ExpenseItem } from "@/lib/api/expense-report.functions";
+import { createReportFromAIItems } from "@/lib/expense.functions";
 import { sendEmail } from "@/lib/api/email-send.functions";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -48,7 +50,10 @@ export function ExpenseReportDialog({
   initialInstruction?: string;
 }) {
   const expenseFn = useServerFn(generateExpenseReport);
+  const createDraftFn = useServerFn(createReportFromAIItems);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [creatingDraft, setCreatingDraft] = useState(false);
   const [items, setItems] = useState<ExpenseItem[]>([]);
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
@@ -263,6 +268,39 @@ export function ExpenseReportDialog({
     }
   };
 
+  const createDraftAndOpen = async () => {
+    if (items.length === 0) { toast.error("Aucune ligne à enregistrer"); return; }
+    setCreatingDraft(true);
+    try {
+      const r = await createDraftFn({
+        data: {
+          title: title || `Note de frais — ${new Date().toLocaleDateString("fr-FR")}`,
+          notes: notes || null,
+          currency,
+          items: items.map((it) => ({
+            date: it.date,
+            description: it.description,
+            category: it.category,
+            vendor: it.vendor,
+            amount_ttc: it.amount_ttc,
+            amount_ht: it.amount_ht,
+            tva: it.tva,
+            source_email_id: it.source_email_id,
+          })),
+        },
+      });
+      toast.success("Brouillon créé dans Notes de frais");
+      onOpenChange(false);
+      navigate({ to: "/expenses", search: { reportId: r.id } as any });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erreur création brouillon");
+    } finally {
+      setCreatingDraft(false);
+    }
+  };
+
+
+
 
 
   return (
@@ -387,13 +425,18 @@ export function ExpenseReportDialog({
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Re-analyser{attachments.length > 0 ? " avec PJ" : ""}
           </Button>
-          <div className="flex gap-2 ml-auto">
+          <div className="flex gap-2 ml-auto flex-wrap justify-end">
             <Button variant="outline" onClick={() => setShowSend(v => !v)} disabled={loading || items.length === 0} className="gap-1.5">
-              <Mail className="h-3.5 w-3.5" /> Envoyer par email
+              <Mail className="h-3.5 w-3.5" /> Envoyer
             </Button>
-            <Button onClick={downloadZip} disabled={loading || items.length === 0} className="gap-1.5">
-              <Download className="h-3.5 w-3.5" /> Télécharger ZIP
+            <Button variant="outline" onClick={downloadZip} disabled={loading || items.length === 0} className="gap-1.5">
+              <Download className="h-3.5 w-3.5" /> ZIP
             </Button>
+            <Button onClick={createDraftAndOpen} disabled={loading || creatingDraft || items.length === 0} className="gap-1.5">
+              {creatingDraft ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileEdit className="h-3.5 w-3.5" />}
+              Ouvrir dans Notes de frais
+            </Button>
+
           </div>
         </DialogFooter>
       </DialogContent>

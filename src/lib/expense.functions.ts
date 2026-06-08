@@ -521,3 +521,129 @@ export const getReceiptSignedUrl = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { url: url.signedUrl };
   });
+
+// ============== AI bridge: unify AI mail dialog ↔ structured form ==============
+
+/**
+ * Map a legacy/free-text AI category label to the structured ExpenseCategory enum.
+ * Used to bridge AI-extracted items (which use free labels like "Transport",
+ * "Hébergement", "Restauration", "Autre") into the structured Notes-de-frais form.
+ */
+export function mapLegacyCategoryToStructured(label: string | null | undefined): ExpenseCategory {
+  const s = (label ?? "").toString().toLowerCase().trim();
+  if (!s) return "autre";
+  if (CATEGORIES.includes(s as ExpenseCategory)) return s as ExpenseCategory;
+  if (/(taxi|uber|vtc|sncf|train|ouigo|tgv|métro|metro|bus|tram|ratp|avion|air ?france|vol|flight|trainline)/.test(s)) return "transport_commun";
+  if (/(transport|déplacement|deplacement)/.test(s)) return "transport_commun";
+  if (/(km|kilom|véhicule|vehicule|voiture|essence|carburant|péage|peage|parking|vinci)/.test(s)) return "vehicule_perso";
+  if (/(hôtel|hotel|airbnb|booking|hébergement|hebergement|nuit|lodging)/.test(s)) return "hebergement";
+  if (/(restau|repas|déjeuner|dejeuner|dîner|diner|meal|food|brasserie|café|cafe)/.test(s)) return "repas";
+  if (/(inscription|registration|congrès|congres|conference)/.test(s)) return "inscription";
+  if (/(livre|ouvrage|documentation|abonnement|revue|journal)/.test(s)) return "documentation";
+  if (/(repro|impression|copie|copy|reprographie)/.test(s)) return "reprographie";
+  if (/(matériel|materiel|fourniture|equipment|équipement)/.test(s)) return "materiel";
+  if (/(téléphone|telephone|mobile|sim|forfait|roaming|wifi|internet)/.test(s)) return "telephone";
+  if (/(visa|passeport)/.test(s)) return "visa";
+  return "autre";
+}
+
+type AIInputItem = {
+  date?: string | null;
+  description?: string | null;
+  category?: string | null;
+  vendor?: string | null;
+  amount_ttc?: number | null;
+  amount_ht?: number | null;
+  tva?: number | null;
+  source_email_id?: string | null;
+};
+
+const AIItemSchema = z.object({
+  date: z.string().nullable().optional(),
+  description: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  vendor: z.string().nullable().optional(),
+  amount_ttc: z.number().nullable().optional(),
+  amount_ht: z.number().nullable().optional(),
+  tva: z.number().nullable().optional(),
+  source_email_id: z.string().uuid().nullable().optional(),
+});
+
+/**
+ * Create a draft Notes-de-frais report from AI-extracted items
+ * (the shape returned by `generateExpenseReport` in api/expense-report.functions.ts).
+ * Categories are remapped via `mapLegacyCategoryToStructured`.
+ */
+export const createReportFromAIItems = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({
+      title: z.string().min(1).max(255),
+      mission_object: z.string().max(500).nullable().optional(),
+      notes: z.string().max(4000).nullable().optional(),
+      currency: z.string().max(8).default("EUR"),
+      source_email_id: z.string().uuid().nullable().optional(),
+      items: z.array(AIItemSchema).default([]),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const today = new Date().toISOString().slice(0, 10);
+    const mapped = data.items.map((it: AIInputItem, idx: number) => {
+      const ttc = Number(it.amount_ttc ?? 0) || 0;
+      const ht = it.amount_ht != null ? Number(it.amount_ht) : null;
+      const tvaPct = (() => {
+        if (it.tva != null && it.amount_ht && ht && ht > 0) {
+          // tva is an amount → compute rate
+          return Math.round((Number(it.tva) / ht) * 1000) / 10;
+        }
+        return 0;
+      })();
+      return {
+        report_id: "", // filled after insert
+        user_id: userId,
+        date: (it.date && /^\d{4}-\d{2}-\d{2}$/.test(it.date)) ? it.date : today,
+        category: mapLegacyCategoryToStructured(it.category ?? null),
+        description: (it.description ?? "").slice(0, 500),
+        vendor: it.vendor ?? null,
+        amount_ttc: ttc,
+        tva_rate: tvaPct,
+        amount_ht: ht,
+        km_distance: null,
+        km_rate: null,
+        has_receipt: false,
+        receipt_path: null,
+        receipt_document_id: null,
+        source_email_id: it.source_email_id ?? null,
+        position: idx,
+      };
+    });
+    const total = Math.round(mapped.reduce((s, it) => s + it.amount_ttc, 0) * 100) / 100;
+    const { data: report, error } = await supabase
+      .from("expense_reports")
+      .insert({
+        user_id: userId,
+        title: data.title,
+        mission_object: data.mission_object ?? null,
+        identification: DEFAULT_IDENTIFICATION,
+        status: "draft",
+        total_amount: total,
+        advance_amount: 0,
+        amount_to_reimburse: total,
+        currency: data.currency ?? "EUR",
+        signature_location: "Bordeaux",
+        signature_date: today,
+        notes: data.notes ?? null,
+        source_email_id: data.source_email_id ?? null,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    if (mapped.length > 0) {
+      const rows = mapped.map((m) => ({ ...m, report_id: report.id }));
+      const { error: itErr } = await supabase.from("expense_items").insert(rows);
+      if (itErr) throw new Error(itErr.message);
+    }
+    return { id: report.id as string, total };
+  });
+

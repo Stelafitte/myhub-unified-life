@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,13 @@ import { listReports, deleteReport, listTemplates, deleteTemplate, analyzeExpens
 import { ExpenseReportForm } from "@/components/expenses/expense-report-form";
 import { TemplateUploadDialog } from "@/components/expenses/template-upload-dialog";
 
+type ExpensesSearch = { reportId?: string };
+
 export const Route = createFileRoute("/_authenticated/expenses")({
   component: ExpensesPage,
+  validateSearch: (s: Record<string, unknown>): ExpensesSearch => ({
+    reportId: typeof s.reportId === "string" ? s.reportId : undefined,
+  }),
 });
 
 const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -26,6 +31,7 @@ const STATUS_LABEL: Record<string, { label: string; variant: "default" | "second
 
 function ExpensesPage() {
   const { user } = useAuth();
+  const search = useSearch({ from: "/_authenticated/expenses" }) as ExpensesSearch;
   const listFn = useServerFn(listReports);
   const delFn = useServerFn(deleteReport);
   const tplFn = useServerFn(listTemplates);
@@ -48,6 +54,12 @@ function ExpensesPage() {
     finally { setLoading(false); }
   };
   useEffect(() => { void reload(); }, []);
+
+  // Auto-open a report when navigated with ?reportId=... (e.g. from AI mail dialog).
+  useEffect(() => {
+    if (search.reportId) setEditingId(search.reportId);
+  }, [search.reportId]);
+
 
   const remove = async (id: string) => {
     if (!confirm("Supprimer cette note de frais ?")) return;
