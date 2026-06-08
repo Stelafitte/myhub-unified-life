@@ -79,6 +79,44 @@ export function promptDialog(
     emitPrompt({ message, ...(options ?? {}), resolve });
   });
 }
+// ---------- Choice (multi-button) ----------
+
+export type ChoiceOption = {
+  key: string;
+  label: string;
+  variant?: "default" | "primary" | "destructive";
+};
+
+export type ChoiceDialogOptions = {
+  title?: string;
+  choices: ChoiceOption[];
+  cancelLabel?: string;
+};
+
+type PendingChoice = ChoiceDialogOptions & {
+  message: string;
+  resolve: (value: string | null) => void;
+};
+
+const choiceListeners = new Set<(p: PendingChoice | null) => void>();
+let currentChoice: PendingChoice | null = null;
+
+function emitChoice(p: PendingChoice | null) {
+  currentChoice = p;
+  for (const l of choiceListeners) l(p);
+}
+
+/** In-app multi-choice dialog. Returns the chosen option key or null if cancelled. */
+export function choiceDialog(
+  message: string,
+  options: ChoiceDialogOptions,
+): Promise<string | null> {
+  if (typeof window === "undefined") return Promise.resolve(null);
+  return new Promise((resolve) => {
+    emitChoice({ message, ...options, resolve });
+  });
+}
+
 
 export function ConfirmDialogHost() {
   const [pending, setPending] = useState<Pending | null>(currentPending);
