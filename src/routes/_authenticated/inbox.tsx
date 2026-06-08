@@ -1311,6 +1311,76 @@ function InboxPage() {
     void refreshThemes();
   };
 
+  // Handlers DnD réutilisables pour un bouton de thème (sidebar OU entête de liste).
+  // Accepte :
+  //  - un autre thème (fusion via mergeThemesFn)
+  //  - une sélection de mails (re-catégorisation + apprentissage par expéditeur)
+  const themeDropHandlers = (themeId: string, themeName: string) => ({
+    draggable: true,
+    onDragStart: (ev: React.DragEvent) => {
+      ev.dataTransfer.effectAllowed = "move";
+      ev.dataTransfer.setData("application/x-theme-id", themeId);
+      setDragTheme(themeId);
+    },
+    onDragEnd: () => {
+      setDragTheme(null);
+      setDropTargetSidebarThemeId(null);
+    },
+    onDragOver: (ev: React.DragEvent) => {
+      const types = ev.dataTransfer.types;
+      const isTheme = types.includes("application/x-theme-id");
+      const isEmails = types.includes("application/x-email-ids");
+      if (!isTheme && !isEmails) return;
+      if (isTheme && dragTheme === themeId) return;
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = "move";
+      if (dropTargetSidebarThemeId !== themeId) setDropTargetSidebarThemeId(themeId);
+    },
+    onDragLeave: () => {
+      if (dropTargetSidebarThemeId === themeId) setDropTargetSidebarThemeId(null);
+    },
+    onDrop: async (ev: React.DragEvent) => {
+      ev.preventDefault();
+      const fromTheme = ev.dataTransfer.getData("application/x-theme-id");
+      const emailIdsRaw = ev.dataTransfer.getData("application/x-email-ids");
+      setDragTheme(null);
+      setDropTargetSidebarThemeId(null);
+      if (fromTheme && fromTheme !== themeId) {
+        const fromName = themes.find((t) => t.id === fromTheme)?.name ?? "ce thème";
+        const ok = await confirmDialog(
+          `Fusionner « ${fromName} » dans « ${themeName} » ?\n\nTous les mails seront déplacés, les futurs mails des mêmes expéditeurs y seront classés automatiquement, et le thème « ${fromName} » sera supprimé.`,
+          { confirmLabel: "Fusionner" },
+        );
+        if (!ok) return;
+        setEmails((prev) =>
+          prev.map((x) => (x.ai_theme_id === fromTheme ? { ...x, ai_theme_id: themeId } : x)),
+        );
+        setThemes((prev) => prev.filter((t) => t.id !== fromTheme));
+        try {
+          const res = await mergeThemesFn({ data: { fromId: fromTheme, intoId: themeId } });
+          if (!res?.ok) throw new Error(res?.error ?? "Échec de la fusion");
+          toast.success(`« ${fromName} » fusionné dans « ${themeName} »`);
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Échec de la fusion");
+          await refreshThemes();
+        }
+        return;
+      }
+      if (emailIdsRaw) {
+        try {
+          const ids = JSON.parse(emailIdsRaw) as string[];
+          if (Array.isArray(ids) && ids.length) {
+            await moveEmailsToThemeWithLearning(ids, themeId);
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+  });
+
+
+
   const openEmail = (e: Email) => {
     setSelectedId(e.id);
     setReaderOpen(true);
