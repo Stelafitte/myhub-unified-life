@@ -33,6 +33,7 @@ import {
   Loader2,
   Undo2,
   FolderInput,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
