@@ -77,14 +77,19 @@ export const generateExpenseReport = createServerFn({ method: "POST" })
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("LOVABLE_API_KEY manquant");
 
-    const { data: rows, error } = await supabase
-      .from("emails")
-      .select("id,subject,from_address,from_name,received_at,body_text")
-      .eq("user_id", userId)
-      .in("id", data.emailIds);
-    if (error) throw new Error(error.message);
-    const emails = rows ?? [];
-    if (emails.length === 0) throw new Error("Aucun email trouvé.");
+    let emails: any[] = [];
+    if (data.emailIds.length > 0) {
+      const { data: rows, error } = await supabase
+        .from("emails")
+        .select("id,subject,from_address,from_name,received_at,body_text")
+        .eq("user_id", userId)
+        .in("id", data.emailIds);
+      if (error) throw new Error(error.message);
+      emails = rows ?? [];
+    }
+    if (emails.length === 0 && data.attachments.length === 0) {
+      throw new Error("Aucun email ni pièce jointe fourni.");
+    }
 
     const corpus = emails.map((e, i) => {
       return `=== EMAIL ${i + 1} (id=${e.id}) ===
@@ -95,7 +100,7 @@ Objet : ${e.subject ?? ""}
 ${(e.body_text ?? "").slice(0, 8000)}`;
     }).join("\n\n");
 
-    const sys = `Tu es un assistant comptable. À partir des emails fournis (billets, factures, confirmations de voyage, reçus…), tu extrais une LISTE de lignes de dépenses pour une note de frais.
+    const sys = `Tu es un assistant comptable. À partir des emails et des pièces jointes (images de billets/reçus) fournis, tu extrais une LISTE de lignes de dépenses pour une note de frais.
 Réponds UNIQUEMENT en JSON valide avec ce schéma :
 {
   "items": [{
@@ -108,18 +113,31 @@ Réponds UNIQUEMENT en JSON valide avec ce schéma :
     "amount_ht": null,
     "tva": null,
     "currency": "EUR",
-    "source_email_id": "uuid de l'email source"
+    "source_email_id": "uuid de l'email source OU null si vient d'une PJ"
   }],
   "notes": "remarques éventuelles (incertitudes, lignes ignorées…)"
 }
 RÈGLES :
-- Une ligne par trajet/prestation facturée. Pour un aller-retour SNCF, crée 2 lignes (aller + retour) avec les montants respectifs si possible.
-- Montants en euros, point décimal. Ne dépasse jamais ce que mentionne explicitement l'email.
-- Si l'email ne contient pas de dépense (newsletter, simple info), ignore-le.
-- "source_email_id" doit correspondre à l'id indiqué dans "EMAIL X (id=...)".
+- Une ligne par trajet/prestation facturée. Pour un aller-retour SNCF, crée 2 lignes (aller + retour).
+- Montants en euros, point décimal. Ne dépasse jamais ce que mentionne explicitement la source.
+- Si une source ne contient pas de dépense, ignore-la.
+- "source_email_id" : id de l'email source si applicable, sinon null.
 - Sois concis dans description.`;
 
-    const usr = `${data.instruction ? `Instruction utilisateur : ${data.instruction}\n\n` : ""}Emails à traiter :\n\n${corpus}`;
+    const userContent: any[] = [
+      { type: "text", text: `${data.instruction ? `Instruction utilisateur : ${data.instruction}\n\n` : ""}${emails.length > 0 ? `Emails à traiter :\n\n${corpus}` : "Aucun email — analyse uniquement les pièces jointes ci-dessous."}` },
+    ];
+    for (const att of data.attachments) {
+      if (att.mime.startsWith("image/")) {
+        userContent.push({
+          type: "image_url",
+          image_url: { url: `data:${att.mime};base64,${att.dataBase64}` },
+        });
+      } else {
+        // Non-image (ex: PDF) — mentionne juste son nom; l'extraction de PDF se fera plus tard.
+        userContent.push({ type: "text", text: `[PJ non-image fournie : ${att.name} (${att.mime}) — non lue par l'IA mais sera incluse dans le livrable.]` });
+      }
+    }
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -128,7 +146,7 @@ RÈGLES :
         model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: sys },
-          { role: "user", content: usr },
+          { role: "user", content: userContent },
         ],
         response_format: { type: "json_object" },
       }),
