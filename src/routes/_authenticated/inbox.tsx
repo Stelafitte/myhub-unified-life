@@ -2381,8 +2381,12 @@ function InboxPage() {
                     <ChevronDown className="h-3 w-3 text-primary" />
                   )}
                   <Sparkles className="h-3 w-3 text-primary" />
-                  <span className="truncate">{item.label}</span>
+                  {item.depth > 0 && <span className="text-primary/70">↳</span>}
+                  <span className="truncate" style={item.depth > 0 ? { paddingLeft: item.depth * 12 } : undefined}>
+                    {item.label}
+                  </span>
                   <span className="ml-auto text-[10px] font-normal">{item.count}</span>
+
                 </li>
               );
             }
