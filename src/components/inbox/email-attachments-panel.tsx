@@ -32,11 +32,24 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
       .eq("source_type", "email")
       .eq("source_id", emailId)
       .order("created_at", { ascending: false });
-    setDocs((data as DocumentRow[]) ?? []);
+    const rows = (data as DocumentRow[]) ?? [];
+    setDocs(rows);
     setLoading(false);
+    return rows;
   }
 
-  useEffect(() => { void load(); }, [emailId]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const rows = await load();
+      // Panel is only mounted when has_attachment=true → if no docs, auto-recover silently once.
+      if (!cancelled && rows.length === 0) {
+        await recoverAttachments(true);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emailId]);
 
   async function openNative(d: DocumentRow) {
     if (!d.storage_path) return;
@@ -48,7 +61,7 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
     }
   }
 
-  async function recoverAttachments() {
+  async function recoverAttachments(silent = false) {
     setRecovering(true);
     try {
       const { data, error } = await supabase.functions.invoke("fetch-email-attachments", {
@@ -57,10 +70,11 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "Échec de la récupération");
       if (data.count > 0) toast.success(`${data.count} pièce${data.count > 1 ? "s" : ""} jointe${data.count > 1 ? "s" : ""} récupérée${data.count > 1 ? "s" : ""}`);
-      else toast.info("Aucune nouvelle pièce jointe trouvée");
+      else if (!silent) toast.info("Aucune nouvelle pièce jointe trouvée");
       await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Échec de la récupération");
+      if (!silent) toast.error(e instanceof Error ? e.message : "Échec de la récupération");
+      else console.warn("[attachments] auto-recover failed", e);
     } finally {
       setRecovering(false);
     }
@@ -80,7 +94,7 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
         <span>
           <Paperclip className="mr-1 inline h-3 w-3" /> Cet email contient des pièces jointes non chargées.
         </span>
-        <Button size="sm" variant="outline" className="h-7 gap-1.5" onClick={recoverAttachments} disabled={recovering}>
+        <Button size="sm" variant="outline" className="h-7 gap-1.5" onClick={() => recoverAttachments()} disabled={recovering}>
           {recovering ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
           Récupérer les PJ
         </Button>
@@ -93,7 +107,7 @@ export function EmailAttachmentsPanel({ emailId, fromAddress, subject }: Props) 
       <div className="border-b bg-muted/30 px-4 py-2 space-y-1.5">
         <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
           <span className="flex items-center gap-1.5"><Paperclip className="h-3 w-3" /> {docs.length} pièce{docs.length > 1 ? "s" : ""} jointe{docs.length > 1 ? "s" : ""}</span>
-          <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[11px]" onClick={recoverAttachments} disabled={recovering} title="Re-vérifier les pièces jointes côté serveur">
+          <Button size="sm" variant="ghost" className="h-6 gap-1 px-2 text-[11px]" onClick={() => recoverAttachments()} disabled={recovering} title="Re-vérifier les pièces jointes côté serveur">
             {recovering ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
             Récupérer
           </Button>
