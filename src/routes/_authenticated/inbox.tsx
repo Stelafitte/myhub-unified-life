@@ -2560,9 +2560,7 @@ function InboxPage() {
                   if (isMobileInbox) return;
                   ev.dataTransfer.effectAllowed = "move";
                   ev.dataTransfer.setData("application/x-email-ids", JSON.stringify(dragIds));
-                  setDragEmailCount(dragIds.length);
                 }}
-                onDragEnd={() => setDragEmailCount(0)}
               >
                 {isMobileInbox ? (
                   <SwipeableRow leftActions={leftActions} rightActions={rightActions}>
