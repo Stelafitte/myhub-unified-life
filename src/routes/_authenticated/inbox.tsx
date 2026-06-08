@@ -537,8 +537,15 @@ function InboxPage() {
   }, [user, reloadKey]);
 
   useEffect(() => {
-    const onSynced = () => setReloadKey((k) => k + 1);
+    const onSynced = () => {
+      setReloadKey((k) => k + 1);
+      // Background backfill: recover any missing email attachments so PJ are
+      // always available in Tasks / Documents. Throttled by edge function.
+      void supabase.functions.invoke("recover-missing-attachments", { body: { days: 30, limit: 25 } }).catch(() => {});
+    };
     window.addEventListener("emails-synced", onSynced);
+    // Also run once on mount.
+    void supabase.functions.invoke("recover-missing-attachments", { body: { days: 14, limit: 25 } }).catch(() => {});
     return () => window.removeEventListener("emails-synced", onSynced);
   }, []);
 
