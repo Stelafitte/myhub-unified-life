@@ -1872,9 +1872,10 @@ function InboxPage() {
                         <span className="text-[10px] text-muted-foreground">{g.total}</span>
                       </summary>
                       <div className="ml-3 border-l border-border/50 pl-1">
-                        {g.items.map(({ theme: t, label }) => {
+                        {[g.parent, ...g.children].map((t) => {
                           const n = counts.byTheme.get(t.id) ?? 0;
                           const active = filter === `theme:${t.id}`;
+                          const isChild = t.parent_id === g.parent.id;
                           return (
                             <button
                               key={t.id}
@@ -1889,10 +1890,11 @@ function InboxPage() {
                               )}
                               title={t.description ?? t.name}
                             >
+                              {isChild && <span className="shrink-0 text-primary/70">↳</span>}
                               <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-primary/10 text-[10px]">
                                 {t.icon ?? "🏷️"}
                               </span>
-                              <span className="flex-1 truncate text-xs">{label}</span>
+                              <span className={cn("flex-1 truncate text-xs", isChild && "text-muted-foreground")}>{t.name}</span>
                               <span className="text-[10px] text-muted-foreground">{n}</span>
                             </button>
                           );
