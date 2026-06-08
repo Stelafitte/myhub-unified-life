@@ -69,7 +69,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
     queryFn: () => listGroupsFn(),
     enabled: open,
   });
-  const groups = groupsQ.data?.groups ?? [];
+  const groups = (groupsQ.data?.groups ?? []) as Array<{ id: string; name: string; member_count?: number | null }>;
 
   const [isPublic, setIsPublic] = useState(false);
   const [desc, setDesc] = useState("");
@@ -318,8 +318,8 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
                       </SelectTrigger>
                       <SelectContent>
                         {groups.map((g) => (
-                          <SelectItem key={g.id as string} value={g.id as string}>
-                            {(g.name as string)} {g.member_count ? `(${g.member_count})` : ""}
+                          <SelectItem key={g.id} value={g.id}>
+                            {g.name} {g.member_count ? `(${g.member_count})` : ""}
                           </SelectItem>
                         ))}
                       </SelectContent>
