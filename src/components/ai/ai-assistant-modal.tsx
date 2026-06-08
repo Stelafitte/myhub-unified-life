@@ -261,6 +261,93 @@ export function AiAssistantModal({
     }, 50);
   };
 
+  const generateExpenseFor = async (turn: Turn) => {
+    const emailIds = Array.from(turn.selectedMatches).filter(id =>
+      turn.result?.matches.find(m => m.id === id)?.kind === "email"
+    );
+    if (emailIds.length === 0) { toast.error("Sélectionnez au moins un email."); return; }
+    setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, proposing: true } : t));
+    try {
+      toast.info("L'IA analyse les emails…");
+      const res = await expenseFn({ data: { emailIds, instruction: turn.prompt } });
+      if (res.items.length === 0) {
+        toast.error("Aucune dépense détectée dans ces emails.");
+        setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, chatReply: `Aucune dépense détectée.${res.notes ? "\n\n" + res.notes : ""}` } : t));
+        return;
+      }
+
+      // Download CSV
+      const csvBlob = new Blob(["\uFEFF" + res.csv], { type: "text/csv;charset=utf-8" });
+      const csvUrl = URL.createObjectURL(csvBlob);
+      const csvLink = document.createElement("a");
+      csvLink.href = csvUrl;
+      csvLink.download = `${res.title}.csv`;
+      csvLink.click();
+      setTimeout(() => URL.revokeObjectURL(csvUrl), 5000);
+
+      // Generate PDF with jsPDF
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF();
+      let y = 18;
+      doc.setFontSize(16);
+      doc.text(res.title, 14, y);
+      y += 8;
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      if (res.periodFrom) {
+        doc.text(`Période : ${res.periodFrom}${res.periodTo && res.periodTo !== res.periodFrom ? ` → ${res.periodTo}` : ""}`, 14, y);
+        y += 6;
+      }
+      doc.text(`Généré le ${new Date().toLocaleDateString("fr-FR")} · ${res.items.length} ligne(s)`, 14, y);
+      y += 8;
+      doc.setTextColor(0);
+      doc.setFontSize(9);
+      // Header
+      doc.setFont(undefined, "bold");
+      doc.text("Date", 14, y);
+      doc.text("Description", 38, y);
+      doc.text("Fournisseur", 110, y);
+      doc.text("Montant TTC", 196, y, { align: "right" });
+      y += 2;
+      doc.line(14, y, 196, y);
+      y += 5;
+      doc.setFont(undefined, "normal");
+      for (const it of res.items) {
+        if (y > 275) { doc.addPage(); y = 18; }
+        doc.text(it.date ?? "—", 14, y);
+        const desc = doc.splitTextToSize(it.description || "", 70);
+        doc.text(desc, 38, y);
+        doc.text((it.vendor || "").slice(0, 30), 110, y);
+        doc.text(`${it.amount_ttc.toFixed(2)} ${it.currency}`, 196, y, { align: "right" });
+        y += Math.max(5, desc.length * 4);
+      }
+      y += 4;
+      doc.line(14, y, 196, y);
+      y += 6;
+      doc.setFont(undefined, "bold");
+      doc.text(`Total : ${res.total.toFixed(2)} ${res.currency}`, 196, y, { align: "right" });
+      if (res.notes) {
+        y += 10;
+        doc.setFont(undefined, "italic");
+        doc.setFontSize(8);
+        const n = doc.splitTextToSize("Notes IA : " + res.notes, 180);
+        doc.text(n, 14, y);
+      }
+      doc.save(`${res.title}.pdf`);
+
+      const summary = `✅ Note de frais générée à partir de ${emailIds.length} email(s) :\n\n` +
+        res.items.map((it, i) => `${i + 1}. ${it.date ?? "—"} · ${it.description} · ${it.vendor} — ${it.amount_ttc.toFixed(2)} ${it.currency}`).join("\n") +
+        `\n\n💰 Total : ${res.total.toFixed(2)} ${res.currency}\n\n📄 PDF et CSV téléchargés.${res.notes ? "\n\nℹ️ " + res.notes : ""}`;
+      setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, chatReply: summary } : t));
+      toast.success("Note de frais générée");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erreur");
+      setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, error: e?.message ?? "Erreur" } : t));
+    } finally {
+      setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, proposing: false } : t));
+    }
+  };
+
   const proposeFor = async (turn: Turn, kind: ProposedAction["kind"]) => {
     setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, proposing: true } : t));
     try {
