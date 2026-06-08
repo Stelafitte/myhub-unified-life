@@ -61,29 +61,67 @@ export function CreateTaskFromEmailDialog({
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attachmentDocs, setAttachmentDocs] = useState<DocumentRow[]>([]);
+  const [fetchingAtts, setFetchingAtts] = useState(false);
+
+  const loadAttachments = async () => {
+    const { data } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("source_type", "email")
+      .eq("source_id", email.id);
+    return (data as DocumentRow[]) ?? [];
+  };
 
   useEffect(() => {
-    if (open) {
-      setTitle(email.subject ?? "");
-      const extract = (email.body_text ?? "").replace(/\s+/g, " ").slice(0, 280);
-      const from = email.from_name || email.from_address || "";
-      setDescription(`Depuis : ${from}\n\n${extract}${extract.length === 280 ? "…" : ""}`);
-      setComments("");
-      setPriority("medium");
-      setDueDate("");
-      setCreateEvent(false);
-      setEventStart("");
-      setEventEnd("");
-      setEventTitle("");
-      // Load real attachments from documents table
-      supabase
-        .from("documents")
-        .select("*")
-        .eq("source_type", "email")
-        .eq("source_id", email.id)
-        .then(({ data }) => setAttachmentDocs((data as DocumentRow[]) ?? []));
-    }
+    if (!open) return;
+    setTitle(email.subject ?? "");
+    const extract = (email.body_text ?? "").replace(/\s+/g, " ").slice(0, 280);
+    const from = email.from_name || email.from_address || "";
+    setDescription(`Depuis : ${from}\n\n${extract}${extract.length === 280 ? "…" : ""}`);
+    setComments("");
+    setPriority("medium");
+    setDueDate("");
+    setCreateEvent(false);
+    setEventStart("");
+    setEventEnd("");
+    setEventTitle("");
+    setAttachmentDocs([]);
+
+    (async () => {
+      let docs = await loadAttachments();
+      // Si l'email indique des PJ mais aucune n'est en base, on les récupère à la volée
+      if (docs.length === 0 && email.has_attachment) {
+        setFetchingAtts(true);
+        try {
+          const { data: sess } = await supabase.auth.getSession();
+          const token = sess?.session?.access_token;
+          const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-email-attachments`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token ?? ""}`,
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+            },
+            body: JSON.stringify({ email_id: email.id }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (json?.ok && json?.count > 0) {
+            docs = await loadAttachments();
+            toast.success(`${json.count} pièce(s) jointe(s) récupérée(s)`);
+          } else if (json?.error) {
+            toast.error(`PJ : ${json.error}`);
+          }
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Erreur récupération PJ");
+        } finally {
+          setFetchingAtts(false);
+        }
+      }
+      setAttachmentDocs(docs);
+    })();
   }, [open, email]);
+
 
   const runAi = async () => {
     setAnalyzing(true);
@@ -287,7 +325,7 @@ export function CreateTaskFromEmailDialog({
               </div>
             ) : email.has_attachment ? (
               <div className="flex items-center gap-1">
-                <Paperclip className="h-3 w-3" /> Pièces jointes détectées mais pas encore synchronisées — relance une synchro complète pour les rattacher.
+                <Paperclip className="h-3 w-3" /> {fetchingAtts ? "Récupération des pièces jointes depuis le mail…" : "Pièces jointes détectées mais non synchronisées."}
               </div>
             ) : null}
             {dueDate && <div>📊 La tâche apparaîtra dans le rétroplanning (Gantt)</div>}
