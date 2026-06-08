@@ -218,8 +218,11 @@ function InboxPage() {
   const discoverThemesFn = useServerFn(discoverThemes);
   const seedFoldersFn = useServerFn(seedThemesFromFolders);
   const setEmailThemeFn = useServerFn(setEmailTheme);
+  const mergeThemesFn = useServerFn(mergeThemes);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themesOpen, setThemesOpen] = useState(false);
+  const [dragTheme, setDragTheme] = useState<string | null>(null);
+  const [dropTargetTheme, setDropTargetTheme] = useState<string | null>(null);
   const [relaunching, setRelaunching] = useState(false);
   const [aiRanking, setAiRanking] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
