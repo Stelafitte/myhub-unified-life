@@ -777,6 +777,12 @@ export const setThemeScope = createServerFn({ method: "POST" })
       .update({ scope: data.scope })
       .eq("id", data.id)
       .eq("user_id", userId);
+    // Cascade scope to subthemes so the hierarchy stays consistent across tabs.
+    await supabase
+      .from("email_themes")
+      .update({ scope: data.scope })
+      .eq("user_id", userId)
+      .eq("parent_id", data.id);
     return { ok: !error, error: error?.message };
   });
 
