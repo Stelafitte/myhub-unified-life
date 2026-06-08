@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft } from "lucide-react";
+import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   getReport, upsertReport, fillExpenseTemplate, listTemplates,
@@ -16,6 +16,7 @@ import {
 import { generateExpensePDFClient } from "./expense-pdf";
 import { CATEGORY_META } from "./category-icons";
 import { ImportFromEmailDialog, type ImportedItem } from "./import-from-email-dialog";
+import { AIBatchExtractDialog, type AIExtractedLine } from "./ai-batch-extract-dialog";
 
 // helper not exported by server-fns — local copy
 type Item = {
