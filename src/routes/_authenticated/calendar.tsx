@@ -1753,7 +1753,7 @@ function EventDetail({
   };
   type MeetingState = {
     id: string;
-    importance: "low" | "normal" | "high" | "critical";
+    importance: Importance;
     notes: string;
     is_online: boolean;
     online_link: string;
@@ -1797,7 +1797,7 @@ function EventDetail({
     if (m) {
       setMeeting({
         id: m.id,
-        importance: (m.importance as MeetingState["importance"]) ?? "normal",
+        importance: normalizeImportance(m.importance),
         notes: m.notes ?? "",
         is_online: !!m.is_online,
         online_link: m.online_link ?? "",
@@ -1854,7 +1854,10 @@ function EventDetail({
     setMeeting({ ...m, ...patch });
     const { error } = await supabase.from("meetings").update(patch).eq("id", m.id);
     if (error) toast.error(error.message);
-    else requestAutoSync();
+    else {
+      onUpdated?.();
+      requestAutoSync();
+    }
   }
 
   useEffect(() => {
@@ -2040,12 +2043,15 @@ function EventDetail({
     }
   }
 
-  const importance = meeting?.importance ?? "normal";
+  const importance = meeting?.importance ?? event.importance;
 
   return (
-    <aside className="fixed inset-0 z-40 flex shrink-0 flex-col border-l bg-card lg:relative lg:inset-auto lg:z-auto lg:w-[420px]">
+    <aside
+      className="fixed inset-0 z-40 flex shrink-0 flex-col border-l bg-card lg:relative lg:inset-auto lg:z-auto lg:w-[420px]"
+      style={{ background: eventPanelBackground(event.color, importance) }}
+    >
       <header className="flex items-start gap-2 border-b p-4">
-        <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: event.color }} />
+        <span className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ background: eventColorByImportance(event.color, importance) }} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span>{event.badge}</span>
