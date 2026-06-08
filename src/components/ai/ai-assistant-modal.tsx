@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
 import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History, Reply, ReplyAll, Star, Clock, Shield, ShieldOff, RefreshCw, Minimize2, Maximize2, Mic, MicOff, Receipt } from "lucide-react";
 import { generateExpenseReport } from "@/lib/api/expense-report.functions";
+import { ExpenseReportDialog } from "@/components/ai/expense-report-dialog";
 import { useVoiceConversation } from "@/hooks/use-voice-conversation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,9 @@ export function AiAssistantModal({
   const [minimized, setMinimized] = useState(false);
   const [voiceLivePreview, setVoiceLivePreview] = useState("");
   const [pendingVoiceAction, setPendingVoiceAction] = useState<VoiceActionPlan | null>(null);
+  const [expenseOpen, setExpenseOpen] = useState(false);
+  const [expenseEmailIds, setExpenseEmailIds] = useState<string[]>([]);
+  const [expenseInstruction, setExpenseInstruction] = useState("");
   const run = useServerFn(aiAssistantQuery);
   const propose = useServerFn(aiProposeActions);
   const chatFn = useServerFn(aiChat);
@@ -259,6 +263,16 @@ export function AiAssistantModal({
       else if (kind === "document") navigate({ to: "/plan-operation", search: { documentId: id } as any });
       else if (kind === "contact") navigate({ to: "/contacts", search: { contactId: id } as any });
     }, 50);
+  };
+
+  const openExpenseDialog = (turn: Turn) => {
+    const emailIds = Array.from(turn.selectedMatches).filter(id =>
+      turn.result?.matches.find(m => m.id === id)?.kind === "email"
+    );
+    if (emailIds.length === 0) { toast.error("Sélectionnez au moins un email."); return; }
+    setExpenseEmailIds(emailIds);
+    setExpenseInstruction(turn.prompt);
+    setExpenseOpen(true);
   };
 
   const generateExpenseFor = async (turn: Turn) => {
@@ -596,7 +610,7 @@ export function AiAssistantModal({
                   {(() => {
                     const hasEmailSel = Array.from(t.selectedMatches).some(id => t.result?.matches.find(x => x.id === id)?.kind === "email");
                     return (
-                      <Button size="sm" variant="outline" disabled={t.proposing || !hasEmailSel} onClick={() => generateExpenseFor(t)} className="h-7 gap-1.5 text-xs">
+                      <Button size="sm" variant="outline" disabled={t.proposing || !hasEmailSel} onClick={() => openExpenseDialog(t)} className="h-7 gap-1.5 text-xs">
                         <Receipt className="h-3.5 w-3.5" />Note de frais
                       </Button>
                     );
@@ -748,6 +762,12 @@ export function AiAssistantModal({
         {inputBar}
         {previews}
       </DialogContent>
+      <ExpenseReportDialog
+        open={expenseOpen}
+        onOpenChange={setExpenseOpen}
+        emailIds={expenseEmailIds}
+        initialInstruction={expenseInstruction}
+      />
     </Dialog>
   );
 }
