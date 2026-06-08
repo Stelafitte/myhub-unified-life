@@ -69,7 +69,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
     queryFn: () => listGroupsFn(),
     enabled: open,
   });
-  const groups = (groupsQ.data?.groups ?? []) as Array<{ id: string; name: string; member_count?: number | null }>;
+  const groups = ((groupsQ.data?.groups ?? []) as unknown) as Array<{ id: string; name: string; member_count?: number | null }>;
 
   const [isPublic, setIsPublic] = useState(false);
   const [desc, setDesc] = useState("");
