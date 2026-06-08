@@ -56,15 +56,6 @@ export async function deduplicateCalendarEventsForUser(userId: string): Promise<
   let removed = 0;
   for (const group of groups.values()) {
     if (group.length < 2) continue;
-    const isSyncRelated = group.some(
-      (ev) =>
-        !!ev.google_event_id ||
-        !!ev.gcal_connection_id ||
-        !!ev.outlook_event_id ||
-        !!ev.outlook_connection_id ||
-        (!!ev.source && ev.source !== "manual"),
-    );
-    if (!isSyncRelated) continue;
 
     const [keep, ...duplicates] = [...group].sort((a, b) => {
       const scoreDelta = dedupScore(b) - dedupScore(a);
