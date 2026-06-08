@@ -202,7 +202,7 @@ export function GroupMembersDialog({
       await addFn({
         data: {
           groupId,
-          members: [{ contact_id: c.id, added_by: "user" }],
+          members: [{ contact_id: c.id, added_by: "manual" }],
         },
       });
       await load();
@@ -230,7 +230,7 @@ export function GroupMembersDialog({
       await addFn({
         data: {
           groupId,
-          members: [{ external_email: v, added_by: "user" }],
+          members: [{ external_email: v, added_by: "manual" }],
         },
       });
       setExternalInput("");
