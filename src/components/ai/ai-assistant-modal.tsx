@@ -593,6 +593,14 @@ export function AiAssistantModal({
                       </Button>
                     );
                   })}
+                  {(() => {
+                    const hasEmailSel = Array.from(t.selectedMatches).some(id => t.result?.matches.find(x => x.id === id)?.kind === "email");
+                    return (
+                      <Button size="sm" variant="outline" disabled={t.proposing || !hasEmailSel} onClick={() => generateExpenseFor(t)} className="h-7 gap-1.5 text-xs">
+                        <Receipt className="h-3.5 w-3.5" />Note de frais
+                      </Button>
+                    );
+                  })()}
                   {t.proposing && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                 </div>
 
