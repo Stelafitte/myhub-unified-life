@@ -16,6 +16,7 @@ import { SpacePollsTab } from "./space-polls-tab";
 import { SpaceShareButton } from "./space-share-button";
 import { CollabDashboard } from "./collab-dashboard";
 import { GroupFormDialog } from "@/components/contacts/group-form-dialog";
+import { SpaceContactGroupsBar } from "./space-contact-groups-bar";
 import { getSpaceTree, getSpaceActivity } from "@/lib/collab.functions";
 import { useAuth } from "@/lib/auth-context";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -35,6 +36,7 @@ export function SpaceWorkspace() {
   const [rightOpen, setRightOpen] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
   const [groupFromSpaceOpen, setGroupFromSpaceOpen] = useState(false);
+  const [contactGroupsKey, setContactGroupsKey] = useState(0);
 
   const treeFn = useServerFn(getSpaceTree);
   const { data: tree } = useQuery({
@@ -190,6 +192,10 @@ export function SpaceWorkspace() {
                   </TabsTrigger>
                 </TabsList>
 
+                <SpaceContactGroupsBar key={`${active.id}-${contactGroupsKey}`} spaceId={active.id} />
+
+
+
                 <TabsContent value="chat" className="flex-1 min-h-0 mt-2">
                   {user && <SpaceChat spaceId={active.id} currentUserId={user.id} />}
                 </TabsContent>
@@ -244,10 +250,14 @@ export function SpaceWorkspace() {
         <GroupFormDialog
           open={groupFromSpaceOpen}
           onOpenChange={setGroupFromSpaceOpen}
-          onCreated={() => setGroupFromSpaceOpen(false)}
+          onCreated={() => {
+            setGroupFromSpaceOpen(false);
+            setContactGroupsKey((k) => k + 1);
+          }}
           defaultSpaceId={active.id}
           defaultType="space"
         />
+
       )}
     </div>
   );

@@ -245,7 +245,7 @@ export const getGroupMembers = createServerFn({ method: "POST" })
     // ownership check via group
     const { data: grp } = await supabase
       .from("collab_contact_groups")
-      .select("id, user_id, name, group_type, smart_rules, space_id, last_synced_at")
+      .select("id, user_id, name, description, group_type, smart_rules, space_id, last_synced_at")
       .eq("id", data.groupId)
       .single();
     if (!grp || grp.user_id !== userId) throw new Error("Groupe introuvable");
