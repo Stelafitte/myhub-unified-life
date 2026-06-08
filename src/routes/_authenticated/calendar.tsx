@@ -250,6 +250,7 @@ function AgendaPage() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [events, setEvents] = useState<DbEvent[]>([]);
   const [tasks, setTasks] = useState<TaskRow[]>([]);
+  const [eventImportanceById, setEventImportanceById] = useState<Record<string, Importance>>({});
   const [selected, setSelected] = useState<UnifiedEvent | null>(null);
   const lastClickRef = React.useRef<{ id: string; time: number } | null>(null);
   const handleSelectEvent = (e: UnifiedEvent) => {
@@ -339,14 +340,22 @@ function AgendaPage() {
     if (cEvs.length) setEvents(cEvs);
     if (cTks.length) setTasks(cTks as TaskRow[]);
     if (!navigator.onLine) return;
-    const [{ data: accs }, { data: evs }, { data: tks }] = await Promise.all([
+    const [{ data: accs }, { data: evs }, { data: tks }, { data: mtgs }] = await Promise.all([
       supabase.from("accounts").select("id,name,type,color,sync_direction").order("created_at"),
       supabase.from("calendar_events").select("*").order("start_at"),
       supabase.from("tasks").select("id,title,due_date,description").not("due_date", "is", null),
+      supabase.from("meetings").select("calendar_event_id, importance").not("calendar_event_id", "is", null),
     ]);
     if (accs) { setAccounts(accs as Account[]); cacheReplaceAll("accounts", accs as Account[]).catch(() => {}); }
     if (evs) { setEvents(evs as DbEvent[]); cacheReplaceAll("calendar_events", evs as DbEvent[]).catch(() => {}); }
     if (tks) { setTasks(tks as TaskRow[]); /* don't overwrite full tasks cache from partial select */ }
+    if (mtgs) {
+      const next: Record<string, Importance> = {};
+      (mtgs as { calendar_event_id: string | null; importance: unknown }[]).forEach((m) => {
+        if (m.calendar_event_id) next[m.calendar_event_id] = normalizeImportance(m.importance);
+      });
+      setEventImportanceById(next);
+    }
   };
 
   const runSync = async (silent = false) => {
@@ -441,6 +450,7 @@ function AgendaPage() {
           isAllDay: e.is_all_day,
           hasVideo: VIDEO_RX.test(blob),
           category: cat,
+          importance: eventImportanceById[e.id] ?? "normal",
           raw: e,
         });
       };
@@ -469,7 +479,7 @@ function AgendaPage() {
       }
     }
     return items.sort((a, b) => a.start.getTime() - b.start.getTime());
-  }, [events, tasks, accById, catColors, hiddenConns]);
+  }, [events, tasks, accById, catColors, hiddenConns, eventImportanceById]);
 
 
   // Range for current view
