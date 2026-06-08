@@ -172,7 +172,45 @@ export function SpaceTree({ activeSpaceId, onSelect }: Props) {
             <span className="w-4" />
           )}
           <span className="shrink-0">{node.icon ?? "📁"}</span>
-          <span className="truncate">{node.name}</span>
+          <span className="truncate flex-1">{node.name}</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-muted rounded"
+                title="Actions"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setNewParent(node.id);
+                  setNewName("");
+                  setCreating(true);
+                }}
+              >
+                <FolderPlus className="h-4 w-4 mr-2" /> Nouveau sous-dossier
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setRenameValue(node.name);
+                  setRenaming({ id: node.id, name: node.name });
+                }}
+              >
+                <Pencil className="h-4 w-4 mr-2" /> Renommer
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={() => setDeleting({ id: node.id, name: node.name })}
+              >
+                <Trash2 className="h-4 w-4 mr-2" /> Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         {hasChildren && !isCollapsed && children.map((c) => renderNode(c, depth + 1))}
       </div>
