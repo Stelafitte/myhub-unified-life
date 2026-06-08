@@ -749,7 +749,7 @@ function InboxPage() {
   // Classement IA : regroupe la liste filtrée par thème, thèmes triés par
   // date du mail le plus récent. Émet une séquence d'entrées (en-tête + emails).
   type RenderItem =
-    | { kind: "header"; key: string; label: string; count: number; ids: string[] }
+    | { kind: "header"; key: string; label: string; count: number; ids: string[]; depth: number }
     | { kind: "email"; email: Email };
   const [collapsedThemes, setCollapsedThemes] = useState<Set<string>>(new Set());
   const toggleTheme = (key: string) =>
@@ -772,22 +772,44 @@ function InboxPage() {
         if (ts > g.ts) g.ts = ts;
       } else groups.set(key, { ts, emails: [e] });
     }
-    // Pondération par utilité du thème : fort > modéré > faible.
-    // Les thèmes "faible" (ex. commerciaux/newsletters) sont rétrogradés
-    // sous les thèmes utiles, même s'ils contiennent des mails plus récents.
     const utilityRank: Record<string, number> = { fort: 3, modere: 2, faible: 1 };
-    const ordered = [...groups.entries()].sort((a, b) => {
-      if (a[0] === NO_THEME) return 1;
-      if (b[0] === NO_THEME) return -1;
-      const ta = themeById.get(a[0]);
-      const tb = themeById.get(b[0]);
-      const ua = utilityRank[ta?.utility_level ?? "modere"] ?? 2;
-      const ub = utilityRank[tb?.utility_level ?? "modere"] ?? 2;
+    const scoreOf = (key: string): [number, number] => {
+      if (key === NO_THEME) return [-Infinity, 0];
+      const t = themeById.get(key);
+      const u = utilityRank[t?.utility_level ?? "modere"] ?? 2;
+      return [u, groups.get(key)?.ts ?? 0];
+    };
+    const cmp = (a: string, b: string) => {
+      if (a === NO_THEME) return 1;
+      if (b === NO_THEME) return -1;
+      const [ua, ta] = scoreOf(a);
+      const [ub, tb] = scoreOf(b);
       if (ua !== ub) return ub - ua;
-      return b[1].ts - a[1].ts;
-    });
+      return tb - ta;
+    };
+    // Sépare en racines (sans parent, ou parent absent du groupe) et enfants.
+    const allKeys = [...groups.keys()];
+    const isRoot = (k: string) => {
+      if (k === NO_THEME) return true;
+      const t = themeById.get(k);
+      return !t?.parent_id || !groups.has(t.parent_id);
+    };
+    const rootKeys = allKeys.filter(isRoot).sort(cmp);
+    const childrenOf = new Map<string, string[]>();
+    for (const k of allKeys) {
+      if (isRoot(k)) continue;
+      const pid = themeById.get(k)?.parent_id;
+      if (!pid) continue;
+      const arr = childrenOf.get(pid) ?? [];
+      arr.push(k);
+      childrenOf.set(pid, arr);
+    }
+    for (const arr of childrenOf.values()) arr.sort(cmp);
+
     const out: RenderItem[] = [];
-    for (const [key, g] of ordered) {
+    const emit = (key: string, depth: number) => {
+      const g = groups.get(key);
+      if (!g) return;
       g.emails.sort(
         (a, b) =>
           (b.received_at ? new Date(b.received_at).getTime() : 0) -
@@ -801,11 +823,17 @@ function InboxPage() {
         label: t?.name ?? "Sans thème",
         count: g.emails.length,
         ids: g.emails.map((e) => e.id),
+        depth,
       });
-      if (!collapsed) for (const e of g.emails) out.push({ kind: "email", email: e });
-    }
+      if (!collapsed) {
+        for (const e of g.emails) out.push({ kind: "email", email: e });
+        for (const childKey of childrenOf.get(key) ?? []) emit(childKey, depth + 1);
+      }
+    };
+    for (const k of rootKeys) emit(k, 0);
     return out;
   }, [filtered, aiRanking, themeById, collapsedThemes]);
+
 
   const selected = useMemo(
     () => emails.find((e) => e.id === selectedId) ?? null,
@@ -2353,8 +2381,12 @@ function InboxPage() {
                     <ChevronDown className="h-3 w-3 text-primary" />
                   )}
                   <Sparkles className="h-3 w-3 text-primary" />
-                  <span className="truncate">{item.label}</span>
+                  {item.depth > 0 && <span className="text-primary/70">↳</span>}
+                  <span className="truncate" style={item.depth > 0 ? { paddingLeft: item.depth * 12 } : undefined}>
+                    {item.label}
+                  </span>
                   <span className="ml-auto text-[10px] font-normal">{item.count}</span>
+
                 </li>
               );
             }
