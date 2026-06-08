@@ -48,7 +48,7 @@ function MemberPreview({ groupId }: { groupId: string }) {
     setLoading(true);
     getFn({ data: { groupId } })
       .then((r) => {
-        if (!cancel) setMembers((r.members ?? []) as Member[]);
+        if (!cancel) setMembers((r.members ?? []) as unknown as Member[]);
       })
       .finally(() => {
         if (!cancel) setLoading(false);
