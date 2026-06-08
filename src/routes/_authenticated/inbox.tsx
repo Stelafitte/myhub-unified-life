@@ -2540,8 +2540,20 @@ function InboxPage() {
                 onAction: () => remove(e),
               },
             ];
+            const dragIds = checked.has(e.id) ? Array.from(checked) : [e.id];
             return (
-              <li key={e.id} className="list-none">
+              <li
+                key={e.id}
+                className="list-none"
+                draggable={!isMobileInbox}
+                onDragStart={(ev) => {
+                  if (isMobileInbox) return;
+                  ev.dataTransfer.effectAllowed = "move";
+                  ev.dataTransfer.setData("application/x-email-ids", JSON.stringify(dragIds));
+                  setDragEmailCount(dragIds.length);
+                }}
+                onDragEnd={() => setDragEmailCount(0)}
+              >
                 {isMobileInbox ? (
                   <SwipeableRow leftActions={leftActions} rightActions={rightActions}>
                     {rowInner}
