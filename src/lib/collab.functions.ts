@@ -1044,7 +1044,7 @@ export const listSpaceGuests = createServerFn({ method: "GET" })
     return { guests: rows ?? [] };
   });
 
-/** Ajoute un invité (génère un access_token unique). */
+/** Ajoute un invité (génère un access_token unique) et envoie optionnellement l'email d'invitation. */
 export const addSpaceGuest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -1054,6 +1054,8 @@ export const addSpaceGuest = createServerFn({ method: "POST" })
         name: z.string().min(1).max(160),
         email: z.string().email().max(255).nullable().optional(),
         role: z.enum(["viewer", "contributor"]).default("viewer"),
+        sendInvitation: z.boolean().optional(),
+        appOrigin: z.string().url().optional(),
       })
       .parse(input),
   )
@@ -1071,7 +1073,203 @@ export const addSpaceGuest = createServerFn({ method: "POST" })
       .select("id,name,email,role,access_token,status,created_at")
       .single();
     if (error) throw new Error(error.message);
-    return { guest: row };
+
+    let emailSent = false;
+    let emailReason: string | undefined;
+    if (data.sendInvitation && data.email && row?.access_token) {
+      const [{ data: space }, { data: profile }] = await Promise.all([
+        supabase
+          .from("collab_spaces")
+          .select("name,public_token,public_description,is_public")
+          .eq("id", data.spaceId)
+          .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("display_name,first_name,last_name,email")
+          .eq("id", userId)
+          .maybeSingle(),
+      ]);
+      if (space?.public_token && space.is_public) {
+        const origin = data.appOrigin?.replace(/\/$/, "") ?? "";
+        const accessUrl = `${origin}/space/${space.public_token}?g=${row.access_token}`;
+        const inviterName =
+          profile?.display_name ||
+          [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+          profile?.email ||
+          "Un collaborateur";
+        const { sendTransactionalEmailServer } = await import("@/lib/email/send.server");
+        const result = await sendTransactionalEmailServer({
+          templateName: "space-invitation",
+          recipientEmail: data.email,
+          idempotencyKey: `space-invite-${row.id}`,
+          templateData: {
+            guestName: row.name,
+            inviterName,
+            spaceName: space.name,
+            spaceDescription: space.public_description,
+            role: row.role,
+            accessUrl,
+          },
+        });
+        emailSent = result.success;
+        emailReason = result.reason;
+      } else {
+        emailReason = "space_not_public";
+      }
+    }
+    return { guest: row, emailSent, emailReason };
+  });
+
+/** Ajoute plusieurs invités à partir d'un groupe de contacts et envoie l'invitation. */
+export const addSpaceGuestsFromGroup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        spaceId: z.string().uuid(),
+        groupId: z.string().uuid(),
+        role: z.enum(["viewer", "contributor"]).default("viewer"),
+        sendInvitation: z.boolean().default(true),
+        appOrigin: z.string().url().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // Ownership check + load group
+    const { data: grp } = await supabase
+      .from("collab_contact_groups")
+      .select("id, user_id")
+      .eq("id", data.groupId)
+      .maybeSingle();
+    if (!grp || grp.user_id !== userId) throw new Error("Groupe introuvable");
+
+    // Load space (for invitation email)
+    const { data: space } = await supabase
+      .from("collab_spaces")
+      .select("id,user_id,name,public_token,public_description,is_public")
+      .eq("id", data.spaceId)
+      .maybeSingle();
+    if (!space || space.user_id !== userId) throw new Error("Projet introuvable");
+
+    // Members
+    const { data: members } = await supabase
+      .from("contact_group_members")
+      .select("contact_id, external_email, external_name")
+      .eq("group_id", data.groupId);
+
+    const contactIds = (members ?? [])
+      .map((m) => m.contact_id)
+      .filter((x): x is string => !!x);
+    let contactsById: Record<string, { email: string | null; first_name: string | null; last_name: string | null }> = {};
+    if (contactIds.length > 0) {
+      const { data: cs } = await supabase
+        .from("contacts")
+        .select("id, email, first_name, last_name")
+        .in("id", contactIds);
+      contactsById = Object.fromEntries(
+        (cs ?? []).map((c) => [
+          c.id,
+          { email: c.email, first_name: c.first_name, last_name: c.last_name },
+        ]),
+      );
+    }
+
+    // Existing guests (avoid duplicates by email)
+    const { data: existingGuests } = await supabase
+      .from("collab_guests")
+      .select("email")
+      .eq("space_id", data.spaceId)
+      .eq("user_id", userId);
+    const existingEmails = new Set(
+      (existingGuests ?? [])
+        .map((g) => (g.email || "").toLowerCase())
+        .filter(Boolean),
+    );
+
+    // Build recipient list (dedupe by email)
+    type R = { name: string; email: string };
+    const recipients: R[] = [];
+    const seen = new Set<string>();
+    for (const m of members ?? []) {
+      const c = m.contact_id ? contactsById[m.contact_id] : null;
+      const email = (c?.email || m.external_email || "").trim();
+      if (!email) continue;
+      const low = email.toLowerCase();
+      if (seen.has(low) || existingEmails.has(low)) continue;
+      seen.add(low);
+      const name =
+        [c?.first_name, c?.last_name].filter(Boolean).join(" ").trim() ||
+        m.external_name ||
+        email.split("@")[0];
+      recipients.push({ name, email });
+    }
+
+    if (recipients.length === 0) {
+      return { added: 0, invited: 0, skipped: 0, total: (members ?? []).length };
+    }
+
+    // Inviter profile
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name,first_name,last_name,email")
+      .eq("id", userId)
+      .maybeSingle();
+    const inviterName =
+      profile?.display_name ||
+      [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+      profile?.email ||
+      "Un collaborateur";
+
+    let added = 0;
+    let invited = 0;
+    const origin = data.appOrigin?.replace(/\/$/, "") ?? "";
+    const canSend = data.sendInvitation && space.is_public && !!space.public_token;
+    const { sendTransactionalEmailServer } = canSend
+      ? await import("@/lib/email/send.server")
+      : ({ sendTransactionalEmailServer: null } as const);
+
+    for (const r of recipients) {
+      const { data: inserted, error: insErr } = await supabase
+        .from("collab_guests")
+        .insert({
+          space_id: data.spaceId,
+          user_id: userId,
+          name: r.name,
+          email: r.email,
+          role: data.role,
+        })
+        .select("id,access_token,name,role")
+        .single();
+      if (insErr || !inserted) continue;
+      added++;
+
+      if (canSend && sendTransactionalEmailServer) {
+        const accessUrl = `${origin}/space/${space.public_token}?g=${inserted.access_token}`;
+        const res = await sendTransactionalEmailServer({
+          templateName: "space-invitation",
+          recipientEmail: r.email,
+          idempotencyKey: `space-invite-${inserted.id}`,
+          templateData: {
+            guestName: inserted.name,
+            inviterName,
+            spaceName: space.name,
+            spaceDescription: space.public_description,
+            role: inserted.role,
+            accessUrl,
+          },
+        });
+        if (res.success) invited++;
+      }
+    }
+
+    return {
+      added,
+      invited,
+      skipped: (members ?? []).length - added,
+      total: (members ?? []).length,
+    };
   });
 
 /** Met à jour le rôle d'un invité. */
