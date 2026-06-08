@@ -62,7 +62,9 @@ export function SpaceTree({ activeSpaceId, onSelect }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const spaces = (data?.spaces ?? []) as SpaceNode[];
+  const spaces = ((data?.spaces ?? []) as SpaceNode[]).filter(
+    (s) => !/^wa\s*:/i.test(s.name.trim()),
+  );
 
   const { roots, byParent } = useMemo(() => {
     const filt = filter.trim().toLowerCase();
