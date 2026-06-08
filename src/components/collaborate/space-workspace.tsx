@@ -250,10 +250,14 @@ export function SpaceWorkspace() {
         <GroupFormDialog
           open={groupFromSpaceOpen}
           onOpenChange={setGroupFromSpaceOpen}
-          onCreated={() => setGroupFromSpaceOpen(false)}
+          onCreated={() => {
+            setGroupFromSpaceOpen(false);
+            setContactGroupsKey((k) => k + 1);
+          }}
           defaultSpaceId={active.id}
           defaultType="space"
         />
+
       )}
     </div>
   );
