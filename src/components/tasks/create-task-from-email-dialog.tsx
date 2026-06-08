@@ -325,7 +325,7 @@ export function CreateTaskFromEmailDialog({
               </div>
             ) : email.has_attachment ? (
               <div className="flex items-center gap-1">
-                <Paperclip className="h-3 w-3" /> Pièces jointes détectées mais pas encore synchronisées — relance une synchro complète pour les rattacher.
+                <Paperclip className="h-3 w-3" /> {fetchingAtts ? "Récupération des pièces jointes depuis le mail…" : "Pièces jointes détectées mais non synchronisées."}
               </div>
             ) : null}
             {dueDate && <div>📊 La tâche apparaîtra dans le rétroplanning (Gantt)</div>}
