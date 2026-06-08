@@ -624,42 +624,11 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
 
 
       // ---- Anti-duplication cleanup ----
-      // Supprime les éventuels doublons déjà présents : pour chaque couple
-      // (titre, start_at) du user, on garde la ligne liée à Google
-      // (google_event_id non null) et on supprime les copies locales
-      // orphelines de même titre/start.
+      // Contrôle systématique après chaque synchro : supprime les doublons / triplets
+      // identiques (titre, dates, lieu, journée entière), en gardant la version liée
+      // à une source synchronisée quand elle existe.
       try {
-        const { data: linked } = await supabaseAdmin
-          .from("calendar_events")
-          .select("id, title, start_at")
-          .eq("user_id", userId)
-          .eq("gcal_connection_id", conn.id)
-          .not("google_event_id", "is", null);
-        if (linked && linked.length > 0) {
-          const titles = Array.from(new Set(linked.map((r) => r.title)));
-          const starts = Array.from(new Set(linked.map((r) => r.start_at)));
-          const { data: orphanDupes } = await supabaseAdmin
-            .from("calendar_events")
-            .select("id, title, start_at")
-            .eq("user_id", userId)
-            .is("google_event_id", null)
-            .in("title", titles)
-            .in("start_at", starts);
-          const dupIds: string[] = [];
-          for (const o of orphanDupes ?? []) {
-            const hit = linked.find(
-              (l) =>
-                l.title === o.title &&
-                new Date(l.start_at as string).getTime() ===
-                  new Date(o.start_at as string).getTime(),
-            );
-            if (hit) dupIds.push(o.id);
-          }
-          if (dupIds.length > 0) {
-            await supabaseAdmin.from("calendar_events").delete().in("id", dupIds);
-            console.log(`Deduplicated ${dupIds.length} calendar event(s)`);
-          }
-        }
+        totalDeduped += await deduplicateCalendarEventsForUser(userId);
       } catch (e) {
         console.warn("Dedup pass skipped", e);
       }
@@ -670,7 +639,7 @@ export const syncGoogleCalendarEvents = createServerFn({ method: "POST" })
         .eq("id", conn.id);
     }
 
-    return { synced: totalSynced, pushed: totalPushed, connections: connections.length };
+    return { synced: totalSynced, pushed: totalPushed, deduped: totalDeduped, connections: connections.length };
   });
 
 /**
