@@ -130,6 +130,9 @@ export function useSyncStatus() {
           );
         }
         if (calJobs.length > 0) await Promise.all(calJobs);
+        if (typeof window !== "undefined" && calJobs.length > 0) {
+          window.dispatchEvent(new CustomEvent("calendar-synced"));
+        }
       } catch (e) {
         console.warn("[sync] calendar sync skipped", e);
       }
