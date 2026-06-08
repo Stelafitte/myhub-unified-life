@@ -35,6 +35,7 @@ export function CollabDashboard({ onSelect }: Props) {
     tree?.spaces.find((s) => s.id === id)?.name ?? "(espace)";
   const spaceIcon = (id: string) =>
     tree?.spaces.find((s) => s.id === id)?.icon ?? "📁";
+  const isWaSpace = (id: string) => /^wa\s*:/i.test(spaceName(id).trim());
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
