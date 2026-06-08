@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { deduplicateCalendarEventsForUser } from "@/lib/calendar-dedup.server";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/microsoft_outlook";
 
@@ -22,6 +23,13 @@ export const syncOutlookCalendarEvents = createServerFn({ method: "POST" })
   .inputValidator(z.object({}).optional())
   .handler(async ({ context }) => {
     const { userId } = context as { userId: string };
+    let totalDeduped = 0;
+
+    try {
+      totalDeduped += await deduplicateCalendarEventsForUser(userId);
+    } catch (e) {
+      console.warn("Outlook calendar pre-sync deduplication skipped", e);
+    }
 
     const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
     const OUTLOOK_KEY = process.env.MICROSOFT_OUTLOOK_API_KEY;
@@ -38,7 +46,7 @@ export const syncOutlookCalendarEvents = createServerFn({ method: "POST" })
       .maybeSingle();
     if (accErr) throw new Error(accErr.message);
     if (!account) {
-      return { synced: 0, message: "Aucun compte Outlook actif" };
+      return { synced: 0, deduped: totalDeduped, message: "Aucun compte Outlook actif" };
     }
 
     const headers = {
@@ -117,5 +125,11 @@ export const syncOutlookCalendarEvents = createServerFn({ method: "POST" })
       .update({ last_sync_at: new Date().toISOString() })
       .eq("id", account.id);
 
-    return { synced: totalSynced };
+    try {
+      totalDeduped += await deduplicateCalendarEventsForUser(userId);
+    } catch (e) {
+      console.warn("Outlook calendar post-sync deduplication skipped", e);
+    }
+
+    return { synced: totalSynced, deduped: totalDeduped };
   });
