@@ -20,6 +20,7 @@ export type Theme = {
   last_email_at: string | null;
   utility_level: ThemeUtility;
   scope: ThemeScope;
+  parent_id: string | null;
 };
 
 // ---------- List ----------
@@ -597,6 +598,7 @@ const CreateThemeInput = z.object({
   name: z.string().min(1).max(80),
   description: z.string().max(280).optional(),
   keywords: z.array(z.string()).max(10).optional(),
+  parent_id: z.string().uuid().nullable().optional(),
 });
 
 export const createTheme = createServerFn({ method: "POST" })
@@ -604,6 +606,16 @@ export const createTheme = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => CreateThemeInput.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    let scope: ThemeScope | undefined;
+    if (data.parent_id) {
+      const { data: parent } = await supabase
+        .from("email_themes")
+        .select("scope")
+        .eq("id", data.parent_id)
+        .eq("user_id", userId)
+        .single();
+      if (parent?.scope === "pro" || parent?.scope === "perso") scope = parent.scope;
+    }
     const { data: row, error } = await supabase
       .from("email_themes")
       .insert({
@@ -612,11 +624,41 @@ export const createTheme = createServerFn({ method: "POST" })
         description: data.description ?? null,
         keywords: data.keywords ?? [],
         source: "manual",
+        parent_id: data.parent_id ?? null,
+        ...(scope ? { scope } : {}),
       })
       .select("*")
       .single();
     if (error) return { theme: null, error: error.message };
     return { theme: row as Theme };
+  });
+
+const SetParentInput = z.object({
+  id: z.string().uuid(),
+  parent_id: z.string().uuid().nullable(),
+});
+export const setThemeParent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => SetParentInput.parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    if (data.parent_id === data.id) return { ok: false, error: "Un thème ne peut être son propre parent" };
+    if (data.parent_id) {
+      // Prevent 2-level cycle: parent must not itself be a child of this theme.
+      const { data: parent } = await supabase
+        .from("email_themes")
+        .select("parent_id")
+        .eq("id", data.parent_id)
+        .eq("user_id", userId)
+        .single();
+      if (parent?.parent_id === data.id) return { ok: false, error: "Cycle de parenté détecté" };
+    }
+    const { error } = await supabase
+      .from("email_themes")
+      .update({ parent_id: data.parent_id })
+      .eq("id", data.id)
+      .eq("user_id", userId);
+    return { ok: !error, error: error?.message };
   });
 
 const RenameInput = z.object({ id: z.string().uuid(), name: z.string().min(1).max(80) });
