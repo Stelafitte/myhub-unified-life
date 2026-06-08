@@ -172,7 +172,9 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const messages = (data?.messages ?? []) as Msg[];
+  const messages = ((data?.messages ?? []) as Msg[]).filter(
+    (m) => (m.metadata as { is_imported?: boolean } | null)?.is_imported !== true,
+  );
 
   const handleSubmit = () => {
     const c = draft.trim();
