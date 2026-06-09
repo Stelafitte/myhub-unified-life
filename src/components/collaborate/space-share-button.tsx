@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Share2, Copy, ExternalLink, Loader2, UserPlus, Trash2, Users, Mail, Send } from "lucide-react";
+import { Share2, Copy, ExternalLink, Loader2, UserPlus, Trash2, Users, Mail, Send, MailPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
