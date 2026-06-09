@@ -70,6 +70,25 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   });
   const guests = guestsQ.data?.guests ?? [];
 
+  const historyKey = ["space-guest-history", spaceId];
+  const historyQ = useQuery({
+    queryKey: historyKey,
+    queryFn: () => historyFn({ data: { spaceId } }),
+    enabled: open,
+  });
+  const history = historyQ.data?.history ?? [];
+  const historyByEmail = useMemo(() => {
+    const map = new Map<string, typeof history>();
+    for (const h of history) {
+      const k = (h.recipient_email || "").toLowerCase();
+      const arr = map.get(k) ?? [];
+      arr.push(h);
+      map.set(k, arr);
+    }
+    return map;
+  }, [history]);
+  const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
+
   const groupsQ = useQuery({
     queryKey: ["contact-groups"],
     queryFn: () => listGroupsFn(),
