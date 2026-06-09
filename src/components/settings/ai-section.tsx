@@ -28,6 +28,7 @@ type AiPrefs = {
   suggestions: boolean;
   hdsDetection: boolean;
   hdsLevel: "low" | "normal" | "high";
+  trashThreshold: number;
 };
 
 const DEFAULT: AiPrefs = {
@@ -39,6 +40,7 @@ const DEFAULT: AiPrefs = {
   suggestions: true,
   hdsDetection: true,
   hdsLevel: "normal",
+  trashThreshold: 70,
 };
 
 export function AiSection() {
