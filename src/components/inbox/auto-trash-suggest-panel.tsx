@@ -123,7 +123,7 @@ export function AutoTrashSuggestPanel({ emails, onTrashed, threshold = 70 }: Pro
   }
 
   return (
-    <div className="border-b bg-amber-500/10 px-4 py-2 text-xs">
+    <div className="border-b bg-amber-500/10 px-3 py-2 text-xs sm:px-4">
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-600" />
         <span className="shrink-0 font-medium text-amber-700 dark:text-amber-400">
