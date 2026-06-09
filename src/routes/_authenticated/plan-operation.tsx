@@ -15,6 +15,8 @@ import {
   Trash2,
   Pencil,
   ExternalLink,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
