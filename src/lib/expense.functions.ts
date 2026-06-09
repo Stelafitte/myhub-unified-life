@@ -56,6 +56,7 @@ const ReportUpsert = z.object({
   id: z.string().uuid().optional(),
   title: z.string().min(1).max(255),
   mission_object: z.string().max(500).nullable().optional().default(null),
+  mission_description: z.string().max(4000).nullable().optional().default(null),
   mission_context: z.enum(["congres", "formation", "reunion", "enseignement", "recherche", "autre"]).nullable().optional().default(null),
   organization: z.string().max(255).nullable().optional().default(null),
   mission_number: z.string().max(100).nullable().optional().default(null),
@@ -68,6 +69,7 @@ const ReportUpsert = z.object({
   signature_location: z.string().max(100).default("Bordeaux"),
   signature_date: z.string().nullable().optional().default(null),
   notes: z.string().max(4000).nullable().optional().default(null),
+  recipient_email: z.string().max(320).nullable().optional().default(null),
   source_email_id: z.string().uuid().nullable().optional().default(null),
   items: z.array(ItemInput).default([]),
 });
