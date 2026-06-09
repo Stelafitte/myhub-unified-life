@@ -1784,7 +1784,7 @@ export const listSpaceCollaborators = createServerFn({ method: "GET" })
       { id: string; role: string; status: string; last_active_at: string | null }
     >();
     for (const g of guests ?? []) {
-      if (g.email) guestByEmail.set(g.email.toLowerCase(), g);
+      if (g.email) guestByEmail.set(g.email.toLowerCase(), { id: g.id, role: g.role, status: g.status, last_active_at: g.last_active_at });
     }
 
     // Build merged collaborators list, deduped by lowercased email (or by name when no email)
