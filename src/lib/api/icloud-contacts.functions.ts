@@ -131,7 +131,16 @@ export const connectICloudContacts = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId } = context;
-    const auth = authHeader(data.appleId, data.appPassword);
+    // Normalise: enlève espaces (utilisateur copie souvent "xxxx xxxx xxxx xxxx")
+    const normalizedPwd = data.appPassword.replace(/\s+/g, "");
+    // Garde-fou: format app-specific = 16 alphanum, ou 19 avec tirets (xxxx-xxxx-xxxx-xxxx)
+    const isAppSpecific = /^[a-z0-9]{16}$/i.test(normalizedPwd) || /^[a-z0-9]{4}(-[a-z0-9]{4}){3}$/i.test(normalizedPwd);
+    if (!isAppSpecific) {
+      throw new Error(
+        "Le mot de passe ne ressemble pas à un mot de passe d'application Apple (attendu : xxxx-xxxx-xxxx-xxxx, 16 caractères). Génère-le sur appleid.apple.com → Connexion et sécurité → Mots de passe pour applications."
+      );
+    }
+    const auth = authHeader(data.appleId, normalizedPwd);
 
     // Verify credentials by discovering principal + addressbook
     const { principal, addressbook } = await discoverAddressbook(auth);
