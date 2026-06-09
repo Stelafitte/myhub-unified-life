@@ -34,7 +34,7 @@ export const suggestTrashCandidates = createServerFn({ method: "POST" })
       .limit(60);
 
     // Mails candidats : non lus / non archivés / non corbeille / non envoyés
-    const { data: candidates } = await supabase
+    const { data: candidates } = await (supabase as unknown as { from: (t: string) => { select: (s: string) => { eq: (a: string, b: string) => { is: (a: string, b: null) => { neq: (a: string, b: string) => { order: (a: string, b: { ascending: boolean }) => { limit: (n: number) => Promise<{ data: Array<{ id: string; from_address: string | null; from_name: string | null; subject: string | null; ai_category: string | null; ai_summary: string | null; spam_label: string | null; received_at: string | null; direction: string | null }> | null }> } } } } } })
       .from("emails")
       .select("id,from_address,from_name,subject,ai_category,ai_summary,spam_label,received_at,direction")
       .eq("user_id", userId)
@@ -42,6 +42,7 @@ export const suggestTrashCandidates = createServerFn({ method: "POST" })
       .neq("direction", "outbound")
       .order("received_at", { ascending: false })
       .limit(data.limit);
+
 
     if (!candidates || candidates.length === 0) return { suggestions: [] as Suggestion[] };
 
