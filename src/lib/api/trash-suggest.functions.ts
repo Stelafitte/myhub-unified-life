@@ -157,7 +157,9 @@ export const recordTrashDecisions = createServerFn({ method: "POST" })
         ai_score: d.ai_score ?? null,
       };
     });
-    const { error } = await supabase.from("trash_feedback").insert(inserts);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error } = await (supabase as any).from("trash_feedback").insert(inserts);
+
     if (error) throw new Error(error.message);
     return { ok: true };
   });
