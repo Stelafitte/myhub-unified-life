@@ -311,8 +311,14 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
         <Button size="sm" variant="outline" onClick={() => save()} disabled={saving} className="gap-1">
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Enregistrer
         </Button>
+        <Button size="sm" variant="outline" onClick={previewPDF} className="gap-1">
+          <Eye className="h-3 w-3" /> Aperçu
+        </Button>
         <Button size="sm" onClick={exportPDF} disabled={saving} className="gap-1">
           <FileText className="h-3 w-3" /> PDF
+        </Button>
+        <Button size="sm" variant="secondary" onClick={sendByMail} disabled={saving} className="gap-1">
+          <Send className="h-3 w-3" /> Envoyer
         </Button>
       </div>
       <ScrollArea className="flex-1">
