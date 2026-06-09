@@ -86,7 +86,7 @@ import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
 import { confirmDialog, choiceDialog } from "@/lib/confirm-dialog";
 import { RecategorizePopover } from "@/components/inbox/recategorize-popover";
-import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
+import { EmailComposer, type ComposerInitial, type ComposerAttachment } from "@/components/inbox/email-composer";
 import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
 import { AutoTrashSuggestPanel } from "@/components/inbox/auto-trash-suggest-panel";
 import { useDeleteKey } from "@/hooks/use-delete-key";
