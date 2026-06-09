@@ -2220,6 +2220,18 @@ function InboxPage() {
         <div className="border-b px-3 py-2 sm:px-4">
           <InboxSearchInput emails={emails} value={query} onChange={setQuery} />
         </div>
+        {filter !== "trash" && (
+          <AutoTrashSuggestPanel
+            emails={emails.filter((e) => !e.deleted_at && e.direction !== "outbound")}
+            threshold={75}
+            onTrashed={(ids) => {
+              const now = new Date().toISOString();
+              setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: now } : x)));
+              clearChecked();
+            }}
+          />
+        )}
+
         <div
           className={cn(
             "flex flex-wrap items-center gap-2 border-b px-4 py-1.5 text-xs",
