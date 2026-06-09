@@ -2504,7 +2504,10 @@ function InboxPage() {
                           !e.is_read ? "font-semibold text-foreground" : "text-muted-foreground",
                         )}
                       >
-                        {e.from_name || e.from_address || "Inconnu"}
+                        {e.direction === "outbound"
+                          ? `À : ${e.to_address ?? "?"}`
+                          : (e.from_name || e.from_address || "Inconnu")}
+
 
                       </span>
                       <div className="ml-auto shrink-0 text-right text-[11px] text-muted-foreground leading-tight">
