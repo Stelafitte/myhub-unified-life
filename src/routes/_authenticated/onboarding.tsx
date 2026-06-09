@@ -539,7 +539,7 @@ function OnboardingPage() {
             </div>
           )}
 
-          {step === 7 && (
+          {step === 8 && (
             <div className="space-y-4 text-sm">
               <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
                 <p className="font-medium flex items-center gap-2">
