@@ -507,64 +507,150 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
 
                 {guests.length > 0 && (
                   <ul className="divide-y border rounded-md mt-2">
-                    {guests.map((g) => (
-                      <li key={g.id} className="py-2 px-2 flex items-center gap-2 text-sm">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{g.name}</div>
-                          {g.email && <div className="text-xs text-muted-foreground truncate">{g.email}</div>}
-                        </div>
-                        <Select
-                          value={g.role}
-                          onValueChange={(v) => handleRoleChange(g.id, v as "viewer" | "contributor")}
-                        >
-                          <SelectTrigger className="h-7 text-xs w-[120px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="viewer">Lecteur</SelectItem>
-                            <SelectItem value="contributor">Contributeur</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => copy(guestUrl(g.access_token))}
-                          title="Copier le lien personnel"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => handleResendInvite(g.id, g.email)}
-                          disabled={!g.email || resendingId === g.id || !space.is_public}
-                          title={
-                            !g.email
-                              ? "Pas d'email"
-                              : !space.is_public
-                                ? "Rendez l'espace public d'abord"
-                                : "Envoyer / renvoyer l'invitation par email"
-                          }
-                        >
-                          {resendingId === g.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <MailPlus className="h-3.5 w-3.5" />
+                    {guests.map((g) => {
+                      const gHist = g.email ? (historyByEmail.get(g.email.toLowerCase()) ?? []) : [];
+                      const lastSent = gHist.find((h) => h.status === "sent");
+                      const lastAny = gHist[0];
+                      const isExpanded = !!expandedHistory[g.id];
+                      const sentCount = gHist.filter((h) => h.status === "sent").length;
+                      return (
+                      <li key={g.id} className="text-sm">
+                        <div className="py-2 px-2 flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{g.name}</div>
+                            {g.email && <div className="text-xs text-muted-foreground truncate">{g.email}</div>}
+                            {g.email && (
+                              <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                                {lastAny ? (
+                                  <>
+                                    <StatusIcon status={lastAny.status} />
+                                    <span>
+                                      {labelForTemplate(lastAny.template_name)} · {fmtRelative(lastAny.created_at)}
+                                    </span>
+                                    {sentCount > 1 && <span>· {sentCount} envois</span>}
+                                  </>
+                                ) : (
+                                  <span className="italic">Aucune sollicitation envoyée</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <Select
+                            value={g.role}
+                            onValueChange={(v) => handleRoleChange(g.id, v as "viewer" | "contributor")}
+                          >
+                            <SelectTrigger className="h-7 text-xs w-[120px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="viewer">Lecteur</SelectItem>
+                              <SelectItem value="contributor">Contributeur</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {g.email && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => setExpandedHistory((s) => ({ ...s, [g.id]: !s[g.id] }))}
+                              title="Historique des sollicitations"
+                            >
+                              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <History className="h-3.5 w-3.5" />}
+                              {gHist.length > 0 && !isExpanded && (
+                                <span className="absolute -mt-3 -mr-3 text-[9px] font-semibold bg-primary text-primary-foreground rounded-full px-1 leading-[14px] min-w-[14px] text-center">
+                                  {gHist.length}
+                                </span>
+                              )}
+                            </Button>
                           )}
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-red-600"
-                          onClick={() => handleRemoveGuest(g.id)}
-                          title="Retirer"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => copy(guestUrl(g.access_token))}
+                            title="Copier le lien personnel"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant={lastSent ? "ghost" : "secondary"}
+                            className="h-7 w-7"
+                            onClick={() => handleResendInvite(g.id, g.email)}
+                            disabled={!g.email || resendingId === g.id || !space.is_public}
+                            title={
+                              !g.email
+                                ? "Pas d'email"
+                                : !space.is_public
+                                  ? "Rendez l'espace public d'abord"
+                                  : lastSent
+                                    ? "Renvoyer l'invitation"
+                                    : "Envoyer l'invitation"
+                            }
+                          >
+                            {resendingId === g.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <MailPlus className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-red-600"
+                            onClick={() => handleRemoveGuest(g.id)}
+                            title="Retirer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        {isExpanded && g.email && (
+                          <div className="px-3 pb-3 bg-muted/30 border-t">
+                            <div className="text-[11px] uppercase tracking-wide text-muted-foreground py-2 flex items-center gap-1.5">
+                              <History className="h-3 w-3" /> Historique
+                              {historyQ.isLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                            </div>
+                            {gHist.length === 0 ? (
+                              <div className="text-xs text-muted-foreground italic pb-1">Aucun email envoyé à ce contact.</div>
+                            ) : (
+                              <ul className="space-y-1">
+                                {gHist.map((h) => (
+                                  <li key={h.id} className="flex items-center gap-2 text-xs">
+                                    <StatusIcon status={h.status} />
+                                    <span className="font-medium">{labelForTemplate(h.template_name)}</span>
+                                    <span className="text-muted-foreground">{fmtDateTime(h.created_at)}</span>
+                                    <span className="ml-auto">
+                                      <StatusBadge status={h.status} />
+                                    </span>
+                                    {h.error_message && (
+                                      <span className="text-red-600 truncate max-w-[160px]" title={h.error_message}>
+                                        {h.error_message}
+                                      </span>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            <div className="pt-2 flex justify-end">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleResendInvite(g.id, g.email)}
+                                disabled={resendingId === g.id || !space.is_public}
+                              >
+                                {resendingId === g.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <MailPlus className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Resolliciter maintenant
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 )}
 
