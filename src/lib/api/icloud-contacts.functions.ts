@@ -23,6 +23,11 @@ async function davRequest(url: string, method: string, auth: string, body: strin
     redirect: "follow",
   });
   const text = await res.text();
+  if (res.status === 401 || res.status === 403) {
+    throw new Error(
+      "Authentification iCloud refusée (401). Apple exige un MOT DE PASSE D'APPLICATION (16 caractères, format xxxx-xxxx-xxxx-xxxx) — pas ton mot de passe Apple ID habituel. Génère-le sur appleid.apple.com → Connexion et sécurité → Mots de passe pour applications, puis réessaie."
+    );
+  }
   if (res.status >= 400) {
     throw new Error(`CardDAV ${method} ${url} failed (${res.status}): ${text.slice(0, 200)}`);
   }
