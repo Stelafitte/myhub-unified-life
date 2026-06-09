@@ -235,6 +235,21 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
     }
   };
 
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const handleResendInvite = async (id: string, email: string | null) => {
+    if (!email) return toast.error("Cet invité n'a pas d'email");
+    setResendingId(id);
+    try {
+      const res = await resendInviteFn({ data: { guestId: id, appOrigin: baseUrl } });
+      if (res.success) toast.success("Invitation renvoyée");
+      else toast.error(`Échec de l'envoi${res.reason ? ` · ${res.reason}` : ""}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   const handleRemoveGuest = async (id: string) => {
     if (!confirm("Retirer cet invité ?")) return;
     try {
