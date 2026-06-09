@@ -134,6 +134,7 @@ function PlanOperationPage() {
   const [toDelete, setToDelete] = useState<Task | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
   const [opThemes, setOpThemes] = useState<{ id: string; name: string; position: number; show_in_plan?: boolean }[]>([]);
   const [opSubthemes, setOpSubthemes] = useState<{ id: string; name: string; theme_id: string; position: number; show_in_plan?: boolean }[]>([]);
 
