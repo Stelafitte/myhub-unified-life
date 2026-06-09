@@ -5,6 +5,7 @@ import type { ExpenseCategory } from "@/lib/expense.functions";
 export type PdfPayload = {
   title: string;
   missionObject: string;
+  missionDescription: string;
   missionContext: string;
   organization: string;
   missionNumber: string;
