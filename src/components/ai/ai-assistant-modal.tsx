@@ -650,6 +650,26 @@ export function AiAssistantModal({
                 {/* Action toolbar */}
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   <span className="text-xs text-muted-foreground mr-1">Propositions :</span>
+                  {(() => {
+                    const hasArchivable = Array.from(t.selectedMatches).some(id => {
+                      const k = t.result?.matches.find(x => x.id === id)?.kind;
+                      return k === "email" || k === "document";
+                    });
+                    const isArchiving = archiving === t.id;
+                    return (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={t.proposing || !hasArchivable || isArchiving}
+                        onClick={() => archiveZip(t)}
+                        className="h-7 gap-1.5 text-xs"
+                        title="Crée un .zip avec les emails (+ pièces jointes) et documents sélectionnés, le télécharge et l'enregistre dans votre bibliothèque."
+                      >
+                        {isArchiving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileArchive className="h-3.5 w-3.5" />}
+                        Archive ZIP
+                      </Button>
+                    );
+                  })()}
                   {ACTION_BUTTONS.map(({ kind, label, Icon, needsMatches }) => {
                     const hasEmailSel = Array.from(t.selectedMatches).some(id => t.result?.matches.find(x => x.id === id)?.kind === "email");
                     const disabled = t.proposing || (needsMatches && !hasEmailSel);
