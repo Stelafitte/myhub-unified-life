@@ -420,7 +420,8 @@ function PublicSpacePage() {
               <Card key={c.id} className="p-3 flex items-center gap-3">
                 <div
                   className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                  style={bubblePalette(c.name)}
+                  style={{ backgroundColor: bubblePalette(c.name).bg, color: bubblePalette(c.name).fg }}
+
                 >
                   {c.name
                     .split(" ")
