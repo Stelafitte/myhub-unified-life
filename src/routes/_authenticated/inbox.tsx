@@ -2777,7 +2777,7 @@ function InboxPage() {
                 label: "Transférer",
                 icon: <Forward className="h-4 w-4" />,
                 color: "bg-indigo-500",
-                onAction: () => openComposer(buildForwardInit(e)),
+                onAction: () => forwardEmail(e),
               },
             ];
             const rightActions: SwipeAction[] = [
