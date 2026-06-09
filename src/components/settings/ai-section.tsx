@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -27,6 +28,7 @@ type AiPrefs = {
   suggestions: boolean;
   hdsDetection: boolean;
   hdsLevel: "low" | "normal" | "high";
+  trashThreshold: number;
 };
 
 const DEFAULT: AiPrefs = {
@@ -38,6 +40,7 @@ const DEFAULT: AiPrefs = {
   suggestions: true,
   hdsDetection: true,
   hdsLevel: "normal",
+  trashThreshold: 70,
 };
 
 export function AiSection() {
@@ -176,6 +179,29 @@ export function AiSection() {
               </Select>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Pré-tri corbeille</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label>Seuil de confiance IA</Label>
+            <span className="text-sm font-medium tabular-nums">{prefs.trashThreshold}%</span>
+          </div>
+          <Slider
+            min={50}
+            max={95}
+            step={5}
+            value={[prefs.trashThreshold]}
+            onValueChange={(v) => update({ trashThreshold: v[0] ?? 70 })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Plus le seuil est élevé, moins l'IA propose de mails à mettre à la corbeille (suggestions plus prudentes).
+            Plus il est bas, plus elle en propose (suggestions plus agressives). Défaut : 70 %.
+          </p>
         </CardContent>
       </Card>
 
