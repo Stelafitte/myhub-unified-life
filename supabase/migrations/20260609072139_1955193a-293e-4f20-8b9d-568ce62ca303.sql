@@ -1,0 +1,1 @@
+ALTER TABLE public.expense_reports ADD COLUMN IF NOT EXISTS sent_at timestamptz; ALTER TABLE public.expense_reports ADD COLUMN IF NOT EXISTS archived_at timestamptz;

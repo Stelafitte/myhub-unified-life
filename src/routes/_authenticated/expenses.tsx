@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Plus, Receipt, Trash2, Upload, Sparkles, FileText } from "lucide-react";
+import { Loader2, Plus, Receipt, Trash2, Upload, Sparkles, FileText, Archive, ArchiveRestore } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
-import { listReports, deleteReport, listTemplates, deleteTemplate, analyzeExpenseTemplate } from "@/lib/expense.functions";
+import { listReports, deleteReport, listTemplates, deleteTemplate, analyzeExpenseTemplate, toggleArchiveReport } from "@/lib/expense.functions";
 import { ExpenseReportForm } from "@/components/expenses/expense-report-form";
 import { TemplateUploadDialog } from "@/components/expenses/template-upload-dialog";
 
@@ -21,12 +21,11 @@ export const Route = createFileRoute("/_authenticated/expenses")({
   }),
 });
 
-const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "Brouillon", variant: "outline" },
-  submitted: { label: "Soumise", variant: "secondary" },
-  approved: { label: "Approuvée", variant: "default" },
-  rejected: { label: "Rejetée", variant: "destructive" },
-  paid: { label: "Payée", variant: "default" },
+const DERIVED_STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  in_progress: { label: "En cours", variant: "outline" },
+  pre_send: { label: "Pré‑envoi", variant: "secondary" },
+  sent: { label: "Envoyé", variant: "default" },
+  archived: { label: "Archivé", variant: "secondary" },
 };
 
 function ExpensesPage() {
@@ -37,6 +36,7 @@ function ExpensesPage() {
   const tplFn = useServerFn(listTemplates);
   const tplDelFn = useServerFn(deleteTemplate);
   const tplAnalyzeFn = useServerFn(analyzeExpenseTemplate);
+  const archiveFn = useServerFn(toggleArchiveReport);
 
   const [reports, setReports] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
@@ -117,13 +117,14 @@ function ExpensesPage() {
           {loading ? <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin" /></div>
             : reports.length === 0 ? <p className="text-center text-sm text-muted-foreground py-8">Aucune note de frais — clique sur « Nouvelle note ».</p>
             : reports.map((r) => {
-              const s = STATUS_LABEL[r.status] ?? STATUS_LABEL.draft;
+              const s = DERIVED_STATUS_LABEL[r.derived_status] ?? DERIVED_STATUS_LABEL.in_progress;
+              const isArchived = r.derived_status === "archived";
               return (
                 <Card key={r.id} className="p-3 flex items-center gap-3 cursor-pointer hover:bg-muted/40" onClick={() => setEditingId(r.id)}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-sm truncate">{r.title}</p>
-                      <Badge variant={s.variant}>{s.label}</Badge>
+                      <Badge variant={s.variant} title="Statut analysé automatiquement">{s.label}</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{r.mission_object || r.organization || "—"} · {new Date(r.created_at).toLocaleDateString("fr-FR")}</p>
                   </div>
@@ -131,6 +132,11 @@ function ExpensesPage() {
                     <div className="font-semibold">{Number(r.total_amount).toFixed(2)} €</div>
                     <div className="text-xs text-muted-foreground">à rembourser : {Number(r.amount_to_reimburse).toFixed(2)} €</div>
                   </div>
+                  <Button size="sm" variant="ghost" title={isArchived ? "Désarchiver" : "Archiver"}
+                    onClick={async (e) => { e.stopPropagation(); await archiveFn({ data: { id: r.id, archived: !isArchived } }); void reload(); }}
+                    className="h-8 w-8 p-0">
+                    {isArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                  </Button>
                   <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); void remove(r.id); }} className="h-8 w-8 p-0">
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>

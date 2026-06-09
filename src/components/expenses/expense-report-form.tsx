@@ -290,6 +290,10 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
         body,
       });
       setComposerOpen(true);
+      // Statut auto : marquer la note comme "envoyée" dès l'ouverture du composer
+      try {
+        await supabase.from("expense_reports").update({ sent_at: new Date().toISOString(), archived_at: null }).eq("id", id).eq("user_id", userId);
+      } catch {}
     } catch (e: any) { toast.error(e?.message ?? "Erreur"); }
   };
 

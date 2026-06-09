@@ -1581,6 +1581,7 @@ export type Database = {
         Row: {
           advance_amount: number
           amount_to_reimburse: number
+          archived_at: string | null
           created_at: string
           currency: string
           iban: string | null
@@ -1594,6 +1595,7 @@ export type Database = {
           organization: string | null
           payment_method: string | null
           recipient_email: string | null
+          sent_at: string | null
           signature_date: string | null
           signature_location: string
           source_email_id: string | null
@@ -1606,6 +1608,7 @@ export type Database = {
         Insert: {
           advance_amount?: number
           amount_to_reimburse?: number
+          archived_at?: string | null
           created_at?: string
           currency?: string
           iban?: string | null
@@ -1619,6 +1622,7 @@ export type Database = {
           organization?: string | null
           payment_method?: string | null
           recipient_email?: string | null
+          sent_at?: string | null
           signature_date?: string | null
           signature_location?: string
           source_email_id?: string | null
@@ -1631,6 +1635,7 @@ export type Database = {
         Update: {
           advance_amount?: number
           amount_to_reimburse?: number
+          archived_at?: string | null
           created_at?: string
           currency?: string
           iban?: string | null
@@ -1644,6 +1649,7 @@ export type Database = {
           organization?: string | null
           payment_method?: string | null
           recipient_email?: string | null
+          sent_at?: string | null
           signature_date?: string | null
           signature_location?: string
           source_email_id?: string | null
