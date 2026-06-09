@@ -421,6 +421,64 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
                     <Mail className="h-3 w-3" />
                     Envoyer un email d'invitation à chaque contact
                   </label>
+                  {selectedGroup && (
+                    <div className="space-y-1 mt-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {Object.values(selectedMemberIds).filter(Boolean).length === 0
+                            ? "Tous les membres seront invités"
+                            : `${Object.values(selectedMemberIds).filter(Boolean).length} sélectionné(s)`}
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className="underline hover:text-foreground"
+                            onClick={() =>
+                              setSelectedMemberIds(
+                                Object.fromEntries(groupMembers.map((m) => [m.id, true])),
+                              )
+                            }
+                          >
+                            Tout cocher
+                          </button>
+                          <button
+                            type="button"
+                            className="underline hover:text-foreground"
+                            onClick={() => setSelectedMemberIds({})}
+                          >
+                            Tout décocher
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
+                        {membersQ.isLoading ? (
+                          <div className="text-xs text-muted-foreground">Chargement…</div>
+                        ) : groupMembers.length === 0 ? (
+                          <div className="text-xs text-muted-foreground">Aucun membre</div>
+                        ) : (
+                          groupMembers.map((m) => {
+                            const { name, email } = memberDisplay(m);
+                            return (
+                              <label key={m.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                                <Checkbox
+                                  checked={!!selectedMemberIds[m.id]}
+                                  onCheckedChange={(v) =>
+                                    setSelectedMemberIds((s) => ({ ...s, [m.id]: !!v }))
+                                  }
+                                />
+                                <span className="truncate">
+                                  {name}
+                                  {email && (
+                                    <span className="text-muted-foreground"> · {email}</span>
+                                  )}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {guests.length > 0 && (
