@@ -364,6 +364,18 @@ function OnboardingPage() {
           {step === 5 && (
             <div className="space-y-3 text-sm">
               <p className="text-muted-foreground">Connectez vos outils tiers favoris (optionnel) :</p>
+              <label className="flex items-start gap-2 rounded-lg border p-3 bg-primary/5">
+                <Checkbox checked={intOneDrive} onCheckedChange={(v) => setIntOneDrive(!!v)} className="mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">OneDrive / Microsoft Graph</span>
+                    <Badge variant="secondary" className="text-[10px]">Recommandé</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Pièces jointes Inbox, fichiers partagés dans les espaces Collab.
+                  </p>
+                </div>
+              </label>
               <label className="flex items-center gap-2">
                 <Checkbox checked={intSlack} onCheckedChange={(v) => setIntSlack(!!v)} />
                 Slack
@@ -379,6 +391,45 @@ function OnboardingPage() {
               <p className="text-xs text-muted-foreground">
                 Vous pourrez ajouter d'autres intégrations depuis <strong>Paramètres → Intégrations</strong>.
               </p>
+            </div>
+          )}
+
+          {step === 6 && (
+            <div className="space-y-4 text-sm">
+              <div className="rounded-lg border bg-primary/5 p-3 space-y-2">
+                <p className="font-medium flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" /> Espaces de collaboration
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Partagez un projet via un lien sécurisé : chat temps réel, fichiers OneDrive,
+                  consultation de l'agenda et des tâches associées. Trois niveaux d'accès :
+                </p>
+                <ul className="text-xs space-y-1 pl-4">
+                  <li>• <strong>Chat</strong> : obligatoire pour tous les invités</li>
+                  <li>• <strong>Fichiers</strong> (OneDrive) : optionnel</li>
+                  <li>• <strong>Reste</strong> (agenda, tâches) : consultatif</li>
+                </ul>
+              </div>
+
+              <label className="flex items-center justify-between gap-2">
+                <span className="text-sm">Activer la collaboration sur mes projets</span>
+                <Switch checked={collabEnabled} onCheckedChange={setCollabEnabled} />
+              </label>
+
+              {collabEnabled && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Pré-inviter un collaborateur (optionnel)</Label>
+                  <Input
+                    type="email"
+                    value={collabInviteEmail}
+                    onChange={(e) => setCollabInviteEmail(e.target.value)}
+                    placeholder="collegue@exemple.fr"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Vous pourrez créer des espaces depuis n'importe quel projet via l'onglet <strong>Collab</strong>.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
