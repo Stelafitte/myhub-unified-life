@@ -342,6 +342,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
             <div className="grid grid-cols-2 gap-2">
               <div className="col-span-2"><Label className="text-xs">Titre de la note</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
               <div className="col-span-2"><Label className="text-xs">Intitulé de la mission</Label><Input value={missionObject} onChange={(e) => setMissionObject(e.target.value)} placeholder="Congrès SFC 2026 — Paris" /></div>
+              <div className="col-span-2"><Label className="text-xs">Description de la mission et des frais</Label><Textarea value={missionDescription} onChange={(e) => setMissionDescription(e.target.value)} className="min-h-[80px]" placeholder="Contexte de la mission, nature des dépenses engagées…" /></div>
               <div>
                 <Label className="text-xs">Cadre</Label>
                 <Select value={missionContext} onValueChange={setMissionContext}>
