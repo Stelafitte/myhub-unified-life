@@ -2942,7 +2942,7 @@ function FilterRow({
           {icon}
         </span>
         <span className="flex-1 truncate text-sm">{label}</span>
-        <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
           {count}
         </span>
       </button>
