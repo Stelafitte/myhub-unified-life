@@ -50,6 +50,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const removeGuestFn = useServerFn(removeSpaceGuest);
   const notifyFn = useServerFn(notifySpaceGuests);
   const resendInviteFn = useServerFn(resendSpaceGuestInvitation);
+  const historyFn = useServerFn(listSpaceGuestEmailHistory);
   const listGroupsFn = useServerFn(listContactGroups);
   const qc = useQueryClient();
   const key = ["space-public", spaceId];
