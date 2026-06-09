@@ -1189,6 +1189,7 @@ export const addSpaceGuestsFromGroup = createServerFn({ method: "POST" })
         role: z.enum(["viewer", "contributor"]).default("viewer"),
         sendInvitation: z.boolean().default(true),
         appOrigin: z.string().url().optional(),
+        memberIds: z.array(z.string().uuid()).max(2000).optional(),
       })
       .parse(input),
   )
@@ -1211,11 +1212,15 @@ export const addSpaceGuestsFromGroup = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!space || space.user_id !== userId) throw new Error("Projet introuvable");
 
-    // Members
-    const { data: members } = await supabase
+    // Members (optionally filtered to a user-selected subset)
+    let memberQ = supabase
       .from("contact_group_members")
-      .select("contact_id, external_email, external_name")
+      .select("id, contact_id, external_email, external_name")
       .eq("group_id", data.groupId);
+    if (data.memberIds && data.memberIds.length > 0) {
+      memberQ = memberQ.in("id", data.memberIds);
+    }
+    const { data: members } = await memberQ;
 
     const contactIds = (members ?? [])
       .map((m) => m.contact_id)

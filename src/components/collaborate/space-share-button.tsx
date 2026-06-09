@@ -36,7 +36,7 @@ import {
   notifySpaceGuests,
   resendSpaceGuestInvitation,
 } from "@/lib/collab.functions";
-import { listContactGroups } from "@/lib/contacts.functions";
+import { listContactGroups, getGroupMembers } from "@/lib/contacts.functions";
 
 export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const [open, setOpen] = useState(false);
@@ -88,6 +88,30 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const [groupRole, setGroupRole] = useState<"viewer" | "contributor">("viewer");
   const [groupSendMail, setGroupSendMail] = useState(true);
   const [addingGroup, setAddingGroup] = useState(false);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<Record<string, boolean>>({});
+
+  const getMembersFn = useServerFn(getGroupMembers);
+  const membersQ = useQuery({
+    queryKey: ["group-members", selectedGroup],
+    queryFn: () => getMembersFn({ data: { groupId: selectedGroup } }),
+    enabled: open && !!selectedGroup,
+  });
+  const groupMembers = ((membersQ.data?.members ?? []) as unknown) as Array<{
+    id: string;
+    external_email: string | null;
+    external_name: string | null;
+    contact: { first_name?: string | null; last_name?: string | null; email?: string | string[] | null } | null;
+  }>;
+  const memberDisplay = (m: typeof groupMembers[number]) => {
+    const ce = Array.isArray(m.contact?.email) ? m.contact?.email?.[0] : m.contact?.email;
+    const email = ce || m.external_email || "";
+    const name =
+      [m.contact?.first_name, m.contact?.last_name].filter(Boolean).join(" ").trim() ||
+      m.external_name ||
+      email.split("@")[0] ||
+      "(sans nom)";
+    return { email, name };
+  };
 
   const [notifySubject, setNotifySubject] = useState("");
   const [notifyMessage, setNotifyMessage] = useState("");
@@ -198,6 +222,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
 
   const handleAddGroup = async () => {
     if (!selectedGroup) return toast.error("Sélectionnez un groupe");
+    const ids = Object.entries(selectedMemberIds).filter(([, v]) => v).map(([k]) => k);
     setAddingGroup(true);
     try {
       const res = await addGroupFn({
@@ -207,6 +232,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
           role: groupRole,
           sendInvitation: groupSendMail,
           appOrigin: baseUrl,
+          memberIds: ids.length ? ids : undefined,
         },
       });
       if (res.added === 0) {
@@ -218,6 +244,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
         );
       }
       setSelectedGroup("");
+      setSelectedMemberIds({});
       qc.invalidateQueries({ queryKey: guestsKey });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -394,6 +421,64 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
                     <Mail className="h-3 w-3" />
                     Envoyer un email d'invitation à chaque contact
                   </label>
+                  {selectedGroup && (
+                    <div className="space-y-1 mt-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>
+                          {Object.values(selectedMemberIds).filter(Boolean).length === 0
+                            ? "Tous les membres seront invités"
+                            : `${Object.values(selectedMemberIds).filter(Boolean).length} sélectionné(s)`}
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className="underline hover:text-foreground"
+                            onClick={() =>
+                              setSelectedMemberIds(
+                                Object.fromEntries(groupMembers.map((m) => [m.id, true])),
+                              )
+                            }
+                          >
+                            Tout cocher
+                          </button>
+                          <button
+                            type="button"
+                            className="underline hover:text-foreground"
+                            onClick={() => setSelectedMemberIds({})}
+                          >
+                            Tout décocher
+                          </button>
+                        </div>
+                      </div>
+                      <div className="max-h-40 overflow-y-auto border rounded p-2 space-y-1">
+                        {membersQ.isLoading ? (
+                          <div className="text-xs text-muted-foreground">Chargement…</div>
+                        ) : groupMembers.length === 0 ? (
+                          <div className="text-xs text-muted-foreground">Aucun membre</div>
+                        ) : (
+                          groupMembers.map((m) => {
+                            const { name, email } = memberDisplay(m);
+                            return (
+                              <label key={m.id} className="flex items-center gap-2 text-xs cursor-pointer">
+                                <Checkbox
+                                  checked={!!selectedMemberIds[m.id]}
+                                  onCheckedChange={(v) =>
+                                    setSelectedMemberIds((s) => ({ ...s, [m.id]: !!v }))
+                                  }
+                                />
+                                <span className="truncate">
+                                  {name}
+                                  {email && (
+                                    <span className="text-muted-foreground"> · {email}</span>
+                                  )}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {guests.length > 0 && (
