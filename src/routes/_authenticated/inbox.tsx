@@ -240,6 +240,7 @@ function InboxPage() {
   const [aiRanking, setAiRanking] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[] | undefined>(undefined);
   const [undoStack, setUndoStack] = useState<{ label: string; run: () => Promise<void> | void }[]>([]);
   const pushUndo = (entry: { label: string; run: () => Promise<void> | void }) =>
     setUndoStack((s) => [...s.slice(-9), entry]);
@@ -250,10 +251,12 @@ function InboxPage() {
     try { await last.run(); } catch (e) { toast.error(e instanceof Error ? e.message : "Annulation impossible"); }
   };
 
-  const openComposer = (init: ComposerInitial) => {
+  const openComposer = (init: ComposerInitial, attachments?: ComposerAttachment[]) => {
     setComposerInitial(init);
+    setComposerAttachments(attachments);
     setComposerOpen(true);
   };
+
 
   const buildReplyInit = (e: Email, all = false): ComposerInitial => {
     const dateStr = e.received_at ? new Date(e.received_at).toLocaleString("fr-FR") : "";
