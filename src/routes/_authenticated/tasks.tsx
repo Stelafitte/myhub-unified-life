@@ -183,7 +183,7 @@ function TasksPage() {
           <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Tâches</h1>
+          <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Tâches et Actions</h1>
           <p className="text-xs text-muted-foreground sm:text-sm">
             {tasks.length} tâche{tasks.length > 1 ? "s" : ""} · {sections.length || DEFAULT_SECTIONS.length} section{(sections.length || DEFAULT_SECTIONS.length) > 1 ? "s" : ""}
           </p>
