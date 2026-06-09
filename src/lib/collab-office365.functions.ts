@@ -79,6 +79,51 @@ export const listOneDriveItems = createServerFn({ method: "POST" })
   });
 
 // ============================================================
+// Resolve a OneDrive / SharePoint sharing link to a drive item
+// Supports https://1drv.ms/..., https://onedrive.live.com/...,
+// and https://*.sharepoint.com/... share URLs.
+// ============================================================
+function encodeShareUrl(url: string): string {
+  // Per MS Graph: "u!" + base64url(url) without padding
+  const b64 =
+    typeof btoa === "function"
+      ? btoa(unescape(encodeURIComponent(url)))
+      : Buffer.from(url, "utf-8").toString("base64");
+  return "u!" + b64.replace(/=+$/g, "").replace(/\//g, "_").replace(/\+/g, "-");
+}
+
+export const resolveOneDriveShareLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ url: z.string().url().max(2000) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const token = encodeShareUrl(data.url.trim());
+    const url = `${GATEWAY_URL}/shares/${token}/driveItem?$expand=thumbnails`;
+    const res = await fetch(url, { headers: gatewayHeaders() });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(
+        `Lien OneDrive non résolu (${res.status}). Vérifie que le lien est de partage (clic droit > Partager > Copier le lien) et que ton compte a accès. ${body.slice(0, 200)}`,
+      );
+    }
+    const i = (await res.json()) as DriveItem;
+    return {
+      item: {
+        id: i.id,
+        name: i.name,
+        webUrl: i.webUrl ?? null,
+        isFolder: !!i.folder,
+        mimeType: i.file?.mimeType ?? null,
+        size: i.size ?? null,
+        modifiedAt: i.lastModifiedDateTime ?? null,
+        thumbnail: i.thumbnails?.[0]?.medium?.url ?? i.thumbnails?.[0]?.small?.url ?? null,
+      },
+    };
+  });
+
+
+// ============================================================
 // Link an Office 365 file as a collab document
 // ============================================================
 export const linkOffice365Document = createServerFn({ method: "POST" })
