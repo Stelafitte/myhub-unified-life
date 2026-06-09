@@ -391,7 +391,37 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="text-xs">Organisme invitant</Label><Input value={organization} onChange={(e) => setOrganization(e.target.value)} /></div>
+              <div>
+                <Label className="text-xs">Organisme invitant</Label>
+                <div className="flex gap-1">
+                  <Select
+                    value={organizationId || "__none"}
+                    onValueChange={(v) => {
+                      if (v === "__none") { setOrganizationId(""); return; }
+                      setOrganizationId(v);
+                      const o = organizations.find((x) => x.id === v);
+                      if (o) {
+                        setOrganization(o.name);
+                        if (!recipientEmail && o.contact_email) setRecipientEmail(o.contact_email);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Sélectionner un organisme" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">— Aucun —</SelectItem>
+                      {organizations.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.name}{o.template_filename ? " 📎" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setOrgDialogOpen(true)} title="Gérer les organismes" className="h-9 w-9 p-0">
+                    <Settings2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
               <div><Label className="text-xs">N° mission / bon de commande</Label><Input value={missionNumber} onChange={(e) => setMissionNumber(e.target.value)} /></div>
             </div>
           </section>
