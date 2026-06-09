@@ -295,8 +295,23 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
         signature,
       ].join("\n");
       const out = buildPdf();
+      const attachments: ComposerAttachment[] = [
+        { name: out.filename, type: "application/pdf", size: Math.ceil(out.base64.length * 0.75), contentBase64: out.base64 },
+      ];
+      // Si un organisme avec modèle est sélectionné : remplissage IA + ajout en PJ
+      const org = organizations.find((o) => o.id === organizationId);
+      if (org?.template_path) {
+        try {
+          const filled = await fillOrgFn({ data: { reportId: id, organizationId: org.id } });
+          attachments.push({ name: filled.filename, type: filled.mime, size: Math.ceil(filled.base64.length * 0.75), contentBase64: filled.base64 });
+          toast.success("Modèle organisme rempli et joint");
+        } catch (e: any) {
+          toast.error(`Modèle organisme : ${e?.message ?? "erreur"}`);
+        }
+      }
       setComposerAccounts(accounts);
-      setComposerAttachments([{ name: out.filename, type: "application/pdf", size: Math.ceil(out.base64.length * 0.75), contentBase64: out.base64 }]);
+      setComposerAttachments(attachments);
+
       setComposerInitial({
         mode: "new",
         to: recipientEmail.trim(),
