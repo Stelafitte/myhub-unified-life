@@ -1151,7 +1151,13 @@ export const addSpaceGuest = createServerFn({ method: "POST" })
           .eq("id", userId)
           .maybeSingle(),
       ]);
-      if (space?.public_token && space.is_public) {
+      if (space?.public_token) {
+        if (!space.is_public) {
+          await supabase
+            .from("collab_spaces")
+            .update({ is_public: true })
+            .eq("id", data.spaceId);
+        }
         const origin = data.appOrigin?.replace(/\/$/, "") ?? "";
         const accessUrl = `${origin}/space/${space.public_token}?g=${row.access_token}`;
         const inviterName =
@@ -1176,7 +1182,7 @@ export const addSpaceGuest = createServerFn({ method: "POST" })
         emailSent = result.success;
         emailReason = result.reason;
       } else {
-        emailReason = "space_not_public";
+        emailReason = "no_public_token";
       }
     }
     return { guest: row, emailSent, emailReason };
@@ -1296,7 +1302,13 @@ export const addSpaceGuestsFromGroup = createServerFn({ method: "POST" })
     let added = 0;
     let invited = 0;
     const origin = data.appOrigin?.replace(/\/$/, "") ?? "";
-    const canSend = data.sendInvitation && space.is_public && !!space.public_token;
+    const canSend = data.sendInvitation && !!space.public_token;
+    if (canSend && !space.is_public) {
+      await supabase
+        .from("collab_spaces")
+        .update({ is_public: true })
+        .eq("id", data.spaceId);
+    }
     const { sendTransactionalEmailServer } = canSend
       ? await import("@/lib/email/send.server")
       : ({ sendTransactionalEmailServer: null } as const);
@@ -1376,8 +1388,14 @@ export const resendSpaceGuestInvitation = createServerFn({ method: "POST" })
         .eq("id", userId)
         .maybeSingle(),
     ]);
-    if (!space?.public_token || !space.is_public) {
-      throw new Error("L'espace doit être public pour envoyer une invitation");
+    if (!space?.public_token) {
+      throw new Error("Lien public indisponible pour cet espace.");
+    }
+    if (!space.is_public) {
+      await supabase
+        .from("collab_spaces")
+        .update({ is_public: true })
+        .eq("id", guest.space_id);
     }
     const origin = data.appOrigin?.replace(/\/$/, "") ?? "";
     const accessUrl = `${origin}/space/${space.public_token}?g=${guest.access_token}`;
@@ -1469,8 +1487,14 @@ export const notifySpaceGuests = createServerFn({ method: "POST" })
         .maybeSingle(),
     ]);
     if (!space || space.user_id !== userId) throw new Error("Espace introuvable");
-    if (!space.is_public || !space.public_token) {
-      throw new Error("Rendez l'espace public pour pouvoir notifier les invités.");
+    if (!space.public_token) {
+      throw new Error("Lien public indisponible pour cet espace.");
+    }
+    if (!space.is_public) {
+      await supabase
+        .from("collab_spaces")
+        .update({ is_public: true })
+        .eq("id", data.spaceId);
     }
     let q = supabase
       .from("collab_guests")
