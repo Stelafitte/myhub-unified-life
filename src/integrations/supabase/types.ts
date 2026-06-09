@@ -1381,6 +1381,7 @@ export type Database = {
           body_text: string | null
           created_at: string
           deleted_at: string | null
+          direction: string
           from_address: string | null
           from_name: string | null
           has_attachment: boolean
@@ -1416,6 +1417,7 @@ export type Database = {
           body_text?: string | null
           created_at?: string
           deleted_at?: string | null
+          direction?: string
           from_address?: string | null
           from_name?: string | null
           has_attachment?: boolean
@@ -1451,6 +1453,7 @@ export type Database = {
           body_text?: string | null
           created_at?: string
           deleted_at?: string | null
+          direction?: string
           from_address?: string | null
           from_name?: string | null
           has_attachment?: boolean
@@ -2967,6 +2970,50 @@ export type Database = {
           {
             foreignKeyName: "tasks_source_email_id_fkey"
             columns: ["source_email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trash_feedback: {
+        Row: {
+          ai_score: number | null
+          ai_suggested: boolean
+          created_at: string
+          decision: string
+          email_id: string | null
+          from_address: string | null
+          id: string
+          subject: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_score?: number | null
+          ai_suggested?: boolean
+          created_at?: string
+          decision: string
+          email_id?: string | null
+          from_address?: string | null
+          id?: string
+          subject?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_score?: number | null
+          ai_suggested?: boolean
+          created_at?: string
+          decision?: string
+          email_id?: string | null
+          from_address?: string | null
+          id?: string
+          subject?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trash_feedback_email_id_fkey"
+            columns: ["email_id"]
             isOneToOne: false
             referencedRelation: "emails"
             referencedColumns: ["id"]

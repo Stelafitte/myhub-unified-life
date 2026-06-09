@@ -88,7 +88,9 @@ import { confirmDialog, choiceDialog } from "@/lib/confirm-dialog";
 import { RecategorizePopover } from "@/components/inbox/recategorize-popover";
 import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
 import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
+import { AutoTrashSuggestPanel } from "@/components/inbox/auto-trash-suggest-panel";
 import { useDeleteKey } from "@/hooks/use-delete-key";
+
 
 type Account = {
   id: string;
@@ -2218,6 +2220,18 @@ function InboxPage() {
         <div className="border-b px-3 py-2 sm:px-4">
           <InboxSearchInput emails={emails} value={query} onChange={setQuery} />
         </div>
+        {filter !== "trash" && (
+          <AutoTrashSuggestPanel
+            emails={emails.filter((e) => !e.deleted_at && e.direction !== "outbound")}
+            threshold={75}
+            onTrashed={(ids) => {
+              const now = new Date().toISOString();
+              setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: now } : x)));
+              clearChecked();
+            }}
+          />
+        )}
+
         <div
           className={cn(
             "flex flex-wrap items-center gap-2 border-b px-4 py-1.5 text-xs",
@@ -2476,13 +2490,25 @@ function InboxPage() {
                       {!e.is_read && (
                         <span className="h-2 w-2 shrink-0 rounded-full bg-primary" title="Non lu" />
                       )}
+                      {e.direction === "outbound" && (
+                        <span
+                          className="shrink-0 rounded bg-blue-500/15 px-1 text-[10px] font-medium text-blue-600 dark:text-blue-400"
+                          title="Mail envoyé"
+                        >
+                          ↗ Envoyé
+                        </span>
+                      )}
                       <span
                         className={cn(
                           "min-w-0 flex-1 truncate text-sm",
                           !e.is_read ? "font-semibold text-foreground" : "text-muted-foreground",
                         )}
                       >
-                        {e.from_name || e.from_address || "Inconnu"}
+                        {e.direction === "outbound"
+                          ? `À : ${e.to_address ?? "?"}`
+                          : (e.from_name || e.from_address || "Inconnu")}
+
+
                       </span>
                       <div className="ml-auto shrink-0 text-right text-[11px] text-muted-foreground leading-tight">
                         <div>{relativeTime(e.received_at)}</div>
