@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   listOneDriveItems,
   linkOffice365Document,
+  resolveOneDriveShareLink,
 } from "@/lib/collab-office365.functions";
 import {
   Dialog,
@@ -21,6 +22,10 @@ import {
   Search as SearchIcon,
   FileSpreadsheet,
   FilePieChart,
+  Link2,
+  ExternalLink,
+  Plus,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -58,6 +63,7 @@ export function Office365PickerDialog({
 }) {
   const listFn = useServerFn(listOneDriveItems);
   const linkFn = useServerFn(linkOffice365Document);
+  const resolveFn = useServerFn(resolveOneDriveShareLink);
   const [items, setItems] = useState<DriveItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -66,10 +72,13 @@ export function Office365PickerDialog({
     { name: "OneDrive" },
   ]);
   const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [resolved, setResolved] = useState<DriveItem | null>(null);
 
+  const isUrl = /^https?:\/\//i.test(search.trim());
   const current = stack[stack.length - 1];
 
   const load = async (folderId?: string, q?: string) => {
+    setResolved(null);
     setLoading(true);
     setErr(null);
     try {
@@ -108,7 +117,23 @@ export function Office365PickerDialog({
   };
 
   const runSearch = async () => {
-    await load(undefined, search);
+    const q = search.trim();
+    if (/^https?:\/\//i.test(q)) {
+      setLoading(true);
+      setErr(null);
+      setItems([]);
+      setResolved(null);
+      try {
+        const res = await resolveFn({ data: { url: q } });
+        setResolved(res.item as DriveItem);
+      } catch (e) {
+        setErr((e as Error).message);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    await load(undefined, q);
   };
 
   const linkItem = async (item: DriveItem) => {
@@ -163,22 +188,87 @@ export function Office365PickerDialog({
         </div>
 
         <div className="flex items-center gap-2">
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher dans OneDrive…"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") runSearch();
-            }}
-          />
-          <Button variant="outline" size="sm" onClick={runSearch}>
-            <SearchIcon className="h-4 w-4" />
+          <div className="relative flex-1">
+            {isUrl ? (
+              <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-primary" />
+            ) : (
+              <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            )}
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tape un mot-clé OU colle un lien de partage OneDrive…"
+              className="pl-8"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") runSearch();
+              }}
+            />
+          </div>
+          <Button variant={isUrl ? "default" : "outline"} size="sm" onClick={runSearch}>
+            {isUrl ? (
+              <>
+                <Link2 className="h-4 w-4 mr-1" /> Résoudre
+              </>
+            ) : (
+              <SearchIcon className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/40 border rounded-md p-2.5">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <div className="space-y-1">
+            <div><strong>Pour lier un document existant&nbsp;:</strong> parcours OneDrive ci-dessous, ou colle son <em>lien de partage</em> (sur OneDrive : clic droit sur le fichier → <em>Partager</em> → <em>Copier le lien</em>) dans le champ ci-dessus, puis clique <em>Résoudre</em>.</div>
+            <div><strong>Pour créer un nouveau document&nbsp;:</strong> ouvre Word / Excel / PowerPoint en ligne (boutons ci-dessous), crée et nomme ton fichier dans OneDrive, puis reviens ici pour le lier (il apparaîtra dans la liste, ou colle son lien).</div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="outline">
+            <a href="https://www.office.com/launch/word?auth=1&new=1" target="_blank" rel="noopener noreferrer">
+              <Plus className="h-3.5 w-3.5 mr-1" /> Nouveau Word
+              <ExternalLink className="h-3 w-3 ml-1 opacity-60" />
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a href="https://www.office.com/launch/excel?auth=1&new=1" target="_blank" rel="noopener noreferrer">
+              <Plus className="h-3.5 w-3.5 mr-1" /> Nouveau Excel
+              <ExternalLink className="h-3 w-3 ml-1 opacity-60" />
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a href="https://www.office.com/launch/powerpoint?auth=1&new=1" target="_blank" rel="noopener noreferrer">
+              <Plus className="h-3.5 w-3.5 mr-1" /> Nouveau PowerPoint
+              <ExternalLink className="h-3 w-3 ml-1 opacity-60" />
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="ghost" className="ml-auto">
+            <a href="https://onedrive.live.com/" target="_blank" rel="noopener noreferrer">
+              Ouvrir OneDrive <ExternalLink className="h-3 w-3 ml-1 opacity-60" />
+            </a>
           </Button>
         </div>
 
         {err && (
-          <div className="text-sm text-destructive border border-destructive/40 rounded-md p-3">
+          <div className="text-sm text-destructive border border-destructive/40 rounded-md p-3 whitespace-pre-wrap">
             {err}
+          </div>
+        )}
+
+        {resolved && !loading && (
+          <div className="border rounded-md p-3 bg-primary/5 flex items-center gap-3">
+            {iconFor(resolved)}
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-muted-foreground">Document trouvé via le lien</div>
+              <div className="font-medium truncate">{resolved.name}</div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => linkItem(resolved)}
+              disabled={linkingId === resolved.id || !resolved.webUrl}
+            >
+              {linkingId === resolved.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Lier à l'espace"}
+            </Button>
           </div>
         )}
 
