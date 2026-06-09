@@ -1487,8 +1487,14 @@ export const notifySpaceGuests = createServerFn({ method: "POST" })
         .maybeSingle(),
     ]);
     if (!space || space.user_id !== userId) throw new Error("Espace introuvable");
-    if (!space.is_public || !space.public_token) {
-      throw new Error("Rendez l'espace public pour pouvoir notifier les invités.");
+    if (!space.public_token) {
+      throw new Error("Lien public indisponible pour cet espace.");
+    }
+    if (!space.is_public) {
+      await supabase
+        .from("collab_spaces")
+        .update({ is_public: true })
+        .eq("id", data.spaceId);
     }
     let q = supabase
       .from("collab_guests")
