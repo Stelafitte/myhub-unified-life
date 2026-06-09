@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { CheckSquare, LayoutGrid, GanttChart, List, Wifi, WifiOff, RefreshCw, Plus } from "lucide-react";
+import { CheckSquare, LayoutGrid, GanttChart, List, Wifi, WifiOff, RefreshCw, Plus, CalendarClock, Receipt } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -182,7 +183,7 @@ function TasksPage() {
           <CheckSquare className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Tâches</h1>
+          <h1 className="text-lg font-semibold tracking-tight sm:text-2xl">Tâches et Actions</h1>
           <p className="text-xs text-muted-foreground sm:text-sm">
             {tasks.length} tâche{tasks.length > 1 ? "s" : ""} · {sections.length || DEFAULT_SECTIONS.length} section{(sections.length || DEFAULT_SECTIONS.length) > 1 ? "s" : ""}
           </p>
@@ -223,6 +224,19 @@ function TasksPage() {
               <span className="hidden sm:inline">Gantt</span>
             </button>
           </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-8 gap-1 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm">
+                <CalendarClock className="h-4 w-4" />
+                <span className="hidden sm:inline">Actions programmées</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate({ to: "/expenses" })}>
+                <Receipt className="h-4 w-4 mr-2" /> Notes de frais
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button onClick={() => openCreate("todo")} className="h-8 gap-1 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Nouvelle tâche</span>
