@@ -516,6 +516,10 @@ function OnboardingPage() {
                   <span>Détection des priorités</span>
                   <Switch checked={aiPriority} onCheckedChange={setAiPriority} />
                 </label>
+                <label className="flex items-center justify-between gap-2">
+                  <span>Pré-tri Inbox (corbeille intelligente)</span>
+                  <Switch checked={aiAutoTrash} onCheckedChange={setAiAutoTrash} />
+                </label>
                 <label className="flex items-center justify-between gap-2 opacity-90">
                   <span className="flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-primary" /> Détection HDS
