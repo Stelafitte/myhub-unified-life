@@ -517,8 +517,9 @@ function ChatPanel({
     sender_name: string | null;
     message_at: string;
     type: string;
-    metadata?: { guest_id?: string } | null;
+    metadata?: unknown;
   }>;
+
 
   onPosted: () => void;
 }) {
