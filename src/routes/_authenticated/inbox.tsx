@@ -2294,8 +2294,8 @@ function InboxPage() {
                 Vider
               </Button>
             )}
-            <span className="text-xs text-muted-foreground">
-              {filtered.length} email{filtered.length > 1 ? "s" : ""}
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
+              {filtered.length} mail{filtered.length > 1 ? "s" : ""}
             </span>
           </div>
         </div>
