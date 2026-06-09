@@ -674,9 +674,24 @@ function PlanOperationPage() {
           </div>
 
           {/* ----- Vue DESKTOP (≥1024px) : Gantt complet inchangé ----- */}
-          <div className="hidden lg:block">
-        <div ref={exportRef} className="rounded-xl border bg-card">
-          <div ref={timelineRef} className="flex max-h-[calc(100vh-22rem)] overflow-auto">
+          <div className={cn(
+            fullscreen
+              ? "fixed inset-0 z-50 block bg-background p-4 overflow-hidden flex flex-col"
+              : "hidden lg:block"
+          )}>
+        {fullscreen && (
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-sm font-medium text-muted-foreground">Plan d'opération — vue plein écran</div>
+            <Button variant="outline" size="sm" onClick={() => setFullscreen(false)} className="gap-1">
+              <Minimize2 className="h-4 w-4" /> Quitter le plein écran
+            </Button>
+          </div>
+        )}
+        <div ref={exportRef} className={cn("rounded-xl border bg-card", fullscreen && "flex-1 overflow-hidden")}>
+          <div ref={timelineRef} className={cn(
+            "flex overflow-auto",
+            fullscreen ? "h-full max-h-full" : "max-h-[calc(100vh-22rem)]"
+          )}>
             {/* Left labels */}
             <div className="sticky left-0 z-20 shrink-0 border-r bg-card" style={{ width: LABEL_W }}>
               <div className="h-14 border-b bg-muted/30" />
