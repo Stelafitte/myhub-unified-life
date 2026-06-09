@@ -160,6 +160,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
       setNotifySubject("");
       setNotifyMessage("");
       setNotifyTargets({});
+      qc.invalidateQueries({ queryKey: historyKey });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
