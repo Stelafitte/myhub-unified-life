@@ -592,6 +592,16 @@ function OnboardingPage() {
                 )}
               </div>
 
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" size="sm" onClick={() => navigate({ to: "/roadmap" })} className="gap-2">
+                  <Map className="h-3.5 w-3.5" /> Roadmap
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate({ to: "/projects" })} className="gap-2">
+                  <Users className="h-3.5 w-3.5" /> Créer un espace
+                </Button>
+              </div>
+
+
               <label className="flex items-start gap-2">
                 <Checkbox checked={acceptRgpd} onCheckedChange={(v) => setAcceptRgpd(!!v)} />
                 <span className="text-xs">
