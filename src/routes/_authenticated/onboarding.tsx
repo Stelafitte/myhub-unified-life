@@ -433,7 +433,7 @@ function OnboardingPage() {
             </div>
           )}
 
-          {step === 6 && (
+          {step === 7 && (
             <div className="space-y-4 text-sm">
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div>
