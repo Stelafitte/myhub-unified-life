@@ -6,7 +6,9 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 // Microsoft OneDrive integration via Lovable connector gateway
 // ============================================================
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/microsoft_onedrive/v1.0";
+// NOTE: the connector gateway already prefixes `/v1.0` to Graph paths.
+// Do NOT add it here or Graph returns: "Resource not found for the segment 'v1.0'".
+const GATEWAY_URL = "https://connector-gateway.lovable.dev/microsoft_onedrive";
 
 function gatewayHeaders() {
   const lovKey = process.env.LOVABLE_API_KEY;
