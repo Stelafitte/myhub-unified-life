@@ -86,7 +86,7 @@ import { listOneDriveFolders } from "@/lib/api/onedrive.functions";
 import { ThemesManagerDialog, EmailThemePicker } from "@/components/inbox/themes-manager-dialog";
 import { confirmDialog, choiceDialog } from "@/lib/confirm-dialog";
 import { RecategorizePopover } from "@/components/inbox/recategorize-popover";
-import { EmailComposer, type ComposerInitial } from "@/components/inbox/email-composer";
+import { EmailComposer, type ComposerInitial, type ComposerAttachment } from "@/components/inbox/email-composer";
 import { SwipeableRow, type SwipeAction } from "@/components/inbox/swipeable-row";
 import { AutoTrashSuggestPanel } from "@/components/inbox/auto-trash-suggest-panel";
 import { useDeleteKey } from "@/hooks/use-delete-key";
@@ -240,6 +240,7 @@ function InboxPage() {
   const [aiRanking, setAiRanking] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[] | undefined>(undefined);
   const [undoStack, setUndoStack] = useState<{ label: string; run: () => Promise<void> | void }[]>([]);
   const pushUndo = (entry: { label: string; run: () => Promise<void> | void }) =>
     setUndoStack((s) => [...s.slice(-9), entry]);
@@ -250,10 +251,12 @@ function InboxPage() {
     try { await last.run(); } catch (e) { toast.error(e instanceof Error ? e.message : "Annulation impossible"); }
   };
 
-  const openComposer = (init: ComposerInitial) => {
+  const openComposer = (init: ComposerInitial, attachments?: ComposerAttachment[]) => {
     setComposerInitial(init);
+    setComposerAttachments(attachments);
     setComposerOpen(true);
   };
+
 
   const buildReplyInit = (e: Email, all = false): ComposerInitial => {
     const dateStr = e.received_at ? new Date(e.received_at).toLocaleString("fr-FR") : "";
@@ -290,6 +293,85 @@ function InboxPage() {
       body: `\n\n---------- Message transféré ----------\nDe: ${e.from_name ?? ""} <${e.from_address ?? ""}>\nDate: ${e.received_at ?? ""}\nSujet: ${e.subject ?? ""}\nÀ: ${e.to_address ?? ""}\n\n${e.body_text ?? ""}`,
     };
   };
+
+  /**
+   * Transfert d'email : charge systématiquement les pièces jointes de l'email
+   * source (en les récupérant côté serveur si elles ne sont pas encore présentes)
+   * et les attache au brouillon avant d'ouvrir le composer.
+   */
+  const forwardEmail = async (e: Email) => {
+    const init = buildForwardInit(e);
+    const tid = toast.loading("Préparation du transfert…");
+    try {
+      const loadDocs = async () => {
+        const { data } = await supabase
+          .from("documents")
+          .select("id,storage_path,original_filename,filename,mime_type,file_size")
+          .eq("source_type", "email")
+          .eq("source_id", e.id);
+        return data ?? [];
+      };
+      let docs = await loadDocs();
+      if (docs.length === 0 && e.has_attachment) {
+        try {
+          await supabase.functions.invoke("fetch-email-attachments", { body: { email_id: e.id } });
+          docs = await loadDocs();
+        } catch (err) {
+          console.warn("[forward] recover attachments failed", err);
+        }
+      }
+
+      const attachments: ComposerAttachment[] = [];
+      const MAX_TOTAL = 20 * 1024 * 1024;
+      let total = 0;
+      let skipped = 0;
+      for (const d of docs) {
+        if (!d.storage_path) { skipped++; continue; }
+        const size = d.file_size ?? 0;
+        if (total + size > MAX_TOTAL) { skipped++; continue; }
+        try {
+          const { data: signed } = await supabase.storage
+            .from("documents")
+            .createSignedUrl(d.storage_path, 60);
+          if (!signed?.signedUrl) { skipped++; continue; }
+          const resp = await fetch(signed.signedUrl);
+          if (!resp.ok) { skipped++; continue; }
+          const blob = await resp.blob();
+          const buf = await blob.arrayBuffer();
+          const bytes = new Uint8Array(buf);
+          let bin = "";
+          for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+          attachments.push({
+            name: d.original_filename || d.filename || "piece-jointe",
+            type: d.mime_type || blob.type || "application/octet-stream",
+            size: bytes.length,
+            contentBase64: btoa(bin),
+          });
+          total += bytes.length;
+        } catch (err) {
+          console.warn("[forward] download attachment failed", err);
+          skipped++;
+        }
+      }
+
+      toast.dismiss(tid);
+      if (attachments.length > 0) {
+        toast.success(
+          `${attachments.length} pièce${attachments.length > 1 ? "s" : ""} jointe${attachments.length > 1 ? "s" : ""} attachée${attachments.length > 1 ? "s" : ""}` +
+            (skipped > 0 ? ` (${skipped} ignorée${skipped > 1 ? "s" : ""})` : ""),
+        );
+      } else if (e.has_attachment) {
+        toast.warning("Pièces jointes introuvables — transfert sans PJ");
+      }
+      openComposer(init, attachments.length > 0 ? attachments : undefined);
+    } catch (err) {
+      toast.dismiss(tid);
+      toast.error(err instanceof Error ? err.message : "Échec de la préparation");
+      openComposer(init);
+    }
+  };
+
+
 
   const relaunchAi = async () => {
     if (relaunching) return;
@@ -2695,7 +2777,7 @@ function InboxPage() {
                 label: "Transférer",
                 icon: <Forward className="h-4 w-4" />,
                 color: "bg-indigo-500",
-                onAction: () => openComposer(buildForwardInit(e)),
+                onAction: () => forwardEmail(e),
               },
             ];
             const rightActions: SwipeAction[] = [
@@ -2794,7 +2876,9 @@ function InboxPage() {
             onCreateTask={() => setTaskOpen(true)}
             onPostpone={() => postponeAsTask(selected)}
             onCompose={openComposer}
+            onForward={forwardEmail}
             onMarkSpam={(asSpam) => markSpam(selected, asSpam)}
+
           />
         )}
       </aside>
@@ -2822,7 +2906,9 @@ function InboxPage() {
         onOpenChange={setComposerOpen}
         accounts={accounts}
         initial={composerInitial}
+        initialAttachments={composerAttachments}
       />
+
     </div>
   );
 }
@@ -2907,6 +2993,7 @@ function Reader({
   onCreateTask,
   onPostpone,
   onCompose,
+  onForward,
   onMarkSpam,
 }: {
   email: Email;
@@ -2919,8 +3006,10 @@ function Reader({
   onCreateTask: () => void;
   onPostpone: () => void;
   onCompose: (init: ComposerInitial) => void;
+  onForward: (email: Email) => void | Promise<void>;
   onMarkSpam: (asSpam: boolean) => void;
 }) {
+
   const [sensitiveOverride, setSensitiveOverride] = useState<boolean | null>(null);
   const isSensitive = sensitiveOverride ?? email.is_sensitive;
   useEffect(() => {
@@ -2971,13 +3060,8 @@ function Reader({
       inReplyTo: replyRefs,
       references: replyRefs,
     });
-  const doForward = () =>
-    onCompose({
-      mode: "forward",
-      defaultAccountId: email.account_id,
-      subject: subjFwd,
-      body: `\n\n---------- Message transféré ----------\nDe: ${email.from_name ?? ""} <${email.from_address ?? ""}>\nDate: ${email.received_at ?? ""}\nSujet: ${email.subject ?? ""}\nÀ: ${email.to_address ?? ""}\n\n${email.body_text ?? ""}`,
-    });
+  const doForward = () => onForward(email);
+
   return (
     <div className="flex h-full min-h-0 min-w-0 max-w-full flex-col overflow-x-hidden overflow-y-scroll [scrollbar-gutter:stable]">
       <header className="min-w-0 border-b p-3 sm:p-4">

@@ -660,6 +660,15 @@ function AgendaPage() {
     if (ev.kind !== "event" || deltaMin === 0) return;
     const newStart = new Date(ev.start.getTime() + deltaMin * 60000);
     const newEnd = new Date(ev.end.getTime() + deltaMin * 60000);
+    if (isMobile) {
+      const fmt = (d: Date) =>
+        d.toLocaleString("fr-FR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+      const ok = await confirmDialog(
+        `Déplacer "${ev.title}" ?\n\nDe : ${fmt(ev.start)}\nVers : ${fmt(newStart)}`,
+        { title: "Confirmer le déplacement", confirmLabel: "Déplacer", cancelLabel: "Annuler" },
+      );
+      if (!ok) { load(); return; }
+    }
     const { error } = await supabase
       .from("calendar_events")
       .update({ start_at: newStart.toISOString(), end_at: newEnd.toISOString() })
@@ -667,6 +676,7 @@ function AgendaPage() {
     if (error) toast.error(error.message);
     else { toast.success("Événement déplacé"); load(); requestAutoSync(); }
   };
+
 
   const resizeEvent = async (ev: UnifiedEvent, edge: "start" | "end", deltaMin: number) => {
     if (ev.kind !== "event" || deltaMin === 0) return;
