@@ -12,11 +12,26 @@ import {
   Loader2,
   Link2,
   Plus,
+  Globe,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { listSpaceLinks, unlinkEntity } from "@/lib/collab.functions";
+import {
+  listSpaceLinks,
+  unlinkEntity,
+  listSpaceUrlLinks,
+  createSpaceUrlLink,
+  deleteSpaceUrlLink,
+} from "@/lib/collab.functions";
 import { LinkPickerDialog } from "./link-picker-dialog";
 
 interface Props {
