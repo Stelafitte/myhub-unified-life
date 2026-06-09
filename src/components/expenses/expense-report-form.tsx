@@ -122,8 +122,11 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
 
+  const loadOrgs = () => orgsFn().then((r) => setOrganizations(r.organizations as any[])).catch(() => {});
+
   useEffect(() => {
     void tplFn().then((r) => setTemplates(r.templates));
+    void loadOrgs();
     if (!reportId) {
       setTitle(`Note de frais — ${new Date().toLocaleDateString("fr-FR")}`);
       return;
@@ -136,7 +139,9 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       setMissionDescription((rep as any).mission_description ?? "");
       setMissionContext(rep.mission_context ?? "");
       setOrganization(rep.organization ?? "");
+      setOrganizationId((rep as any).organization_id ?? "");
       setMissionNumber(rep.mission_number ?? "");
+
       setIdent({ ...DEFAULT_IDENTIFICATION, ...((rep.identification ?? {}) as Record<string, string>) });
       setAdvance(Number(rep.advance_amount) || 0);
       setPaymentMethod(rep.payment_method ?? "virement");
