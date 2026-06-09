@@ -718,3 +718,52 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
     </Dialog>
   );
 }
+
+function labelForTemplate(t: string) {
+  if (t === "space-invitation") return "Invitation";
+  if (t === "space-update") return "Notification";
+  return t;
+}
+
+function fmtDateTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+  } catch {
+    return iso;
+  }
+}
+
+function fmtRelative(iso: string) {
+  const d = new Date(iso).getTime();
+  const diff = Date.now() - d;
+  const m = Math.round(diff / 60000);
+  if (m < 1) return "à l'instant";
+  if (m < 60) return `il y a ${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `il y a ${h} h`;
+  const j = Math.round(h / 24);
+  if (j < 30) return `il y a ${j} j`;
+  return fmtDateTime(iso);
+}
+
+function StatusIcon({ status }: { status: string }) {
+  if (status === "sent") return <CheckCircle2 className="h-3 w-3 text-green-600" />;
+  if (status === "pending") return <Clock className="h-3 w-3 text-amber-600" />;
+  if (status === "failed" || status === "dlq" || status === "bounced") return <XCircle className="h-3 w-3 text-red-600" />;
+  if (status === "suppressed" || status === "complained") return <Ban className="h-3 w-3 text-muted-foreground" />;
+  return <Clock className="h-3 w-3 text-muted-foreground" />;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    sent: { label: "Envoyé", cls: "bg-green-100 text-green-700" },
+    pending: { label: "En cours", cls: "bg-amber-100 text-amber-700" },
+    failed: { label: "Échec", cls: "bg-red-100 text-red-700" },
+    dlq: { label: "Échec", cls: "bg-red-100 text-red-700" },
+    bounced: { label: "Rejeté", cls: "bg-red-100 text-red-700" },
+    suppressed: { label: "Bloqué", cls: "bg-muted text-muted-foreground" },
+    complained: { label: "Plainte", cls: "bg-muted text-muted-foreground" },
+  };
+  const v = map[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
+  return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${v.cls}`}>{v.label}</span>;
+}
