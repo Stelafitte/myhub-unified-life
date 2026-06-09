@@ -59,6 +59,7 @@ const ReportUpsert = z.object({
   mission_description: z.string().max(4000).nullable().optional().default(null),
   mission_context: z.enum(["congres", "formation", "reunion", "enseignement", "recherche", "autre"]).nullable().optional().default(null),
   organization: z.string().max(255).nullable().optional().default(null),
+  organization_id: z.string().uuid().nullable().optional().default(null),
   mission_number: z.string().max(100).nullable().optional().default(null),
   identification: z.record(z.string(), z.any()).default({}),
   status: z.enum(["draft", "submitted", "approved", "rejected", "paid"]).default("draft"),
@@ -73,6 +74,7 @@ const ReportUpsert = z.object({
   source_email_id: z.string().uuid().nullable().optional().default(null),
   items: z.array(ItemInput).default([]),
 });
+
 
 // ============== CRUD ==============
 
@@ -164,6 +166,7 @@ export const upsertReport = createServerFn({ method: "POST" })
       mission_description: data.mission_description,
       mission_context: data.mission_context,
       organization: data.organization,
+      organization_id: data.organization_id,
       mission_number: data.mission_number,
       identification: data.identification,
       status: data.status,
@@ -179,6 +182,7 @@ export const upsertReport = createServerFn({ method: "POST" })
       recipient_email: data.recipient_email,
       source_email_id: data.source_email_id,
     };
+
 
     let reportId = data.id;
     if (reportId) {
@@ -684,3 +688,288 @@ export const createReportFromAIItems = createServerFn({ method: "POST" })
     return { id: report.id as string, total };
   });
 
+
+// ============== Organizations (organismes invitants) ==============
+
+const OrgUpsert = z.object({
+  id: z.string().uuid().optional(),
+  name: z.string().min(1).max(255),
+  legal_name: z.string().max(255).nullable().optional().default(null),
+  address: z.string().max(1000).nullable().optional().default(null),
+  contact_email: z.string().max(320).nullable().optional().default(null),
+  template_path: z.string().max(500).nullable().optional().default(null),
+  template_filename: z.string().max(255).nullable().optional().default(null),
+  template_mime: z.string().max(100).nullable().optional().default(null),
+});
+
+function inferFileType(mime: string | null | undefined): string {
+  const m = (mime ?? "").toLowerCase();
+  if (m.includes("sheet") || m.includes("excel")) return "excel";
+  if (m.includes("pdf")) return "pdf";
+  if (m.includes("word") || m.includes("document")) return "word";
+  return "pdf";
+}
+
+export const listOrganizations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("expense_organizations" as any)
+      .select("id,name,legal_name,address,contact_email,template_path,template_filename,template_mime,template_file_type,ai_mapping,created_at")
+      .eq("user_id", userId)
+      .order("name");
+    if (error) throw new Error(error.message);
+    return { organizations: (data ?? []) as any[] };
+  });
+
+export const upsertOrganization = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => OrgUpsert.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const payload: any = {
+      user_id: userId,
+      name: data.name,
+      legal_name: data.legal_name,
+      address: data.address,
+      contact_email: data.contact_email,
+      template_path: data.template_path,
+      template_filename: data.template_filename,
+      template_mime: data.template_mime,
+      template_file_type: data.template_path ? inferFileType(data.template_mime) : null,
+    };
+    if (data.id) {
+      // Preserve previous template if not re-uploaded (path null on update)
+      if (!data.template_path) {
+        delete payload.template_path;
+        delete payload.template_filename;
+        delete payload.template_mime;
+        delete payload.template_file_type;
+      }
+      const { error } = await (supabase as any).from("expense_organizations").update(payload).eq("id", data.id).eq("user_id", userId);
+      if (error) throw new Error(error.message);
+      return { id: data.id };
+    }
+    const { data: row, error } = await (supabase as any).from("expense_organizations").insert(payload).select("id").single();
+    if (error) throw new Error(error.message);
+    return { id: row.id as string };
+  });
+
+export const deleteOrganization = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => IdSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: o } = await (supabase as any).from("expense_organizations").select("template_path").eq("id", data.id).eq("user_id", userId).maybeSingle();
+    if (o?.template_path) await supabase.storage.from("expense-receipts").remove([o.template_path]);
+    const { error } = await (supabase as any).from("expense_organizations").delete().eq("id", data.id).eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const getOrganizationTemplateUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => IdSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: o } = await (supabase as any).from("expense_organizations").select("template_path,template_filename").eq("id", data.id).eq("user_id", userId).maybeSingle();
+    if (!o?.template_path) throw new Error("Aucun modèle joint");
+    const { data: url, error } = await supabase.storage.from("expense-receipts").createSignedUrl(o.template_path, 3600);
+    if (error) throw new Error(error.message);
+    return { url: url.signedUrl, filename: o.template_filename ?? "modele" };
+  });
+
+export const analyzeOrganizationTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => IdSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("LOVABLE_API_KEY manquant");
+    const { data: t } = await (supabase as any).from("expense_organizations").select("*").eq("id", data.id).eq("user_id", userId).maybeSingle();
+    if (!t?.template_path) throw new Error("Modèle introuvable");
+    const fileType = t.template_file_type ?? inferFileType(t.template_mime);
+    const { data: blob, error: dlErr } = await supabase.storage.from("expense-receipts").download(t.template_path);
+    if (dlErr || !blob) throw new Error(dlErr?.message ?? "Téléchargement modèle impossible");
+    const buf = new Uint8Array(await blob.arrayBuffer());
+
+    let extractedText = "";
+    let preview: any = {};
+    try {
+      if (fileType === "excel") {
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(buf, { type: "array" });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const aoa = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, blankrows: false }) as any[][];
+        preview = { sheetName: wb.SheetNames[0], rows: aoa.slice(0, 40) };
+        extractedText = aoa.slice(0, 40).map((r) => r.join(" | ")).join("\n");
+      } else if (fileType === "pdf") {
+        const { PDFDocument } = await import("pdf-lib");
+        const pdf = await PDFDocument.load(buf);
+        const form = pdf.getForm();
+        const fields = form.getFields().map((f) => ({ name: f.getName(), type: f.constructor.name }));
+        preview = { fields };
+        extractedText = `Champs PDF :\n${fields.map((f) => `- ${f.name} (${f.type})`).join("\n")}`;
+      } else {
+        extractedText = "Modèle Word — non analysable automatiquement.";
+      }
+    } catch (e: any) {
+      extractedText = `(erreur d'analyse : ${e?.message ?? "?"})`;
+    }
+
+    const sys = `Tu analyses un modèle de note de frais d'un organisme invitant. Réponds en JSON :
+{
+  "fields": [{"key":"identifiant_court","label":"libellé humain","hint":"cellule Excel (ex B3) ou nom champ PDF","value_from":"<title|fullName|institution|service|mission_object|organization|signature_date|signature_location|total_amount|advance_amount|amount_to_reimburse|iban|null>"}],
+  "items_table": {"start_cell":"A10|null","columns":["date","category","description","amount_ttc","tva_rate","amount_ht"]}
+}`;
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-pro",
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: `Modèle "${t.name}" (${fileType}) — ${t.legal_name ?? t.name}\n\n${extractedText}` },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (!resp.ok) throw new Error(`Erreur IA (${resp.status})`);
+    const j = await resp.json();
+    let mapping: any = {};
+    try { mapping = JSON.parse(j?.choices?.[0]?.message?.content ?? "{}"); } catch { mapping = {}; }
+    mapping.preview = preview;
+    await (supabase as any).from("expense_organizations").update({ ai_mapping: mapping, template_file_type: fileType }).eq("id", data.id).eq("user_id", userId);
+    return { mapping };
+  });
+
+export const fillOrganizationTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ reportId: z.string().uuid(), organizationId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: t } = await (supabase as any).from("expense_organizations").select("*").eq("id", data.organizationId).eq("user_id", userId).maybeSingle();
+    if (!t?.template_path) throw new Error("Cet organisme n'a pas de modèle");
+    const fileType = t.template_file_type ?? inferFileType(t.template_mime);
+
+    // Auto-analyze if no mapping yet
+    let mapping = (t.ai_mapping ?? {}) as any;
+    if (!mapping.fields && !mapping.items_table) {
+      try {
+        const key = process.env.LOVABLE_API_KEY;
+        if (key) {
+          const { data: blob0 } = await supabase.storage.from("expense-receipts").download(t.template_path);
+          if (blob0) {
+            const buf0 = new Uint8Array(await blob0.arrayBuffer());
+            let extractedText = "";
+            if (fileType === "excel") {
+              const XLSX = await import("xlsx");
+              const wb = XLSX.read(buf0, { type: "array" });
+              const sheet = wb.Sheets[wb.SheetNames[0]];
+              const aoa = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, blankrows: false }) as any[][];
+              extractedText = aoa.slice(0, 40).map((r) => r.join(" | ")).join("\n");
+            } else if (fileType === "pdf") {
+              const { PDFDocument } = await import("pdf-lib");
+              const pdf = await PDFDocument.load(buf0);
+              const fields = pdf.getForm().getFields().map((f) => ({ name: f.getName(), type: f.constructor.name }));
+              extractedText = `Champs PDF :\n${fields.map((f) => `- ${f.name} (${f.type})`).join("\n")}`;
+            }
+            const sys = `Analyse de modèle NDF. JSON: {"fields":[{"key":"","label":"","hint":"cellule ou nom champ","value_from":"<title|fullName|institution|service|mission_object|organization|signature_date|signature_location|total_amount|advance_amount|amount_to_reimburse|iban|null>"}],"items_table":{"start_cell":"A10|null","columns":["date","category","description","amount_ttc","tva_rate","amount_ht"]}}`;
+            const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-pro",
+                messages: [{ role: "system", content: sys }, { role: "user", content: extractedText }],
+                response_format: { type: "json_object" },
+              }),
+            });
+            if (resp.ok) {
+              const j = await resp.json();
+              try { mapping = JSON.parse(j?.choices?.[0]?.message?.content ?? "{}"); } catch { /* */ }
+              await (supabase as any).from("expense_organizations").update({ ai_mapping: mapping, template_file_type: fileType }).eq("id", data.organizationId).eq("user_id", userId);
+            }
+          }
+        }
+      } catch { /* ignore, fill with what we have */ }
+    }
+
+    const { data: report } = await supabase.from("expense_reports").select("*").eq("id", data.reportId).eq("user_id", userId).maybeSingle();
+    if (!report) throw new Error("Note introuvable");
+    const { data: items } = await supabase.from("expense_items").select("*").eq("report_id", data.reportId).order("position");
+
+    const { data: blob } = await supabase.storage.from("expense-receipts").download(t.template_path);
+    if (!blob) throw new Error("Téléchargement modèle impossible");
+    const buf = new Uint8Array(await blob.arrayBuffer());
+
+    const ident = ((report as any).identification ?? {}) as Record<string, string>;
+    const valueFor = (key: string): string => {
+      const map: Record<string, any> = {
+        title: (report as any).title,
+        fullName: ident.fullName ?? DEFAULT_IDENTIFICATION.fullName,
+        institution: ident.institution ?? DEFAULT_IDENTIFICATION.institution,
+        service: ident.service ?? DEFAULT_IDENTIFICATION.service,
+        mission_object: (report as any).mission_object,
+        organization: t.legal_name ?? t.name ?? (report as any).organization,
+        signature_date: (report as any).signature_date ?? new Date().toISOString().slice(0, 10),
+        signature_location: (report as any).signature_location,
+        total_amount: String((report as any).total_amount),
+        advance_amount: String((report as any).advance_amount),
+        amount_to_reimburse: String((report as any).amount_to_reimburse),
+        iban: (report as any).iban,
+      };
+      return map[key] != null ? String(map[key]) : "";
+    };
+
+    let outBytes: Uint8Array;
+    let outMime = t.template_mime ?? "application/octet-stream";
+    let ext = fileType === "excel" ? "xlsx" : fileType === "pdf" ? "pdf" : "docx";
+
+    if (fileType === "excel") {
+      const XLSX = await import("xlsx");
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      for (const f of mapping.fields ?? []) {
+        if (f?.hint && /^[A-Z]+\d+$/.test(f.hint) && f.value_from) {
+          sheet[f.hint] = { t: "s", v: valueFor(f.value_from) };
+        }
+      }
+      const startCell: string | undefined = mapping.items_table?.start_cell;
+      const cols: string[] = mapping.items_table?.columns ?? ["date", "category", "description", "amount_ttc"];
+      if (startCell && /^[A-Z]+\d+$/.test(startCell)) {
+        const m = startCell.match(/^([A-Z]+)(\d+)$/)!;
+        const colIdx = XLSX.utils.decode_col(m[1]);
+        const startRow = parseInt(m[2], 10);
+        (items ?? []).forEach((it: any, idx: number) => {
+          cols.forEach((c, j) => {
+            const addr = XLSX.utils.encode_cell({ c: colIdx + j, r: startRow - 1 + idx });
+            const v = it[c];
+            sheet[addr] = { t: typeof v === "number" ? "n" : "s", v: v ?? "" };
+          });
+        });
+      }
+      outBytes = new Uint8Array(XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer);
+      outMime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    } else if (fileType === "pdf") {
+      const { PDFDocument } = await import("pdf-lib");
+      const pdf = await PDFDocument.load(buf);
+      const form = pdf.getForm();
+      for (const f of mapping.fields ?? []) {
+        if (!f?.hint || !f?.value_from) continue;
+        try { form.getTextField(f.hint).setText(valueFor(f.value_from)); } catch { /* skip */ }
+      }
+      outBytes = await pdf.save();
+      outMime = "application/pdf";
+    } else {
+      outBytes = buf;
+    }
+
+    let bin = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < outBytes.length; i += chunk) bin += String.fromCharCode(...outBytes.subarray(i, i + chunk));
+    const base64 = btoa(bin);
+    const safeOrg = (t.name || "Organisme").replace(/[^\w\- ]+/g, "_");
+    const safeTitle = ((report as any).title || "Note de frais").replace(/[^\w\- ]+/g, "_");
+    return { filename: `${safeOrg}_${safeTitle}.${ext}`, mime: outMime, base64 };
+  });

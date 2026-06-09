@@ -8,10 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft, Sparkles, Eye, Send } from "lucide-react";
+import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft, Sparkles, Eye, Send, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   getReport, upsertReport, fillExpenseTemplate, listTemplates,
+  listOrganizations, fillOrganizationTemplate,
   DEFAULT_IDENTIFICATION, CATEGORIES, KM_RATE_2024, type ExpenseCategory,
 } from "@/lib/expense.functions";
 import { generateExpensePDFClient } from "./expense-pdf";
@@ -21,6 +22,8 @@ import { AIBatchExtractDialog, type AIExtractedLine } from "./ai-batch-extract-d
 import { ContactEmailAutocomplete } from "@/components/contacts/contact-email-autocomplete";
 import { EmailComposer, type ComposerAccount, type ComposerAttachment, type ComposerInitial } from "@/components/inbox/email-composer";
 import { getSignatureForAccount } from "@/lib/email-signatures";
+import { OrganizationDialog } from "./organization-dialog";
+
 
 // helper not exported by server-fns — local copy
 type Item = {
@@ -77,6 +80,8 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const upsertFn = useServerFn(upsertReport);
   const fillFn = useServerFn(fillExpenseTemplate);
   const tplFn = useServerFn(listTemplates);
+  const orgsFn = useServerFn(listOrganizations);
+  const fillOrgFn = useServerFn(fillOrganizationTemplate);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -85,6 +90,9 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const [aiInitialFiles, setAiInitialFiles] = useState<File[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [pickedTpl, setPickedTpl] = useState<string>("");
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [organizationId, setOrganizationId] = useState<string>("");
+  const [orgDialogOpen, setOrgDialogOpen] = useState(false);
 
   const [title, setTitle] = useState("");
   const [missionObject, setMissionObject] = useState("");
@@ -92,6 +100,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const [missionContext, setMissionContext] = useState<string>("");
   const [organization, setOrganization] = useState("");
   const [missionNumber, setMissionNumber] = useState("");
+
   const [ident, setIdent] = useState({ ...DEFAULT_IDENTIFICATION });
   const [items, setItems] = useState<Item[]>([]);
   const [advance, setAdvance] = useState(0);
@@ -113,8 +122,11 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
 
+  const loadOrgs = () => orgsFn().then((r) => setOrganizations(r.organizations as any[])).catch(() => {});
+
   useEffect(() => {
     void tplFn().then((r) => setTemplates(r.templates));
+    void loadOrgs();
     if (!reportId) {
       setTitle(`Note de frais — ${new Date().toLocaleDateString("fr-FR")}`);
       return;
@@ -127,7 +139,9 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       setMissionDescription((rep as any).mission_description ?? "");
       setMissionContext(rep.mission_context ?? "");
       setOrganization(rep.organization ?? "");
+      setOrganizationId((rep as any).organization_id ?? "");
       setMissionNumber(rep.mission_number ?? "");
+
       setIdent({ ...DEFAULT_IDENTIFICATION, ...((rep.identification ?? {}) as Record<string, string>) });
       setAdvance(Number(rep.advance_amount) || 0);
       setPaymentMethod(rep.payment_method ?? "virement");
@@ -214,7 +228,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
         id: reportId,
         title, mission_object: missionObject || null, mission_description: missionDescription || null,
         mission_context: (missionContext as any) || null,
-        organization: organization || null, mission_number: missionNumber || null,
+        organization: organization || null, organization_id: organizationId || null, mission_number: missionNumber || null,
         identification: ident, status: (newStatus as any) ?? (status as any),
         advance_amount: advance, currency: "EUR",
         payment_method: (paymentMethod as any), iban: iban || null,
@@ -281,8 +295,23 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
         signature,
       ].join("\n");
       const out = buildPdf();
+      const attachments: ComposerAttachment[] = [
+        { name: out.filename, type: "application/pdf", size: Math.ceil(out.base64.length * 0.75), contentBase64: out.base64 },
+      ];
+      // Si un organisme avec modèle est sélectionné : remplissage IA + ajout en PJ
+      const org = organizations.find((o) => o.id === organizationId);
+      if (org?.template_path) {
+        try {
+          const filled = await fillOrgFn({ data: { reportId: id, organizationId: org.id } });
+          attachments.push({ name: filled.filename, type: filled.mime, size: Math.ceil(filled.base64.length * 0.75), contentBase64: filled.base64 });
+          toast.success("Modèle organisme rempli et joint");
+        } catch (e: any) {
+          toast.error(`Modèle organisme : ${e?.message ?? "erreur"}`);
+        }
+      }
       setComposerAccounts(accounts);
-      setComposerAttachments([{ name: out.filename, type: "application/pdf", size: Math.ceil(out.base64.length * 0.75), contentBase64: out.base64 }]);
+      setComposerAttachments(attachments);
+
       setComposerInitial({
         mode: "new",
         to: recipientEmail.trim(),
@@ -362,7 +391,37 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="text-xs">Organisme invitant</Label><Input value={organization} onChange={(e) => setOrganization(e.target.value)} /></div>
+              <div>
+                <Label className="text-xs">Organisme invitant</Label>
+                <div className="flex gap-1">
+                  <Select
+                    value={organizationId || "__none"}
+                    onValueChange={(v) => {
+                      if (v === "__none") { setOrganizationId(""); return; }
+                      setOrganizationId(v);
+                      const o = organizations.find((x) => x.id === v);
+                      if (o) {
+                        setOrganization(o.name);
+                        if (!recipientEmail && o.contact_email) setRecipientEmail(o.contact_email);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="flex-1"><SelectValue placeholder="Sélectionner un organisme" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">— Aucun —</SelectItem>
+                      {organizations.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.name}{o.template_filename ? " 📎" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" size="sm" variant="outline" onClick={() => setOrgDialogOpen(true)} title="Gérer les organismes" className="h-9 w-9 p-0">
+                    <Settings2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
               <div><Label className="text-xs">N° mission / bon de commande</Label><Input value={missionNumber} onChange={(e) => setMissionNumber(e.target.value)} /></div>
             </div>
           </section>
@@ -520,6 +579,8 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       </ScrollArea>
 
       <ImportFromEmailDialog open={importOpen} onOpenChange={setImportOpen} onPick={onImportedFromEmail} />
+      <OrganizationDialog open={orgDialogOpen} onOpenChange={setOrgDialogOpen} userId={userId} onChanged={() => void loadOrgs()} />
+
       <AIBatchExtractDialog open={aiBatchOpen} onOpenChange={setAiBatchOpen} onLines={onAIBatchLines} initialFiles={aiInitialFiles} />
       <EmailComposer open={composerOpen} onOpenChange={setComposerOpen} accounts={composerAccounts} initial={composerInitial} initialAttachments={composerAttachments} />
       <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) { if (previewUrl) URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } }}>
