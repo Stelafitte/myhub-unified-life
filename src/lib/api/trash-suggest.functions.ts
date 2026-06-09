@@ -34,14 +34,20 @@ export const suggestTrashCandidates = createServerFn({ method: "POST" })
       .limit(60);
 
     // Mails candidats : non lus / non archivés / non corbeille / non envoyés
-    const { data: candidates } = await (supabase as unknown as { from: (t: string) => { select: (s: string) => { eq: (a: string, b: string) => { is: (a: string, b: null) => { neq: (a: string, b: string) => { order: (a: string, b: { ascending: boolean }) => { limit: (n: number) => Promise<{ data: Array<{ id: string; from_address: string | null; from_name: string | null; subject: string | null; ai_category: string | null; ai_summary: string | null; spam_label: string | null; received_at: string | null; direction: string | null }> | null }> } } } } } })
+    const candidatesQ = supabase
       .from("emails")
-      .select("id,from_address,from_name,subject,ai_category,ai_summary,spam_label,received_at,direction")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .select("id,from_address,from_name,subject,ai_category,ai_summary,spam_label,received_at,direction" as any)
       .eq("user_id", userId)
       .is("deleted_at", null)
-      .neq("direction", "outbound")
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .neq("direction" as any, "outbound")
       .order("received_at", { ascending: false })
       .limit(data.limit);
+    const { data: candidates } = await candidatesQ as unknown as {
+      data: Array<{ id: string; from_address: string | null; from_name: string | null; subject: string | null; ai_category: string | null; ai_summary: string | null; spam_label: string | null; received_at: string | null; direction: string | null }> | null;
+    };
+
 
 
     if (!candidates || candidates.length === 0) return { suggestions: [] as Suggestion[] };
