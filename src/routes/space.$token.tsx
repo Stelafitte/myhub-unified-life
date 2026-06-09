@@ -414,18 +414,40 @@ function PublicSpacePage() {
 
         <TabsContent value="collaborators" className="mt-3">
           <SectionList
-            empty="Aucun collaborateur invité."
+            empty="Aucun collaborateur."
             items={collaborators}
             render={(c) => (
               <Card key={c.id} className="p-3 flex items-center gap-3">
+                <div
+                  className="h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                  style={bubblePalette(c.name)}
+                >
+                  {c.name
+                    .split(" ")
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((p) => p[0]?.toUpperCase())
+                    .join("")}
+                </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm truncate">{c.name}</div>
+                  <div className="font-medium text-sm truncate flex items-center gap-2">
+                    {c.name}
+                    {c.invited ? (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {c.role === "contributor" ? "Contributeur" : "Lecteur"}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">Membre</Badge>
+                    )}
+                  </div>
                   <div className="text-[11px] text-muted-foreground truncate">
-                    {c.email ?? "—"} · {c.role === "contributor" ? "Contrib." : "Lecteur"}
+                    {c.email ?? "—"}
+                    {c.organization ? ` · ${c.organization}` : ""}
+                    {c.group_names?.length ? ` · ${c.group_names.join(", ")}` : ""}
                   </div>
                 </div>
                 {c.last_active_at && (
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-[11px] text-muted-foreground shrink-0">
                     Vu {formatDistanceToNow(new Date(c.last_active_at), { addSuffix: true, locale: fr })}
                   </span>
                 )}
@@ -433,6 +455,7 @@ function PublicSpacePage() {
             )}
           />
         </TabsContent>
+
       </Tabs>
 
       <footer className="text-xs text-muted-foreground text-center pt-6 border-t">
