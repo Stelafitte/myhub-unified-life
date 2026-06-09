@@ -1388,8 +1388,14 @@ export const resendSpaceGuestInvitation = createServerFn({ method: "POST" })
         .eq("id", userId)
         .maybeSingle(),
     ]);
-    if (!space?.public_token || !space.is_public) {
-      throw new Error("L'espace doit être public pour envoyer une invitation");
+    if (!space?.public_token) {
+      throw new Error("Lien public indisponible pour cet espace.");
+    }
+    if (!space.is_public) {
+      await supabase
+        .from("collab_spaces")
+        .update({ is_public: true })
+        .eq("id", guest.space_id);
     }
     const origin = data.appOrigin?.replace(/\/$/, "") ?? "";
     const accessUrl = `${origin}/space/${space.public_token}?g=${guest.access_token}`;
