@@ -431,7 +431,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       </ScrollArea>
 
       <ImportFromEmailDialog open={importOpen} onOpenChange={setImportOpen} onPick={onImportedFromEmail} />
-      <AIBatchExtractDialog open={aiBatchOpen} onOpenChange={setAiBatchOpen} onLines={onAIBatchLines} />
+      <AIBatchExtractDialog open={aiBatchOpen} onOpenChange={setAiBatchOpen} onLines={onAIBatchLines} initialFiles={aiInitialFiles} />
     </div>
   );
 }
