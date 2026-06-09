@@ -123,6 +123,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       const rep = r.report;
       setTitle(rep.title);
       setMissionObject(rep.mission_object ?? "");
+      setMissionDescription((rep as any).mission_description ?? "");
       setMissionContext(rep.mission_context ?? "");
       setOrganization(rep.organization ?? "");
       setMissionNumber(rep.mission_number ?? "");
@@ -133,6 +134,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       setSignatureLocation(rep.signature_location ?? "Bordeaux");
       setSignatureDate(rep.signature_date ?? new Date().toISOString().slice(0, 10));
       setNotes(rep.notes ?? "");
+      setRecipientEmail((rep as any).recipient_email ?? "");
       setStatus(rep.status ?? "draft");
       setItems((r.items as any[]).map((it, idx) => ({
         id: it.id, date: it.date, category: it.category, description: it.description,
