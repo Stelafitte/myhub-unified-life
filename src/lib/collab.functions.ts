@@ -1051,7 +1051,11 @@ export const getPublicSpace = createServerFn({ method: "GET" })
         .eq("access_token", data.guest_token)
         .eq("space_id", space.id)
         .maybeSingle();
-      if (g) guest = { id: g.id, name: g.name, role: (g.role as "viewer" | "contributor") ?? "viewer" };
+      if (g) {
+        guest = { id: g.id, name: g.name, role: (g.role as "viewer" | "contributor") ?? "viewer" };
+        // Update last_active_at (best-effort, no await on error)
+        await sb.from("collab_guests").update({ last_active_at: new Date().toISOString() }).eq("id", g.id);
+      }
     }
 
     const isContributor = guest?.role === "contributor";
