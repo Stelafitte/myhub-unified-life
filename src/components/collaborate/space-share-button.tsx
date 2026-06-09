@@ -36,7 +36,7 @@ import {
   notifySpaceGuests,
   resendSpaceGuestInvitation,
 } from "@/lib/collab.functions";
-import { listContactGroups } from "@/lib/contacts.functions";
+import { listContactGroups, getGroupMembers } from "@/lib/contacts.functions";
 
 export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const [open, setOpen] = useState(false);
