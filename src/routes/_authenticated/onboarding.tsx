@@ -35,8 +35,9 @@ const STEPS = [
   { id: 3, title: "Comptes email", icon: Mail },
   { id: 4, title: "Agendas & Contacts", icon: Calendar },
   { id: 5, title: "Intégrations", icon: Plug },
-  { id: 6, title: "Intelligence IA", icon: Brain },
-  { id: 7, title: "Récapitulatif", icon: CheckCircle2 },
+  { id: 6, title: "Collaboration", icon: Users },
+  { id: 7, title: "Intelligence IA", icon: Brain },
+  { id: 8, title: "Récapitulatif", icon: CheckCircle2 },
 ];
 
 type AiProvider = "openai-gpt4o-mini" | "anthropic-haiku" | "anthropic-sonnet";
