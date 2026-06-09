@@ -1,0 +1,1 @@
+ALTER TABLE public.expense_reports ADD COLUMN IF NOT EXISTS mission_description text, ADD COLUMN IF NOT EXISTS recipient_email text;

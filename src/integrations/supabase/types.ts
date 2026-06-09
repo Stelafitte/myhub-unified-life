@@ -1587,11 +1587,13 @@ export type Database = {
           id: string
           identification: Json
           mission_context: string | null
+          mission_description: string | null
           mission_number: string | null
           mission_object: string | null
           notes: string | null
           organization: string | null
           payment_method: string | null
+          recipient_email: string | null
           signature_date: string | null
           signature_location: string
           source_email_id: string | null
@@ -1610,11 +1612,13 @@ export type Database = {
           id?: string
           identification?: Json
           mission_context?: string | null
+          mission_description?: string | null
           mission_number?: string | null
           mission_object?: string | null
           notes?: string | null
           organization?: string | null
           payment_method?: string | null
+          recipient_email?: string | null
           signature_date?: string | null
           signature_location?: string
           source_email_id?: string | null
@@ -1633,11 +1637,13 @@ export type Database = {
           id?: string
           identification?: Json
           mission_context?: string | null
+          mission_description?: string | null
           mission_number?: string | null
           mission_object?: string | null
           notes?: string | null
           organization?: string | null
           payment_method?: string | null
+          recipient_email?: string | null
           signature_date?: string | null
           signature_location?: string
           source_email_id?: string | null
