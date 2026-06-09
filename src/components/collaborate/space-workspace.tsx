@@ -43,6 +43,12 @@ export function SpaceWorkspace() {
   const [groupFromSpaceOpen, setGroupFromSpaceOpen] = useState(false);
   const [contactGroupsKey, setContactGroupsKey] = useState(0);
 
+  useEffect(() => {
+    if (activeId) {
+      localStorage.setItem(LAST_SPACE_KEY, activeId);
+    }
+  }, [activeId]);
+
   const treeFn = useServerFn(getSpaceTree);
   const { data: tree } = useQuery({
     queryKey: ["collab-tree"],
