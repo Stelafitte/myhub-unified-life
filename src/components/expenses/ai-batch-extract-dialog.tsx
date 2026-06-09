@@ -37,11 +37,12 @@ async function fileToBase64(file: File): Promise<string> {
 }
 
 export function AIBatchExtractDialog({
-  open, onOpenChange, onLines,
+  open, onOpenChange, onLines, initialFiles,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onLines: (lines: AIExtractedLine[]) => void;
+  initialFiles?: File[];
 }) {
   const listFn = useServerFn(listExpenseEmailCandidates);
   const genFn = useServerFn(generateExpenseReport);
