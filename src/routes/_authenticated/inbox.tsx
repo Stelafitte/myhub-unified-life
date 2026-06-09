@@ -2129,7 +2129,7 @@ function InboxPage() {
           isMobileInbox && mobileView === "sidebar" ? "hidden" : "flex",
         )}
       >
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-2 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
             <button
               type="button"
@@ -2294,8 +2294,8 @@ function InboxPage() {
                 Vider
               </Button>
             )}
-            <span className="text-xs text-muted-foreground">
-              {filtered.length} email{filtered.length > 1 ? "s" : ""}
+            <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">
+              {filtered.length} mail{filtered.length > 1 ? "s" : ""}
             </span>
           </div>
         </div>
@@ -2942,7 +2942,7 @@ function FilterRow({
           {icon}
         </span>
         <span className="flex-1 truncate text-sm">{label}</span>
-        <span className="w-8 shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
+        <span className="shrink-0 text-right text-[11px] tabular-nums text-muted-foreground">
           {count}
         </span>
       </button>
