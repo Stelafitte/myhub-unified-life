@@ -2223,7 +2223,7 @@ function InboxPage() {
         {filter !== "trash" && (
           <AutoTrashSuggestPanel
             emails={emails.filter((e) => !e.deleted_at && e.direction !== "outbound")}
-            threshold={75}
+            threshold={70}
             onTrashed={(ids) => {
               const now = new Date().toISOString();
               setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: now } : x)));
