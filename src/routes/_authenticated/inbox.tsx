@@ -2490,6 +2490,14 @@ function InboxPage() {
                       {!e.is_read && (
                         <span className="h-2 w-2 shrink-0 rounded-full bg-primary" title="Non lu" />
                       )}
+                      {e.direction === "outbound" && (
+                        <span
+                          className="shrink-0 rounded bg-blue-500/15 px-1 text-[10px] font-medium text-blue-600 dark:text-blue-400"
+                          title="Mail envoyé"
+                        >
+                          ↗ Envoyé
+                        </span>
+                      )}
                       <span
                         className={cn(
                           "min-w-0 flex-1 truncate text-sm",
@@ -2497,6 +2505,7 @@ function InboxPage() {
                         )}
                       >
                         {e.from_name || e.from_address || "Inconnu"}
+
                       </span>
                       <div className="ml-auto shrink-0 text-right text-[11px] text-muted-foreground leading-tight">
                         <div>{relativeTime(e.received_at)}</div>
