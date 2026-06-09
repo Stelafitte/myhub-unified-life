@@ -1151,7 +1151,13 @@ export const addSpaceGuest = createServerFn({ method: "POST" })
           .eq("id", userId)
           .maybeSingle(),
       ]);
-      if (space?.public_token && space.is_public) {
+      if (space?.public_token) {
+        if (!space.is_public) {
+          await supabase
+            .from("collab_spaces")
+            .update({ is_public: true })
+            .eq("id", data.spaceId);
+        }
         const origin = data.appOrigin?.replace(/\/$/, "") ?? "";
         const accessUrl = `${origin}/space/${space.public_token}?g=${row.access_token}`;
         const inviterName =
@@ -1176,7 +1182,7 @@ export const addSpaceGuest = createServerFn({ method: "POST" })
         emailSent = result.success;
         emailReason = result.reason;
       } else {
-        emailReason = "space_not_public";
+        emailReason = "no_public_token";
       }
     }
     return { guest: row, emailSent, emailReason };
