@@ -73,22 +73,38 @@ async function discoverAddressbook(auth: string): Promise<{ principal: string; a
   // 3. list address books, pick first that is an addressbook resourcetype
   const listXml = `<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:carddav"><d:prop><d:resourcetype/><d:displayname/></d:prop></d:propfind>`;
   const r3 = await davRequest(homeUrl, "PROPFIND", auth, listXml, "1");
-  // Find <response> entries containing <addressbook/>
+  // Find <response> entries containing an addressbook resourcetype.
+  // Match self-closing OR open/close tags, with or without namespace prefix.
   const responseBlocks = r3.text.split(/<(?:\w+:)?response[\s>]/i).slice(1);
+  const addressbookRe = /<(?:\w+:)?addressbook(\s[^>]*)?(\/>|>[\s\S]*?<\/(?:\w+:)?addressbook>)/i;
   let addressbookHref: string | null = null;
   for (const block of responseBlocks) {
-    if (/<(?:\w+:)?addressbook\s*\/>/i.test(block)) {
-      const href = extractHref("<href" + block.split("<href")[1], "href");
-      // simpler: extract first href in this block
+    if (!addressbookRe.test(block)) continue;
+    const m = block.match(/<(?:\w+:)?href[^>]*>([^<]+)<\/(?:\w+:)?href>/i);
+    if (m) {
+      addressbookHref = m[1].trim();
+      break;
+    }
+  }
+  // Fallback: pick any collection href under the home that is not the home itself
+  if (!addressbookHref) {
+    const homePath = new URL(homeUrl).pathname.replace(/\/+$/, "");
+    for (const block of responseBlocks) {
       const m = block.match(/<(?:\w+:)?href[^>]*>([^<]+)<\/(?:\w+:)?href>/i);
-      if (m) {
+      if (!m) continue;
+      const href = m[1].trim().replace(/\/+$/, "");
+      if (href && href !== homePath && !href.endsWith("/notification") && /\/$|\/[^.]+$/.test(m[1].trim())) {
         addressbookHref = m[1].trim();
         break;
       }
-      void href;
     }
   }
-  if (!addressbookHref) throw new Error("No CardDAV addressbook found");
+  if (!addressbookHref) {
+    throw new Error(
+      "Aucun carnet d'adresses CardDAV trouvé sur ce compte iCloud. Réponse serveur : " +
+        r3.text.slice(0, 400).replace(/\s+/g, " "),
+    );
+  }
   const addressbookUrl = absolute(addressbookHref, r3.url);
 
   return { principal: principalUrl, addressbook: addressbookUrl };
