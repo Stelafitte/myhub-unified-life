@@ -202,6 +202,9 @@ export function SpaceWorkspace() {
                   <TabsTrigger value="polls" className="gap-1 text-xs sm:text-sm">
                     <Vote className="h-3.5 w-3.5" /> Sondages
                   </TabsTrigger>
+                  <TabsTrigger value="collaborators" className="gap-1 text-xs sm:text-sm">
+                    <Users className="h-3.5 w-3.5" /> Collaborateurs
+                  </TabsTrigger>
                 </TabsList>
 
                 <SpaceContactGroupsBar key={`${active.id}-${contactGroupsKey}`} spaceId={active.id} />
