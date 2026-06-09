@@ -13,6 +13,7 @@ import { SpaceMeetingsTab } from "./space-meetings-tab";
 import { DocumentsTab } from "./documents-tab";
 import { SpaceFilesTab } from "./space-files-tab";
 import { SpacePollsTab } from "./space-polls-tab";
+import { SpaceCollaboratorsTab } from "./space-collaborators-tab";
 import { SpaceShareButton } from "./space-share-button";
 import { CollabDashboard } from "./collab-dashboard";
 import { GroupFormDialog } from "@/components/contacts/group-form-dialog";
