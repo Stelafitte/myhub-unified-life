@@ -2129,7 +2129,7 @@ function InboxPage() {
           isMobileInbox && mobileView === "sidebar" ? "hidden" : "flex",
         )}
       >
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-4">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b px-2 py-2 sm:px-4">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 sm:gap-3">
             <button
               type="button"
