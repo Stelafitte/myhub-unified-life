@@ -63,6 +63,7 @@ export function Office365PickerDialog({
 }) {
   const listFn = useServerFn(listOneDriveItems);
   const linkFn = useServerFn(linkOffice365Document);
+  const resolveFn = useServerFn(resolveOneDriveShareLink);
   const [items, setItems] = useState<DriveItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -71,10 +72,13 @@ export function Office365PickerDialog({
     { name: "OneDrive" },
   ]);
   const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [resolved, setResolved] = useState<DriveItem | null>(null);
 
+  const isUrl = /^https?:\/\//i.test(search.trim());
   const current = stack[stack.length - 1];
 
   const load = async (folderId?: string, q?: string) => {
+    setResolved(null);
     setLoading(true);
     setErr(null);
     try {
