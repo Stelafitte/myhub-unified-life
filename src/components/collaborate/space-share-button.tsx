@@ -34,6 +34,7 @@ import {
   updateSpaceGuestRole,
   removeSpaceGuest,
   notifySpaceGuests,
+  resendSpaceGuestInvitation,
 } from "@/lib/collab.functions";
 import { listContactGroups } from "@/lib/contacts.functions";
 
