@@ -291,6 +291,8 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
       const res = await resendInviteFn({ data: { guestId: id, appOrigin: baseUrl } });
       if (res.success) toast.success("Invitation renvoyée");
       else toast.error(`Échec de l'envoi${res.reason ? ` · ${res.reason}` : ""}`);
+      qc.invalidateQueries({ queryKey: historyKey });
+      setExpandedHistory((s) => ({ ...s, [id]: true }));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
