@@ -82,11 +82,44 @@ export const listReports = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("expense_reports")
-      .select("id,title,mission_object,mission_context,organization,status,total_amount,amount_to_reimburse,currency,signature_date,created_at,updated_at")
+      .select("id,title,mission_object,mission_context,organization,status,total_amount,amount_to_reimburse,currency,signature_date,recipient_email,sent_at,archived_at,created_at,updated_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return { reports: data ?? [] };
+    const ids = (data ?? []).map((r: any) => r.id);
+    const counts = new Map<string, number>();
+    if (ids.length > 0) {
+      const { data: items } = await supabase.from("expense_items").select("report_id").in("report_id", ids);
+      for (const it of (items ?? []) as any[]) counts.set(it.report_id, (counts.get(it.report_id) ?? 0) + 1);
+    }
+    const reports = (data ?? []).map((r: any) => {
+      let derived: "in_progress" | "pre_send" | "sent" | "archived" = "in_progress";
+      if (r.archived_at) derived = "archived";
+      else if (r.sent_at) derived = "sent";
+      else if (r.recipient_email && Number(r.total_amount) > 0 && (counts.get(r.id) ?? 0) > 0) derived = "pre_send";
+      return { ...r, derived_status: derived };
+    });
+    return { reports };
+  });
+
+export const markReportSent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => IdSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase.from("expense_reports").update({ sent_at: new Date().toISOString(), archived_at: null }).eq("id", data.id).eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const toggleArchiveReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid(), archived: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase.from("expense_reports").update({ archived_at: data.archived ? new Date().toISOString() : null }).eq("id", data.id).eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const getReport = createServerFn({ method: "POST" })
