@@ -596,7 +596,7 @@ function OnboardingPage() {
                 <Button variant="outline" size="sm" onClick={() => navigate({ to: "/roadmap" })} className="gap-2">
                   <Map className="h-3.5 w-3.5" /> Roadmap
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => navigate({ to: "/projects" })} className="gap-2">
+                <Button variant="outline" size="sm" onClick={() => navigate({ to: "/collaborate" })} className="gap-2">
                   <Users className="h-3.5 w-3.5" /> Créer un espace
                 </Button>
               </div>
