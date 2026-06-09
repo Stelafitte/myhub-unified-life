@@ -203,7 +203,7 @@ function OnboardingPage() {
   const current = STEPS[step - 1];
   const Icon = current.icon;
   const isLast = step === STEPS.length;
-  const canSkip = step === 3 || step === 4 || step === 5;
+  const canSkip = step === 3 || step === 4 || step === 5 || step === 6;
 
   return (
     <div className="mx-auto max-w-2xl">
