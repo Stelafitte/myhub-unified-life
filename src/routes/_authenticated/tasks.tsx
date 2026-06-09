@@ -224,6 +224,19 @@ function TasksPage() {
               <span className="hidden sm:inline">Gantt</span>
             </button>
           </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-8 gap-1 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm">
+                <CalendarClock className="h-4 w-4" />
+                <span className="hidden sm:inline">Actions programmées</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate({ to: "/expenses" })}>
+                <Receipt className="h-4 w-4 mr-2" /> Notes de frais
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button onClick={() => openCreate("todo")} className="h-8 gap-1 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Nouvelle tâche</span>
