@@ -444,6 +444,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
                           ) : (
                             <MailPlus className="h-3.5 w-3.5" />
                           )}
+                        </Button>
                         <Button
                           size="icon"
                           variant="ghost"
