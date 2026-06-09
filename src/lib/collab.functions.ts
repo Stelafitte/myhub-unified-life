@@ -1515,6 +1515,33 @@ export const notifySpaceGuests = createServerFn({ method: "POST" })
     return { sent, failed };
   });
 
+/** Historique des emails envoyés (invitations + notifications) aux invités d'un espace. */
+export const listSpaceGuestEmailHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: guests, error: gErr } = await supabase
+      .from("collab_guests")
+      .select("id,email")
+      .eq("space_id", data.spaceId)
+      .eq("user_id", userId)
+      .not("email", "is", null);
+    if (gErr) throw new Error(gErr.message);
+    const emails = (guests ?? []).map((g) => g.email!).filter(Boolean);
+    if (emails.length === 0) return { history: [] as Array<{ id: string; recipient_email: string; template_name: string; status: string; error_message: string | null; created_at: string }> };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: logs, error: lErr } = await supabaseAdmin
+      .from("email_send_log")
+      .select("id,recipient_email,template_name,status,error_message,created_at")
+      .in("recipient_email", emails)
+      .in("template_name", ["space-invitation", "space-update"])
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (lErr) throw new Error(lErr.message);
+    return { history: logs ?? [] };
+  });
+
 /** Active/désactive l'accès public d'un espace + description publique. */
 export const setSpacePublic = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

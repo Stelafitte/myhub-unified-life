@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Share2, Copy, ExternalLink, Loader2, UserPlus, Trash2, Users, Mail, Send, MailPlus } from "lucide-react";
+import { Share2, Copy, ExternalLink, Loader2, UserPlus, Trash2, Users, Mail, Send, MailPlus, History, ChevronDown, ChevronRight, CheckCircle2, XCircle, Clock, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -35,6 +35,7 @@ import {
   removeSpaceGuest,
   notifySpaceGuests,
   resendSpaceGuestInvitation,
+  listSpaceGuestEmailHistory,
 } from "@/lib/collab.functions";
 import { listContactGroups, getGroupMembers } from "@/lib/contacts.functions";
 
@@ -49,6 +50,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const removeGuestFn = useServerFn(removeSpaceGuest);
   const notifyFn = useServerFn(notifySpaceGuests);
   const resendInviteFn = useServerFn(resendSpaceGuestInvitation);
+  const historyFn = useServerFn(listSpaceGuestEmailHistory);
   const listGroupsFn = useServerFn(listContactGroups);
   const qc = useQueryClient();
   const key = ["space-public", spaceId];
@@ -67,6 +69,25 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
     enabled: open,
   });
   const guests = guestsQ.data?.guests ?? [];
+
+  const historyKey = ["space-guest-history", spaceId];
+  const historyQ = useQuery({
+    queryKey: historyKey,
+    queryFn: () => historyFn({ data: { spaceId } }),
+    enabled: open,
+  });
+  const history = historyQ.data?.history ?? [];
+  const historyByEmail = useMemo(() => {
+    const map = new Map<string, typeof history>();
+    for (const h of history) {
+      const k = (h.recipient_email || "").toLowerCase();
+      const arr = map.get(k) ?? [];
+      arr.push(h);
+      map.set(k, arr);
+    }
+    return map;
+  }, [history]);
+  const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
 
   const groupsQ = useQuery({
     queryKey: ["contact-groups"],
@@ -139,6 +160,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
       setNotifySubject("");
       setNotifyMessage("");
       setNotifyTargets({});
+      qc.invalidateQueries({ queryKey: historyKey });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -270,6 +292,8 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
       const res = await resendInviteFn({ data: { guestId: id, appOrigin: baseUrl } });
       if (res.success) toast.success("Invitation renvoyée");
       else toast.error(`Échec de l'envoi${res.reason ? ` · ${res.reason}` : ""}`);
+      qc.invalidateQueries({ queryKey: historyKey });
+      setExpandedHistory((s) => ({ ...s, [id]: true }));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
     } finally {
@@ -483,64 +507,150 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
 
                 {guests.length > 0 && (
                   <ul className="divide-y border rounded-md mt-2">
-                    {guests.map((g) => (
-                      <li key={g.id} className="py-2 px-2 flex items-center gap-2 text-sm">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate">{g.name}</div>
-                          {g.email && <div className="text-xs text-muted-foreground truncate">{g.email}</div>}
-                        </div>
-                        <Select
-                          value={g.role}
-                          onValueChange={(v) => handleRoleChange(g.id, v as "viewer" | "contributor")}
-                        >
-                          <SelectTrigger className="h-7 text-xs w-[120px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="viewer">Lecteur</SelectItem>
-                            <SelectItem value="contributor">Contributeur</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => copy(guestUrl(g.access_token))}
-                          title="Copier le lien personnel"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => handleResendInvite(g.id, g.email)}
-                          disabled={!g.email || resendingId === g.id || !space.is_public}
-                          title={
-                            !g.email
-                              ? "Pas d'email"
-                              : !space.is_public
-                                ? "Rendez l'espace public d'abord"
-                                : "Envoyer / renvoyer l'invitation par email"
-                          }
-                        >
-                          {resendingId === g.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <MailPlus className="h-3.5 w-3.5" />
+                    {guests.map((g) => {
+                      const gHist = g.email ? (historyByEmail.get(g.email.toLowerCase()) ?? []) : [];
+                      const lastSent = gHist.find((h) => h.status === "sent");
+                      const lastAny = gHist[0];
+                      const isExpanded = !!expandedHistory[g.id];
+                      const sentCount = gHist.filter((h) => h.status === "sent").length;
+                      return (
+                      <li key={g.id} className="text-sm">
+                        <div className="py-2 px-2 flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{g.name}</div>
+                            {g.email && <div className="text-xs text-muted-foreground truncate">{g.email}</div>}
+                            {g.email && (
+                              <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                                {lastAny ? (
+                                  <>
+                                    <StatusIcon status={lastAny.status} />
+                                    <span>
+                                      {labelForTemplate(lastAny.template_name)} · {fmtRelative(lastAny.created_at)}
+                                    </span>
+                                    {sentCount > 1 && <span>· {sentCount} envois</span>}
+                                  </>
+                                ) : (
+                                  <span className="italic">Aucune sollicitation envoyée</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <Select
+                            value={g.role}
+                            onValueChange={(v) => handleRoleChange(g.id, v as "viewer" | "contributor")}
+                          >
+                            <SelectTrigger className="h-7 text-xs w-[120px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="viewer">Lecteur</SelectItem>
+                              <SelectItem value="contributor">Contributeur</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {g.email && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => setExpandedHistory((s) => ({ ...s, [g.id]: !s[g.id] }))}
+                              title="Historique des sollicitations"
+                            >
+                              {isExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <History className="h-3.5 w-3.5" />}
+                              {gHist.length > 0 && !isExpanded && (
+                                <span className="absolute -mt-3 -mr-3 text-[9px] font-semibold bg-primary text-primary-foreground rounded-full px-1 leading-[14px] min-w-[14px] text-center">
+                                  {gHist.length}
+                                </span>
+                              )}
+                            </Button>
                           )}
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-red-600"
-                          onClick={() => handleRemoveGuest(g.id)}
-                          title="Retirer"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => copy(guestUrl(g.access_token))}
+                            title="Copier le lien personnel"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant={lastSent ? "ghost" : "secondary"}
+                            className="h-7 w-7"
+                            onClick={() => handleResendInvite(g.id, g.email)}
+                            disabled={!g.email || resendingId === g.id || !space.is_public}
+                            title={
+                              !g.email
+                                ? "Pas d'email"
+                                : !space.is_public
+                                  ? "Rendez l'espace public d'abord"
+                                  : lastSent
+                                    ? "Renvoyer l'invitation"
+                                    : "Envoyer l'invitation"
+                            }
+                          >
+                            {resendingId === g.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <MailPlus className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-red-600"
+                            onClick={() => handleRemoveGuest(g.id)}
+                            title="Retirer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        {isExpanded && g.email && (
+                          <div className="px-3 pb-3 bg-muted/30 border-t">
+                            <div className="text-[11px] uppercase tracking-wide text-muted-foreground py-2 flex items-center gap-1.5">
+                              <History className="h-3 w-3" /> Historique
+                              {historyQ.isLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                            </div>
+                            {gHist.length === 0 ? (
+                              <div className="text-xs text-muted-foreground italic pb-1">Aucun email envoyé à ce contact.</div>
+                            ) : (
+                              <ul className="space-y-1">
+                                {gHist.map((h) => (
+                                  <li key={h.id} className="flex items-center gap-2 text-xs">
+                                    <StatusIcon status={h.status} />
+                                    <span className="font-medium">{labelForTemplate(h.template_name)}</span>
+                                    <span className="text-muted-foreground">{fmtDateTime(h.created_at)}</span>
+                                    <span className="ml-auto">
+                                      <StatusBadge status={h.status} />
+                                    </span>
+                                    {h.error_message && (
+                                      <span className="text-red-600 truncate max-w-[160px]" title={h.error_message}>
+                                        {h.error_message}
+                                      </span>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            <div className="pt-2 flex justify-end">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleResendInvite(g.id, g.email)}
+                                disabled={resendingId === g.id || !space.is_public}
+                              >
+                                {resendingId === g.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <MailPlus className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Resolliciter maintenant
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 )}
 
@@ -607,4 +717,53 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
       </DialogContent>
     </Dialog>
   );
+}
+
+function labelForTemplate(t: string) {
+  if (t === "space-invitation") return "Invitation";
+  if (t === "space-update") return "Notification";
+  return t;
+}
+
+function fmtDateTime(iso: string) {
+  try {
+    return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+  } catch {
+    return iso;
+  }
+}
+
+function fmtRelative(iso: string) {
+  const d = new Date(iso).getTime();
+  const diff = Date.now() - d;
+  const m = Math.round(diff / 60000);
+  if (m < 1) return "à l'instant";
+  if (m < 60) return `il y a ${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `il y a ${h} h`;
+  const j = Math.round(h / 24);
+  if (j < 30) return `il y a ${j} j`;
+  return fmtDateTime(iso);
+}
+
+function StatusIcon({ status }: { status: string }) {
+  if (status === "sent") return <CheckCircle2 className="h-3 w-3 text-green-600" />;
+  if (status === "pending") return <Clock className="h-3 w-3 text-amber-600" />;
+  if (status === "failed" || status === "dlq" || status === "bounced") return <XCircle className="h-3 w-3 text-red-600" />;
+  if (status === "suppressed" || status === "complained") return <Ban className="h-3 w-3 text-muted-foreground" />;
+  return <Clock className="h-3 w-3 text-muted-foreground" />;
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    sent: { label: "Envoyé", cls: "bg-green-100 text-green-700" },
+    pending: { label: "En cours", cls: "bg-amber-100 text-amber-700" },
+    failed: { label: "Échec", cls: "bg-red-100 text-red-700" },
+    dlq: { label: "Échec", cls: "bg-red-100 text-red-700" },
+    bounced: { label: "Rejeté", cls: "bg-red-100 text-red-700" },
+    suppressed: { label: "Bloqué", cls: "bg-muted text-muted-foreground" },
+    complained: { label: "Plainte", cls: "bg-muted text-muted-foreground" },
+  };
+  const v = map[status] ?? { label: status, cls: "bg-muted text-muted-foreground" };
+  return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${v.cls}`}>{v.label}</span>;
 }
