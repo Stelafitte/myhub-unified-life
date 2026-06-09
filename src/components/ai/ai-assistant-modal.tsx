@@ -90,6 +90,8 @@ export function AiAssistantModal({
   const [mode, setMode] = useState<"search" | "chat">("search");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
+  const [archiving, setArchiving] = useState<string | null>(null);
+  const { user } = useAuth();
   const [archives, setArchives] = useState<ArchivedChat[]>([]);
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
   const [emailPreviewId, setEmailPreviewId] = useState<string | null>(null);
