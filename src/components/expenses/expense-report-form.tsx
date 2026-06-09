@@ -290,13 +290,9 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
         body,
       });
       setComposerOpen(true);
-      try { await (useServerFn as any); } catch {}
-      // Mark report as "envoyé" — best effort (composer opening means user is sending)
+      // Statut auto : marquer la note comme "envoyée" dès l'ouverture du composer
       try {
-        const markFn = (await import("@/lib/expense.functions")).markReportSent;
-        // call via direct fetch path: use useServerFn wrapper outside this scope is complex; use supabase RPC fallback via update
         await supabase.from("expense_reports").update({ sent_at: new Date().toISOString(), archived_at: null }).eq("id", id).eq("user_id", userId);
-        void markFn;
       } catch {}
     } catch (e: any) { toast.error(e?.message ?? "Erreur"); }
   };
