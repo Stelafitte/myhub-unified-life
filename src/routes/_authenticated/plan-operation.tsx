@@ -15,6 +15,8 @@ import {
   Trash2,
   Pencil,
   ExternalLink,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
@@ -132,6 +134,15 @@ function PlanOperationPage() {
   const [toDelete, setToDelete] = useState<Task | null>(null);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setFullscreen(false); };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [fullscreen]);
   const [opThemes, setOpThemes] = useState<{ id: string; name: string; position: number; show_in_plan?: boolean }[]>([]);
   const [opSubthemes, setOpSubthemes] = useState<{ id: string; name: string; theme_id: string; position: number; show_in_plan?: boolean }[]>([]);
 
@@ -608,6 +619,9 @@ function PlanOperationPage() {
           <Button variant="outline" size="sm" onClick={createOpSubtheme} className="gap-1" title="Créer un nouveau sous-thème">
             + Sous-thème
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setFullscreen(true)} className="gap-1" title="Afficher le plan en plein écran">
+            <Maximize2 className="h-4 w-4" /> Plein écran
+          </Button>
           <Button variant="outline" size="sm" onClick={exportPng} className="gap-1"><ImageIcon className="h-4 w-4" /> PNG</Button>
           <Button variant="outline" size="sm" onClick={exportPdf} className="gap-1"><Download className="h-4 w-4" /> PDF</Button>
         </div>
@@ -668,9 +682,24 @@ function PlanOperationPage() {
           </div>
 
           {/* ----- Vue DESKTOP (≥1024px) : Gantt complet inchangé ----- */}
-          <div className="hidden lg:block">
-        <div ref={exportRef} className="rounded-xl border bg-card">
-          <div ref={timelineRef} className="flex max-h-[calc(100vh-22rem)] overflow-auto">
+          <div className={cn(
+            fullscreen
+              ? "fixed inset-0 z-50 block bg-background p-4 overflow-hidden flex flex-col"
+              : "hidden lg:block"
+          )}>
+        {fullscreen && (
+          <div className="mb-2 flex items-center justify-between">
+            <div className="text-sm font-medium text-muted-foreground">Plan d'opération — vue plein écran</div>
+            <Button variant="outline" size="sm" onClick={() => setFullscreen(false)} className="gap-1">
+              <Minimize2 className="h-4 w-4" /> Quitter le plein écran
+            </Button>
+          </div>
+        )}
+        <div ref={exportRef} className={cn("rounded-xl border bg-card", fullscreen && "flex-1 overflow-hidden")}>
+          <div ref={timelineRef} className={cn(
+            "flex overflow-auto",
+            fullscreen ? "h-full max-h-full" : "max-h-[calc(100vh-22rem)]"
+          )}>
             {/* Left labels */}
             <div className="sticky left-0 z-20 shrink-0 border-r bg-card" style={{ width: LABEL_W }}>
               <div className="h-14 border-b bg-muted/30" />
