@@ -232,6 +232,9 @@ export function SpaceWorkspace() {
                 <TabsContent value="polls" className="flex-1 min-h-0 mt-2 overflow-y-auto">
                   <SpacePollsTab spaceId={active.id} />
                 </TabsContent>
+                <TabsContent value="collaborators" className="flex-1 min-h-0 mt-2 overflow-y-auto">
+                  <SpaceCollaboratorsTab spaceId={active.id} />
+                </TabsContent>
               </Tabs>
             </>
           )}
