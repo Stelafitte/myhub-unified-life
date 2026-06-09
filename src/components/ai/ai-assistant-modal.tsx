@@ -292,6 +292,37 @@ export function AiAssistantModal({
     setExpenseOpen(true);
   };
 
+  const archiveZip = async (turn: Turn) => {
+    if (!user) { toast.error("Non connecté"); return; }
+    const items = Array.from(turn.selectedMatches)
+      .map(id => {
+        const m = turn.result?.matches.find(x => x.id === id);
+        return m ? { id: m.id, kind: m.kind } : null;
+      })
+      .filter((x): x is { id: string; kind: string } => !!x && (x.kind === "email" || x.kind === "document"));
+    if (items.length === 0) { toast.error("Sélectionnez des emails ou documents à archiver."); return; }
+    setArchiving(turn.id);
+    try {
+      toast.info(`Archivage de ${items.length} élément(s) en cours…`);
+      const res = await buildAndSaveArchive(items, user.id, turn.prompt);
+      const summary =
+        `📦 Archive ${res.zipName} créée :\n` +
+        `• ${res.emailCount} email(s)\n` +
+        `• ${res.documentCount} document(s)\n` +
+        `• ${res.attachmentCount} pièce(s) jointe(s)\n\n` +
+        `⬇️ Téléchargée sur votre appareil.\n` +
+        (res.savedToLibrary
+          ? `📚 Également enregistrée dans **Documents → tag "archive-ia"**.`
+          : `⚠️ Échec de la sauvegarde dans votre bibliothèque.`);
+      setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, chatReply: summary } : t));
+      toast.success("Archive prête");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur d'archivage");
+    } finally {
+      setArchiving(null);
+    }
+  };
+
   const runExpenseReport = async (turnId: string, emailIds: string[], instruction: string) => {
     if (emailIds.length === 0) { toast.error("Sélectionnez au moins un email."); return; }
     setTurns(ts => ts.map(t => t.id === turnId ? { ...t, proposing: true } : t));
