@@ -36,6 +36,7 @@ function ExpensesPage() {
   const tplFn = useServerFn(listTemplates);
   const tplDelFn = useServerFn(deleteTemplate);
   const tplAnalyzeFn = useServerFn(analyzeExpenseTemplate);
+  const archiveFn = useServerFn(toggleArchiveReport);
 
   const [reports, setReports] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
