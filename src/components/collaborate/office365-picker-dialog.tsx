@@ -196,7 +196,10 @@ export function Office365PickerDialog({
             )}
             <Input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                if (err) setErr(null);
+              }}
               placeholder="Tape un mot-clé OU colle un lien de partage OneDrive…"
               className="pl-8"
               onKeyDown={(e) => {
