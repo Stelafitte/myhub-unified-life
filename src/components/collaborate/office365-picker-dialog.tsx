@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   listOneDriveItems,
   linkOffice365Document,
+  resolveOneDriveShareLink,
 } from "@/lib/collab-office365.functions";
 import {
   Dialog,
@@ -21,6 +22,10 @@ import {
   Search as SearchIcon,
   FileSpreadsheet,
   FilePieChart,
+  Link2,
+  ExternalLink,
+  Plus,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 
