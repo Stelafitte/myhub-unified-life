@@ -168,7 +168,7 @@ function OnboardingPage() {
       // 1. Sauver profil + préférences IA (les toggles IA vivent en localStorage pour l'instant)
       localStorage.setItem("myhub.ai.prefs", JSON.stringify({
         useOwnKey, aiProvider, aiClassify, aiSummary, aiTaskSuggest,
-        aiAutoReply, aiNewsletter, aiPriority, hdsLevel,
+        aiAutoReply, aiNewsletter, aiPriority, aiAutoTrash, hdsLevel,
       }));
       if (useOwnKey && aiKey.trim()) {
         localStorage.setItem("myhub.ai.userKey", aiKey.trim());
