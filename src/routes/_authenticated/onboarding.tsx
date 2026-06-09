@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Sparkles, User, Mail, Calendar, Plug, Brain, CheckCircle2,
   Eye, EyeOff, ShieldCheck, ExternalLink, Loader2, Rocket,
+  Users, Map,
 } from "lucide-react";
 import { toast } from "sonner";
 import { startGoogleCalendarOAuth, syncGoogleCalendarEvents } from "@/lib/api/google-calendar.functions";
