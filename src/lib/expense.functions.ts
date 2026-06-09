@@ -59,6 +59,7 @@ const ReportUpsert = z.object({
   mission_description: z.string().max(4000).nullable().optional().default(null),
   mission_context: z.enum(["congres", "formation", "reunion", "enseignement", "recherche", "autre"]).nullable().optional().default(null),
   organization: z.string().max(255).nullable().optional().default(null),
+  organization_id: z.string().uuid().nullable().optional().default(null),
   mission_number: z.string().max(100).nullable().optional().default(null),
   identification: z.record(z.string(), z.any()).default({}),
   status: z.enum(["draft", "submitted", "approved", "rejected", "paid"]).default("draft"),
@@ -73,6 +74,7 @@ const ReportUpsert = z.object({
   source_email_id: z.string().uuid().nullable().optional().default(null),
   items: z.array(ItemInput).default([]),
 });
+
 
 // ============== CRUD ==============
 
