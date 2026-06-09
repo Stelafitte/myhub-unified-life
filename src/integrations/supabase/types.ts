@@ -1577,6 +1577,54 @@ export type Database = {
           },
         ]
       }
+      expense_organizations: {
+        Row: {
+          address: string | null
+          ai_mapping: Json
+          contact_email: string | null
+          created_at: string
+          id: string
+          legal_name: string | null
+          name: string
+          template_file_type: string | null
+          template_filename: string | null
+          template_mime: string | null
+          template_path: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          ai_mapping?: Json
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          legal_name?: string | null
+          name: string
+          template_file_type?: string | null
+          template_filename?: string | null
+          template_mime?: string | null
+          template_path?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          ai_mapping?: Json
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          legal_name?: string | null
+          name?: string
+          template_file_type?: string | null
+          template_filename?: string | null
+          template_mime?: string | null
+          template_path?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       expense_reports: {
         Row: {
           advance_amount: number
@@ -1593,6 +1641,7 @@ export type Database = {
           mission_object: string | null
           notes: string | null
           organization: string | null
+          organization_id: string | null
           payment_method: string | null
           recipient_email: string | null
           sent_at: string | null
@@ -1620,6 +1669,7 @@ export type Database = {
           mission_object?: string | null
           notes?: string | null
           organization?: string | null
+          organization_id?: string | null
           payment_method?: string | null
           recipient_email?: string | null
           sent_at?: string | null
@@ -1647,6 +1697,7 @@ export type Database = {
           mission_object?: string | null
           notes?: string | null
           organization?: string | null
+          organization_id?: string | null
           payment_method?: string | null
           recipient_email?: string | null
           sent_at?: string | null
@@ -1660,6 +1711,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "expense_reports_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "expense_organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "expense_reports_source_email_id_fkey"
             columns: ["source_email_id"]
