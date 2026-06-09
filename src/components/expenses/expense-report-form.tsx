@@ -579,6 +579,8 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       </ScrollArea>
 
       <ImportFromEmailDialog open={importOpen} onOpenChange={setImportOpen} onPick={onImportedFromEmail} />
+      <OrganizationDialog open={orgDialogOpen} onOpenChange={setOrgDialogOpen} userId={userId} onChanged={() => void loadOrgs()} />
+
       <AIBatchExtractDialog open={aiBatchOpen} onOpenChange={setAiBatchOpen} onLines={onAIBatchLines} initialFiles={aiInitialFiles} />
       <EmailComposer open={composerOpen} onOpenChange={setComposerOpen} accounts={composerAccounts} initial={composerInitial} initialAttachments={composerAttachments} />
       <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) { if (previewUrl) URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } }}>
