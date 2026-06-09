@@ -2057,6 +2057,91 @@ export const getPublicSpaceFull = createServerFn({ method: "GET" })
         : Promise.resolve({ data: [] as Array<{ id: string; title: string; public_token: string; status: string; deadline: string | null }> }),
     ]);
 
+    // Also expand collaborators with contact group members linked to this space
+    const { data: groups } = await admin
+      .from("collab_contact_groups")
+      .select("id,name")
+      .eq("user_id", space.user_id)
+      .eq("space_id", space.id);
+    const groupIds = (groups ?? []).map((g) => g.id);
+    let groupMembers: Array<{
+      group_id: string;
+      external_email: string | null;
+      external_name: string | null;
+      contact: { first_name: string | null; last_name: string | null; email: string[] | null; organization: string | null } | null;
+    }> = [];
+    if (groupIds.length > 0) {
+      const { data: rows } = await admin
+        .from("contact_group_members")
+        .select("group_id,external_email,external_name,contact:contacts(first_name,last_name,email,organization)")
+        .in("group_id", groupIds);
+      groupMembers = (rows ?? []) as typeof groupMembers;
+    }
+    const groupNameById = new Map<string, string>();
+    for (const g of groups ?? []) groupNameById.set(g.id, g.name);
+
+    type CollabRow = {
+      id: string;
+      name: string;
+      email: string | null;
+      organization: string | null;
+      role: string | null;
+      status: string | null;
+      last_active_at: string | null;
+      source: "guest" | "group";
+      group_names: string[];
+      invited: boolean;
+    };
+    const byKey = new Map<string, CollabRow>();
+    for (const g of collaboratorsQ.data ?? []) {
+      const key = (g.email ?? `name:${g.name}`).toLowerCase();
+      byKey.set(key, {
+        id: g.id,
+        name: g.name,
+        email: g.email,
+        organization: null,
+        role: g.role,
+        status: g.status,
+        last_active_at: g.last_active_at,
+        source: "guest",
+        group_names: [],
+        invited: true,
+      });
+    }
+    for (const m of groupMembers) {
+      const email =
+        (Array.isArray(m.contact?.email) ? m.contact?.email?.[0] : null) ||
+        m.external_email ||
+        null;
+      const name =
+        [m.contact?.first_name, m.contact?.last_name].filter(Boolean).join(" ").trim() ||
+        m.external_name ||
+        (email ? email.split("@")[0] : "(sans nom)");
+      const key = (email ?? `name:${name}`).toLowerCase();
+      const groupName = groupNameById.get(m.group_id) ?? "";
+      const existing = byKey.get(key);
+      if (existing) {
+        if (groupName && !existing.group_names.includes(groupName)) existing.group_names.push(groupName);
+        existing.organization = existing.organization ?? (m.contact?.organization ?? null);
+      } else {
+        byKey.set(key, {
+          id: `grp:${key}`,
+          name,
+          email,
+          organization: m.contact?.organization ?? null,
+          role: null,
+          status: null,
+          last_active_at: null,
+          source: "group",
+          group_names: groupName ? [groupName] : [],
+          invited: false,
+        });
+      }
+    }
+    const collaborators = Array.from(byKey.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "fr", { sensitivity: "base" }),
+    );
+
     return {
       space: {
         id: space.id,
@@ -2073,14 +2158,8 @@ export const getPublicSpaceFull = createServerFn({ method: "GET" })
       tasks: tasksQ.data ?? [],
       meetings: meetingsQ.data ?? [],
       files: filesQ.data ?? [],
-      collaborators: (collaboratorsQ.data ?? []).map((g) => ({
-        id: g.id,
-        name: g.name,
-        email: g.email,
-        role: g.role,
-        status: g.status,
-        last_active_at: g.last_active_at,
-      })),
+      collaborators,
+      groupCount: groups?.length ?? 0,
       surveys: surveysQ.data ?? [],
       polls: pollsQ.data ?? [],
     };
