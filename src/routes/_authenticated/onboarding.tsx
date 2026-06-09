@@ -81,9 +81,14 @@ function OnboardingPage() {
   // Étape 5 — Intégrations
   const [intSlack, setIntSlack] = useState(false);
   const [intNotion, setIntNotion] = useState(false);
+  const [intOneDrive, setIntOneDrive] = useState(true);
   const [intDrive, setIntDrive] = useState(false);
 
-  // Étape 6 — IA
+  // Étape 6 — Collaboration
+  const [collabEnabled, setCollabEnabled] = useState(true);
+  const [collabInviteEmail, setCollabInviteEmail] = useState("");
+
+  // Étape 7 — IA
   const [useOwnKey, setUseOwnKey] = useState(false);
   const [aiProvider, setAiProvider] = useState<AiProvider>("openai-gpt4o-mini");
   const [aiKey, setAiKey] = useState("");
@@ -95,6 +100,7 @@ function OnboardingPage() {
   const [aiAutoReply, setAiAutoReply] = useState(true);
   const [aiNewsletter, setAiNewsletter] = useState(true);
   const [aiPriority, setAiPriority] = useState(true);
+  const [aiAutoTrash, setAiAutoTrash] = useState(true);
   const [hdsLevel, setHdsLevel] = useState<"strict" | "normal" | "permissive">("normal");
 
   // Étape 7 — RGPD + récap
