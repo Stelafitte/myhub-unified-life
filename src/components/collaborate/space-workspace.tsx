@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { PanelRightClose, PanelRightOpen, Hash, Link2, FileText, CheckSquare, CalendarClock, Vote, Paperclip, Menu, Info, UserPlus } from "lucide-react";
+import { PanelRightClose, PanelRightOpen, Hash, Link2, FileText, CheckSquare, CalendarClock, Vote, Paperclip, Menu, Info, UserPlus, Users } from "lucide-react";
 import { SpaceTree } from "./space-tree";
 import { SpaceChat } from "./space-chat";
 import { SpaceLinksTab } from "./space-links-tab";
