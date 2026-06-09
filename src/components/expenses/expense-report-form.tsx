@@ -80,6 +80,8 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const upsertFn = useServerFn(upsertReport);
   const fillFn = useServerFn(fillExpenseTemplate);
   const tplFn = useServerFn(listTemplates);
+  const orgsFn = useServerFn(listOrganizations);
+  const fillOrgFn = useServerFn(fillOrganizationTemplate);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -88,6 +90,9 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const [aiInitialFiles, setAiInitialFiles] = useState<File[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [pickedTpl, setPickedTpl] = useState<string>("");
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [organizationId, setOrganizationId] = useState<string>("");
+  const [orgDialogOpen, setOrgDialogOpen] = useState(false);
 
   const [title, setTitle] = useState("");
   const [missionObject, setMissionObject] = useState("");
@@ -95,6 +100,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const [missionContext, setMissionContext] = useState<string>("");
   const [organization, setOrganization] = useState("");
   const [missionNumber, setMissionNumber] = useState("");
+
   const [ident, setIdent] = useState({ ...DEFAULT_IDENTIFICATION });
   const [items, setItems] = useState<Item[]>([]);
   const [advance, setAdvance] = useState(0);
