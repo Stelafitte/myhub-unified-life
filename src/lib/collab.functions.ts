@@ -1983,7 +1983,7 @@ export const getPublicSpaceFull = createServerFn({ method: "GET" })
     ] = await Promise.all([
       admin
         .from("collab_messages")
-        .select("id,content,sender_name,user_id,message_at,type")
+        .select("id,content,sender_name,user_id,message_at,type,metadata")
         .eq("space_id", space.id)
         .order("message_at", { ascending: true })
         .limit(200),
