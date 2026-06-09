@@ -438,7 +438,9 @@ function PublicSpacePage() {
       <footer className="text-xs text-muted-foreground text-center pt-6 border-t">
         Page publique · MyHub Pro
       </footer>
+      </div>
     </div>
+
   );
 }
 
