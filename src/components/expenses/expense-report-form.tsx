@@ -8,10 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft, Sparkles, Eye, Send } from "lucide-react";
+import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft, Sparkles, Eye, Send, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   getReport, upsertReport, fillExpenseTemplate, listTemplates,
+  listOrganizations, fillOrganizationTemplate,
   DEFAULT_IDENTIFICATION, CATEGORIES, KM_RATE_2024, type ExpenseCategory,
 } from "@/lib/expense.functions";
 import { generateExpensePDFClient } from "./expense-pdf";
@@ -21,6 +22,8 @@ import { AIBatchExtractDialog, type AIExtractedLine } from "./ai-batch-extract-d
 import { ContactEmailAutocomplete } from "@/components/contacts/contact-email-autocomplete";
 import { EmailComposer, type ComposerAccount, type ComposerAttachment, type ComposerInitial } from "@/components/inbox/email-composer";
 import { getSignatureForAccount } from "@/lib/email-signatures";
+import { OrganizationDialog } from "./organization-dialog";
+
 
 // helper not exported by server-fns — local copy
 type Item = {
