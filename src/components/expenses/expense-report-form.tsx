@@ -228,7 +228,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
         id: reportId,
         title, mission_object: missionObject || null, mission_description: missionDescription || null,
         mission_context: (missionContext as any) || null,
-        organization: organization || null, mission_number: missionNumber || null,
+        organization: organization || null, organization_id: organizationId || null, mission_number: missionNumber || null,
         identification: ident, status: (newStatus as any) ?? (status as any),
         advance_amount: advance, currency: "EUR",
         payment_method: (paymentMethod as any), iban: iban || null,
