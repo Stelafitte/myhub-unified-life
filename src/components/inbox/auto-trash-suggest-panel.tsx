@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Sparkles, Trash2, X, Loader2 } from "lucide-react";
+import { Sparkles, Trash2, X, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,47 +18,64 @@ type Props = {
   threshold?: number;
 };
 
-const DISMISS_KEY = "auto-trash-dismissed-at";
-const DISMISS_TTL_MS = 30 * 60 * 1000; // 30 min
+const COLLAPSE_KEY = "auto-trash-collapsed-at";
+const COLLAPSE_TTL_MS = 30 * 60 * 1000; // 30 min
 
-export function AutoTrashSuggestPanel({ emails, onTrashed, threshold = 75 }: Props) {
+export function AutoTrashSuggestPanel({ emails, onTrashed, threshold = 70 }: Props) {
   const suggestFn = useServerFn(suggestTrashCandidates);
   const recordFn = useServerFn(recordTrashDecisions);
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [ran, setRan] = useState(false);
 
-  // Auto-fetch on mount when not recently dismissed and inbox not empty.
+  const runAnalysis = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await suggestFn({ data: { threshold, limit: 30 } });
+      const list = res?.suggestions ?? [];
+      setSuggestions(list);
+      setChecked(new Set(list.map((s) => s.id)));
+      if (res?.error) setError(res.error);
+      setRan(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur IA");
+      setRan(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [suggestFn, threshold]);
+
+  // Auto-run on mount unless récemment réduit, et seulement si la boîte n'est pas vide
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const last = Number(window.localStorage.getItem(DISMISS_KEY) ?? 0);
-    if (last && Date.now() - last < DISMISS_TTL_MS) {
-      setDismissed(true);
+    const last = Number(window.localStorage.getItem(COLLAPSE_KEY) ?? 0);
+    if (last && Date.now() - last < COLLAPSE_TTL_MS) {
+      setCollapsed(true);
       return;
     }
-    if (emails.length < 5) return;
-    let cancelled = false;
-    setLoading(true);
-    suggestFn({ data: { threshold, limit: 30 } })
-      .then((res) => {
-        if (cancelled) return;
-        const list = res?.suggestions ?? [];
-        setSuggestions(list);
-        setChecked(new Set(list.map((s) => s.id)));
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+    if (emails.length === 0) return;
+    void runAnalysis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const dismiss = () => {
+  const collapse = () => {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(DISMISS_KEY, String(Date.now()));
+      window.localStorage.setItem(COLLAPSE_KEY, String(Date.now()));
     }
-    setDismissed(true);
+    setCollapsed(true);
+  };
+
+  const expand = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(COLLAPSE_KEY);
+    }
+    setCollapsed(false);
+    if (!ran && !loading) void runAnalysis();
   };
 
   const sendToTrash = async () => {
@@ -72,7 +89,6 @@ export function AutoTrashSuggestPanel({ emails, onTrashed, threshold = 75 }: Pro
       if (error) throw error;
       onTrashed(trashIds);
       toast.success(`${trashIds.length} mail${trashIds.length > 1 ? "s" : ""} envoyé${trashIds.length > 1 ? "s" : ""} à la corbeille`);
-      // Record decisions for learning
       const scoreById = new Map(suggestions.map((s) => [s.id, s.score]));
       await recordFn({
         data: {
@@ -91,31 +107,54 @@ export function AutoTrashSuggestPanel({ emails, onTrashed, threshold = 75 }: Pro
     }
   };
 
-  if (dismissed) return null;
-  if (!loading && suggestions.length === 0) return null;
-
   const visible = suggestions.filter((s) => emails.some((e) => e.id === s.id));
-  if (!loading && visible.length === 0) return null;
+
+  if (collapsed) {
+    return (
+      <div className="flex items-center justify-between border-b bg-amber-500/5 px-4 py-1.5 text-xs">
+        <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+          <Sparkles className="h-3.5 w-3.5" /> Pré-tri corbeille IA
+        </span>
+        <Button size="sm" variant="ghost" className="h-6 text-xs" onClick={expand}>
+          Analyser
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="border-b bg-amber-500/10 px-4 py-2 text-xs">
       <div className="flex items-center gap-2">
         <Sparkles className="h-3.5 w-3.5 text-amber-600" />
         <span className="font-medium text-amber-700 dark:text-amber-400">
-          Pré-tri corbeille IA
+          Pré-tri corbeille IA (seuil {threshold}%)
         </span>
         {loading ? (
           <span className="flex items-center gap-1 text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin" /> Analyse en cours…
           </span>
-        ) : (
+        ) : error ? (
+          <span className="text-destructive">⚠ {error}</span>
+        ) : ran ? (
           <span className="text-muted-foreground">
-            {visible.length} mail{visible.length > 1 ? "s" : ""} suggéré{visible.length > 1 ? "s" : ""} — décoche ceux à garder
+            {visible.length === 0
+              ? "Aucun mail suggéré — votre boîte est propre."
+              : `${visible.length} mail${visible.length > 1 ? "s" : ""} suggéré${visible.length > 1 ? "s" : ""} — décoche ceux à garder`}
           </span>
+        ) : (
+          <span className="text-muted-foreground">Cliquez sur Analyser pour démarrer</span>
         )}
         <button
-          onClick={dismiss}
-          className="ml-auto rounded p-1 hover:bg-amber-500/20"
+          onClick={() => void runAnalysis()}
+          disabled={loading}
+          className="ml-auto rounded p-1 hover:bg-amber-500/20 disabled:opacity-50"
+          title="Relancer l'analyse"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+        </button>
+        <button
+          onClick={collapse}
+          className="rounded p-1 hover:bg-amber-500/20"
           title="Masquer (30 min)"
         >
           <X className="h-3.5 w-3.5" />
@@ -173,7 +212,7 @@ export function AutoTrashSuggestPanel({ emails, onTrashed, threshold = 75 }: Pro
               size="sm"
               variant="ghost"
               className="h-7 text-xs"
-              onClick={dismiss}
+              onClick={collapse}
             >
               Plus tard
             </Button>
