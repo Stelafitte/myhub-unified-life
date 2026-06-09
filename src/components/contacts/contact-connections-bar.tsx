@@ -236,6 +236,21 @@ export function ContactConnectionsBar({ onSynced }: { onSynced?: () => void }) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
+            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs leading-relaxed">
+              ⚠️ <strong>Important</strong> : Apple bloque CardDAV avec un mot de passe Apple ID normal.
+              Tu dois utiliser un <strong>mot de passe d'application</strong> au format{" "}
+              <code className="rounded bg-background/60 px-1">xxxx-xxxx-xxxx-xxxx</code> (16 caractères)
+              généré sur{" "}
+              <a
+                href="https://account.apple.com/account/manage"
+                target="_blank"
+                rel="noreferrer"
+                className="underline font-medium"
+              >
+                appleid.apple.com
+              </a>
+              {" "}→ Connexion et sécurité → Mots de passe pour applications.
+            </div>
             <div className="space-y-1">
               <Label htmlFor="apple-id">Apple ID (email)</Label>
               <Input
@@ -248,7 +263,7 @@ export function ContactConnectionsBar({ onSynced }: { onSynced?: () => void }) {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="app-pwd">Mot de passe d'application</Label>
+              <Label htmlFor="app-pwd">Mot de passe d'application (16 car.)</Label>
               <Input
                 id="app-pwd"
                 type="password"
@@ -257,6 +272,11 @@ export function ContactConnectionsBar({ onSynced }: { onSynced?: () => void }) {
                 onChange={(e) => setAppPwd(e.target.value)}
                 autoComplete="off"
               />
+              {appPwd.length > 0 && !/^[a-z0-9]{16}$|^[a-z0-9]{4}(-[a-z0-9]{4}){3}$/i.test(appPwd.replace(/\s+/g, "")) && (
+                <p className="text-xs text-amber-600">
+                  Format attendu : 16 caractères (avec ou sans tirets). Ce n'est pas ton mot de passe Apple ID habituel.
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <Label htmlFor="label">Libellé</Label>
