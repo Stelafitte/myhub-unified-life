@@ -128,6 +128,7 @@ export const upsertReport = createServerFn({ method: "POST" })
       user_id: userId,
       title: data.title,
       mission_object: data.mission_object,
+      mission_description: data.mission_description,
       mission_context: data.mission_context,
       organization: data.organization,
       mission_number: data.mission_number,
@@ -142,6 +143,7 @@ export const upsertReport = createServerFn({ method: "POST" })
       signature_location: data.signature_location,
       signature_date: data.signature_date,
       notes: data.notes,
+      recipient_email: data.recipient_email,
       source_email_id: data.source_email_id,
     };
 
