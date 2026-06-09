@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { AiPromptsManager } from "./ai-prompts-manager";
+import { AiProvidersSection } from "./ai-providers-section";
 import { confirmDialog } from "@/lib/confirm-dialog";
 
 type AiPrefs = {
@@ -109,50 +110,7 @@ export function AiSection() {
         <p className="text-sm text-muted-foreground">Fournisseur, fonctionnalités et historique</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Fournisseur</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label>Utiliser ma propre clé API</Label>
-            <Switch checked={prefs.useOwnKey} onCheckedChange={(v) => update({ useOwnKey: v })} />
-          </div>
-          {prefs.useOwnKey && (
-            <>
-              <div className="space-y-1">
-                <Label>Modèle</Label>
-                <Select
-                  value={prefs.provider}
-                  onValueChange={(v) => update({ provider: v as AiPrefs["provider"] })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gpt-4o-mini">OpenAI GPT-4o mini</SelectItem>
-                    <SelectItem value="claude-haiku">Anthropic Claude Haiku</SelectItem>
-                    <SelectItem value="claude-sonnet">Anthropic Claude Sonnet</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label>Clé API</Label>
-                <Input
-                  type="password"
-                  value={prefs.apiKey}
-                  onChange={(e) => update({ apiKey: e.target.value })}
-                  placeholder="sk-..."
-                />
-              </div>
-            </>
-          )}
-          {!prefs.useOwnKey && (
-            <p className="text-sm text-muted-foreground">
-              <Sparkles className="inline h-4 w-4 mr-1" />
-              Modèles Lovable AI utilisés par défaut (aucune clé requise).
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <AiProvidersSection />
 
       <Card>
         <CardHeader>

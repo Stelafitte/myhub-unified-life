@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useNavigate } from "@tanstack/react-router";
-import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History, Reply, ReplyAll, Star, Clock, Shield, ShieldOff, RefreshCw, Minimize2, Maximize2, Mic, MicOff, Receipt } from "lucide-react";
+import { Sparkles, Send, Loader2, Mail, ChevronRight, Forward, CheckSquare, CalendarPlus, Users, UserPlus, FileText, Play, User, FileBox, X, Archive, Trash2, Plus, History, Reply, ReplyAll, Star, Clock, Shield, ShieldOff, RefreshCw, Minimize2, Maximize2, Mic, MicOff, Receipt, FileArchive } from "lucide-react";
 import { generateExpenseReport } from "@/lib/api/expense-report.functions";
 import { ExpenseReportDialog } from "@/components/ai/expense-report-dialog";
 import { useVoiceConversation } from "@/hooks/use-voice-conversation";
+import { buildAndSaveArchive } from "@/lib/ai-archive-export";
+import { useAuth } from "@/lib/auth-context";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -88,6 +90,8 @@ export function AiAssistantModal({
   const [mode, setMode] = useState<"search" | "chat">("search");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [loading, setLoading] = useState(false);
+  const [archiving, setArchiving] = useState<string | null>(null);
+  const { user } = useAuth();
   const [archives, setArchives] = useState<ArchivedChat[]>([]);
   const [expandedMatches, setExpandedMatches] = useState<Set<string>>(new Set());
   const [emailPreviewId, setEmailPreviewId] = useState<string | null>(null);
@@ -286,6 +290,38 @@ export function AiAssistantModal({
     setExpenseEmailIds(emailIds);
     setExpenseInstruction(turn.prompt);
     setExpenseOpen(true);
+  };
+
+  const archiveZip = async (turn: Turn) => {
+    if (!user) { toast.error("Non connecté"); return; }
+    const items: { id: string; kind: string }[] = [];
+    for (const id of Array.from(turn.selectedMatches)) {
+      const m = turn.result?.matches.find(x => x.id === id);
+      if (m && (m.kind === "email" || m.kind === "document")) {
+        items.push({ id: m.id, kind: m.kind });
+      }
+    }
+    if (items.length === 0) { toast.error("Sélectionnez des emails ou documents à archiver."); return; }
+    setArchiving(turn.id);
+    try {
+      toast.info(`Archivage de ${items.length} élément(s) en cours…`);
+      const res = await buildAndSaveArchive(items, user.id, turn.prompt);
+      const summary =
+        `📦 Archive ${res.zipName} créée :\n` +
+        `• ${res.emailCount} email(s)\n` +
+        `• ${res.documentCount} document(s)\n` +
+        `• ${res.attachmentCount} pièce(s) jointe(s)\n\n` +
+        `⬇️ Téléchargée sur votre appareil.\n` +
+        (res.savedToLibrary
+          ? `📚 Également enregistrée dans **Documents → tag "archive-ia"**.`
+          : `⚠️ Échec de la sauvegarde dans votre bibliothèque.`);
+      setTurns(ts => ts.map(t => t.id === turn.id ? { ...t, chatReply: summary } : t));
+      toast.success("Archive prête");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur d'archivage");
+    } finally {
+      setArchiving(null);
+    }
   };
 
   const runExpenseReport = async (turnId: string, emailIds: string[], instruction: string) => {
@@ -628,6 +664,26 @@ export function AiAssistantModal({
                     return (
                       <Button size="sm" variant="outline" disabled={t.proposing || !hasEmailSel} onClick={() => openExpenseDialog(t)} className="h-7 gap-1.5 text-xs">
                         <Receipt className="h-3.5 w-3.5" />Note de frais
+                      </Button>
+                    );
+                  })()}
+                  {(() => {
+                    const hasArchivable = Array.from(t.selectedMatches).some(id => {
+                      const k = t.result?.matches.find(x => x.id === id)?.kind;
+                      return k === "email" || k === "document";
+                    });
+                    const isArchiving = archiving === t.id;
+                    return (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={t.proposing || !hasArchivable || isArchiving}
+                        onClick={() => archiveZip(t)}
+                        className="h-7 gap-1.5 text-xs"
+                        title="Crée un .zip avec les emails (+ pièces jointes) et documents sélectionnés, le télécharge et l'enregistre dans votre bibliothèque."
+                      >
+                        {isArchiving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileArchive className="h-3.5 w-3.5" />}
+                        Archive ZIP
                       </Button>
                     );
                   })()}
