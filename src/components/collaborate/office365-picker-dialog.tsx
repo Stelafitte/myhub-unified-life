@@ -117,7 +117,23 @@ export function Office365PickerDialog({
   };
 
   const runSearch = async () => {
-    await load(undefined, search);
+    const q = search.trim();
+    if (/^https?:\/\//i.test(q)) {
+      setLoading(true);
+      setErr(null);
+      setItems([]);
+      setResolved(null);
+      try {
+        const res = await resolveFn({ data: { url: q } });
+        setResolved(res.item as DriveItem);
+      } catch (e) {
+        setErr((e as Error).message);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+    await load(undefined, q);
   };
 
   const linkItem = async (item: DriveItem) => {
