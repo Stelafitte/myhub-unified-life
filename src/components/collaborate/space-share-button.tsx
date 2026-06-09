@@ -48,6 +48,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const updateGuestRoleFn = useServerFn(updateSpaceGuestRole);
   const removeGuestFn = useServerFn(removeSpaceGuest);
   const notifyFn = useServerFn(notifySpaceGuests);
+  const resendInviteFn = useServerFn(resendSpaceGuestInvitation);
   const listGroupsFn = useServerFn(listContactGroups);
   const qc = useQueryClient();
   const key = ["space-public", spaceId];
