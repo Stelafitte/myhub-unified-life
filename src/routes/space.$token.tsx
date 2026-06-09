@@ -416,6 +416,24 @@ function SectionList<T>({
   return <div className="space-y-2">{items.map(render)}</div>;
 }
 
+// Palette stable par expéditeur — hash du nom → HSL pastel.
+const BUBBLE_PALETTES: Array<{ bg: string; fg: string }> = [
+  { bg: "hsl(210 90% 92%)", fg: "hsl(210 60% 22%)" },
+  { bg: "hsl(150 60% 88%)", fg: "hsl(150 50% 20%)" },
+  { bg: "hsl(35 95% 88%)", fg: "hsl(28 70% 25%)" },
+  { bg: "hsl(280 70% 92%)", fg: "hsl(280 55% 28%)" },
+  { bg: "hsl(0 80% 92%)", fg: "hsl(0 55% 30%)" },
+  { bg: "hsl(180 55% 86%)", fg: "hsl(185 55% 22%)" },
+  { bg: "hsl(50 90% 86%)", fg: "hsl(40 65% 25%)" },
+  { bg: "hsl(320 65% 92%)", fg: "hsl(320 55% 30%)" },
+];
+function bubblePalette(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return BUBBLE_PALETTES[h % BUBBLE_PALETTES.length];
+}
+
+
 function ChatPanel({
   token,
   guestToken,
@@ -472,20 +490,49 @@ function ChatPanel({
             Aucun message pour l'instant.
           </p>
         ) : (
-          messages.map((m) => (
-            <div key={m.id} className="text-sm">
-              <div className="flex items-baseline gap-2">
-                <span className="font-medium">{m.sender_name ?? "—"}</span>
-                <span className="text-[10px] text-muted-foreground">
-                  {format(new Date(m.message_at), "d MMM HH:mm", { locale: fr })}
-                </span>
-                {m.type === "guest" && (
-                  <Badge variant="outline" className="text-[9px] py-0">invité</Badge>
-                )}
+          messages.map((m) => {
+            const isMine =
+              !!guest &&
+              (m.sender_name?.toLowerCase() === guest.name.toLowerCase() ||
+                (m.type === "guest" && m.sender_name === guest.name));
+            const palette = bubblePalette(m.sender_name ?? "—");
+            return (
+              <div
+                key={m.id}
+                className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[78%] rounded-2xl px-3 py-2 shadow-sm ${
+                    isMine
+                      ? "bg-primary text-primary-foreground rounded-br-sm"
+                      : "rounded-bl-sm"
+                  }`}
+                  style={
+                    isMine
+                      ? undefined
+                      : { backgroundColor: palette.bg, color: palette.fg }
+                  }
+                >
+                  {!isMine && (
+                    <div className="text-[11px] font-semibold mb-0.5 opacity-90">
+                      {m.sender_name ?? "—"}
+                    </div>
+                  )}
+                  <div className="whitespace-pre-wrap text-sm leading-snug">
+                    {m.content}
+                  </div>
+                  <div
+                    className={`text-[10px] mt-1 ${
+                      isMine ? "opacity-80 text-right" : "opacity-70"
+                    }`}
+                  >
+                    {format(new Date(m.message_at), "d MMM HH:mm", { locale: fr })}
+                    {m.type === "guest" && !isMine ? " · invité" : ""}
+                  </div>
+                </div>
               </div>
-              <div className="whitespace-pre-wrap">{m.content}</div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
       <div className="border-t p-2 flex gap-2 items-end">
