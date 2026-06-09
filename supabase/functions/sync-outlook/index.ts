@@ -48,15 +48,22 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
     const filter = encodeURIComponent(`receivedDateTime ge ${new Date(sinceIso).toISOString()}`);
     const select = encodeURIComponent("id,internetMessageId,subject,from,toRecipients,receivedDateTime,bodyPreview,body,isRead,hasAttachments,conversationId,flag");
     const top = account.last_sync_at ? 100 : 200;
-    const url = `${GATEWAY}/me/mailFolders/inbox/messages?$top=${top}&$orderby=receivedDateTime%20desc&$filter=${filter}&$select=${select}`;
+    const inboxUrl = `${GATEWAY}/me/mailFolders/inbox/messages?$top=${top}&$orderby=receivedDateTime%20desc&$filter=${filter}&$select=${select}`;
+    const sentUrl = `${GATEWAY}/me/mailFolders/sentitems/messages?$top=${top}&$orderby=receivedDateTime%20desc&$filter=${filter}&$select=${select}`;
 
-    const listRes = await fetch(url, { headers: gh() });
+    const listRes = await fetch(inboxUrl, { headers: gh() });
     if (!listRes.ok) {
       const t = await listRes.text();
       return { ok: false, count: 0, error: `list ${listRes.status}: ${t.slice(0, 200)}` };
     }
     const list = await listRes.json();
-    const msgs: any[] = list.value ?? [];
+    const inboxMsgs: any[] = list.value ?? [];
+    const sentRes = await fetch(sentUrl, { headers: gh() });
+    const sentMsgs: any[] = sentRes.ok ? ((await sentRes.json()).value ?? []) : [];
+    const msgs: any[] = [
+      ...inboxMsgs.map((m) => ({ ...m, _direction: "inbound" })),
+      ...sentMsgs.map((m) => ({ ...m, _direction: "outbound" })),
+    ];
     let count = 0;
 
     // Tombstones — never resurrect emails the user already deleted.
@@ -65,6 +72,7 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
       .select("message_id")
       .eq("account_id", account.id);
     const deletedSet = new Set<string>((tombstones ?? []).map((r: any) => r.message_id));
+
 
     for (const m of msgs) {
       try {
