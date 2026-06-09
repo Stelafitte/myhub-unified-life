@@ -294,12 +294,13 @@ export function AiAssistantModal({
 
   const archiveZip = async (turn: Turn) => {
     if (!user) { toast.error("Non connecté"); return; }
-    const items = Array.from(turn.selectedMatches)
-      .map(id => {
-        const m = turn.result?.matches.find(x => x.id === id);
-        return m ? { id: m.id, kind: m.kind } : null;
-      })
-      .filter((x): x is { id: string; kind: string } => !!x && (x.kind === "email" || x.kind === "document"));
+    const items: { id: string; kind: string }[] = [];
+    for (const id of Array.from(turn.selectedMatches)) {
+      const m = turn.result?.matches.find(x => x.id === id);
+      if (m && (m.kind === "email" || m.kind === "document")) {
+        items.push({ id: m.id, kind: m.kind });
+      }
+    }
     if (items.length === 0) { toast.error("Sélectionnez des emails ou documents à archiver."); return; }
     setArchiving(turn.id);
     try {
