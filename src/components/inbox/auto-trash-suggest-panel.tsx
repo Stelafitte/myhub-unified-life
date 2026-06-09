@@ -124,41 +124,45 @@ export function AutoTrashSuggestPanel({ emails, onTrashed, threshold = 70 }: Pro
 
   return (
     <div className="border-b bg-amber-500/10 px-3 py-2 text-xs sm:px-4">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-600" />
-        <span className="shrink-0 font-medium text-amber-700 dark:text-amber-400">
-          Pré-tri corbeille IA (seuil {threshold}%)
-        </span>
-        {loading ? (
-          <span className="flex min-w-0 items-center gap-1 text-muted-foreground">
-            <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> <span className="truncate">Analyse en cours…</span>
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+          <span className="shrink-0 font-medium text-amber-700 dark:text-amber-400">
+            Pré-tri corbeille IA ({threshold}%)
           </span>
-        ) : error ? (
-          <span className="min-w-0 truncate text-destructive">⚠ {error}</span>
-        ) : ran ? (
-          <span className="min-w-0 truncate text-muted-foreground">
-            {visible.length === 0
-              ? "Aucun mail suggéré — votre boîte est propre."
-              : `${visible.length} mail${visible.length > 1 ? "s" : ""} suggéré${visible.length > 1 ? "s" : ""} — décoche ceux à garder`}
-          </span>
-        ) : (
-          <span className="min-w-0 truncate text-muted-foreground">Cliquez sur Analyser pour démarrer</span>
-        )}
-        <button
-          onClick={() => void runAnalysis()}
-          disabled={loading}
-          className="ml-auto rounded p-1 hover:bg-amber-500/20 disabled:opacity-50"
-          title="Relancer l'analyse"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-        </button>
-        <button
-          onClick={collapse}
-          className="rounded p-1 hover:bg-amber-500/20"
-          title="Masquer (30 min)"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+          {loading ? (
+            <span className="flex min-w-0 items-center gap-1 text-muted-foreground">
+              <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> <span className="truncate">Analyse…</span>
+            </span>
+          ) : error ? (
+            <span className="min-w-0 truncate text-destructive">⚠ {error}</span>
+          ) : ran ? (
+            <span className="min-w-0 truncate text-muted-foreground">
+              {visible.length === 0
+                ? "Boîte propre."
+                : `${visible.length} suggestion${visible.length > 1 ? "s" : ""}`}
+            </span>
+          ) : (
+            <span className="min-w-0 truncate text-muted-foreground">Cliquez sur Analyser</span>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            onClick={() => void runAnalysis()}
+            disabled={loading}
+            className="rounded p-1 hover:bg-amber-500/20 disabled:opacity-50"
+            title="Relancer l'analyse"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            onClick={collapse}
+            className="rounded p-1 hover:bg-amber-500/20"
+            title="Masquer (30 min)"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       {!loading && visible.length > 0 && (
