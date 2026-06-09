@@ -58,8 +58,8 @@ export function AppHeader() {
       : pending > 0 ? `En ligne — ${pending} à envoyer` : "En ligne — synchronisé";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-1.5 border-b bg-background/80 px-2 sm:gap-3 sm:px-4 backdrop-blur">
-      <SidebarTrigger className="h-9 w-9 shrink-0 border border-border/60 bg-muted/40 text-foreground hover:bg-muted [&_svg]:!size-5" />
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-0.5 border-b bg-background/80 px-1.5 sm:gap-3 sm:px-4 backdrop-blur">
+      <SidebarTrigger className="h-8 w-8 shrink-0 border border-border/60 bg-muted/40 text-foreground hover:bg-muted sm:h-9 sm:w-9 [&_svg]:!size-5" />
 
       <GlobalSearchBar />
 
@@ -68,7 +68,7 @@ export function AppHeader() {
       <button
         onClick={handleSync}
         disabled={syncing || state === "offline"}
-        className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-60 ${badgeClass}`}
+        className={`flex shrink-0 items-center gap-1.5 rounded-full px-1.5 py-1 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-60 sm:px-2.5 ${badgeClass}`}
         title="Synchroniser maintenant (Maj+clic = resynchronisation complète 30j)"
       >
         {state === "syncing" ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -80,14 +80,13 @@ export function AppHeader() {
         <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
       </Button>
 
-      <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
+      <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme" className="h-8 w-8 shrink-0 sm:h-9 sm:w-9">
         {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </Button>
 
-      <Button variant="ghost" size="sm" onClick={() => openCreate()} className="h-8 gap-1 text-xs font-medium" aria-label="Nouvelle tâche">
+      <Button variant="ghost" size="sm" onClick={() => openCreate()} className="h-8 shrink-0 gap-1 px-2 text-xs font-medium" aria-label="Nouvelle tâche">
         <CheckSquare className="h-4 w-4" />
         <span className="hidden sm:inline">Nouvelle tâche</span>
-        <span className="sm:hidden">Tâche</span>
       </Button>
 
       <Button
@@ -95,10 +94,11 @@ export function AppHeader() {
         size="icon"
         onClick={async () => { await signOut(); navigate({ to: "/login" }); }}
         aria-label="Sign out"
+        className="h-8 w-8 shrink-0 sm:h-9 sm:w-9"
       >
         <LogOut className="h-4 w-4" />
       </Button>
-      <Avatar className="h-8 w-8">
+      <Avatar className="hidden h-8 w-8 shrink-0 sm:flex">
         <AvatarFallback className="text-xs">{initials}</AvatarFallback>
       </Avatar>
     </header>
