@@ -223,8 +223,9 @@ function OnboardingPage() {
             {step === 3 && "Connectez votre premier compte email pour démarrer."}
             {step === 4 && "Synchronisez vos agendas et contacts (optionnel)."}
             {step === 5 && "Connectez vos outils favoris (optionnel)."}
-            {step === 6 && "Configurez l'intelligence artificielle de MyHub Pro."}
-            {step === 7 && "Vérifiez votre configuration et lancez MyHub Pro."}
+            {step === 6 && "Créez un espace de collaboration pour partager projets, fichiers et discussions."}
+            {step === 7 && "Configurez l'intelligence artificielle de MyHub Pro."}
+            {step === 8 && "Vérifiez votre configuration et lancez MyHub Pro."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
