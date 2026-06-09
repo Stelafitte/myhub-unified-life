@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft, Sparkles } from "lucide-react";
+import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft, Sparkles, Eye, Send } from "lucide-react";
 import { toast } from "sonner";
 import {
   getReport, upsertReport, fillExpenseTemplate, listTemplates,
@@ -17,6 +18,9 @@ import { generateExpensePDFClient } from "./expense-pdf";
 import { CATEGORY_META } from "./category-icons";
 import { ImportFromEmailDialog, type ImportedItem } from "./import-from-email-dialog";
 import { AIBatchExtractDialog, type AIExtractedLine } from "./ai-batch-extract-dialog";
+import { ContactEmailAutocomplete } from "@/components/contacts/contact-email-autocomplete";
+import { EmailComposer, type ComposerAccount, type ComposerAttachment, type ComposerInitial } from "@/components/inbox/email-composer";
+import { getSignatureForAccount } from "@/lib/email-signatures";
 
 // helper not exported by server-fns — local copy
 type Item = {
@@ -84,6 +88,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
 
   const [title, setTitle] = useState("");
   const [missionObject, setMissionObject] = useState("");
+  const [missionDescription, setMissionDescription] = useState("");
   const [missionContext, setMissionContext] = useState<string>("");
   const [organization, setOrganization] = useState("");
   const [missionNumber, setMissionNumber] = useState("");
@@ -95,7 +100,18 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const [signatureLocation, setSignatureLocation] = useState("Bordeaux");
   const [signatureDate, setSignatureDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [status, setStatus] = useState<string>("draft");
+
+  // Composer state
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+  const [composerAccounts, setComposerAccounts] = useState<ComposerAccount[]>([]);
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
+
+  // PDF preview state
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
 
   useEffect(() => {
     void tplFn().then((r) => setTemplates(r.templates));
@@ -108,6 +124,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       const rep = r.report;
       setTitle(rep.title);
       setMissionObject(rep.mission_object ?? "");
+      setMissionDescription((rep as any).mission_description ?? "");
       setMissionContext(rep.mission_context ?? "");
       setOrganization(rep.organization ?? "");
       setMissionNumber(rep.mission_number ?? "");
@@ -118,6 +135,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       setSignatureLocation(rep.signature_location ?? "Bordeaux");
       setSignatureDate(rep.signature_date ?? new Date().toISOString().slice(0, 10));
       setNotes(rep.notes ?? "");
+      setRecipientEmail((rep as any).recipient_email ?? "");
       setStatus(rep.status ?? "draft");
       setItems((r.items as any[]).map((it, idx) => ({
         id: it.id, date: it.date, category: it.category, description: it.description,
@@ -194,13 +212,15 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
     try {
       const r = await upsertFn({ data: {
         id: reportId,
-        title, mission_object: missionObject || null, mission_context: (missionContext as any) || null,
+        title, mission_object: missionObject || null, mission_description: missionDescription || null,
+        mission_context: (missionContext as any) || null,
         organization: organization || null, mission_number: missionNumber || null,
         identification: ident, status: (newStatus as any) ?? (status as any),
         advance_amount: advance, currency: "EUR",
         payment_method: (paymentMethod as any), iban: iban || null,
         signature_location: signatureLocation, signature_date: signatureDate || null,
         notes: notes || null,
+        recipient_email: recipientEmail || null,
         items: items.map((it, idx) => ({ ...it, vendor: it.vendor ?? null, position: idx })),
       } });
       toast.success("Note enregistrée");
@@ -210,16 +230,67 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
     finally { setSaving(false); }
   };
 
+  const buildPdf = () => generateExpensePDFClient({
+    title, missionObject, missionDescription, missionContext, organization, missionNumber, ident,
+    items, total, advance, toReimburse,
+    paymentMethod, iban, signatureLocation, signatureDate, notes,
+  });
+
   const exportPDF = async () => {
     const id = await save(); if (!id) return;
     try {
-      const out = await generateExpensePDFClient({
-        title, missionObject, missionContext, organization, missionNumber, ident,
-        items, total, advance, toReimburse,
-        paymentMethod, iban, signatureLocation, signatureDate, notes,
-      });
+      const out = buildPdf();
       downloadBase64(out.filename, "application/pdf", out.base64);
     } catch (e: any) { toast.error(e?.message ?? "Erreur PDF"); }
+  };
+
+  const previewPDF = () => {
+    try {
+      const out = buildPdf();
+      const bin = atob(out.base64);
+      const arr = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      const blob = new Blob([arr], { type: "application/pdf" });
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(blob));
+    } catch (e: any) { toast.error(e?.message ?? "Erreur PDF"); }
+  };
+
+  const sendByMail = async () => {
+    if (!recipientEmail.trim()) { toast.error("Renseigne un destinataire"); return; }
+    const id = await save(); if (!id) return;
+    try {
+      const { data: accs } = await supabase
+        .from("accounts")
+        .select("id, name, type, color, icon, credentials")
+        .eq("user_id", userId)
+        .eq("is_active", true);
+      const accounts = (accs ?? []) as ComposerAccount[];
+      const sendable = accounts.filter((a) => ["gmail", "outlook", "imap"].includes(a.type));
+      if (sendable.length === 0) { toast.error("Aucun compte mail configuré"); return; }
+      const signature = getSignatureForAccount(sendable[0]);
+      const body = [
+        `Bonjour,`,
+        ``,
+        `Je vous adresse ma note de frais relative à : ${missionObject || title}.`,
+        ``,
+        `En vous souhaitant une bonne réception.`,
+        ``,
+        `Bien cordialement.`,
+        ``,
+        `-- `,
+        signature,
+      ].join("\n");
+      const out = buildPdf();
+      setComposerAccounts(accounts);
+      setComposerAttachments([{ name: out.filename, type: "application/pdf", size: Math.ceil(out.base64.length * 0.75), contentBase64: out.base64 }]);
+      setComposerInitial({
+        mode: "new",
+        to: recipientEmail.trim(),
+        subject: `Note de frais — ${missionObject || title}`,
+        body,
+      });
+      setComposerOpen(true);
+    } catch (e: any) { toast.error(e?.message ?? "Erreur"); }
   };
 
   const fillTemplate = async () => {
@@ -241,8 +312,14 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
         <Button size="sm" variant="outline" onClick={() => save()} disabled={saving} className="gap-1">
           {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Enregistrer
         </Button>
+        <Button size="sm" variant="outline" onClick={previewPDF} className="gap-1">
+          <Eye className="h-3 w-3" /> Aperçu
+        </Button>
         <Button size="sm" onClick={exportPDF} disabled={saving} className="gap-1">
           <FileText className="h-3 w-3" /> PDF
+        </Button>
+        <Button size="sm" variant="secondary" onClick={sendByMail} disabled={saving} className="gap-1">
+          <Send className="h-3 w-3" /> Envoyer
         </Button>
       </div>
       <ScrollArea className="flex-1">
@@ -266,6 +343,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
             <div className="grid grid-cols-2 gap-2">
               <div className="col-span-2"><Label className="text-xs">Titre de la note</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
               <div className="col-span-2"><Label className="text-xs">Intitulé de la mission</Label><Input value={missionObject} onChange={(e) => setMissionObject(e.target.value)} placeholder="Congrès SFC 2026 — Paris" /></div>
+              <div className="col-span-2"><Label className="text-xs">Description de la mission et des frais</Label><Textarea value={missionDescription} onChange={(e) => setMissionDescription(e.target.value)} className="min-h-[80px]" placeholder="Contexte de la mission, nature des dépenses engagées…" /></div>
               <div>
                 <Label className="text-xs">Cadre</Label>
                 <Select value={missionContext} onValueChange={setMissionContext}>
@@ -415,6 +493,13 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
           )}
 
           <section>
+            <h3 className="text-sm font-semibold mb-2">Destinataire de la note</h3>
+            <Label className="text-xs">Email du destinataire</Label>
+            <ContactEmailAutocomplete value={recipientEmail} onChange={setRecipientEmail} onSelect={setRecipientEmail} placeholder="ex: comptabilite@chu-bordeaux.fr" />
+            <p className="text-xs text-muted-foreground mt-1">Recherche automatique dans vos contacts pendant la frappe.</p>
+          </section>
+
+          <section>
             <Label className="text-xs">Statut</Label>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -432,6 +517,19 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
 
       <ImportFromEmailDialog open={importOpen} onOpenChange={setImportOpen} onPick={onImportedFromEmail} />
       <AIBatchExtractDialog open={aiBatchOpen} onOpenChange={setAiBatchOpen} onLines={onAIBatchLines} initialFiles={aiInitialFiles} />
+      <EmailComposer open={composerOpen} onOpenChange={setComposerOpen} accounts={composerAccounts} initial={composerInitial} initialAttachments={composerAttachments} />
+      <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) { if (previewUrl) URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } }}>
+        <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0">
+          <DialogHeader className="px-4 py-2 border-b">
+            <DialogTitle className="text-sm">Aperçu PDF — {title || "Note de frais"}</DialogTitle>
+          </DialogHeader>
+          {previewUrl && <iframe src={previewUrl} className="flex-1 w-full" title="Aperçu PDF" />}
+          <div className="flex justify-end gap-2 p-3 border-t">
+            <Button variant="outline" onClick={() => { if (previewUrl) URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }}>Fermer</Button>
+            <Button onClick={() => { void exportPDF(); }} className="gap-1"><Download className="h-4 w-4" /> Enregistrer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

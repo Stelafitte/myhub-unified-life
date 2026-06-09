@@ -5,6 +5,7 @@ import type { ExpenseCategory } from "@/lib/expense.functions";
 export type PdfPayload = {
   title: string;
   missionObject: string;
+  missionDescription: string;
   missionContext: string;
   organization: string;
   missionNumber: string;
@@ -50,6 +51,10 @@ export function generateExpensePDFClient(p: PdfPayload): { filename: string; bas
   ].filter(Boolean) as string[];
   if (m.length === 0) m.push("(non renseignée)");
   m.forEach((l) => { doc.text(l, 14, y); y += 4.5; });
+  if (p.missionDescription) {
+    const dl = doc.splitTextToSize(`Description : ${p.missionDescription}`, pageW - 28);
+    doc.text(dl, 14, y); y += dl.length * 4.5;
+  }
   y += 4;
 
   // Items table
