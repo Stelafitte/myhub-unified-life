@@ -2993,6 +2993,7 @@ function Reader({
   onCreateTask,
   onPostpone,
   onCompose,
+  onForward,
   onMarkSpam,
 }: {
   email: Email;
@@ -3005,8 +3006,10 @@ function Reader({
   onCreateTask: () => void;
   onPostpone: () => void;
   onCompose: (init: ComposerInitial) => void;
+  onForward: (email: Email) => void | Promise<void>;
   onMarkSpam: (asSpam: boolean) => void;
 }) {
+
   const [sensitiveOverride, setSensitiveOverride] = useState<boolean | null>(null);
   const isSensitive = sensitiveOverride ?? email.is_sensitive;
   useEffect(() => {
