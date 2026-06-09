@@ -109,7 +109,22 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
       return { ok: false, count: 0, error: `list ${listRes.status}: ${t.slice(0, 200)}` };
     }
     const list = await listRes.json();
-    const msgs: Array<{ id: string }> = list.messages ?? [];
+    const inboxMsgs: Array<{ id: string }> = list.messages ?? [];
+
+    // Also fetch sent emails over the same window.
+    const qSent = encodeURIComponent(`in:sent after:${afterTs}`);
+    const sentRes = await fetch(`${GATEWAY}/users/me/messages?maxResults=${maxResults}&q=${qSent}`, { headers: gh() });
+    const sentList = sentRes.ok ? await sentRes.json() : { messages: [] };
+    const sentMsgs: Array<{ id: string }> = sentList.messages ?? [];
+    const sentIds = new Set(sentMsgs.map((s) => s.id));
+    // Merge unique by id
+    const seen = new Set<string>();
+    const msgs: Array<{ id: string }> = [];
+    for (const m of [...inboxMsgs, ...sentMsgs]) {
+      if (seen.has(m.id)) continue;
+      seen.add(m.id);
+      msgs.push(m);
+    }
     let count = 0;
 
     // Tombstones — never resurrect emails the user already deleted.
@@ -136,6 +151,8 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
         const { text, html, hasAttach, attachments } = extractParts(m.payload);
         const isRead = !((m.labelIds ?? []).includes("UNREAD"));
         const isStarred = (m.labelIds ?? []).includes("STARRED");
+        const direction = sentIds.has(id) || (m.labelIds ?? []).includes("SENT") ? "outbound" : "inbound";
+
 
         // Bug 2 fix : ne jamais ré-écraser is_read=true côté local par la sync.
         const { data: existing } = await admin
