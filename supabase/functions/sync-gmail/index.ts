@@ -181,9 +181,10 @@ async function syncGmail(account: any, admin: any): Promise<{ ok: boolean; count
           origin_tag: "gmail",
           thread_id: m.threadId || null,
           direction,
-
+        }, { onConflict: "account_id,message_id", ignoreDuplicates: false })
           .select("id")
           .maybeSingle();
+
         if (upErr) { console.error("[sync-gmail] upsert", upErr.message); continue; }
         count++;
 
