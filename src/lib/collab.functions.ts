@@ -1669,3 +1669,63 @@ export const submitPublicSurveyResponse = createServerFn({ method: "POST" })
     if (iErr) throw new Error(iErr.message);
     return { ok: true };
   });
+
+/** Crée un lien URL externe dans un espace. */
+export const createSpaceUrlLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        spaceId: z.string().uuid(),
+        title: z.string().min(1).max(300),
+        url: z.string().url().max(2000),
+        note: z.string().max(500).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error } = await supabase
+      .from("collab_space_url_links")
+      .insert({
+        user_id: userId,
+        space_id: data.spaceId,
+        title: data.title,
+        url: data.url,
+        note: data.note ?? null,
+      })
+      .select("id,title,url,note,created_at")
+      .single();
+    if (error) throw new Error(error.message);
+    return { link: row };
+  });
+
+/** Liste les liens URL externes d'un espace. */
+export const listSpaceUrlLinks = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: rows, error } = await supabase
+      .from("collab_space_url_links")
+      .select("id,title,url,note,created_at")
+      .eq("space_id", data.spaceId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { links: rows ?? [] };
+  });
+
+/** Supprime un lien URL externe. */
+export const deleteSpaceUrlLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ linkId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("collab_space_url_links")
+      .delete()
+      .eq("id", data.linkId)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
