@@ -238,8 +238,8 @@ function PlanOperationPage() {
     const position = existing && existing.length ? (existing[0].position as number) + 1 : 0;
     const { data: ins, error } = await supabase
       .from("op_plan_themes")
-      .insert({ user_id: user.id, name, position })
-      .select("id,name,position")
+      .insert({ user_id: user.id, name, position, show_in_plan: true })
+      .select("id,name,position,show_in_plan")
       .single();
     if (error) { toast.error(error.message); return; }
     if (ins) setOpThemes((p) => [...p, ins as typeof opThemes[number]]);
