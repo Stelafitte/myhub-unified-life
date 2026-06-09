@@ -145,7 +145,7 @@ export const connectICloudContacts = createServerFn({ method: "POST" })
     // Verify credentials by discovering principal + addressbook
     const { principal, addressbook } = await discoverAddressbook(auth);
 
-    const enc = encryptSecret(data.appPassword);
+    const enc = encryptSecret(normalizedPwd);
     const { data: row, error } = await supabaseAdmin
       .from("icloud_connections")
       .insert({
