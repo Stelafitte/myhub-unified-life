@@ -135,6 +135,14 @@ function PlanOperationPage() {
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
   const [dragOverSection, setDragOverSection] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setFullscreen(false); };
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { window.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [fullscreen]);
   const [opThemes, setOpThemes] = useState<{ id: string; name: string; position: number; show_in_plan?: boolean }[]>([]);
   const [opSubthemes, setOpSubthemes] = useState<{ id: string; name: string; theme_id: string; position: number; show_in_plan?: boolean }[]>([]);
 
