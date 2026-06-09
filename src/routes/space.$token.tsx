@@ -92,41 +92,82 @@ function PublicSpacePage() {
   } = data;
 
   return (
-    <div className="max-w-5xl mx-auto py-6 px-3 sm:px-4 space-y-4">
-      <header className="space-y-2">
-        <div className="flex items-center gap-3">
-          <span
-            className="inline-flex items-center justify-center w-12 h-12 rounded-md text-2xl"
-            style={{
-              backgroundColor: (space.color ?? "#64748b") + "20",
-              color: space.color ?? undefined,
-            }}
-          >
-            {space.icon ?? "📁"}
-          </span>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-semibold truncate">{space.name}</h1>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <Badge variant="outline" className="text-[10px]">Espace public</Badge>
-              {guest ? (
-                <Badge variant="secondary" className="text-[10px] gap-1">
-                  <UserCheck className="h-3 w-3" />
-                  {guest.name} · {guest.role === "contributor" ? "Contributeur" : "Lecteur"}
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
+      <div
+        className="relative overflow-hidden border-b"
+        style={{
+          background: `linear-gradient(135deg, ${(space.color ?? "#6366f1")}22 0%, ${(space.color ?? "#6366f1")}05 60%, transparent 100%)`,
+        }}
+      >
+        <div
+          aria-hidden
+          className="absolute -top-24 -right-24 h-72 w-72 rounded-full blur-3xl opacity-40"
+          style={{ background: space.color ?? "#6366f1" }}
+        />
+        <div
+          aria-hidden
+          className="absolute -bottom-32 -left-24 h-72 w-72 rounded-full blur-3xl opacity-25"
+          style={{ background: space.color ?? "#6366f1" }}
+        />
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 relative">
+          <div className="flex items-start gap-4">
+            <span
+              className="inline-flex items-center justify-center w-16 h-16 rounded-2xl text-3xl shadow-lg ring-1 ring-border/40 backdrop-blur"
+              style={{
+                backgroundColor: (space.color ?? "#64748b") + "33",
+                color: space.color ?? undefined,
+              }}
+            >
+              {space.icon ?? "📁"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                  Espace de travail partagé
                 </Badge>
-              ) : (
-                <Badge variant="outline" className="text-[10px] gap-1">
-                  <Lock className="h-3 w-3" /> Visiteur (lien personnel requis pour le chat)
-                </Badge>
+                {guest ? (
+                  <Badge variant="secondary" className="text-[10px] gap-1">
+                    <UserCheck className="h-3 w-3" />
+                    {guest.name} · {guest.role === "contributor" ? "Contributeur" : "Lecteur"}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] gap-1">
+                    <Lock className="h-3 w-3" /> Lien personnel requis pour participer
+                  </Badge>
+                )}
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight">
+                {space.name}
+              </h1>
+              {space.public_description && (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-2 max-w-2xl">
+                  {space.public_description}
+                </p>
               )}
+              <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground flex-wrap">
+                <span className="inline-flex items-center gap-1">
+                  <Users className="h-3.5 w-3.5" /> {collaborators.length} collaborateur{collaborators.length > 1 ? "s" : ""}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <FileText className="h-3.5 w-3.5" /> {documents.length} doc{documents.length > 1 ? "s" : ""}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <CheckSquare className="h-3.5 w-3.5" /> {tasks.length} tâche{tasks.length > 1 ? "s" : ""}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <CalendarClock className="h-3.5 w-3.5" /> {meetings.length} réunion{meetings.length > 1 ? "s" : ""}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Hash className="h-3.5 w-3.5" /> {messages.length} message{messages.length > 1 ? "s" : ""}
+                </span>
+              </div>
             </div>
           </div>
         </div>
-        {space.public_description && (
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-            {space.public_description}
-          </p>
-        )}
-      </header>
+      </div>
+
+      <div className="max-w-5xl mx-auto py-6 px-3 sm:px-4 space-y-4">
+
 
       <Tabs defaultValue="chat" className="w-full">
         <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
