@@ -87,6 +87,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
 
   const [title, setTitle] = useState("");
   const [missionObject, setMissionObject] = useState("");
+  const [missionDescription, setMissionDescription] = useState("");
   const [missionContext, setMissionContext] = useState<string>("");
   const [organization, setOrganization] = useState("");
   const [missionNumber, setMissionNumber] = useState("");
@@ -98,7 +99,41 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const [signatureLocation, setSignatureLocation] = useState("Bordeaux");
   const [signatureDate, setSignatureDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [status, setStatus] = useState<string>("draft");
+
+  // Composer state
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerInitial, setComposerInitial] = useState<ComposerInitial>({ mode: "new" });
+  const [composerAccounts, setComposerAccounts] = useState<ComposerAccount[]>([]);
+  const [composerAttachments, setComposerAttachments] = useState<ComposerAttachment[]>([]);
+
+  // PDF preview state
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => { void tplFn().then((r) => setTemplates(r.templates));
+    if (!reportId) {
+      setTitle(`Note de frais — ${new Date().toLocaleDateString("fr-FR")}`);
+      return;
+    }
+    setLoading(true);
+    getFn({ data: { id: reportId } }).then((r) => {
+      const rep = r.report;
+      setTitle(rep.title);
+      setMissionObject(rep.mission_object ?? "");
+      setMissionDescription((rep as any).mission_description ?? "");
+      setMissionContext(rep.mission_context ?? "");
+      setOrganization(rep.organization ?? "");
+      setMissionNumber(rep.mission_number ?? "");
+      setIdent({ ...DEFAULT_IDENTIFICATION, ...((rep.identification ?? {}) as Record<string, string>) });
+      setAdvance(Number(rep.advance_amount) || 0);
+      setPaymentMethod(rep.payment_method ?? "virement");
+      setIban(rep.iban ?? "");
+      setSignatureLocation(rep.signature_location ?? "Bordeaux");
+      setSignatureDate(rep.signature_date ?? new Date().toISOString().slice(0, 10));
+      setNotes(rep.notes ?? "");
+      setRecipientEmail((rep as any).recipient_email ?? "");
+      setStatus(rep.status ?? "draft");
 
   useEffect(() => {
     void tplFn().then((r) => setTemplates(r.templates));
