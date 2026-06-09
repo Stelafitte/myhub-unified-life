@@ -2906,7 +2906,9 @@ function InboxPage() {
         onOpenChange={setComposerOpen}
         accounts={accounts}
         initial={composerInitial}
+        initialAttachments={composerAttachments}
       />
+
     </div>
   );
 }
