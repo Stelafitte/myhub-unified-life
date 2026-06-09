@@ -681,6 +681,44 @@ export type Database = {
           },
         ]
       }
+      collab_space_url_links: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          space_id: string
+          title: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          space_id: string
+          title: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          space_id?: string
+          title?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_space_url_links_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collab_spaces: {
         Row: {
           archived_at: string | null
