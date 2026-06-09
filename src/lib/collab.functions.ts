@@ -1094,7 +1094,7 @@ export const listSpaceGuests = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data: rows, error } = await supabase
       .from("collab_guests")
-      .select("id,name,email,role,access_token,status,created_at")
+      .select("id,name,email,role,access_token,status,created_at,last_active_at")
       .eq("space_id", data.spaceId)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
