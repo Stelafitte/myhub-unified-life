@@ -124,25 +124,25 @@ export function AutoTrashSuggestPanel({ emails, onTrashed, threshold = 70 }: Pro
 
   return (
     <div className="border-b bg-amber-500/10 px-4 py-2 text-xs">
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-3.5 w-3.5 text-amber-600" />
-        <span className="font-medium text-amber-700 dark:text-amber-400">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+        <span className="shrink-0 font-medium text-amber-700 dark:text-amber-400">
           Pré-tri corbeille IA (seuil {threshold}%)
         </span>
         {loading ? (
-          <span className="flex items-center gap-1 text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" /> Analyse en cours…
+          <span className="flex min-w-0 items-center gap-1 text-muted-foreground">
+            <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> <span className="truncate">Analyse en cours…</span>
           </span>
         ) : error ? (
-          <span className="text-destructive">⚠ {error}</span>
+          <span className="min-w-0 truncate text-destructive">⚠ {error}</span>
         ) : ran ? (
-          <span className="text-muted-foreground">
+          <span className="min-w-0 truncate text-muted-foreground">
             {visible.length === 0
               ? "Aucun mail suggéré — votre boîte est propre."
               : `${visible.length} mail${visible.length > 1 ? "s" : ""} suggéré${visible.length > 1 ? "s" : ""} — décoche ceux à garder`}
           </span>
         ) : (
-          <span className="text-muted-foreground">Cliquez sur Analyser pour démarrer</span>
+          <span className="min-w-0 truncate text-muted-foreground">Cliquez sur Analyser pour démarrer</span>
         )}
         <button
           onClick={() => void runAnalysis()}
