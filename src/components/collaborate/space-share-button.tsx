@@ -222,6 +222,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
 
   const handleAddGroup = async () => {
     if (!selectedGroup) return toast.error("Sélectionnez un groupe");
+    const ids = Object.entries(selectedMemberIds).filter(([, v]) => v).map(([k]) => k);
     setAddingGroup(true);
     try {
       const res = await addGroupFn({
@@ -231,6 +232,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
           role: groupRole,
           sendInvitation: groupSendMail,
           appOrigin: baseUrl,
+          memberIds: ids.length ? ids : undefined,
         },
       });
       if (res.added === 0) {
@@ -242,6 +244,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
         );
       }
       setSelectedGroup("");
+      setSelectedMemberIds({});
       qc.invalidateQueries({ queryKey: guestsKey });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
