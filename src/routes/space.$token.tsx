@@ -1,14 +1,36 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2, ClipboardList, CalendarClock, ExternalLink, UserCheck } from "lucide-react";
-import { format } from "date-fns";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef, useState } from "react";
+import {
+  Loader2,
+  ClipboardList,
+  CalendarClock,
+  ExternalLink,
+  UserCheck,
+  Hash,
+  Link2,
+  FileText,
+  CheckSquare,
+  Paperclip,
+  Vote,
+  Users,
+  Send,
+  Lock,
+} from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { z } from "zod";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getPublicSpace } from "@/lib/collab.functions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import {
+  getPublicSpaceFull,
+  postPublicSpaceMessage,
+} from "@/lib/collab.functions";
 
 const searchSchema = z.object({ g: z.string().optional() });
 
@@ -27,10 +49,13 @@ export const Route = createFileRoute("/space/$token")({
 function PublicSpacePage() {
   const { token } = Route.useParams();
   const { g: guestToken } = useSearch({ from: "/space/$token" });
-  const fn = useServerFn(getPublicSpace);
-  const { data, isLoading } = useQuery({
-    queryKey: ["public-space", token, guestToken ?? ""],
+  const fn = useServerFn(getPublicSpaceFull);
+  const qc = useQueryClient();
+  const queryKey = ["public-space-full", token, guestToken ?? ""];
+  const { data, isLoading, refetch } = useQuery({
+    queryKey,
     queryFn: () => fn({ data: { token, guest_token: guestToken } }),
+    refetchInterval: 15000,
   });
 
   if (isLoading) {
@@ -52,12 +77,22 @@ function PublicSpacePage() {
     );
   }
 
-  const { space, surveys, polls, guest } = data;
-  const guestLink = (path: string) =>
-    guest ? `${path}${path.includes("?") ? "&" : "?"}g=${guestToken}` : path;
+  const {
+    space,
+    guest,
+    messages,
+    documents,
+    urlLinks,
+    tasks,
+    meetings,
+    files,
+    collaborators,
+    surveys,
+    polls,
+  } = data;
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4 space-y-6">
+    <div className="max-w-5xl mx-auto py-6 px-3 sm:px-4 space-y-4">
       <header className="space-y-2">
         <div className="flex items-center gap-3">
           <span
@@ -69,14 +104,18 @@ function PublicSpacePage() {
           >
             {space.icon ?? "📁"}
           </span>
-          <div>
-            <h1 className="text-2xl font-semibold">{space.name}</h1>
-            <div className="flex items-center gap-2 mt-1">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold truncate">{space.name}</h1>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <Badge variant="outline" className="text-[10px]">Espace public</Badge>
-              {guest && (
+              {guest ? (
                 <Badge variant="secondary" className="text-[10px] gap-1">
                   <UserCheck className="h-3 w-3" />
                   {guest.name} · {guest.role === "contributor" ? "Contributeur" : "Lecteur"}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[10px] gap-1">
+                  <Lock className="h-3 w-3" /> Visiteur (lien personnel requis pour le chat)
                 </Badge>
               )}
             </div>
@@ -89,94 +128,388 @@ function PublicSpacePage() {
         )}
       </header>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold flex items-center gap-2">
-          <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          Sondages d'opinion
-          <Badge variant="secondary">{surveys.length}</Badge>
-        </h2>
-        {surveys.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun sondage disponible.</p>
-        ) : (
-          <ul className="space-y-2">
-            {surveys.map((s) => (
-              <li key={s.id}>
-                <Card className="p-3 flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">{s.title}</span>
-                      {s.status !== "open" && (
-                        <Badge variant="outline" className="text-[10px] bg-muted">Clôturé</Badge>
-                      )}
-                    </div>
-                    {s.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                        {s.description}
-                      </p>
-                    )}
-                    {s.deadline && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        jusqu'au {format(new Date(s.deadline), "d MMM yyyy HH:mm", { locale: fr })}
-                      </div>
-                    )}
-                  </div>
-                  {s.status === "open" && (
-                    <Button asChild size="sm">
-                      <a href={guestLink(`/survey/${s.public_token}`)}>
-                        Répondre <ExternalLink className="h-3 w-3 ml-1" />
-                      </a>
-                    </Button>
-                  )}
-                </Card>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <Tabs defaultValue="chat" className="w-full">
+        <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
+          <TabsTrigger value="chat" className="gap-1 text-xs">
+            <Hash className="h-3.5 w-3.5" /> Chat
+          </TabsTrigger>
+          <TabsTrigger value="links" className="gap-1 text-xs">
+            <Link2 className="h-3.5 w-3.5" /> Liens
+          </TabsTrigger>
+          <TabsTrigger value="docs" className="gap-1 text-xs">
+            <FileText className="h-3.5 w-3.5" /> Docs
+          </TabsTrigger>
+          <TabsTrigger value="files" className="gap-1 text-xs">
+            <Paperclip className="h-3.5 w-3.5" /> Fichiers
+          </TabsTrigger>
+          <TabsTrigger value="tasks" className="gap-1 text-xs">
+            <CheckSquare className="h-3.5 w-3.5" /> Tâches
+          </TabsTrigger>
+          <TabsTrigger value="meetings" className="gap-1 text-xs">
+            <CalendarClock className="h-3.5 w-3.5" /> Réunions
+          </TabsTrigger>
+          <TabsTrigger value="polls" className="gap-1 text-xs">
+            <Vote className="h-3.5 w-3.5" /> Sondages
+          </TabsTrigger>
+          <TabsTrigger value="collaborators" className="gap-1 text-xs">
+            <Users className="h-3.5 w-3.5" /> Collab.
+          </TabsTrigger>
+        </TabsList>
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold flex items-center gap-2">
-          <CalendarClock className="h-4 w-4 text-muted-foreground" />
-          Sondages de réunion
-          <Badge variant="secondary">{polls.length}</Badge>
-        </h2>
-        {polls.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucun sondage de réunion.</p>
-        ) : (
-          <ul className="space-y-2">
-            {polls.map((p) => (
-              <li key={p.id}>
-                <Card className="p-3 flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm">{p.title}</span>
-                      {p.status !== "open" && (
-                        <Badge variant="outline" className="text-[10px] bg-muted">Clôturé</Badge>
-                      )}
-                    </div>
-                    {p.deadline && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        jusqu'au {format(new Date(p.deadline), "d MMM yyyy HH:mm", { locale: fr })}
-                      </div>
-                    )}
+        <TabsContent value="chat" className="mt-3">
+          <ChatPanel
+            token={token}
+            guestToken={guestToken}
+            guest={guest}
+            messages={messages}
+            onPosted={() => {
+              qc.invalidateQueries({ queryKey });
+              refetch();
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="links" className="mt-3">
+          <SectionList
+            empty="Aucun lien partagé."
+            items={urlLinks}
+            render={(l) => (
+              <Card key={l.id} className="p-3">
+                <a
+                  href={l.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-sm hover:underline inline-flex items-center gap-1"
+                >
+                  {l.title || l.url} <ExternalLink className="h-3 w-3" />
+                </a>
+                {l.note && (
+                  <p className="text-xs text-muted-foreground mt-0.5">{l.note}</p>
+                )}
+              </Card>
+            )}
+          />
+        </TabsContent>
+
+        <TabsContent value="docs" className="mt-3">
+          <SectionList
+            empty="Aucun document."
+            items={documents}
+            render={(d) => (
+              <Card key={d.id} className="p-3 flex items-start gap-3">
+                <FileText className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">{d.title}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {d.office_provider ? `${d.office_provider} · ` : ""}
+                    Maj {formatDistanceToNow(new Date(d.updated_at), { addSuffix: true, locale: fr })}
                   </div>
-                  {p.status === "open" && (
-                    <Button asChild size="sm">
-                      <a href={guestLink(`/poll/${p.public_token}`)}>
-                        Voter <ExternalLink className="h-3 w-3 ml-1" />
-                      </a>
-                    </Button>
+                </div>
+                {d.office_url && (
+                  <Button asChild size="sm" variant="outline">
+                    <a href={d.office_url} target="_blank" rel="noreferrer">
+                      Ouvrir <ExternalLink className="h-3 w-3 ml-1" />
+                    </a>
+                  </Button>
+                )}
+              </Card>
+            )}
+          />
+        </TabsContent>
+
+        <TabsContent value="files" className="mt-3">
+          <SectionList
+            empty="Aucun fichier partagé."
+            items={files}
+            render={(f) => (
+              <Card key={f.id} className="p-3 flex items-start gap-3">
+                <Paperclip className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">{f.original_filename}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {f.mime_type ?? "fichier"} · {(f.file_size / 1024).toFixed(0)} Ko ·{" "}
+                    {format(new Date(f.created_at), "d MMM yyyy", { locale: fr })}
+                  </div>
+                </div>
+              </Card>
+            )}
+          />
+        </TabsContent>
+
+        <TabsContent value="tasks" className="mt-3">
+          <SectionList
+            empty="Aucune tâche."
+            items={tasks}
+            render={(t) => (
+              <Card key={t.id} className="p-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-sm">{t.title}</span>
+                  <Badge variant="outline" className="text-[10px]">{t.status}</Badge>
+                  {t.priority && (
+                    <Badge variant="secondary" className="text-[10px]">{t.priority}</Badge>
                   )}
-                </Card>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                  {t.due_date && (
+                    <span className="text-[11px] text-muted-foreground">
+                      Échéance : {format(new Date(t.due_date), "d MMM yyyy", { locale: fr })}
+                    </span>
+                  )}
+                </div>
+                {t.description && (
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-3">{t.description}</p>
+                )}
+              </Card>
+            )}
+          />
+        </TabsContent>
+
+        <TabsContent value="meetings" className="mt-3">
+          <SectionList
+            empty="Aucune réunion."
+            items={meetings}
+            render={(m) => (
+              <Card key={m.id} className="p-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="font-medium text-sm">{m.title}</span>
+                  {m.status && (
+                    <Badge variant="outline" className="text-[10px]">{m.status}</Badge>
+                  )}
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-1">
+                  {m.start_at
+                    ? format(new Date(m.start_at), "EEEE d MMM yyyy HH:mm", { locale: fr })
+                    : "Date à confirmer"}
+                  {m.location ? ` · ${m.location}` : ""}
+                  {m.is_online && m.online_link ? " · en ligne" : ""}
+                </div>
+              </Card>
+            )}
+          />
+        </TabsContent>
+
+        <TabsContent value="polls" className="mt-3 space-y-4">
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-muted-foreground" />
+              Sondages d'opinion <Badge variant="secondary">{surveys.length}</Badge>
+            </h2>
+            {surveys.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucun sondage.</p>
+            ) : (
+              <ul className="space-y-2">
+                {surveys.map((s) => (
+                  <li key={s.id}>
+                    <Card className="p-3 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">{s.title}</span>
+                          {s.status !== "open" && (
+                            <Badge variant="outline" className="text-[10px] bg-muted">Clôturé</Badge>
+                          )}
+                        </div>
+                        {s.deadline && (
+                          <div className="text-[11px] text-muted-foreground mt-1">
+                            jusqu'au {format(new Date(s.deadline), "d MMM yyyy HH:mm", { locale: fr })}
+                          </div>
+                        )}
+                      </div>
+                      {s.status === "open" && (
+                        <Button asChild size="sm">
+                          <a
+                            href={`/survey/${s.public_token}${guestToken ? `?g=${guestToken}` : ""}`}
+                          >
+                            Répondre <ExternalLink className="h-3 w-3 ml-1" />
+                          </a>
+                        </Button>
+                      )}
+                    </Card>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-muted-foreground" />
+              Sondages de réunion <Badge variant="secondary">{polls.length}</Badge>
+            </h2>
+            {polls.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucun sondage de réunion.</p>
+            ) : (
+              <ul className="space-y-2">
+                {polls.map((p) => (
+                  <li key={p.id}>
+                    <Card className="p-3 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">{p.title}</span>
+                          {p.status !== "open" && (
+                            <Badge variant="outline" className="text-[10px] bg-muted">Clôturé</Badge>
+                          )}
+                        </div>
+                        {p.deadline && (
+                          <div className="text-[11px] text-muted-foreground mt-1">
+                            jusqu'au {format(new Date(p.deadline), "d MMM yyyy HH:mm", { locale: fr })}
+                          </div>
+                        )}
+                      </div>
+                      {p.status === "open" && (
+                        <Button asChild size="sm">
+                          <a
+                            href={`/poll/${p.public_token}${guestToken ? `?g=${guestToken}` : ""}`}
+                          >
+                            Voter <ExternalLink className="h-3 w-3 ml-1" />
+                          </a>
+                        </Button>
+                      )}
+                    </Card>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </TabsContent>
+
+        <TabsContent value="collaborators" className="mt-3">
+          <SectionList
+            empty="Aucun collaborateur invité."
+            items={collaborators}
+            render={(c) => (
+              <Card key={c.id} className="p-3 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">{c.name}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    {c.email ?? "—"} · {c.role === "contributor" ? "Contrib." : "Lecteur"}
+                  </div>
+                </div>
+                {c.last_active_at && (
+                  <span className="text-[11px] text-muted-foreground">
+                    Vu {formatDistanceToNow(new Date(c.last_active_at), { addSuffix: true, locale: fr })}
+                  </span>
+                )}
+              </Card>
+            )}
+          />
+        </TabsContent>
+      </Tabs>
 
       <footer className="text-xs text-muted-foreground text-center pt-6 border-t">
-        Page publique générée depuis MyHub Pro
+        Page publique · MyHub Pro
       </footer>
+    </div>
+  );
+}
+
+function SectionList<T>({
+  items,
+  render,
+  empty,
+}: {
+  items: T[];
+  render: (item: T) => React.ReactNode;
+  empty: string;
+}) {
+  if (!items?.length) {
+    return <p className="text-sm text-muted-foreground p-4">{empty}</p>;
+  }
+  return <div className="space-y-2">{items.map(render)}</div>;
+}
+
+function ChatPanel({
+  token,
+  guestToken,
+  guest,
+  messages,
+  onPosted,
+}: {
+  token: string;
+  guestToken: string | undefined;
+  guest: { id: string; name: string; role: string } | null;
+  messages: Array<{
+    id: string;
+    content: string;
+    sender_name: string | null;
+    message_at: string;
+    type: string;
+  }>;
+  onPosted: () => void;
+}) {
+  const postFn = useServerFn(postPublicSpaceMessage);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages.length]);
+
+  const send = async () => {
+    if (!guestToken || !guest) {
+      toast.error("Lien personnel requis pour écrire");
+      return;
+    }
+    if (!text.trim()) return;
+    setSending(true);
+    try {
+      await postFn({ data: { token, guest_token: guestToken, content: text.trim() } });
+      setText("");
+      onPosted();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col border rounded-md bg-card/30 h-[60vh]">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2">
+        {messages.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            Aucun message pour l'instant.
+          </p>
+        ) : (
+          messages.map((m) => (
+            <div key={m.id} className="text-sm">
+              <div className="flex items-baseline gap-2">
+                <span className="font-medium">{m.sender_name ?? "—"}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {format(new Date(m.message_at), "d MMM HH:mm", { locale: fr })}
+                </span>
+                {m.type === "guest" && (
+                  <Badge variant="outline" className="text-[9px] py-0">invité</Badge>
+                )}
+              </div>
+              <div className="whitespace-pre-wrap">{m.content}</div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="border-t p-2 flex gap-2 items-end">
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={
+            guest
+              ? `Message en tant que ${guest.name}…`
+              : "Lien personnel (g=…) requis pour écrire"
+          }
+          rows={2}
+          disabled={!guest || sending}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+        />
+        <Button onClick={send} disabled={!guest || sending || !text.trim()}>
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </Button>
+      </div>
     </div>
   );
 }
