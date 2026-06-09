@@ -166,6 +166,7 @@ export const upsertReport = createServerFn({ method: "POST" })
       mission_description: data.mission_description,
       mission_context: data.mission_context,
       organization: data.organization,
+      organization_id: data.organization_id,
       mission_number: data.mission_number,
       identification: data.identification,
       status: data.status,
@@ -181,6 +182,7 @@ export const upsertReport = createServerFn({ method: "POST" })
       recipient_email: data.recipient_email,
       source_email_id: data.source_email_id,
     };
+
 
     let reportId = data.id;
     if (reportId) {
