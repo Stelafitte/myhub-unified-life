@@ -1894,3 +1894,246 @@ export const listSpaceCollaborators = createServerFn({ method: "GET" })
 
     return { collaborators, groupCount: groups?.length ?? 0 };
   });
+
+/* ============================================================
+ * PUBLIC SPACE — extended read + guest chat write
+ * Anyone with a valid public_token may read; a valid guest_token
+ * (associated to that space) unlocks the chat composer.
+ * ============================================================ */
+
+async function _publicSb() {
+  const { createClient } = await import("@supabase/supabase-js");
+  const url = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL!;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY!;
+  return createClient(url, key);
+}
+
+export const getPublicSpaceFull = createServerFn({ method: "GET" })
+  .inputValidator((input) =>
+    z
+      .object({
+        token: z.string().min(8).max(64),
+        guest_token: z.string().min(8).max(64).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const sb = await _publicSb();
+    const { data: space } = await sb
+      .from("collab_spaces")
+      .select("id,name,icon,color,public_description,public_token,is_public,user_id")
+      .eq("public_token", data.token)
+      .eq("is_public", true)
+      .maybeSingle();
+    if (!space) {
+      return {
+        space: null,
+        guest: null,
+        messages: [],
+        documents: [],
+        urlLinks: [],
+        tasks: [],
+        meetings: [],
+        files: [],
+        collaborators: [],
+        surveys: [],
+        polls: [],
+      };
+    }
+
+    let guest: {
+      id: string;
+      name: string;
+      role: "viewer" | "contributor";
+      email: string | null;
+    } | null = null;
+    if (data.guest_token) {
+      const { data: g } = await sb
+        .from("collab_guests")
+        .select("id,name,role,email,space_id")
+        .eq("access_token", data.guest_token)
+        .eq("space_id", space.id)
+        .maybeSingle();
+      if (g) {
+        guest = {
+          id: g.id,
+          name: g.name,
+          role: (g.role as "viewer" | "contributor") ?? "viewer",
+          email: g.email,
+        };
+        await sb
+          .from("collab_guests")
+          .update({ last_active_at: new Date().toISOString() })
+          .eq("id", g.id);
+      }
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin;
+
+    // Parallel reads via service role (we've already authorized via public_token)
+    const [
+      messagesQ,
+      documentsQ,
+      urlLinksQ,
+      entityLinksQ,
+      collaboratorsQ,
+      surveysQ,
+      meetingLinksQ,
+    ] = await Promise.all([
+      admin
+        .from("collab_messages")
+        .select("id,content,sender_name,user_id,message_at,type")
+        .eq("space_id", space.id)
+        .order("message_at", { ascending: true })
+        .limit(200),
+      admin
+        .from("collab_documents")
+        .select(
+          "id,title,doc_type,office_url,office_thumbnail_url,office_provider,updated_at,last_edited_at",
+        )
+        .eq("space_id", space.id)
+        .is("archived_at", null)
+        .order("updated_at", { ascending: false })
+        .limit(100),
+      admin
+        .from("collab_space_url_links")
+        .select("id,title,url,note,created_at")
+        .eq("space_id", space.id)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      admin
+        .from("collab_space_links")
+        .select("id,entity_type,entity_id,note,created_at")
+        .eq("space_id", space.id),
+      admin
+        .from("collab_guests")
+        .select("id,name,email,role,status,last_active_at")
+        .eq("space_id", space.id)
+        .order("name"),
+      admin
+        .from("collab_surveys")
+        .select("id,title,description,public_token,status,deadline")
+        .eq("space_id", space.id)
+        .order("created_at", { ascending: false }),
+      admin
+        .from("collab_space_links")
+        .select("entity_id")
+        .eq("space_id", space.id)
+        .eq("entity_type", "meeting"),
+    ]);
+
+    const entityLinks = entityLinksQ.data ?? [];
+    const taskIds = entityLinks.filter((l) => l.entity_type === "task").map((l) => l.entity_id);
+    const meetingIds = entityLinks.filter((l) => l.entity_type === "meeting").map((l) => l.entity_id);
+    const fileIds = entityLinks.filter((l) => l.entity_type === "document").map((l) => l.entity_id);
+
+    const [tasksQ, meetingsQ, filesQ, pollsQ] = await Promise.all([
+      taskIds.length
+        ? admin
+            .from("tasks")
+            .select("id,title,description,status,priority,due_date")
+            .in("id", taskIds)
+        : Promise.resolve({ data: [] as Array<{ id: string; title: string; description: string | null; status: string; priority: string | null; due_date: string | null }> }),
+      meetingIds.length
+        ? admin
+            .from("meetings")
+            .select("id,title,start_at,end_at,location,is_online,online_link,status")
+            .in("id", meetingIds)
+            .order("start_at", { ascending: false })
+        : Promise.resolve({ data: [] as Array<{ id: string; title: string; start_at: string | null; end_at: string | null; location: string | null; is_online: boolean | null; online_link: string | null; status: string | null }> }),
+      fileIds.length
+        ? admin
+            .from("documents")
+            .select("id,original_filename,file_size,mime_type,created_at,is_sensitive")
+            .in("id", fileIds)
+            .eq("is_sensitive", false)
+        : Promise.resolve({ data: [] as Array<{ id: string; original_filename: string; file_size: number; mime_type: string | null; created_at: string; is_sensitive: boolean }> }),
+      (meetingLinksQ.data ?? []).length
+        ? admin
+            .from("meeting_polls")
+            .select("id,title,public_token,status,deadline")
+            .in("meeting_id", (meetingLinksQ.data ?? []).map((l) => l.entity_id))
+        : Promise.resolve({ data: [] as Array<{ id: string; title: string; public_token: string; status: string; deadline: string | null }> }),
+    ]);
+
+    return {
+      space: {
+        id: space.id,
+        name: space.name,
+        icon: space.icon,
+        color: space.color,
+        public_description: space.public_description,
+        public_token: space.public_token,
+      },
+      guest,
+      messages: messagesQ.data ?? [],
+      documents: documentsQ.data ?? [],
+      urlLinks: urlLinksQ.data ?? [],
+      tasks: tasksQ.data ?? [],
+      meetings: meetingsQ.data ?? [],
+      files: filesQ.data ?? [],
+      collaborators: (collaboratorsQ.data ?? []).map((g) => ({
+        id: g.id,
+        name: g.name,
+        email: g.email,
+        role: g.role,
+        status: g.status,
+        last_active_at: g.last_active_at,
+      })),
+      surveys: surveysQ.data ?? [],
+      polls: pollsQ.data ?? [],
+    };
+  });
+
+export const postPublicSpaceMessage = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        token: z.string().min(8).max(64),
+        guest_token: z.string().min(8).max(64),
+        content: z.string().min(1).max(4000),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const sb = await _publicSb();
+    const { data: space } = await sb
+      .from("collab_spaces")
+      .select("id,user_id,is_public")
+      .eq("public_token", data.token)
+      .eq("is_public", true)
+      .maybeSingle();
+    if (!space) throw new Error("Espace introuvable ou non public");
+
+    const { data: guest } = await sb
+      .from("collab_guests")
+      .select("id,name,space_id")
+      .eq("access_token", data.guest_token)
+      .eq("space_id", space.id)
+      .maybeSingle();
+    if (!guest) throw new Error("Invité non reconnu");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("collab_messages")
+      .insert({
+        space_id: space.id,
+        user_id: space.user_id,
+        content: data.content,
+        type: "guest",
+        sender_name: guest.name,
+        metadata: { guest_id: guest.id },
+        message_at: new Date().toISOString(),
+      })
+      .select("id,content,sender_name,user_id,message_at,type")
+      .single();
+    if (error) throw new Error(error.message);
+
+    await supabaseAdmin
+      .from("collab_guests")
+      .update({ last_active_at: new Date().toISOString() })
+      .eq("id", guest.id);
+
+    return { message: row };
+  });
