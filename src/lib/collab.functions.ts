@@ -1784,7 +1784,7 @@ export const listSpaceCollaborators = createServerFn({ method: "GET" })
       { id: string; role: string; status: string; last_active_at: string | null }
     >();
     for (const g of guests ?? []) {
-      if (g.email) guestByEmail.set(g.email.toLowerCase(), g);
+      if (g.email) guestByEmail.set(g.email.toLowerCase(), { id: g.id, role: g.role, status: g.status, last_active_at: g.last_active_at });
     }
 
     // Build merged collaborators list, deduped by lowercased email (or by name when no email)
@@ -1799,6 +1799,7 @@ export const listSpaceCollaborators = createServerFn({ method: "GET" })
       invited: boolean;
       status: string | null;
       last_active_at: string | null;
+      guest_id: string | null;
     };
     const byKey = new Map<string, Row>();
     const groupNameById = new Map<string, string>();
@@ -1831,6 +1832,7 @@ export const listSpaceCollaborators = createServerFn({ method: "GET" })
           invited: !!g,
           status: g?.status ?? null,
           last_active_at: g?.last_active_at ?? null,
+          guest_id: g?.id ?? null,
         });
       }
     }
@@ -1844,6 +1846,7 @@ export const listSpaceCollaborators = createServerFn({ method: "GET" })
         r.role = r.role ?? g.role;
         r.status = r.status ?? g.status;
         r.last_active_at = r.last_active_at ?? g.last_active_at;
+        r.guest_id = r.guest_id ?? g.id;
       } else {
         byKey.set(key, {
           key,
@@ -1856,6 +1859,7 @@ export const listSpaceCollaborators = createServerFn({ method: "GET" })
           invited: true,
           status: g.status,
           last_active_at: g.last_active_at,
+          guest_id: g.id,
         });
       }
     }
