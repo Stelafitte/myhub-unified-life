@@ -1302,7 +1302,13 @@ export const addSpaceGuestsFromGroup = createServerFn({ method: "POST" })
     let added = 0;
     let invited = 0;
     const origin = data.appOrigin?.replace(/\/$/, "") ?? "";
-    const canSend = data.sendInvitation && space.is_public && !!space.public_token;
+    const canSend = data.sendInvitation && !!space.public_token;
+    if (canSend && !space.is_public) {
+      await supabase
+        .from("collab_spaces")
+        .update({ is_public: true })
+        .eq("id", data.spaceId);
+    }
     const { sendTransactionalEmailServer } = canSend
       ? await import("@/lib/email/send.server")
       : ({ sendTransactionalEmailServer: null } as const);
