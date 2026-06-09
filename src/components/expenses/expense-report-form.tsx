@@ -78,6 +78,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
   const [saving, setSaving] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [aiBatchOpen, setAiBatchOpen] = useState(false);
+  const [aiInitialFiles, setAiInitialFiles] = useState<File[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [pickedTpl, setPickedTpl] = useState<string>("");
 
@@ -288,8 +289,27 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
           <section>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold">Dépenses ({items.length})</h3>
-              <div className="flex gap-1 flex-wrap">
-                <Button size="sm" variant="default" onClick={() => setAiBatchOpen(true)} className="gap-1 h-7 text-xs">
+              <div className="flex gap-1 flex-wrap items-center">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  id="ai-add-docs"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files ?? []);
+                    if (files.length === 0) return;
+                    setAiInitialFiles(files);
+                    setAiBatchOpen(true);
+                    e.target.value = "";
+                  }}
+                />
+                <label htmlFor="ai-add-docs">
+                  <Button asChild size="sm" variant="outline" className="gap-1 h-7 text-xs">
+                    <span><Paperclip className="h-3 w-3" /> Ajouter des documents</span>
+                  </Button>
+                </label>
+                <Button size="sm" variant="default" onClick={() => { setAiInitialFiles([]); setAiBatchOpen(true); }} className="gap-1 h-7 text-xs">
                   <Sparkles className="h-3 w-3" /> Analyser par IA
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setImportOpen(true)} className="gap-1 h-7 text-xs">
@@ -411,7 +431,7 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
       </ScrollArea>
 
       <ImportFromEmailDialog open={importOpen} onOpenChange={setImportOpen} onPick={onImportedFromEmail} />
-      <AIBatchExtractDialog open={aiBatchOpen} onOpenChange={setAiBatchOpen} onLines={onAIBatchLines} />
+      <AIBatchExtractDialog open={aiBatchOpen} onOpenChange={setAiBatchOpen} onLines={onAIBatchLines} initialFiles={aiInitialFiles} />
     </div>
   );
 }
