@@ -56,6 +56,54 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_call_log: {
+        Row: {
+          completion_tokens: number | null
+          created_at: string
+          duration_ms: number | null
+          error: string | null
+          function: string
+          id: string
+          model: string
+          prompt_tokens: number | null
+          provider: string
+          status: number | null
+          total_tokens: number | null
+          used_own_key: boolean
+          user_id: string
+        }
+        Insert: {
+          completion_tokens?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          function: string
+          id?: string
+          model: string
+          prompt_tokens?: number | null
+          provider: string
+          status?: number | null
+          total_tokens?: number | null
+          used_own_key?: boolean
+          user_id: string
+        }
+        Update: {
+          completion_tokens?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          function?: string
+          id?: string
+          model?: string
+          prompt_tokens?: number | null
+          provider?: string
+          status?: number | null
+          total_tokens?: number | null
+          used_own_key?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_feedback: {
         Row: {
           corrected_category: string | null
@@ -3057,6 +3105,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_ai_settings: {
+        Row: {
+          created_at: string
+          encrypted_api_key: string | null
+          feat_assistant: boolean
+          feat_classify: boolean
+          feat_suggestions: boolean
+          feat_summary: boolean
+          feat_trash: boolean
+          feat_voice: boolean
+          key_iv: string | null
+          key_last4: string | null
+          key_validated_at: string | null
+          model: string
+          provider: string
+          trash_threshold: number
+          updated_at: string
+          use_own_key: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          encrypted_api_key?: string | null
+          feat_assistant?: boolean
+          feat_classify?: boolean
+          feat_suggestions?: boolean
+          feat_summary?: boolean
+          feat_trash?: boolean
+          feat_voice?: boolean
+          key_iv?: string | null
+          key_last4?: string | null
+          key_validated_at?: string | null
+          model?: string
+          provider?: string
+          trash_threshold?: number
+          updated_at?: string
+          use_own_key?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          encrypted_api_key?: string | null
+          feat_assistant?: boolean
+          feat_classify?: boolean
+          feat_suggestions?: boolean
+          feat_summary?: boolean
+          feat_trash?: boolean
+          feat_voice?: boolean
+          key_iv?: string | null
+          key_last4?: string | null
+          key_validated_at?: string | null
+          model?: string
+          provider?: string
+          trash_threshold?: number
+          updated_at?: string
+          use_own_key?: boolean
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
