@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Plus, Trash2, Paperclip, Mail, Save, Download, FileText, ArrowLeft, Sparkles, Eye, Send } from "lucide-react";
 import { toast } from "sonner";
 import {
-  getReport, upsertReport, fillExpenseTemplate, listTemplates,
+  getReport, upsertReport, fillExpenseTemplate, listTemplates, markReportSent,
   DEFAULT_IDENTIFICATION, CATEGORIES, KM_RATE_2024, type ExpenseCategory,
 } from "@/lib/expense.functions";
 import { generateExpensePDFClient } from "./expense-pdf";
