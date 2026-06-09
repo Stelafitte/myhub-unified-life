@@ -561,10 +561,17 @@ function ChatPanel({
           </p>
         ) : (
           messages.map((m) => {
+            const meta =
+              m.metadata && typeof m.metadata === "object" && !Array.isArray(m.metadata)
+                ? (m.metadata as Record<string, unknown>)
+                : null;
+            const metaGuestId = typeof meta?.guest_id === "string" ? (meta.guest_id as string) : null;
             const isMine =
               !!guest &&
-              (m.sender_name?.toLowerCase() === guest.name.toLowerCase() ||
-                (m.type === "guest" && m.sender_name === guest.name));
+              (metaGuestId === guest.id ||
+                (m.type === "guest" &&
+                  (m.sender_name ?? "").toLowerCase() === guest.name.toLowerCase()));
+
             const palette = bubblePalette(m.sender_name ?? "—");
             return (
               <div
