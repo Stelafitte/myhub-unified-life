@@ -667,26 +667,6 @@ export function AiAssistantModal({
                       </Button>
                     );
                   })()}
-                  {(() => {
-                    const hasArchivable = Array.from(t.selectedMatches).some(id => {
-                      const k = t.result?.matches.find(x => x.id === id)?.kind;
-                      return k === "email" || k === "document";
-                    });
-                    const isArchiving = archiving === t.id;
-                    return (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={t.proposing || !hasArchivable || isArchiving}
-                        onClick={() => archiveZip(t)}
-                        className="h-7 gap-1.5 text-xs"
-                        title="Crée un .zip avec les emails (+ pièces jointes) et documents sélectionnés, le télécharge et l'enregistre dans votre bibliothèque."
-                      >
-                        {isArchiving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileArchive className="h-3.5 w-3.5" />}
-                        Archive ZIP
-                      </Button>
-                    );
-                  })()}
                   {t.proposing && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                 </div>
 
