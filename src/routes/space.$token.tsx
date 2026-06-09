@@ -517,7 +517,9 @@ function ChatPanel({
     sender_name: string | null;
     message_at: string;
     type: string;
+    metadata?: { guest_id?: string } | null;
   }>;
+
   onPosted: () => void;
 }) {
   const postFn = useServerFn(postPublicSpaceMessage);
