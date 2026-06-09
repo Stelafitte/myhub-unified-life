@@ -88,6 +88,30 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const [groupRole, setGroupRole] = useState<"viewer" | "contributor">("viewer");
   const [groupSendMail, setGroupSendMail] = useState(true);
   const [addingGroup, setAddingGroup] = useState(false);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<Record<string, boolean>>({});
+
+  const getMembersFn = useServerFn(getGroupMembers);
+  const membersQ = useQuery({
+    queryKey: ["group-members", selectedGroup],
+    queryFn: () => getMembersFn({ data: { groupId: selectedGroup } }),
+    enabled: open && !!selectedGroup,
+  });
+  const groupMembers = ((membersQ.data?.members ?? []) as unknown) as Array<{
+    id: string;
+    external_email: string | null;
+    external_name: string | null;
+    contact: { first_name?: string | null; last_name?: string | null; email?: string | string[] | null } | null;
+  }>;
+  const memberDisplay = (m: typeof groupMembers[number]) => {
+    const ce = Array.isArray(m.contact?.email) ? m.contact?.email?.[0] : m.contact?.email;
+    const email = ce || m.external_email || "";
+    const name =
+      [m.contact?.first_name, m.contact?.last_name].filter(Boolean).join(" ").trim() ||
+      m.external_name ||
+      email.split("@")[0] ||
+      "(sans nom)";
+    return { email, name };
+  };
 
   const [notifySubject, setNotifySubject] = useState("");
   const [notifyMessage, setNotifyMessage] = useState("");
