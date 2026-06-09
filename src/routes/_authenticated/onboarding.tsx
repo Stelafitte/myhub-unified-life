@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Sparkles, User, Mail, Calendar, Plug, Brain, CheckCircle2,
   Eye, EyeOff, ShieldCheck, ExternalLink, Loader2, Rocket,
+  Users, Map,
 } from "lucide-react";
 import { toast } from "sonner";
 import { startGoogleCalendarOAuth, syncGoogleCalendarEvents } from "@/lib/api/google-calendar.functions";
@@ -34,8 +35,9 @@ const STEPS = [
   { id: 3, title: "Comptes email", icon: Mail },
   { id: 4, title: "Agendas & Contacts", icon: Calendar },
   { id: 5, title: "Intégrations", icon: Plug },
-  { id: 6, title: "Intelligence IA", icon: Brain },
-  { id: 7, title: "Récapitulatif", icon: CheckCircle2 },
+  { id: 6, title: "Collaboration", icon: Users },
+  { id: 7, title: "Intelligence IA", icon: Brain },
+  { id: 8, title: "Récapitulatif", icon: CheckCircle2 },
 ];
 
 type AiProvider = "openai-gpt4o-mini" | "anthropic-haiku" | "anthropic-sonnet";
@@ -79,9 +81,14 @@ function OnboardingPage() {
   // Étape 5 — Intégrations
   const [intSlack, setIntSlack] = useState(false);
   const [intNotion, setIntNotion] = useState(false);
+  const [intOneDrive, setIntOneDrive] = useState(true);
   const [intDrive, setIntDrive] = useState(false);
 
-  // Étape 6 — IA
+  // Étape 6 — Collaboration
+  const [collabEnabled, setCollabEnabled] = useState(true);
+  const [collabInviteEmail, setCollabInviteEmail] = useState("");
+
+  // Étape 7 — IA
   const [useOwnKey, setUseOwnKey] = useState(false);
   const [aiProvider, setAiProvider] = useState<AiProvider>("openai-gpt4o-mini");
   const [aiKey, setAiKey] = useState("");
@@ -93,6 +100,7 @@ function OnboardingPage() {
   const [aiAutoReply, setAiAutoReply] = useState(true);
   const [aiNewsletter, setAiNewsletter] = useState(true);
   const [aiPriority, setAiPriority] = useState(true);
+  const [aiAutoTrash, setAiAutoTrash] = useState(true);
   const [hdsLevel, setHdsLevel] = useState<"strict" | "normal" | "permissive">("normal");
 
   // Étape 7 — RGPD + récap
@@ -117,9 +125,9 @@ function OnboardingPage() {
       });
   }, [user, navigate, force]);
 
-  // Charger le récap quand on arrive à l'étape 7
+  // Charger le récap quand on arrive à l'étape finale
   useEffect(() => {
-    if (step !== 7 || !user) return;
+    if (step !== 8 || !user) return;
     (async () => {
       const [{ data: accts }, { data: gcals }] = await Promise.all([
         supabase.from("accounts").select("name,type").eq("user_id", user.id).eq("is_active", true),
@@ -160,7 +168,7 @@ function OnboardingPage() {
       // 1. Sauver profil + préférences IA (les toggles IA vivent en localStorage pour l'instant)
       localStorage.setItem("myhub.ai.prefs", JSON.stringify({
         useOwnKey, aiProvider, aiClassify, aiSummary, aiTaskSuggest,
-        aiAutoReply, aiNewsletter, aiPriority, hdsLevel,
+        aiAutoReply, aiNewsletter, aiPriority, aiAutoTrash, hdsLevel,
       }));
       if (useOwnKey && aiKey.trim()) {
         localStorage.setItem("myhub.ai.userKey", aiKey.trim());
@@ -195,7 +203,7 @@ function OnboardingPage() {
   const current = STEPS[step - 1];
   const Icon = current.icon;
   const isLast = step === STEPS.length;
-  const canSkip = step === 3 || step === 4 || step === 5;
+  const canSkip = step === 3 || step === 4 || step === 5 || step === 6;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -215,8 +223,9 @@ function OnboardingPage() {
             {step === 3 && "Connectez votre premier compte email pour démarrer."}
             {step === 4 && "Synchronisez vos agendas et contacts (optionnel)."}
             {step === 5 && "Connectez vos outils favoris (optionnel)."}
-            {step === 6 && "Configurez l'intelligence artificielle de MyHub Pro."}
-            {step === 7 && "Vérifiez votre configuration et lancez MyHub Pro."}
+            {step === 6 && "Créez un espace de collaboration pour partager projets, fichiers et discussions."}
+            {step === 7 && "Configurez l'intelligence artificielle de MyHub Pro."}
+            {step === 8 && "Vérifiez votre configuration et lancez MyHub Pro."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -355,6 +364,18 @@ function OnboardingPage() {
           {step === 5 && (
             <div className="space-y-3 text-sm">
               <p className="text-muted-foreground">Connectez vos outils tiers favoris (optionnel) :</p>
+              <label className="flex items-start gap-2 rounded-lg border p-3 bg-primary/5">
+                <Checkbox checked={intOneDrive} onCheckedChange={(v) => setIntOneDrive(!!v)} className="mt-0.5" />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">OneDrive / Microsoft Graph</span>
+                    <Badge variant="secondary" className="text-[10px]">Recommandé</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Pièces jointes Inbox, fichiers partagés dans les espaces Collab.
+                  </p>
+                </div>
+              </label>
               <label className="flex items-center gap-2">
                 <Checkbox checked={intSlack} onCheckedChange={(v) => setIntSlack(!!v)} />
                 Slack
@@ -374,6 +395,45 @@ function OnboardingPage() {
           )}
 
           {step === 6 && (
+            <div className="space-y-4 text-sm">
+              <div className="rounded-lg border bg-primary/5 p-3 space-y-2">
+                <p className="font-medium flex items-center gap-2">
+                  <Users className="h-4 w-4 text-primary" /> Espaces de collaboration
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Partagez un projet via un lien sécurisé : chat temps réel, fichiers OneDrive,
+                  consultation de l'agenda et des tâches associées. Trois niveaux d'accès :
+                </p>
+                <ul className="text-xs space-y-1 pl-4">
+                  <li>• <strong>Chat</strong> : obligatoire pour tous les invités</li>
+                  <li>• <strong>Fichiers</strong> (OneDrive) : optionnel</li>
+                  <li>• <strong>Reste</strong> (agenda, tâches) : consultatif</li>
+                </ul>
+              </div>
+
+              <label className="flex items-center justify-between gap-2">
+                <span className="text-sm">Activer la collaboration sur mes projets</span>
+                <Switch checked={collabEnabled} onCheckedChange={setCollabEnabled} />
+              </label>
+
+              {collabEnabled && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Pré-inviter un collaborateur (optionnel)</Label>
+                  <Input
+                    type="email"
+                    value={collabInviteEmail}
+                    onChange={(e) => setCollabInviteEmail(e.target.value)}
+                    placeholder="collegue@exemple.fr"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Vous pourrez créer des espaces depuis n'importe quel projet via l'onglet <strong>Collab</strong>.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 7 && (
             <div className="space-y-4 text-sm">
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div>
@@ -456,6 +516,10 @@ function OnboardingPage() {
                   <span>Détection des priorités</span>
                   <Switch checked={aiPriority} onCheckedChange={setAiPriority} />
                 </label>
+                <label className="flex items-center justify-between gap-2">
+                  <span>Pré-tri Inbox (corbeille intelligente)</span>
+                  <Switch checked={aiAutoTrash} onCheckedChange={setAiAutoTrash} />
+                </label>
                 <label className="flex items-center justify-between gap-2 opacity-90">
                   <span className="flex items-center gap-2">
                     <ShieldCheck className="h-4 w-4 text-primary" /> Détection HDS
@@ -479,7 +543,7 @@ function OnboardingPage() {
             </div>
           )}
 
-          {step === 7 && (
+          {step === 8 && (
             <div className="space-y-4 text-sm">
               <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
                 <p className="font-medium flex items-center gap-2">
@@ -527,6 +591,16 @@ function OnboardingPage() {
                   </div>
                 )}
               </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" size="sm" onClick={() => navigate({ to: "/roadmap" })} className="gap-2">
+                  <Map className="h-3.5 w-3.5" /> Roadmap
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => navigate({ to: "/collaborate" })} className="gap-2">
+                  <Users className="h-3.5 w-3.5" /> Créer un espace
+                </Button>
+              </div>
+
 
               <label className="flex items-start gap-2">
                 <Checkbox checked={acceptRgpd} onCheckedChange={(v) => setAcceptRgpd(!!v)} />
