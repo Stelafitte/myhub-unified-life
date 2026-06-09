@@ -2223,7 +2223,13 @@ function InboxPage() {
         {filter !== "trash" && (
           <AutoTrashSuggestPanel
             emails={emails.filter((e) => !e.deleted_at && e.direction !== "outbound")}
-            threshold={70}
+            threshold={(() => {
+              try {
+                const raw = typeof window !== "undefined" ? window.localStorage.getItem("myhub-ai-prefs") : null;
+                const v = raw ? JSON.parse(raw)?.trashThreshold : null;
+                return typeof v === "number" && v >= 50 && v <= 95 ? v : 70;
+              } catch { return 70; }
+            })()}
             onTrashed={(ids) => {
               const now = new Date().toISOString();
               setEmails((prev) => prev.map((x) => (ids.includes(x.id) ? { ...x, deleted_at: now } : x)));
