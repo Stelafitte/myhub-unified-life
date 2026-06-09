@@ -114,7 +114,9 @@ async function syncOutlook(account: any, admin: any): Promise<{ ok: boolean; cou
           is_starred: isStarred,
           origin_tag: "outlook",
           thread_id: m.conversationId || null,
+          direction: m._direction || "inbound",
         }, { onConflict: "account_id,message_id", ignoreDuplicates: false })
+
           .select("id")
           .maybeSingle();
         if (upErr) { console.error("[sync-outlook] upsert", upErr.message); continue; }
