@@ -492,6 +492,13 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
           )}
 
           <section>
+            <h3 className="text-sm font-semibold mb-2">Destinataire de la note</h3>
+            <Label className="text-xs">Email du destinataire</Label>
+            <ContactEmailAutocomplete value={recipientEmail} onChange={setRecipientEmail} onSelect={setRecipientEmail} placeholder="ex: comptabilite@chu-bordeaux.fr" />
+            <p className="text-xs text-muted-foreground mt-1">Recherche automatique dans vos contacts pendant la frappe.</p>
+          </section>
+
+          <section>
             <Label className="text-xs">Statut</Label>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -509,6 +516,19 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
 
       <ImportFromEmailDialog open={importOpen} onOpenChange={setImportOpen} onPick={onImportedFromEmail} />
       <AIBatchExtractDialog open={aiBatchOpen} onOpenChange={setAiBatchOpen} onLines={onAIBatchLines} initialFiles={aiInitialFiles} />
+      <EmailComposer open={composerOpen} onOpenChange={setComposerOpen} accounts={composerAccounts} initial={composerInitial} initialAttachments={composerAttachments} />
+      <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) { if (previewUrl) URL.revokeObjectURL(previewUrl); setPreviewUrl(null); } }}>
+        <DialogContent className="max-w-5xl h-[85vh] flex flex-col p-0">
+          <DialogHeader className="px-4 py-2 border-b">
+            <DialogTitle className="text-sm">Aperçu PDF — {title || "Note de frais"}</DialogTitle>
+          </DialogHeader>
+          {previewUrl && <iframe src={previewUrl} className="flex-1 w-full" title="Aperçu PDF" />}
+          <div className="flex justify-end gap-2 p-3 border-t">
+            <Button variant="outline" onClick={() => { if (previewUrl) URL.revokeObjectURL(previewUrl); setPreviewUrl(null); }}>Fermer</Button>
+            <Button onClick={() => { void exportPDF(); }} className="gap-1"><Download className="h-4 w-4" /> Enregistrer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
