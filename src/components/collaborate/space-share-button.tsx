@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Share2, Copy, ExternalLink, Loader2, UserPlus, Trash2, Users, Mail, Send } from "lucide-react";
+import { Share2, Copy, ExternalLink, Loader2, UserPlus, Trash2, Users, Mail, Send, MailPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,7 @@ import {
   updateSpaceGuestRole,
   removeSpaceGuest,
   notifySpaceGuests,
+  resendSpaceGuestInvitation,
 } from "@/lib/collab.functions";
 import { listContactGroups } from "@/lib/contacts.functions";
 
@@ -47,6 +48,7 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
   const updateGuestRoleFn = useServerFn(updateSpaceGuestRole);
   const removeGuestFn = useServerFn(removeSpaceGuest);
   const notifyFn = useServerFn(notifySpaceGuests);
+  const resendInviteFn = useServerFn(resendSpaceGuestInvitation);
   const listGroupsFn = useServerFn(listContactGroups);
   const qc = useQueryClient();
   const key = ["space-public", spaceId];
@@ -233,6 +235,21 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
     }
   };
 
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const handleResendInvite = async (id: string, email: string | null) => {
+    if (!email) return toast.error("Cet invité n'a pas d'email");
+    setResendingId(id);
+    try {
+      const res = await resendInviteFn({ data: { guestId: id, appOrigin: baseUrl } });
+      if (res.success) toast.success("Invitation renvoyée");
+      else toast.error(`Échec de l'envoi${res.reason ? ` · ${res.reason}` : ""}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   const handleRemoveGuest = async (id: string) => {
     if (!confirm("Retirer cet invité ?")) return;
     try {
@@ -407,6 +424,26 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
                           title="Copier le lien personnel"
                         >
                           <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => handleResendInvite(g.id, g.email)}
+                          disabled={!g.email || resendingId === g.id || !space.is_public}
+                          title={
+                            !g.email
+                              ? "Pas d'email"
+                              : !space.is_public
+                                ? "Rendez l'espace public d'abord"
+                                : "Envoyer / renvoyer l'invitation par email"
+                          }
+                        >
+                          {resendingId === g.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <MailPlus className="h-3.5 w-3.5" />
+                          )}
                         </Button>
                         <Button
                           size="icon"

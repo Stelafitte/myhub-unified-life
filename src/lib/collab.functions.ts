@@ -1334,6 +1334,66 @@ export const addSpaceGuestsFromGroup = createServerFn({ method: "POST" })
     };
   });
 
+/** (Re)envoie l'email d'invitation pour un invité existant. */
+export const resendSpaceGuestInvitation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        guestId: z.string().uuid(),
+        appOrigin: z.string().url().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: guest } = await supabase
+      .from("collab_guests")
+      .select("id,name,email,role,access_token,space_id,user_id")
+      .eq("id", data.guestId)
+      .maybeSingle();
+    if (!guest || guest.user_id !== userId) throw new Error("Invité introuvable");
+    if (!guest.email) throw new Error("Cet invité n'a pas d'email");
+
+    const [{ data: space }, { data: profile }] = await Promise.all([
+      supabase
+        .from("collab_spaces")
+        .select("name,public_token,public_description,is_public")
+        .eq("id", guest.space_id)
+        .maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("display_name,first_name,last_name,email")
+        .eq("id", userId)
+        .maybeSingle(),
+    ]);
+    if (!space?.public_token || !space.is_public) {
+      throw new Error("L'espace doit être public pour envoyer une invitation");
+    }
+    const origin = data.appOrigin?.replace(/\/$/, "") ?? "";
+    const accessUrl = `${origin}/space/${space.public_token}?g=${guest.access_token}`;
+    const inviterName =
+      profile?.display_name ||
+      [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+      profile?.email ||
+      "Un collaborateur";
+    const { sendTransactionalEmailServer } = await import("@/lib/email/send.server");
+    const result = await sendTransactionalEmailServer({
+      templateName: "space-invitation",
+      recipientEmail: guest.email,
+      idempotencyKey: `space-invite-${guest.id}-${Date.now()}`,
+      templateData: {
+        guestName: guest.name,
+        inviterName,
+        spaceName: space.name,
+        spaceDescription: space.public_description,
+        role: guest.role,
+        accessUrl,
+      },
+    });
+    return { success: result.success, reason: result.reason };
+  });
+
 /** Met à jour le rôle d'un invité. */
 export const updateSpaceGuestRole = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
