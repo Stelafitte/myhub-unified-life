@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { CheckSquare, LayoutGrid, GanttChart, List, Wifi, WifiOff, RefreshCw, Plus } from "lucide-react";
+import { CheckSquare, LayoutGrid, GanttChart, List, Wifi, WifiOff, RefreshCw, Plus, CalendarClock, Receipt } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
