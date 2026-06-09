@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Loader2, Plus, Receipt, Trash2, Upload, Sparkles, FileText } from "lucide-react";
+import { Loader2, Plus, Receipt, Trash2, Upload, Sparkles, FileText, Archive, ArchiveRestore } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
-import { listReports, deleteReport, listTemplates, deleteTemplate, analyzeExpenseTemplate } from "@/lib/expense.functions";
+import { listReports, deleteReport, listTemplates, deleteTemplate, analyzeExpenseTemplate, toggleArchiveReport } from "@/lib/expense.functions";
 import { ExpenseReportForm } from "@/components/expenses/expense-report-form";
 import { TemplateUploadDialog } from "@/components/expenses/template-upload-dialog";
 
