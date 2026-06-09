@@ -294,6 +294,85 @@ function InboxPage() {
     };
   };
 
+  /**
+   * Transfert d'email : charge systématiquement les pièces jointes de l'email
+   * source (en les récupérant côté serveur si elles ne sont pas encore présentes)
+   * et les attache au brouillon avant d'ouvrir le composer.
+   */
+  const forwardEmail = async (e: Email) => {
+    const init = buildForwardInit(e);
+    const tid = toast.loading("Préparation du transfert…");
+    try {
+      const loadDocs = async () => {
+        const { data } = await supabase
+          .from("documents")
+          .select("id,storage_path,original_filename,filename,mime_type,file_size")
+          .eq("source_type", "email")
+          .eq("source_id", e.id);
+        return data ?? [];
+      };
+      let docs = await loadDocs();
+      if (docs.length === 0 && e.has_attachment) {
+        try {
+          await supabase.functions.invoke("fetch-email-attachments", { body: { email_id: e.id } });
+          docs = await loadDocs();
+        } catch (err) {
+          console.warn("[forward] recover attachments failed", err);
+        }
+      }
+
+      const attachments: ComposerAttachment[] = [];
+      const MAX_TOTAL = 20 * 1024 * 1024;
+      let total = 0;
+      let skipped = 0;
+      for (const d of docs) {
+        if (!d.storage_path) { skipped++; continue; }
+        const size = d.file_size ?? 0;
+        if (total + size > MAX_TOTAL) { skipped++; continue; }
+        try {
+          const { data: signed } = await supabase.storage
+            .from("documents")
+            .createSignedUrl(d.storage_path, 60);
+          if (!signed?.signedUrl) { skipped++; continue; }
+          const resp = await fetch(signed.signedUrl);
+          if (!resp.ok) { skipped++; continue; }
+          const blob = await resp.blob();
+          const buf = await blob.arrayBuffer();
+          const bytes = new Uint8Array(buf);
+          let bin = "";
+          for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+          attachments.push({
+            name: d.original_filename || d.filename || "piece-jointe",
+            type: d.mime_type || blob.type || "application/octet-stream",
+            size: bytes.length,
+            contentBase64: btoa(bin),
+          });
+          total += bytes.length;
+        } catch (err) {
+          console.warn("[forward] download attachment failed", err);
+          skipped++;
+        }
+      }
+
+      toast.dismiss(tid);
+      if (attachments.length > 0) {
+        toast.success(
+          `${attachments.length} pièce${attachments.length > 1 ? "s" : ""} jointe${attachments.length > 1 ? "s" : ""} attachée${attachments.length > 1 ? "s" : ""}` +
+            (skipped > 0 ? ` (${skipped} ignorée${skipped > 1 ? "s" : ""})` : ""),
+        );
+      } else if (e.has_attachment) {
+        toast.warning("Pièces jointes introuvables — transfert sans PJ");
+      }
+      openComposer(init, attachments.length > 0 ? attachments : undefined);
+    } catch (err) {
+      toast.dismiss(tid);
+      toast.error(err instanceof Error ? err.message : "Échec de la préparation");
+      openComposer(init);
+    }
+  };
+
+
+
   const relaunchAi = async () => {
     if (relaunching) return;
     setRelaunching(true);
