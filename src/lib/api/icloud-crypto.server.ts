@@ -1,14 +1,16 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from "crypto";
 
 const ALGO = "aes-256-gcm";
 
 function getKey(): Buffer {
-  const hex = process.env.ICLOUD_ENCRYPTION_KEY;
-  if (!hex) throw new Error("ICLOUD_ENCRYPTION_KEY is not configured");
-  const key = Buffer.from(hex, "hex");
-  if (key.length !== 32) throw new Error("ICLOUD_ENCRYPTION_KEY must be 32 bytes (64 hex chars)");
-  return key;
+  const raw = process.env.ICLOUD_ENCRYPTION_KEY;
+  if (!raw) throw new Error("ICLOUD_ENCRYPTION_KEY is not configured");
+  // Accept a 64-char hex string directly; otherwise derive 32 bytes via SHA-256
+  // so any non-empty secret value works.
+  if (/^[0-9a-f]{64}$/i.test(raw)) return Buffer.from(raw, "hex");
+  return createHash("sha256").update(raw, "utf8").digest();
 }
+
 
 export function encryptSecret(plaintext: string): { ciphertext: string; iv: string; tag: string } {
   const iv = randomBytes(12);
