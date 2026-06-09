@@ -29,10 +29,15 @@ const COMING_SOON = (
   </div>
 );
 
+const LAST_SPACE_KEY = "collab:last-space-id";
+
 export function SpaceWorkspace() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(LAST_SPACE_KEY);
+  });
   const [rightOpen, setRightOpen] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
   const [groupFromSpaceOpen, setGroupFromSpaceOpen] = useState(false);
