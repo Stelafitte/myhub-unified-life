@@ -72,6 +72,11 @@ export function AIBatchExtractDialog({
       setPicked(new Set());
       setAttachments([]);
       setInstruction("");
+      if (initialFiles && initialFiles.length > 0) {
+        const dt = new DataTransfer();
+        initialFiles.forEach((f) => dt.items.add(f));
+        void onFiles(dt.files);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
