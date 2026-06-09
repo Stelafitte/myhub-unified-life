@@ -125,9 +125,9 @@ function OnboardingPage() {
       });
   }, [user, navigate, force]);
 
-  // Charger le récap quand on arrive à l'étape 7
+  // Charger le récap quand on arrive à l'étape finale
   useEffect(() => {
-    if (step !== 7 || !user) return;
+    if (step !== 8 || !user) return;
     (async () => {
       const [{ data: accts }, { data: gcals }] = await Promise.all([
         supabase.from("accounts").select("name,type").eq("user_id", user.id).eq("is_active", true),
