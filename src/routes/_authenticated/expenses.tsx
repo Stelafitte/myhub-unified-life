@@ -21,12 +21,11 @@ export const Route = createFileRoute("/_authenticated/expenses")({
   }),
 });
 
-const STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "Brouillon", variant: "outline" },
-  submitted: { label: "Soumise", variant: "secondary" },
-  approved: { label: "Approuvée", variant: "default" },
-  rejected: { label: "Rejetée", variant: "destructive" },
-  paid: { label: "Payée", variant: "default" },
+const DERIVED_STATUS_LABEL: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  in_progress: { label: "En cours", variant: "outline" },
+  pre_send: { label: "Pré‑envoi", variant: "secondary" },
+  sent: { label: "Envoyé", variant: "default" },
+  archived: { label: "Archivé", variant: "secondary" },
 };
 
 function ExpensesPage() {
