@@ -611,6 +611,9 @@ function PlanOperationPage() {
           <Button variant="outline" size="sm" onClick={createOpSubtheme} className="gap-1" title="Créer un nouveau sous-thème">
             + Sous-thème
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setFullscreen(true)} className="gap-1" title="Afficher le plan en plein écran">
+            <Maximize2 className="h-4 w-4" /> Plein écran
+          </Button>
           <Button variant="outline" size="sm" onClick={exportPng} className="gap-1"><ImageIcon className="h-4 w-4" /> PNG</Button>
           <Button variant="outline" size="sm" onClick={exportPdf} className="gap-1"><Download className="h-4 w-4" /> PDF</Button>
         </div>
