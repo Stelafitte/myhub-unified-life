@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { PanelRightClose, PanelRightOpen, Hash, Link2, FileText, CheckSquare, CalendarClock, Vote, Paperclip, Menu, Info, UserPlus } from "lucide-react";
+import { PanelRightClose, PanelRightOpen, Hash, Link2, FileText, CheckSquare, CalendarClock, Vote, Paperclip, Menu, Info, UserPlus, Users } from "lucide-react";
 import { SpaceTree } from "./space-tree";
 import { SpaceChat } from "./space-chat";
 import { SpaceLinksTab } from "./space-links-tab";
@@ -13,6 +13,7 @@ import { SpaceMeetingsTab } from "./space-meetings-tab";
 import { DocumentsTab } from "./documents-tab";
 import { SpaceFilesTab } from "./space-files-tab";
 import { SpacePollsTab } from "./space-polls-tab";
+import { SpaceCollaboratorsTab } from "./space-collaborators-tab";
 import { SpaceShareButton } from "./space-share-button";
 import { CollabDashboard } from "./collab-dashboard";
 import { GroupFormDialog } from "@/components/contacts/group-form-dialog";
@@ -201,6 +202,9 @@ export function SpaceWorkspace() {
                   <TabsTrigger value="polls" className="gap-1 text-xs sm:text-sm">
                     <Vote className="h-3.5 w-3.5" /> Sondages
                   </TabsTrigger>
+                  <TabsTrigger value="collaborators" className="gap-1 text-xs sm:text-sm">
+                    <Users className="h-3.5 w-3.5" /> Collaborateurs
+                  </TabsTrigger>
                 </TabsList>
 
                 <SpaceContactGroupsBar key={`${active.id}-${contactGroupsKey}`} spaceId={active.id} />
@@ -227,6 +231,9 @@ export function SpaceWorkspace() {
                 </TabsContent>
                 <TabsContent value="polls" className="flex-1 min-h-0 mt-2 overflow-y-auto">
                   <SpacePollsTab spaceId={active.id} />
+                </TabsContent>
+                <TabsContent value="collaborators" className="flex-1 min-h-0 mt-2 overflow-y-auto">
+                  <SpaceCollaboratorsTab spaceId={active.id} />
                 </TabsContent>
               </Tabs>
             </>

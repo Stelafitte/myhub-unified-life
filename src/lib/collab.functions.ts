@@ -1051,7 +1051,11 @@ export const getPublicSpace = createServerFn({ method: "GET" })
         .eq("access_token", data.guest_token)
         .eq("space_id", space.id)
         .maybeSingle();
-      if (g) guest = { id: g.id, name: g.name, role: (g.role as "viewer" | "contributor") ?? "viewer" };
+      if (g) {
+        guest = { id: g.id, name: g.name, role: (g.role as "viewer" | "contributor") ?? "viewer" };
+        // Update last_active_at (best-effort, no await on error)
+        await sb.from("collab_guests").update({ last_active_at: new Date().toISOString() }).eq("id", g.id);
+      }
     }
 
     const isContributor = guest?.role === "contributor";
@@ -1094,7 +1098,7 @@ export const listSpaceGuests = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data: rows, error } = await supabase
       .from("collab_guests")
-      .select("id,name,email,role,access_token,status,created_at")
+      .select("id,name,email,role,access_token,status,created_at,last_active_at")
       .eq("space_id", data.spaceId)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
@@ -1728,4 +1732,137 @@ export const deleteSpaceUrlLink = createServerFn({ method: "POST" })
       .eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/** Liste les collaborateurs d'un espace : membres des groupes de contacts liés + invités (avec dernière connexion). */
+export const listSpaceCollaborators = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ spaceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    // Groups linked to this space
+    const { data: groups } = await supabase
+      .from("collab_contact_groups")
+      .select("id,name")
+      .eq("user_id", userId)
+      .eq("space_id", data.spaceId);
+
+    const groupIds = (groups ?? []).map((g: { id: string }) => g.id);
+    let groupMembers: Array<{
+      group_id: string;
+      contact_id: string | null;
+      external_email: string | null;
+      external_name: string | null;
+      contact: {
+        first_name: string | null;
+        last_name: string | null;
+        email: string[] | null;
+        organization: string | null;
+      } | null;
+    }> = [];
+    if (groupIds.length > 0) {
+      const { data: rows } = await supabase
+        .from("contact_group_members")
+        .select(
+          "group_id,contact_id,external_email,external_name,contact:contacts(first_name,last_name,email,organization)",
+        )
+        .in("group_id", groupIds);
+      groupMembers = (rows ?? []) as typeof groupMembers;
+    }
+
+    // Guests for this space (with last_active_at)
+    const { data: guests } = await supabase
+      .from("collab_guests")
+      .select("id,name,email,role,status,last_active_at,created_at")
+      .eq("space_id", data.spaceId)
+      .eq("user_id", userId);
+
+    // Index guest activity by lowercased email
+    const guestByEmail = new Map<
+      string,
+      { id: string; role: string; status: string; last_active_at: string | null }
+    >();
+    for (const g of guests ?? []) {
+      if (g.email) guestByEmail.set(g.email.toLowerCase(), g);
+    }
+
+    // Build merged collaborators list, deduped by lowercased email (or by name when no email)
+    type Row = {
+      key: string;
+      name: string;
+      email: string | null;
+      organization: string | null;
+      source: "group" | "guest";
+      group_names: string[];
+      role: string | null;
+      invited: boolean;
+      status: string | null;
+      last_active_at: string | null;
+    };
+    const byKey = new Map<string, Row>();
+    const groupNameById = new Map<string, string>();
+    for (const g of groups ?? []) groupNameById.set(g.id, g.name);
+
+    for (const m of groupMembers) {
+      const email =
+        (Array.isArray(m.contact?.email) ? m.contact?.email?.[0] : null) ||
+        m.external_email ||
+        null;
+      const name =
+        [m.contact?.first_name, m.contact?.last_name].filter(Boolean).join(" ").trim() ||
+        m.external_name ||
+        (email ? email.split("@")[0] : "(sans nom)");
+      const key = (email ?? `name:${name}`).toLowerCase();
+      const existing = byKey.get(key);
+      const groupName = groupNameById.get(m.group_id) ?? "";
+      if (existing) {
+        if (groupName && !existing.group_names.includes(groupName)) existing.group_names.push(groupName);
+      } else {
+        const g = email ? guestByEmail.get(email.toLowerCase()) : undefined;
+        byKey.set(key, {
+          key,
+          name,
+          email,
+          organization: m.contact?.organization ?? null,
+          source: "group",
+          group_names: groupName ? [groupName] : [],
+          role: g?.role ?? null,
+          invited: !!g,
+          status: g?.status ?? null,
+          last_active_at: g?.last_active_at ?? null,
+        });
+      }
+    }
+
+    // Add guests not already in any linked group
+    for (const g of guests ?? []) {
+      const key = (g.email ?? `name:${g.name}`).toLowerCase();
+      if (byKey.has(key)) {
+        const r = byKey.get(key)!;
+        r.invited = true;
+        r.role = r.role ?? g.role;
+        r.status = r.status ?? g.status;
+        r.last_active_at = r.last_active_at ?? g.last_active_at;
+      } else {
+        byKey.set(key, {
+          key,
+          name: g.name,
+          email: g.email,
+          organization: null,
+          source: "guest",
+          group_names: [],
+          role: g.role,
+          invited: true,
+          status: g.status,
+          last_active_at: g.last_active_at,
+        });
+      }
+    }
+
+    const collaborators = Array.from(byKey.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "fr", { sensitivity: "base" }),
+    );
+
+    return { collaborators, groupCount: groups?.length ?? 0 };
   });
