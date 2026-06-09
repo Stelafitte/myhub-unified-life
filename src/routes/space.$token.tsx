@@ -416,6 +416,22 @@ function SectionList<T>({
   return <div className="space-y-2">{items.map(render)}</div>;
 }
 
+// Palette stable par expéditeur — hash du nom → HSL pastel.
+const BUBBLE_PALETTES: Array<{ bg: string; fg: string }> = [
+  { bg: "hsl(210 90% 92%)", fg: "hsl(210 60% 22%)" },
+  { bg: "hsl(150 60% 88%)", fg: "hsl(150 50% 20%)" },
+  { bg: "hsl(35 95% 88%)", fg: "hsl(28 70% 25%)" },
+  { bg: "hsl(280 70% 92%)", fg: "hsl(280 55% 28%)" },
+  { bg: "hsl(0 80% 92%)", fg: "hsl(0 55% 30%)" },
+  { bg: "hsl(180 55% 86%)", fg: "hsl(185 55% 22%)" },
+  { bg: "hsl(50 90% 86%)", fg: "hsl(40 65% 25%)" },
+  { bg: "hsl(320 65% 92%)", fg: "hsl(320 55% 30%)" },
+];
+function bubblePalette(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return BUBBLE_PALETTES[h % BUBBLE_PALETTES.length];
+
 function ChatPanel({
   token,
   guestToken,
