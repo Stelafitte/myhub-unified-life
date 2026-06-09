@@ -2294,7 +2294,7 @@ function InboxPage() {
                 Vider
               </Button>
             )}
-            <span className="whitespace-nowrap text-xs text-muted-foreground">
+            <span className="hidden whitespace-nowrap text-xs text-muted-foreground sm:inline">
               {filtered.length} mail{filtered.length > 1 ? "s" : ""}
             </span>
           </div>
