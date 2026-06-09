@@ -211,13 +211,15 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
     try {
       const r = await upsertFn({ data: {
         id: reportId,
-        title, mission_object: missionObject || null, mission_context: (missionContext as any) || null,
+        title, mission_object: missionObject || null, mission_description: missionDescription || null,
+        mission_context: (missionContext as any) || null,
         organization: organization || null, mission_number: missionNumber || null,
         identification: ident, status: (newStatus as any) ?? (status as any),
         advance_amount: advance, currency: "EUR",
         payment_method: (paymentMethod as any), iban: iban || null,
         signature_location: signatureLocation, signature_date: signatureDate || null,
         notes: notes || null,
+        recipient_email: recipientEmail || null,
         items: items.map((it, idx) => ({ ...it, vendor: it.vendor ?? null, position: idx })),
       } });
       toast.success("Note enregistrée");
@@ -227,16 +229,67 @@ export function ExpenseReportForm({ reportId, userId, onBack, onSaved }: {
     finally { setSaving(false); }
   };
 
+  const buildPdf = () => generateExpensePDFClient({
+    title, missionObject, missionDescription, missionContext, organization, missionNumber, ident,
+    items, total, advance, toReimburse,
+    paymentMethod, iban, signatureLocation, signatureDate, notes,
+  });
+
   const exportPDF = async () => {
     const id = await save(); if (!id) return;
     try {
-      const out = await generateExpensePDFClient({
-        title, missionObject, missionContext, organization, missionNumber, ident,
-        items, total, advance, toReimburse,
-        paymentMethod, iban, signatureLocation, signatureDate, notes,
-      });
+      const out = buildPdf();
       downloadBase64(out.filename, "application/pdf", out.base64);
     } catch (e: any) { toast.error(e?.message ?? "Erreur PDF"); }
+  };
+
+  const previewPDF = () => {
+    try {
+      const out = buildPdf();
+      const bin = atob(out.base64);
+      const arr = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+      const blob = new Blob([arr], { type: "application/pdf" });
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(URL.createObjectURL(blob));
+    } catch (e: any) { toast.error(e?.message ?? "Erreur PDF"); }
+  };
+
+  const sendByMail = async () => {
+    if (!recipientEmail.trim()) { toast.error("Renseigne un destinataire"); return; }
+    const id = await save(); if (!id) return;
+    try {
+      const { data: accs } = await supabase
+        .from("accounts")
+        .select("id, name, type, color, icon, credentials")
+        .eq("user_id", userId)
+        .eq("is_active", true);
+      const accounts = (accs ?? []) as ComposerAccount[];
+      const sendable = accounts.filter((a) => ["gmail", "outlook", "imap"].includes(a.type));
+      if (sendable.length === 0) { toast.error("Aucun compte mail configuré"); return; }
+      const signature = getSignatureForAccount(sendable[0]);
+      const body = [
+        `Bonjour,`,
+        ``,
+        `Je vous adresse ma note de frais relative à : ${missionObject || title}.`,
+        ``,
+        `En vous souhaitant une bonne réception.`,
+        ``,
+        `Bien cordialement.`,
+        ``,
+        `-- `,
+        signature,
+      ].join("\n");
+      const out = buildPdf();
+      setComposerAccounts(accounts);
+      setComposerAttachments([{ name: out.filename, type: "application/pdf", size: Math.ceil(out.base64.length * 0.75), contentBase64: out.base64 }]);
+      setComposerInitial({
+        mode: "new",
+        to: recipientEmail.trim(),
+        subject: `Note de frais — ${missionObject || title}`,
+        body,
+      });
+      setComposerOpen(true);
+    } catch (e: any) { toast.error(e?.message ?? "Erreur"); }
   };
 
   const fillTemplate = async () => {
