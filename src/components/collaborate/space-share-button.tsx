@@ -428,6 +428,25 @@ export function SpaceShareButton({ spaceId }: { spaceId: string }) {
                         <Button
                           size="icon"
                           variant="ghost"
+                          className="h-7 w-7"
+                          onClick={() => handleResendInvite(g.id, g.email)}
+                          disabled={!g.email || resendingId === g.id || !space.is_public}
+                          title={
+                            !g.email
+                              ? "Pas d'email"
+                              : !space.is_public
+                                ? "Rendez l'espace public d'abord"
+                                : "Envoyer / renvoyer l'invitation par email"
+                          }
+                        >
+                          {resendingId === g.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <MailPlus className="h-3.5 w-3.5" />
+                          )}
+                        <Button
+                          size="icon"
+                          variant="ghost"
                           className="h-7 w-7 text-red-600"
                           onClick={() => handleRemoveGuest(g.id)}
                           title="Retirer"
