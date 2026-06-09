@@ -182,6 +182,29 @@ export function AiSection() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Pré-tri corbeille</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label>Seuil de confiance IA</Label>
+            <span className="text-sm font-medium tabular-nums">{prefs.trashThreshold}%</span>
+          </div>
+          <Slider
+            min={50}
+            max={95}
+            step={5}
+            value={[prefs.trashThreshold]}
+            onValueChange={(v) => update({ trashThreshold: v[0] ?? 70 })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Plus le seuil est élevé, moins l'IA propose de mails à mettre à la corbeille (suggestions plus prudentes).
+            Plus il est bas, plus elle en propose (suggestions plus agressives). Défaut : 70 %.
+          </p>
+        </CardContent>
+      </Card>
+
       <AiPromptsManager />
 
       <Card>
