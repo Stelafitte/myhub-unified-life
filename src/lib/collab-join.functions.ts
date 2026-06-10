@@ -117,15 +117,17 @@ export const toggleJoinLink = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const update: Record<string, unknown> = { join_enabled: data.enabled };
+    let newToken: string | null = null;
     if (data.regenerate) {
-      // Token de 32 hex chars
       const bytes = new Uint8Array(16);
       crypto.getRandomValues(bytes);
-      update.join_token = Array.from(bytes)
+      newToken = Array.from(bytes)
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
     }
+    const update = newToken
+      ? { join_enabled: data.enabled, join_token: newToken }
+      : { join_enabled: data.enabled };
     const { data: row, error } = await supabase
       .from("collab_spaces")
       .update(update)
