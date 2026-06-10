@@ -118,6 +118,7 @@ type Filter =
   | "spam"
   | "promo"
   | "trash"
+  | "sent"
   | `account:${string}`
   | `theme:${string}`
   | "theme:__none__";
