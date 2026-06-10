@@ -310,7 +310,8 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
             messages.map((m) => {
               const isImported = (m.metadata as { is_imported?: boolean } | null)?.is_imported === true;
               const isAi = m.type === "ai";
-              const isMine = m.user_id === currentUserId && !isImported && !isAi;
+              const isGuest = m.type === "guest";
+              const isMine = m.user_id === currentUserId && !isImported && !isAi && !isGuest;
               const atts = ((m.metadata as { attachments?: Attachment[] } | null)?.attachments ?? []);
               const palette = bubblePalette(m.sender_name ?? "—");
               return (
