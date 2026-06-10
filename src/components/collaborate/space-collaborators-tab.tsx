@@ -1,11 +1,27 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Users, Loader2, Mail, CircleDot, Clock, Send, MailPlus } from "lucide-react";
+import {
+  Users,
+  Loader2,
+  Mail,
+  CircleDot,
+  Clock,
+  Send,
+  MailPlus,
+  Link2,
+  Copy,
+  RefreshCw,
+  Check,
+  X,
+  UserPlus,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +44,12 @@ import {
   resendSpaceGuestInvitation,
   notifySpaceGuests,
 } from "@/lib/collab.functions";
+import {
+  getJoinLink,
+  toggleJoinLink,
+  listJoinRequests,
+  reviewJoinRequest,
+} from "@/lib/collab-join.functions";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
