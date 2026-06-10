@@ -37,88 +37,130 @@ export const syncOutlookContacts = createServerFn({ method: "POST" })
     let synced = 0;
     const errors: string[] = [];
 
-    let nextLink: string | null = `${GRAPH}/me/contacts?$top=100`;
-    while (nextLink) {
-      const res: Response = await fetch(nextLink, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const body: { value?: OContact[]; ["@odata.nextLink"]?: string; error?: { message?: string } } =
-        await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(`Outlook contacts error (${res.status}): ${body.error?.message ?? "unknown"}`);
-      const contacts = body.value ?? [];
+    // Collect all contact-folder endpoints: default + every (sub)folder
+    type Folder = { id: string; displayName?: string };
+    const folderEndpoints: string[] = [`${GRAPH}/me/contacts?$top=100`];
 
-      for (const c of contacts) {
-        try {
-          const emails = (c.emailAddresses ?? []).map((e) => e.address).filter(Boolean) as string[];
-          const phones = [
-            ...(c.businessPhones ?? []),
-            ...(c.homePhones ?? []),
-            ...(c.mobilePhone ? [c.mobilePhone] : []),
-          ].filter(Boolean);
-          const primaryEmail = emails[0];
-
-          let existing: ExistingContact | null = null;
-          if (primaryEmail) {
-            const { data: match } = await supabaseAdmin
-              .from("contacts")
-              .select("id, sources, external_ids")
-              .eq("user_id", userId)
-              .contains("email", [primaryEmail])
-              .maybeSingle();
-            existing = (match as ExistingContact | null) ?? null;
-          }
-          if (!existing) {
-            const { data: byId } = await supabaseAdmin
-              .from("contacts")
-              .select("id, sources, external_ids")
-              .eq("user_id", userId)
-              .contains("external_ids", { outlook: c.id })
-              .maybeSingle();
-            existing = (byId as ExistingContact | null) ?? null;
-          }
-
-          if (existing) {
-            const mergedSources = Array.from(new Set([...(existing.sources ?? []), "outlook"]));
-            const mergedExt = { ...(existing.external_ids ?? {}), outlook: c.id };
-            await supabaseAdmin
-              .from("contacts")
-              .update({
-                first_name: c.givenName ?? undefined,
-                last_name: c.surname ?? undefined,
-                email: emails.length ? emails : undefined,
-                phone: phones.length ? phones : undefined,
-                organization: c.companyName ?? undefined,
-                role: c.jobTitle ?? undefined,
-                sources: mergedSources,
-                external_ids: mergedExt,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", existing.id);
-            updated += 1;
-          } else {
-            await supabaseAdmin.from("contacts").insert({
-              user_id: userId,
-              first_name: c.givenName ?? null,
-              last_name: c.surname ?? null,
-              email: emails,
-              phone: phones,
-              organization: c.companyName ?? null,
-              role: c.jobTitle ?? null,
-              sources: ["outlook"],
-              external_ids: { outlook: c.id },
-            });
-            created += 1;
-          }
-          synced += 1;
-        } catch (err) {
-          errors.push((err as Error).message);
+    const listFolders = async (url: string): Promise<Folder[]> => {
+      const out: Folder[] = [];
+      let next: string | null = url;
+      while (next) {
+        const r: Response = await fetch(next, { headers: { Authorization: `Bearer ${accessToken}` } });
+        const b: { value?: Folder[]; ["@odata.nextLink"]?: string; error?: { message?: string } } =
+          await r.json().catch(() => ({}));
+        if (!r.ok) {
+          errors.push(`folders (${r.status}): ${b.error?.message ?? "unknown"}`);
+          break;
         }
+        out.push(...(b.value ?? []));
+        next = b["@odata.nextLink"] ?? null;
       }
-      nextLink = body["@odata.nextLink"] ?? null;
+      return out;
+    };
+
+    const walkFolders = async (baseUrl: string) => {
+      const folders = await listFolders(baseUrl);
+      for (const f of folders) {
+        folderEndpoints.push(`${GRAPH}/me/contactFolders/${f.id}/contacts?$top=100`);
+        // recurse into children
+        await walkFolders(`${GRAPH}/me/contactFolders/${f.id}/childFolders?$top=100`);
+      }
+    };
+
+    try {
+      await walkFolders(`${GRAPH}/me/contactFolders?$top=100`);
+    } catch (err) {
+      errors.push(`folders: ${(err as Error).message}`);
+    }
+
+    for (const start of folderEndpoints) {
+      let nextLink: string | null = start;
+      while (nextLink) {
+        const res: Response = await fetch(nextLink, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const body: { value?: OContact[]; ["@odata.nextLink"]?: string; error?: { message?: string } } =
+          await res.json().catch(() => ({}));
+        if (!res.ok) {
+          errors.push(`contacts (${res.status}): ${body.error?.message ?? "unknown"}`);
+          break;
+        }
+        const contacts = body.value ?? [];
+
+        for (const c of contacts) {
+          try {
+            const emails = (c.emailAddresses ?? []).map((e) => e.address).filter(Boolean) as string[];
+            const phones = [
+              ...(c.businessPhones ?? []),
+              ...(c.homePhones ?? []),
+              ...(c.mobilePhone ? [c.mobilePhone] : []),
+            ].filter(Boolean);
+            const primaryEmail = emails[0];
+
+            let existing: ExistingContact | null = null;
+            if (primaryEmail) {
+              const { data: match } = await supabaseAdmin
+                .from("contacts")
+                .select("id, sources, external_ids")
+                .eq("user_id", userId)
+                .contains("email", [primaryEmail])
+                .maybeSingle();
+              existing = (match as ExistingContact | null) ?? null;
+            }
+            if (!existing) {
+              const { data: byId } = await supabaseAdmin
+                .from("contacts")
+                .select("id, sources, external_ids")
+                .eq("user_id", userId)
+                .contains("external_ids", { outlook: c.id })
+                .maybeSingle();
+              existing = (byId as ExistingContact | null) ?? null;
+            }
+
+            if (existing) {
+              const mergedSources = Array.from(new Set([...(existing.sources ?? []), "outlook"]));
+              const mergedExt = { ...(existing.external_ids ?? {}), outlook: c.id };
+              await supabaseAdmin
+                .from("contacts")
+                .update({
+                  first_name: c.givenName ?? undefined,
+                  last_name: c.surname ?? undefined,
+                  email: emails.length ? emails : undefined,
+                  phone: phones.length ? phones : undefined,
+                  organization: c.companyName ?? undefined,
+                  role: c.jobTitle ?? undefined,
+                  sources: mergedSources,
+                  external_ids: mergedExt,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", existing.id);
+              updated += 1;
+            } else {
+              await supabaseAdmin.from("contacts").insert({
+                user_id: userId,
+                first_name: c.givenName ?? null,
+                last_name: c.surname ?? null,
+                email: emails,
+                phone: phones,
+                organization: c.companyName ?? null,
+                role: c.jobTitle ?? null,
+                sources: ["outlook"],
+                external_ids: { outlook: c.id },
+              });
+              created += 1;
+            }
+            synced += 1;
+          } catch (err) {
+            errors.push((err as Error).message);
+          }
+        }
+        nextLink = body["@odata.nextLink"] ?? null;
+      }
     }
 
     return { synced, created, updated, errors };
   });
+
 
 export const pushContactToOutlook = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
