@@ -155,6 +155,7 @@ export function GroupMembersDialog({
     try {
       await removeFn({ data: { groupId, memberId } });
       setMembers((p) => p.filter((m) => m.id !== memberId));
+      invalidateAll();
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -168,6 +169,7 @@ export function GroupMembersDialog({
       const r = await syncFn({ data: { groupId } });
       toast.success(`Recalculé : +${r.added} / −${r.removed}`);
       await load();
+      invalidateAll();
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -193,6 +195,7 @@ export function GroupMembersDialog({
       toast.success("Groupe mis à jour");
       setEditing(false);
       await load();
+      invalidateAll();
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -212,6 +215,7 @@ export function GroupMembersDialog({
         },
       });
       await load();
+      invalidateAll();
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -241,6 +245,7 @@ export function GroupMembersDialog({
       });
       setExternalInput("");
       await load();
+      invalidateAll();
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
