@@ -81,6 +81,16 @@ export function CollabDashboard({ onSelect }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteSpaceMut = useMutation({
+    mutationFn: (spaceId: string) => deleteFn({ data: { spaceId } }),
+    onSuccess: () => {
+      toast.success("Espace supprimé");
+      qc.invalidateQueries({ queryKey: ["collab-dashboard-spaces"] });
+      qc.invalidateQueries({ queryKey: ["collab-tree"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   type SpaceRow = NonNullable<typeof data>["spaces"][number];
   const grouped = useMemo(() => {
     const map: Record<Status, SpaceRow[]> = { construction: [], active: [], done: [], archived: [] };
