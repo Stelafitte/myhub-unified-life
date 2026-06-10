@@ -35,20 +35,12 @@ const LAST_SPACE_KEY = "collab:last-space-id";
 export function SpaceWorkspace() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const [activeId, setActiveId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(LAST_SPACE_KEY);
-  });
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [rightOpen, setRightOpen] = useState(false);
   const [treeOpen, setTreeOpen] = useState(false);
   const [groupFromSpaceOpen, setGroupFromSpaceOpen] = useState(false);
   const [contactGroupsKey, setContactGroupsKey] = useState(0);
 
-  useEffect(() => {
-    if (activeId) {
-      localStorage.setItem(LAST_SPACE_KEY, activeId);
-    }
-  }, [activeId]);
 
   const treeFn = useServerFn(getSpaceTree);
   const { data: tree } = useQuery({
