@@ -317,14 +317,14 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
               return (
                 <div
                   key={m.id}
-                  className={cn("group flex", isMine ? "justify-end" : "justify-start")}
+                  className={cn("group flex", isMine ? "justify-start" : "justify-end")}
                 >
                   <div
                     className={cn(
                       "max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm",
                       isMine
-                        ? "bg-primary text-primary-foreground rounded-br-sm"
-                        : "rounded-bl-sm",
+                        ? "bg-primary text-primary-foreground rounded-bl-sm"
+                        : "rounded-br-sm",
                     )}
                     style={isMine ? undefined : { backgroundColor: palette.bg, color: palette.fg }}
                   >
