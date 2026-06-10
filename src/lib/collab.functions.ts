@@ -2264,3 +2264,45 @@ export const deletePublicSpaceMessage = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+
+/** Liste tous les espaces avec leur statut de cycle de vie (dashboard kanban). */
+export const listSpacesForDashboard = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data, error } = await supabase
+      .from("collab_spaces")
+      .select("id,name,icon,color,type,parent_id,level,position,archived_at,updated_at,lifecycle_status" as "*")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return { spaces: (data ?? []) as Array<{
+      id: string; name: string; icon: string | null; color: string | null;
+      type: string | null; parent_id: string | null; level: number; position: number;
+      archived_at: string | null; updated_at: string; lifecycle_status: string;
+    }> };
+  });
+
+/** Change le statut de cycle de vie d'un espace. */
+export const setSpaceLifecycleStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({
+      spaceId: z.string().uuid(),
+      status: z.enum(["construction", "active", "done", "archived"]),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const patch = {
+      lifecycle_status: data.status,
+      archived_at: data.status === "archived" ? new Date().toISOString() : null,
+    } as never;
+    const { error } = await supabase
+      .from("collab_spaces")
+      .update(patch)
+      .eq("id", data.spaceId)
+      .eq("user_id", userId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
