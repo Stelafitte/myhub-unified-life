@@ -51,16 +51,17 @@ export function CollabDashboard({ onSelect }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  type SpaceRow = NonNullable<typeof data>["spaces"][number];
   const grouped = useMemo(() => {
-    const map: Record<Status, typeof data.spaces extends infer T ? T : never> = {
+    const map: Record<Status, SpaceRow[]> = {
       construction: [],
       active: [],
       done: [],
       archived: [],
-    } as never;
+    };
     for (const s of data?.spaces ?? []) {
-      const st = (s.archived_at ? "archived" : (s.lifecycle_status as Status)) || "active";
-      (map[st] ??= []).push(s);
+      const st: Status = (s.archived_at ? "archived" : ((s.lifecycle_status as Status) || "active"));
+      map[st].push(s);
     }
     return map;
   }, [data]);
