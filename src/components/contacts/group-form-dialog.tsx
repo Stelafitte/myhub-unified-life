@@ -173,6 +173,8 @@ export function GroupFormDialog({
       };
       await createFn({ data: payload });
       toast.success("Groupe créé");
+      qc.invalidateQueries({ queryKey: ["space-collaborators"] });
+      qc.invalidateQueries({ queryKey: ["contact-groups"] });
       onCreated();
       onOpenChange(false);
     } catch (e) {
