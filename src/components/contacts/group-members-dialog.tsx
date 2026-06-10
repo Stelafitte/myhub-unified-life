@@ -67,11 +67,16 @@ export function GroupMembersDialog({
   onChanged: () => void;
 }) {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const getFn = useServerFn(getGroupMembers);
   const removeFn = useServerFn(removeGroupMember);
   const syncFn = useServerFn(syncSmartGroup);
   const updateFn = useServerFn(updateContactGroup);
   const addFn = useServerFn(addGroupMembers);
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["space-collaborators"] });
+    qc.invalidateQueries({ queryKey: ["contact-groups"] });
+  };
   const [head, setHead] = useState<GroupHead | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
