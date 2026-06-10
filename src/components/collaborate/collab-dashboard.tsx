@@ -14,8 +14,11 @@ import {
   LayoutGrid,
   GanttChart,
   ArrowRight,
+  Clock,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,12 +40,13 @@ interface Props {
 type Status = "construction" | "active" | "done" | "archived";
 type View = "kanban" | "list" | "gantt";
 
-const SECTIONS: { id: Status; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: "construction", label: "En construction", icon: Hammer },
-  { id: "active", label: "En cours", icon: PlayCircle },
-  { id: "done", label: "Terminés", icon: CheckCircle2 },
-  { id: "archived", label: "Archivés", icon: Archive },
+const SECTIONS: { id: Status; label: string; icon: React.ComponentType<{ className?: string }>; dot: string }[] = [
+  { id: "construction", label: "En construction", icon: Hammer, dot: "bg-amber-500" },
+  { id: "active", label: "En cours", icon: PlayCircle, dot: "bg-blue-500" },
+  { id: "done", label: "Terminés", icon: CheckCircle2, dot: "bg-emerald-500" },
+  { id: "archived", label: "Archivés", icon: Archive, dot: "bg-slate-400" },
 ];
+
 
 const PRIMARY: Status[] = ["construction", "active"];
 
@@ -94,54 +98,72 @@ export function CollabDashboard({ onSelect }: Props) {
     );
   }
 
-  const renderCard = (s: SpaceRow, currentStatus: Status) => (
-    <article
-      key={s.id}
-      className="group cursor-pointer rounded-md border bg-card p-2.5 text-sm shadow-sm transition-all hover:shadow-md hover:border-primary/40 h-full flex flex-col"
-      onClick={() => onSelect(s.id)}
-    >
-      <div className="flex items-start gap-2">
-        <span className="text-base leading-none mt-0.5">{s.icon ?? "📁"}</span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-1">
-            <h4 className="flex-1 text-sm font-medium leading-snug truncate">{s.name}</h4>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-muted-foreground opacity-100 sm:opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">
-                  Déplacer vers
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {SECTIONS.filter((c) => c.id !== currentStatus).map((c) => (
-                  <DropdownMenuItem
-                    key={c.id}
-                    onClick={() => setStatus.mutate({ spaceId: s.id, status: c.id })}
+  const renderCard = (s: SpaceRow, currentStatus: Status) => {
+    const sec = SECTIONS.find((c) => c.id === currentStatus)!;
+    return (
+      <article
+        key={s.id}
+        className="group cursor-pointer rounded-md border bg-card p-2.5 text-sm shadow-sm transition-all hover:shadow-md hover:border-primary/40 h-full flex flex-col"
+        onClick={() => onSelect(s.id)}
+      >
+        <div className="flex items-start gap-2">
+          <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", sec.dot)} title={sec.label} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start gap-1">
+              <h4 className="flex-1 text-sm font-medium leading-snug">
+                <span className="mr-1">{s.icon ?? "📁"}</span>
+                {s.name}
+              </h4>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-muted-foreground opacity-100 sm:opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
                   >
-                    <ArrowRight className="mr-2 h-3.5 w-3.5" />
-                    <c.icon className="mr-1 h-3.5 w-3.5" /> {c.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <div className="mt-1 text-[11px] text-muted-foreground truncate">
-            {s.type ? <span className="capitalize">{s.type}</span> : null}
-            {s.type && s.updated_at ? " · " : ""}
-            {s.updated_at
-              ? formatDistanceToNow(new Date(s.updated_at), { addSuffix: true, locale: fr })
-              : null}
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">
+                    Déplacer vers
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {SECTIONS.filter((c) => c.id !== currentStatus).map((c) => (
+                    <DropdownMenuItem
+                      key={c.id}
+                      onClick={() => setStatus.mutate({ spaceId: s.id, status: c.id })}
+                    >
+                      <ArrowRight className="mr-2 h-3.5 w-3.5" />
+                      <c.icon className="mr-1 h-3.5 w-3.5" /> {c.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-1">
+              <Badge variant="outline" className="gap-0.5 text-[10px]">
+                <sec.icon className="h-3 w-3" /> {sec.label}
+              </Badge>
+              {s.type && (
+                <Badge variant="secondary" className="text-[10px] capitalize">
+                  {s.type}
+                </Badge>
+              )}
+            </div>
+
+            {s.updated_at && (
+              <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                {formatDistanceToNow(new Date(s.updated_at), { addSuffix: true, locale: fr })}
+              </div>
+            )}
           </div>
         </div>
-      </div>
-    </article>
-  );
+      </article>
+    );
+  };
+
 
   return (
     <div className="flex flex-1 flex-col p-3 sm:p-4 md:p-6 overflow-hidden">
