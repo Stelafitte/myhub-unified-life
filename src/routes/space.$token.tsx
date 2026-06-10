@@ -526,6 +526,7 @@ function ChatPanel({
   onPosted: () => void;
 }) {
   const postFn = useServerFn(postPublicSpaceMessage);
+  const delFn = useServerFn(deletePublicSpaceMessage);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -553,6 +554,18 @@ function ChatPanel({
       setSending(false);
     }
   };
+
+  const handleDelete = async (messageId: string) => {
+    if (!guestToken || !guest) return;
+    if (!confirm("Supprimer ce message ?")) return;
+    try {
+      await delFn({ data: { token, guest_token: guestToken, messageId } });
+      onPosted();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    }
+  };
+
 
   return (
     <div className="flex flex-col border rounded-md bg-card/30 h-[60vh]">
