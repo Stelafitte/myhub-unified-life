@@ -644,6 +644,66 @@ export type Database = {
           },
         ]
       }
+      collab_join_requests: {
+        Row: {
+          created_at: string
+          email: string
+          first_name: string
+          guest_id: string | null
+          id: string
+          last_name: string
+          note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          space_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          first_name: string
+          guest_id?: string | null
+          id?: string
+          last_name: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          space_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          first_name?: string
+          guest_id?: string | null
+          id?: string
+          last_name?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          space_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collab_join_requests_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "collab_guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collab_join_requests_space_id_fkey"
+            columns: ["space_id"]
+            isOneToOne: false
+            referencedRelation: "collab_spaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collab_messages: {
         Row: {
           content: string
@@ -776,6 +836,8 @@ export type Database = {
           icon: string | null
           id: string
           is_public: boolean
+          join_enabled: boolean
+          join_token: string | null
           level: number
           lifecycle_status: string
           name: string
@@ -798,6 +860,8 @@ export type Database = {
           icon?: string | null
           id?: string
           is_public?: boolean
+          join_enabled?: boolean
+          join_token?: string | null
           level?: number
           lifecycle_status?: string
           name: string
@@ -820,6 +884,8 @@ export type Database = {
           icon?: string | null
           id?: string
           is_public?: boolean
+          join_enabled?: boolean
+          join_token?: string | null
           level?: number
           lifecycle_status?: string
           name?: string
