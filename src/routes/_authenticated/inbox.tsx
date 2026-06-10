@@ -34,6 +34,7 @@ import {
   Undo2,
   FolderInput,
   X,
+  Send,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -117,6 +118,7 @@ type Filter =
   | "spam"
   | "promo"
   | "trash"
+  | "sent"
   | `account:${string}`
   | `theme:${string}`
   | "theme:__none__";
@@ -745,6 +747,7 @@ function InboxPage() {
     const spam = live.filter(isSpam).length;
     const promo = live.filter(isPromo).length;
     const trash = emails.filter(isTrashed).length;
+    const sent = live.filter((e) => e.direction === "outbound").length;
     const byAccount = new Map<string, number>();
     live.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
     const byTheme = new Map<string, number>();
@@ -761,6 +764,7 @@ function InboxPage() {
       spam,
       promo,
       trash,
+      sent,
       byAccount,
       byTheme,
       noTheme,
@@ -771,6 +775,8 @@ function InboxPage() {
     let list = emails;
     if (filter === "trash") {
       list = list.filter(isTrashed);
+    } else if (filter === "sent") {
+      list = list.filter((e) => !isTrashed(e) && e.direction === "outbound");
     } else {
       list = list.filter((e) => !isTrashed(e));
       if (filter.startsWith("account:")) {
@@ -1893,6 +1899,14 @@ function InboxPage() {
             onAction={counts.trash > 0 ? emptyTrash : undefined}
             actionLabel="Vider la corbeille"
           />
+          <FilterRow
+            label="Envoyés"
+            icon={<Send className="h-4 w-4" />}
+            count={counts.sent}
+            active={filter === "sent"}
+            onClick={() => setFilter("sent")}
+          />
+
 
           {/* Comptes first */}
           <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
