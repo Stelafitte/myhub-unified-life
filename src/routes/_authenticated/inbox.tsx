@@ -746,6 +746,7 @@ function InboxPage() {
     const spam = live.filter(isSpam).length;
     const promo = live.filter(isPromo).length;
     const trash = emails.filter(isTrashed).length;
+    const sent = live.filter((e) => e.direction === "outbound").length;
     const byAccount = new Map<string, number>();
     live.forEach((e) => byAccount.set(e.account_id, (byAccount.get(e.account_id) ?? 0) + 1));
     const byTheme = new Map<string, number>();
@@ -762,6 +763,7 @@ function InboxPage() {
       spam,
       promo,
       trash,
+      sent,
       byAccount,
       byTheme,
       noTheme,
