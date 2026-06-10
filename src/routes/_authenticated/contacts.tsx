@@ -122,6 +122,29 @@ export const Route = createFileRoute("/_authenticated/contacts")({
   component: ContactsPage,
 });
 
+const CONTACT_PAGE_SIZE = 1000;
+
+async function fetchAllContacts() {
+  const all: Contact[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("contacts")
+      .select("*")
+      .order("last_name", { ascending: true, nullsFirst: false })
+      .range(from, from + CONTACT_PAGE_SIZE - 1);
+
+    if (error) throw error;
+    const page = (data ?? []) as Contact[];
+    all.push(...page);
+    if (page.length < CONTACT_PAGE_SIZE) break;
+    from += CONTACT_PAGE_SIZE;
+  }
+
+  return all;
+}
+
 function ContactsPage() {
   const { user } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -157,16 +180,14 @@ function ContactsPage() {
         if (!cancelled) setLoading(false);
         return;
       }
-      const [{ data: cs }, { data: accs }, { data: ems }] = await Promise.all([
-        supabase.from("contacts").select("*").order("last_name", { ascending: true, nullsFirst: false }),
+      const [cs, { data: accs }, { data: ems }] = await Promise.all([
+        fetchAllContacts(),
         supabase.from("accounts").select("id,name,type,color,last_sync_at").order("created_at"),
         supabase.from("emails").select("from_address,received_at").order("received_at", { ascending: false }).limit(2000),
       ]);
       if (cancelled) return;
-      if (cs) {
-        setContacts(cs as Contact[]);
-        cacheReplaceAll("contacts", cs as Contact[]).catch(() => {});
-      }
+      setContacts(cs);
+      cacheReplaceAll("contacts", cs).catch(() => {});
       if (accs) {
         setAccounts(accs as Account[]);
         cacheReplaceAll("accounts", accs as Account[]).catch(() => {});
@@ -260,8 +281,11 @@ function ContactsPage() {
   const selected = useMemo(() => contacts.find((c) => c.id === selectedId) ?? null, [contacts, selectedId]);
 
   const refresh = async () => {
-    const { data } = await supabase.from("contacts").select("*");
-    if (data) setContacts(data as Contact[]);
+    try {
+      setContacts(await fetchAllContacts());
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Impossible de recharger les contacts");
+    }
   };
 
   const removeContact = async (id: string) => {
