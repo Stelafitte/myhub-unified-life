@@ -56,6 +56,8 @@ export function SpaceCollaboratorsTab({ spaceId }: { spaceId: string }) {
   const { data, isLoading, error } = useQuery({
     queryKey,
     queryFn: () => fn({ data: { spaceId } }),
+    refetchOnMount: "always",
+    staleTime: 0,
   });
 
   const rows = useMemo<Collaborator[]>(() => (data?.collaborators ?? []) as Collaborator[], [data]);
