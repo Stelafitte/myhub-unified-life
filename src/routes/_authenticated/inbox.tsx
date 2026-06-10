@@ -34,6 +34,7 @@ import {
   Undo2,
   FolderInput,
   X,
+  Send,
 } from "lucide-react";
 import {
   DropdownMenu,
