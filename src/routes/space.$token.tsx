@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import {
   getPublicSpaceFull,
   postPublicSpaceMessage,
+  deletePublicSpaceMessage,
 } from "@/lib/collab.functions";
 
 const searchSchema = z.object({ g: z.string().optional() });
