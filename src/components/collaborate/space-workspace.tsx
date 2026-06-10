@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -30,7 +30,7 @@ const COMING_SOON = (
   </div>
 );
 
-const LAST_SPACE_KEY = "collab:last-space-id";
+
 
 export function SpaceWorkspace() {
   const { user } = useAuth();
