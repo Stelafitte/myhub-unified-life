@@ -189,18 +189,24 @@ export function SpaceCollaboratorsTab({ spaceId }: { spaceId: string }) {
 
   if (rows.length === 0) {
     return (
-      <div className="p-8 text-center text-sm text-muted-foreground space-y-2">
-        <Users className="h-8 w-8 mx-auto text-muted-foreground/50" />
-        <p>Aucun collaborateur pour l'instant.</p>
-        <p className="text-xs">
-          Liez un groupe de contacts à ce projet ou ajoutez des invités via le bouton « Partager ».
-        </p>
+      <div className="p-3 space-y-3">
+        <JoinLinkAndRequests spaceId={spaceId} />
+        <div className="p-8 text-center text-sm text-muted-foreground space-y-2">
+          <Users className="h-8 w-8 mx-auto text-muted-foreground/50" />
+          <p>Aucun collaborateur pour l'instant.</p>
+          <p className="text-xs">
+            Liez un groupe de contacts à ce projet, ajoutez des invités via « Partager », ou
+            partagez le lien d'invitation ci-dessus.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="p-3 space-y-3">
+      <JoinLinkAndRequests spaceId={spaceId} />
+
       <div className="flex items-center gap-2">
         <Users className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">Collaborateurs</h3>
@@ -215,6 +221,7 @@ export function SpaceCollaboratorsTab({ spaceId }: { spaceId: string }) {
         Membres des groupes liés + invités. L'envoi d'email nécessite que l'espace soit public
         (bouton « Partager »).
       </p>
+
 
       <div className="rounded-md border">
         <Table>
