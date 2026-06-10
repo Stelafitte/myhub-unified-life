@@ -28,7 +28,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { listSpacesForDashboard, setSpaceLifecycleStatus } from "@/lib/collab.functions";
+import { listSpacesForDashboard, setSpaceLifecycleStatus, deleteSpace } from "@/lib/collab.functions";
+import { confirmDialog } from "@/lib/confirm-dialog";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
