@@ -2216,3 +2216,51 @@ export const postPublicSpaceMessage = createServerFn({ method: "POST" })
 
     return { message: row };
   });
+
+/** Supprime un message public (l'invité ne peut supprimer que ses propres messages). */
+export const deletePublicSpaceMessage = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        token: z.string().min(8).max(64),
+        guest_token: z.string().min(8).max(64),
+        messageId: z.string().uuid(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const sb = await _publicSb();
+    const { data: space } = await sb
+      .from("collab_spaces")
+      .select("id,is_public")
+      .eq("public_token", data.token)
+      .eq("is_public", true)
+      .maybeSingle();
+    if (!space) throw new Error("Espace introuvable ou non public");
+
+    const { data: guest } = await sb
+      .from("collab_guests")
+      .select("id,space_id")
+      .eq("access_token", data.guest_token)
+      .eq("space_id", space.id)
+      .maybeSingle();
+    if (!guest) throw new Error("Invité non reconnu");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: msg } = await supabaseAdmin
+      .from("collab_messages")
+      .select("id,metadata,space_id")
+      .eq("id", data.messageId)
+      .maybeSingle();
+    if (!msg || msg.space_id !== space.id) throw new Error("Message introuvable");
+    const meta = (msg.metadata ?? {}) as { guest_id?: string };
+    if (meta.guest_id !== guest.id) throw new Error("Vous ne pouvez supprimer que vos propres messages");
+
+    const { error } = await supabaseAdmin
+      .from("collab_messages")
+      .delete()
+      .eq("id", data.messageId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
