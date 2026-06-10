@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Cloud, Mail as MailIcon, RefreshCw, Trash2, Apple } from "lucide-react";
+import { Cloud, Mail as MailIcon, RefreshCw, Trash2, Apple, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 import { syncGoogleContacts } from "@/lib/api/google-contacts.functions";
 import { listGoogleCalendarConnections } from "@/lib/api/google-calendar.functions";
