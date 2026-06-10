@@ -1,7 +1,20 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, MoreVertical, Hammer, PlayCircle, CheckCircle2, Archive } from "lucide-react";
+import {
+  Loader2,
+  MoreVertical,
+  Hammer,
+  PlayCircle,
+  CheckCircle2,
+  Archive,
+  ChevronDown,
+  ChevronRight,
+  List,
+  LayoutGrid,
+  GanttChart,
+  ArrowRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,18 +35,29 @@ interface Props {
 }
 
 type Status = "construction" | "active" | "done" | "archived";
+type View = "kanban" | "list" | "gantt";
 
-const COLUMNS: { id: Status; label: string; icon: React.ComponentType<{ className?: string }>; accent: string }[] = [
-  { id: "construction", label: "En construction", icon: Hammer, accent: "border-amber-500/40 bg-amber-500/5" },
-  { id: "active", label: "En cours", icon: PlayCircle, accent: "border-blue-500/40 bg-blue-500/5" },
-  { id: "done", label: "Terminés", icon: CheckCircle2, accent: "border-emerald-500/40 bg-emerald-500/5" },
-  { id: "archived", label: "Archivés", icon: Archive, accent: "border-muted bg-muted/30" },
+const SECTIONS: { id: Status; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "construction", label: "En construction", icon: Hammer },
+  { id: "active", label: "En cours", icon: PlayCircle },
+  { id: "done", label: "Terminés", icon: CheckCircle2 },
+  { id: "archived", label: "Archivés", icon: Archive },
 ];
+
+const PRIMARY: Status[] = ["construction", "active"];
 
 export function CollabDashboard({ onSelect }: Props) {
   const listFn = useServerFn(listSpacesForDashboard);
   const setStatusFn = useServerFn(setSpaceLifecycleStatus);
   const qc = useQueryClient();
+
+  const [view, setView] = useState<View>("kanban");
+  const [collapsed, setCollapsed] = useState<Record<Status, boolean>>({
+    construction: false,
+    active: false,
+    done: true,
+    archived: true,
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["collab-dashboard-spaces"],
@@ -41,10 +65,9 @@ export function CollabDashboard({ onSelect }: Props) {
   });
 
   const setStatus = useMutation({
-    mutationFn: (vars: { spaceId: string; status: Status }) =>
-      setStatusFn({ data: vars }),
+    mutationFn: (vars: { spaceId: string; status: Status }) => setStatusFn({ data: vars }),
     onSuccess: (_r, vars) => {
-      toast.success(`Espace déplacé vers « ${COLUMNS.find((c) => c.id === vars.status)?.label} »`);
+      toast.success(`Espace déplacé vers « ${SECTIONS.find((c) => c.id === vars.status)?.label} »`);
       qc.invalidateQueries({ queryKey: ["collab-dashboard-spaces"] });
       qc.invalidateQueries({ queryKey: ["collab-tree"] });
     },
@@ -53,18 +76,15 @@ export function CollabDashboard({ onSelect }: Props) {
 
   type SpaceRow = NonNullable<typeof data>["spaces"][number];
   const grouped = useMemo(() => {
-    const map: Record<Status, SpaceRow[]> = {
-      construction: [],
-      active: [],
-      done: [],
-      archived: [],
-    };
+    const map: Record<Status, SpaceRow[]> = { construction: [], active: [], done: [], archived: [] };
     for (const s of data?.spaces ?? []) {
       const st: Status = (s.archived_at ? "archived" : ((s.lifecycle_status as Status) || "active"));
       map[st].push(s);
     }
     return map;
   }, [data]);
+
+  const allSpaces = data?.spaces ?? [];
 
   if (isLoading) {
     return (
@@ -74,91 +94,260 @@ export function CollabDashboard({ onSelect }: Props) {
     );
   }
 
-  return (
-    <div className="p-4 sm:p-6 space-y-4 overflow-y-auto">
-      <header>
-        <h2 className="text-xl font-semibold">Espaces collaboratifs</h2>
-        <p className="text-sm text-muted-foreground">
-          Suivi du cycle de vie de tes espaces — déplace une carte vers une autre colonne via le menu.
-        </p>
-      </header>
+  const renderCard = (s: SpaceRow, currentStatus: Status) => (
+    <article
+      key={s.id}
+      className="group cursor-pointer rounded-md border bg-card p-2.5 text-sm shadow-sm transition-all hover:shadow-md hover:border-primary/40 h-full flex flex-col"
+      onClick={() => onSelect(s.id)}
+    >
+      <div className="flex items-start gap-2">
+        <span className="text-base leading-none mt-0.5">{s.icon ?? "📁"}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-1">
+            <h4 className="flex-1 text-sm font-medium leading-snug truncate">{s.name}</h4>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-muted-foreground opacity-100 sm:opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">
+                  Déplacer vers
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {SECTIONS.filter((c) => c.id !== currentStatus).map((c) => (
+                  <DropdownMenuItem
+                    key={c.id}
+                    onClick={() => setStatus.mutate({ spaceId: s.id, status: c.id })}
+                  >
+                    <ArrowRight className="mr-2 h-3.5 w-3.5" />
+                    <c.icon className="mr-1 h-3.5 w-3.5" /> {c.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground truncate">
+            {s.type ? <span className="capitalize">{s.type}</span> : null}
+            {s.type && s.updated_at ? " · " : ""}
+            {s.updated_at
+              ? formatDistanceToNow(new Date(s.updated_at), { addSuffix: true, locale: fr })
+              : null}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
 
-      <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4">
-        {COLUMNS.map((col) => {
-          const items = grouped[col.id] ?? [];
-          const Icon = col.icon;
-          return (
-            <section
-              key={col.id}
-              className={cn("rounded-lg border p-2.5 flex flex-col min-h-[200px]", col.accent)}
-            >
-              <header className="flex items-center justify-between px-1 pb-2">
-                <div className="flex items-center gap-1.5 text-sm font-medium">
-                  <Icon className="h-4 w-4" />
-                  {col.label}
-                </div>
-                <span className="text-xs text-muted-foreground tabular-nums">{items.length}</span>
-              </header>
-              <div className="space-y-1.5 flex-1">
-                {items.length === 0 && (
-                  <div className="text-xs text-muted-foreground px-1 py-3 text-center">
-                    Aucun espace
+  return (
+    <div className="flex flex-1 flex-col p-3 sm:p-4 md:p-6 overflow-hidden">
+      <div className="mb-3 flex flex-wrap items-center gap-2 sm:mb-4 sm:gap-3">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-lg font-semibold tracking-tight sm:text-2xl">Espaces collaboratifs</h2>
+          <p className="text-xs text-muted-foreground sm:text-sm">
+            {allSpaces.length} espace{allSpaces.length > 1 ? "s" : ""} · 4 sections
+          </p>
+        </div>
+        <div className="inline-flex overflow-hidden rounded-md border">
+          <button
+            onClick={() => setView("list")}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1.5 text-xs transition-colors sm:gap-1.5 sm:px-3 sm:text-sm",
+              view === "list" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+            )}
+          >
+            <List className="h-4 w-4" />
+            <span className="hidden sm:inline">Liste</span>
+          </button>
+          <button
+            onClick={() => setView("kanban")}
+            className={cn(
+              "flex items-center gap-1 border-l px-2 py-1.5 text-xs transition-colors sm:gap-1.5 sm:px-3 sm:text-sm",
+              view === "kanban" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+            )}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            <span className="hidden sm:inline">Kanban</span>
+          </button>
+          <button
+            onClick={() => setView("gantt")}
+            className={cn(
+              "flex items-center gap-1 border-l px-2 py-1.5 text-xs transition-colors sm:gap-1.5 sm:px-3 sm:text-sm",
+              view === "gantt" ? "bg-primary text-primary-foreground" : "hover:bg-accent",
+            )}
+          >
+            <GanttChart className="h-4 w-4" />
+            <span className="hidden sm:inline">Gantt</span>
+          </button>
+        </div>
+      </div>
+
+      {view === "kanban" && (
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto pb-2">
+          {SECTIONS.map((col) => {
+            const items = grouped[col.id] ?? [];
+            const isPrimary = PRIMARY.includes(col.id);
+            const isCollapsed = collapsed[col.id];
+            const Icon = col.icon;
+            return (
+              <section
+                key={col.id}
+                className={cn(
+                  "flex flex-col rounded-xl border bg-muted/30",
+                  isPrimary && "ring-1 ring-primary/10",
+                )}
+              >
+                <header className="flex items-center gap-2 border-b bg-background/60 px-3 py-2">
+                  <button
+                    onClick={() => setCollapsed((c) => ({ ...c, [col.id]: !c[col.id] }))}
+                    className="flex items-center gap-1.5 text-left"
+                  >
+                    {isCollapsed ? (
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    )}
+                    <Icon className="h-4 w-4" />
+                    <h3 className={cn("font-semibold", isPrimary ? "text-sm sm:text-base" : "text-sm")}>
+                      {col.label}
+                    </h3>
+                  </button>
+                  <span className="ml-auto text-xs text-muted-foreground">{items.length}</span>
+                </header>
+                {!isCollapsed && (
+                  <div className="grid gap-2 p-2 auto-rows-fr grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {items.map((s) => renderCard(s, col.id))}
+                    {items.length === 0 && (
+                      <div className="col-span-full rounded-md border border-dashed py-4 text-center text-xs text-muted-foreground">
+                        Aucun espace
+                      </div>
+                    )}
                   </div>
                 )}
-                {items.map((s) => (
-                  <article
-                    key={s.id}
-                    className="group rounded-md border bg-background/80 hover:bg-background hover:shadow-sm transition p-2 flex items-start gap-2"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onSelect(s.id)}
-                      className="flex-1 min-w-0 text-left"
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      {view === "list" && (
+        <div className="flex-1 overflow-y-auto rounded-xl border bg-card divide-y">
+          {allSpaces.length === 0 && (
+            <div className="py-8 text-center text-sm text-muted-foreground">Aucun espace</div>
+          )}
+          {allSpaces.map((s) => {
+            const st: Status = s.archived_at
+              ? "archived"
+              : ((s.lifecycle_status as Status) || "active");
+            const sec = SECTIONS.find((c) => c.id === st)!;
+            const Icon = sec.icon;
+            return (
+              <div
+                key={s.id}
+                className="flex items-center gap-3 px-3 py-2 hover:bg-accent/50 cursor-pointer"
+                onClick={() => onSelect(s.id)}
+              >
+                <span className="text-base">{s.icon ?? "📁"}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{s.name}</div>
+                  <div className="text-[11px] text-muted-foreground truncate">
+                    {s.type && <span className="capitalize">{s.type} · </span>}
+                    {s.updated_at
+                      ? formatDistanceToNow(new Date(s.updated_at), { addSuffix: true, locale: fr })
+                      : null}
+                  </div>
+                </div>
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Icon className="h-3.5 w-3.5" /> {sec.label}
+                </span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-base leading-none">{s.icon ?? "📁"}</span>
-                        <span className="text-sm font-medium truncate">{s.name}</span>
-                      </div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                        {s.type ? <span className="capitalize">{s.type}</span> : null}
-                        {s.type && s.updated_at ? " · " : ""}
-                        {s.updated_at
-                          ? formatDistanceToNow(new Date(s.updated_at), { addSuffix: true, locale: fr })
-                          : null}
-                      </div>
-                    </button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 opacity-60 hover:opacity-100 shrink-0"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreVertical className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-44">
-                        <DropdownMenuLabel className="text-xs">Déplacer vers</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {COLUMNS.filter((c) => c.id !== col.id).map((c) => (
-                          <DropdownMenuItem
-                            key={c.id}
-                            onClick={() => setStatus.mutate({ spaceId: s.id, status: c.id })}
-                          >
-                            <c.icon className="h-3.5 w-3.5 mr-2" />
-                            {c.label}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </article>
-                ))}
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenuLabel className="text-xs">Déplacer vers</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {SECTIONS.filter((c) => c.id !== st).map((c) => (
+                      <DropdownMenuItem
+                        key={c.id}
+                        onClick={() => setStatus.mutate({ spaceId: s.id, status: c.id })}
+                      >
+                        <c.icon className="mr-2 h-3.5 w-3.5" /> {c.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            </section>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
+
+      {view === "gantt" && (
+        <div className="flex-1 overflow-y-auto rounded-xl border bg-card p-3 space-y-3">
+          {SECTIONS.map((col) => {
+            const items = grouped[col.id] ?? [];
+            if (items.length === 0) return null;
+            const Icon = col.icon;
+            return (
+              <div key={col.id}>
+                <div className="flex items-center gap-1.5 mb-1.5 text-sm font-medium">
+                  <Icon className="h-4 w-4" /> {col.label}
+                  <span className="text-xs text-muted-foreground">({items.length})</span>
+                </div>
+                <div className="space-y-1.5 pl-5">
+                  {items.map((s) => {
+                    const updated = s.updated_at ? new Date(s.updated_at) : null;
+                    const now = Date.now();
+                    const ageDays = updated
+                      ? Math.max(1, Math.min(60, (now - updated.getTime()) / 86400000))
+                      : 30;
+                    const widthPct = Math.max(8, 100 - (ageDays / 60) * 92);
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => onSelect(s.id)}
+                        className="w-full text-left group"
+                      >
+                        <div className="flex items-center gap-2 text-xs">
+                          <span className="w-44 truncate font-medium">
+                            {s.icon ?? "📁"} {s.name}
+                          </span>
+                          <div className="flex-1 h-4 rounded bg-muted relative overflow-hidden">
+                            <div
+                              className="absolute inset-y-0 left-0 bg-primary/40 group-hover:bg-primary/60 transition-colors"
+                              style={{ width: `${widthPct}%` }}
+                            />
+                          </div>
+                          <span className="w-24 text-right text-muted-foreground tabular-nums">
+                            {updated
+                              ? formatDistanceToNow(updated, { addSuffix: true, locale: fr })
+                              : "—"}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          {allSpaces.length === 0 && (
+            <div className="py-8 text-center text-sm text-muted-foreground">Aucun espace</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
