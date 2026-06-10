@@ -58,6 +58,7 @@ export function GroupFormDialog({
 }: Props) {
   const { user } = useAuth();
   const createFn = useServerFn(createContactGroup);
+  const qc = useQueryClient();
   const listSpacesFn = useServerFn(listCollabSpacesForGroups);
   const listSendersFn = useServerFn(listWhatsAppSendersForSpace);
 
