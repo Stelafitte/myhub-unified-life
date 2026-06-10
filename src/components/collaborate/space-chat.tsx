@@ -292,39 +292,51 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
             messages.map((m) => {
               const isImported = (m.metadata as { is_imported?: boolean } | null)?.is_imported === true;
               const isAi = m.type === "ai";
-              const isMine = m.user_id === currentUserId && !isImported;
+              const isMine = m.user_id === currentUserId && !isImported && !isAi;
               const atts = ((m.metadata as { attachments?: Attachment[] } | null)?.attachments ?? []);
+              const palette = bubblePalette(m.sender_name ?? "—");
               return (
                 <div
                   key={m.id}
-                  className={cn(
-                    "group max-w-[80%] rounded-lg px-3 py-2 text-sm",
-                    isMine ? "ml-auto bg-primary text-primary-foreground" : "bg-background border",
-                  )}
+                  className={cn("group flex", isMine ? "justify-end" : "justify-start")}
                 >
-                  <div className="flex items-center gap-1.5 text-xs opacity-80 mb-0.5">
-                    {isImported && <Smartphone className="h-3 w-3" />}
-                    {isAi && <Sparkles className="h-3 w-3" />}
-                    <span className="font-medium">{m.sender_name ?? (isMine ? "Vous" : "—")}</span>
-                    <span>·</span>
-                    <span>
-                      {formatDistanceToNow(new Date(m.message_at), { addSuffix: true, locale: fr })}
-                    </span>
-                    {isMine && (
-                      <button
-                        type="button"
-                        onClick={() => del.mutate(m.id)}
-                        className="opacity-0 group-hover:opacity-100 ml-1 hover:text-destructive"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                  <div
+                    className={cn(
+                      "max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm",
+                      isMine
+                        ? "bg-primary text-primary-foreground rounded-br-sm"
+                        : "rounded-bl-sm",
                     )}
+                    style={isMine ? undefined : { backgroundColor: palette.bg, color: palette.fg }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] opacity-90 mb-0.5">
+                      {isImported && <Smartphone className="h-3 w-3" />}
+                      {isAi && <Sparkles className="h-3 w-3" />}
+                      <span className="font-semibold">{m.sender_name ?? (isMine ? "Vous" : "—")}</span>
+                      <span>·</span>
+                      <span>
+                        {formatDistanceToNow(new Date(m.message_at), { addSuffix: true, locale: fr })}
+                      </span>
+                      {isMine && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm("Supprimer ce message ?")) del.mutate(m.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 ml-1 hover:text-destructive"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="whitespace-pre-wrap break-words leading-snug">
+                      {renderContent(m.content)}
+                    </div>
+                    {atts.map((a, i) => (
+                      <AttachmentChip key={i} a={a} />
+                    ))}
                   </div>
-                  <div className="whitespace-pre-wrap break-words">{renderContent(m.content)}</div>
-                  {atts.map((a, i) => (
-                    <AttachmentChip key={i} a={a} />
-                  ))}
                 </div>
               );
             })
