@@ -19,6 +19,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SurveyTokenRouteImport } from './routes/survey.$token'
 import { Route as SpaceTokenRouteImport } from './routes/space.$token'
 import { Route as PollTokenRouteImport } from './routes/poll.$token'
+import { Route as JoinTokenRouteImport } from './routes/join.$token'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AuthenticatedWhatsappRouteImport } from './routes/_authenticated/whatsapp'
 import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
@@ -99,6 +100,11 @@ const SpaceTokenRoute = SpaceTokenRouteImport.update({
 const PollTokenRoute = PollTokenRouteImport.update({
   id: '/poll/$token',
   path: '/poll/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JoinTokenRoute = JoinTokenRouteImport.update({
+  id: '/join/$token',
+  path: '/join/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
@@ -299,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/tasks': typeof AuthenticatedTasksRoute
   '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/join/$token': typeof JoinTokenRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
   '/survey/$token': typeof SurveyTokenRoute
@@ -342,6 +349,7 @@ export interface FileRoutesByTo {
   '/tasks': typeof AuthenticatedTasksRoute
   '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/join/$token': typeof JoinTokenRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
   '/survey/$token': typeof SurveyTokenRoute
@@ -387,6 +395,7 @@ export interface FileRoutesById {
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
   '/_authenticated/whatsapp': typeof AuthenticatedWhatsappRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/join/$token': typeof JoinTokenRoute
   '/poll/$token': typeof PollTokenRoute
   '/space/$token': typeof SpaceTokenRoute
   '/survey/$token': typeof SurveyTokenRoute
@@ -432,6 +441,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/whatsapp'
     | '/email/unsubscribe'
+    | '/join/$token'
     | '/poll/$token'
     | '/space/$token'
     | '/survey/$token'
@@ -475,6 +485,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/whatsapp'
     | '/email/unsubscribe'
+    | '/join/$token'
     | '/poll/$token'
     | '/space/$token'
     | '/survey/$token'
@@ -519,6 +530,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tasks'
     | '/_authenticated/whatsapp'
     | '/email/unsubscribe'
+    | '/join/$token'
     | '/poll/$token'
     | '/space/$token'
     | '/survey/$token'
@@ -546,6 +558,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   UnsubscribeRoute: typeof UnsubscribeRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  JoinTokenRoute: typeof JoinTokenRoute
   PollTokenRoute: typeof PollTokenRoute
   SpaceTokenRoute: typeof SpaceTokenRoute
   SurveyTokenRoute: typeof SurveyTokenRoute
@@ -631,6 +644,13 @@ declare module '@tanstack/react-router' {
       path: '/poll/$token'
       fullPath: '/poll/$token'
       preLoaderRoute: typeof PollTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/join/$token': {
+      id: '/join/$token'
+      path: '/join/$token'
+      fullPath: '/join/$token'
+      preLoaderRoute: typeof JoinTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/email/unsubscribe': {
@@ -947,6 +967,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   UnsubscribeRoute: UnsubscribeRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  JoinTokenRoute: JoinTokenRoute,
   PollTokenRoute: PollTokenRoute,
   SpaceTokenRoute: SpaceTokenRoute,
   SurveyTokenRoute: SurveyTokenRoute,
@@ -964,13 +985,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

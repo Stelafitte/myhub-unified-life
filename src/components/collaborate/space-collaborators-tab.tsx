@@ -1,11 +1,27 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Users, Loader2, Mail, CircleDot, Clock, Send, MailPlus } from "lucide-react";
+import {
+  Users,
+  Loader2,
+  Mail,
+  CircleDot,
+  Clock,
+  Send,
+  MailPlus,
+  Link2,
+  Copy,
+  RefreshCw,
+  Check,
+  X,
+  UserPlus,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +44,12 @@ import {
   resendSpaceGuestInvitation,
   notifySpaceGuests,
 } from "@/lib/collab.functions";
+import {
+  getJoinLink,
+  toggleJoinLink,
+  listJoinRequests,
+  reviewJoinRequest,
+} from "@/lib/collab-join.functions";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -167,18 +189,24 @@ export function SpaceCollaboratorsTab({ spaceId }: { spaceId: string }) {
 
   if (rows.length === 0) {
     return (
-      <div className="p-8 text-center text-sm text-muted-foreground space-y-2">
-        <Users className="h-8 w-8 mx-auto text-muted-foreground/50" />
-        <p>Aucun collaborateur pour l'instant.</p>
-        <p className="text-xs">
-          Liez un groupe de contacts à ce projet ou ajoutez des invités via le bouton « Partager ».
-        </p>
+      <div className="p-3 space-y-3">
+        <JoinLinkAndRequests spaceId={spaceId} />
+        <div className="p-8 text-center text-sm text-muted-foreground space-y-2">
+          <Users className="h-8 w-8 mx-auto text-muted-foreground/50" />
+          <p>Aucun collaborateur pour l'instant.</p>
+          <p className="text-xs">
+            Liez un groupe de contacts à ce projet, ajoutez des invités via « Partager », ou
+            partagez le lien d'invitation ci-dessus.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="p-3 space-y-3">
+      <JoinLinkAndRequests spaceId={spaceId} />
+
       <div className="flex items-center gap-2">
         <Users className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-semibold">Collaborateurs</h3>
@@ -193,6 +221,7 @@ export function SpaceCollaboratorsTab({ spaceId }: { spaceId: string }) {
         Membres des groupes liés + invités. L'envoi d'email nécessite que l'espace soit public
         (bouton « Partager »).
       </p>
+
 
       <div className="rounded-md border">
         <Table>
@@ -355,3 +384,183 @@ export function SpaceCollaboratorsTab({ spaceId }: { spaceId: string }) {
     </div>
   );
 }
+
+function JoinLinkAndRequests({ spaceId }: { spaceId: string }) {
+  const qc = useQueryClient();
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+
+  const getFn = useServerFn(getJoinLink);
+  const toggleFn = useServerFn(toggleJoinLink);
+  const listFn = useServerFn(listJoinRequests);
+  const reviewFn = useServerFn(reviewJoinRequest);
+
+  const linkKey = ["join-link", spaceId];
+  const reqKey = ["join-requests", spaceId];
+
+  const { data: link } = useQuery({
+    queryKey: linkKey,
+    queryFn: () => getFn({ data: { spaceId } }),
+    refetchOnMount: "always",
+  });
+  const { data: reqs } = useQuery({
+    queryKey: reqKey,
+    queryFn: () => listFn({ data: { spaceId, status: "pending" } }),
+    refetchInterval: 30000,
+  });
+
+  const [busy, setBusy] = useState(false);
+  const [reviewing, setReviewing] = useState<string | null>(null);
+
+  const url =
+    link?.joinToken && link.joinEnabled ? `${baseUrl}/join/${link.joinToken}` : "";
+
+  const handleToggle = async (enabled: boolean) => {
+    setBusy(true);
+    try {
+      await toggleFn({ data: { spaceId, enabled } });
+      qc.invalidateQueries({ queryKey: linkKey });
+      toast.success(enabled ? "Lien activé" : "Lien désactivé");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    setBusy(true);
+    try {
+      await toggleFn({ data: { spaceId, enabled: true, regenerate: true } });
+      qc.invalidateQueries({ queryKey: linkKey });
+      toast.success("Nouveau lien généré — l'ancien n'est plus actif");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    toast.success("Lien copié");
+  };
+
+  const handleReview = async (id: string, decision: "approve" | "reject") => {
+    setReviewing(id);
+    try {
+      const r = await reviewFn({
+        data: { requestId: id, decision, appOrigin: baseUrl || undefined },
+      });
+      if (r.success) {
+        toast.success(
+          decision === "approve"
+            ? r.emailSent
+              ? "Approuvé — email envoyé"
+              : "Approuvé (email non envoyé)"
+            : "Refusé",
+        );
+        qc.invalidateQueries({ queryKey: reqKey });
+        qc.invalidateQueries({ queryKey: ["space-collaborators", spaceId] });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erreur");
+    } finally {
+      setReviewing(null);
+    }
+  };
+
+  const pending = reqs?.requests ?? [];
+
+  return (
+    <div className="space-y-3">
+      <Card className="p-3 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold">Lien d'invitation</h3>
+          </div>
+          <Switch
+            checked={!!link?.joinEnabled}
+            onCheckedChange={handleToggle}
+            disabled={busy}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Une personne ouvre ce lien, remplit son prénom / nom / email, et sa demande s'affiche
+          ci-dessous en attente de votre validation.
+        </p>
+        {link?.joinEnabled && url && (
+          <div className="flex items-center gap-2">
+            <Input value={url} readOnly className="h-8 text-xs font-mono" />
+            <Button size="icon" variant="outline" className="h-8 w-8" onClick={handleCopy} title="Copier">
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-8 w-8"
+              onClick={handleRegenerate}
+              disabled={busy}
+              title="Régénérer (invalide l'ancien)"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      {pending.length > 0 && (
+        <Card className="p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <UserPlus className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold">Demandes en attente</h3>
+            <Badge variant="secondary">{pending.length}</Badge>
+          </div>
+          <div className="divide-y">
+            {pending.map((r) => (
+              <div key={r.id} className="flex items-center justify-between py-2 gap-2">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">
+                    {r.first_name} {r.last_name}
+                  </div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    {r.email} ·{" "}
+                    {formatDistanceToNow(new Date(r.created_at), { addSuffix: true, locale: fr })}
+                  </div>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="h-7"
+                    disabled={reviewing === r.id}
+                    onClick={() => handleReview(r.id, "approve")}
+                  >
+                    {reviewing === r.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Check className="h-3 w-3" />
+                    )}
+                    <span className="ml-1">Approuver</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7"
+                    disabled={reviewing === r.id}
+                    onClick={() => handleReview(r.id, "reject")}
+                  >
+                    <X className="h-3 w-3" />
+                    <span className="ml-1">Refuser</span>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+

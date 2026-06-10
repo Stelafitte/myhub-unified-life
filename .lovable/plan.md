@@ -1,82 +1,68 @@
-# Plan — Module Note de frais complet
+# Lien d'invitation public + validation owner
 
-Gros chantier livré en une fois. Je ne touche à aucun autre module ; je conserve la dialog IA actuelle (`ExpenseReportDialog`) qui restera utilisable depuis l'assistant, mais ajoute un module dédié à `/expenses`.
+Tout est intégré dans l'onglet **Collaborateurs** de chaque projet — aucun nouvel onglet, aucune confusion avec les Groupes globaux.
 
-## 1. Migration Supabase
+## Flux utilisateur
 
-Tables `expense_reports`, `expense_items`, `expense_templates` (schéma exact du prompt) avec :
-- `GRANT SELECT, INSERT, UPDATE, DELETE … TO authenticated` + `GRANT ALL TO service_role` (obligatoire sinon Data API renvoie permission denied)
-- RLS `auth.uid() = user_id` (FOR ALL split en USING + WITH CHECK)
-- Trigger `set_updated_at` sur `expense_reports`
-- Bucket Storage privé `expense-receipts` + policies par utilisateur (préfixe `userId/…`) pour justificatifs et modèles uploadés
+```text
+Owner                          Personne externe              Owner
+─────                          ────────────────              ─────
+1. Active "Lien d'invitation"  2. Ouvre le lien public  →   4. Voit la demande
+   → copie l'URL                  /join/<token>                en attente (badge +
+                                  Voit : nom du projet,        email reçu)
+                                  description, icône           Bouton "Approuver"
+                                  Formulaire :                 ou "Refuser"
+                                  prénom / nom / email     →   5. Si approuvé :
+                                  → soumet                       email envoyé
+                                                                 avec lien d'accès
+```
 
-## 2. Route `/expenses` (sous `_authenticated`)
+## Base de données
 
-`src/routes/_authenticated/expenses.tsx` :
-- Liste des notes : titre, objet, date, statut (badge coloré Brouillon/Soumise/Approuvée/Rejetée/Payée), total
-- Boutons « + Nouvelle note » et « Importer un modèle »
-- Onglet « Modèles » : upload + liste des modèles analysés
-- Lien ajouté à la sidebar (`app-sidebar.tsx`)
+**`collab_spaces`** — 2 colonnes ajoutées :
+- `public_join_token` (text, unique, nullable) — token long random
+- `public_join_enabled` (boolean, default false)
 
-## 3. Composants
+**`collab_join_requests`** — nouvelle table :
+- `id`, `space_id`, `first_name`, `last_name`, `email`, `status` (`pending`/`approved`/`rejected`), `created_at`, `reviewed_at`, `reviewed_by`, `guest_id` (rempli après approbation)
+- RLS : owner du space lit/met à jour ses demandes ; insertion publique limitée via server fn (admin client, après vérif token).
 
-- `src/components/expenses/expense-report-form.tsx` — formulaire complet :
-  - **Identification** (en dur, éditable) : Dr Stéphane LAFITTE / PU-PH / UMCV / CHU Bordeaux / RPPS optionnel
-  - **Mission** : intitulé, cadre (select), organisme, n° mission
-  - **Tableau dépenses** : ligne éditable avec date / catégorie (icônes) / description / justificatif (upload) / TTC / TVA% / HT (auto)
-  - Cas véhicule perso : km + barème 2024 (0.426 €/km < 5000 km) → montant auto
-  - Drag & drop réordonnancement (dnd-kit)
-  - Upload justificatif → Storage → lien `documents`
-  - **Récap** : total auto, avances, à rembourser, mode (virement/chèque), IBAN
-  - **Signature** : Bordeaux / aujourd'hui / Dr Stéphane LAFITTE
-  - **PJ** : liste numérotée + compteur + miniature
-- `src/components/expenses/expenses-list.tsx`
-- `src/components/expenses/import-from-email-dialog.tsx` — filtre emails par mots-clés, sélection, appel `extractExpenseFromEmail`, validation manuelle avant ajout
-- `src/components/expenses/template-upload-dialog.tsx` + liste modèles
+## Server functions (`src/lib/collab-join.functions.ts`)
 
-## 4. Server functions `src/lib/expense.functions.ts`
+| Fonction | Auth | Rôle |
+|---|---|---|
+| `getSpaceByJoinToken` | public | retourne `{ name, description, icon, color }` pour la page publique |
+| `submitJoinRequest` | public | crée une `pending`, envoie email à l'owner |
+| `listJoinRequests` | owner | liste des demandes (pour Collaborateurs) |
+| `reviewJoinRequest` | owner | approuve/refuse ; si approuvé → crée `collab_guests` (viewer), envoie email d'accès |
+| `toggleJoinLink` | owner | active/désactive + (re)génère le token |
 
-Toutes via `createServerFn` + `requireSupabaseAuth` :
-- CRUD : `listReports`, `getReport`, `createReport`, `updateReport`, `deleteReport`, `addItem`, `updateItem`, `deleteItem`, `reorderItems`
-- `extractExpenseFromEmail({ emailId })` — IA `google/gemini-3-flash-preview` lit body + PJ images, retourne `{ date, amount_ttc, category, description, vendor, tva_rate }` ; jamais d'insert auto
-- `analyzeExpenseTemplate({ templateId })` — analyse fichier (texte extrait), IA détecte champs/colonnes/zones, écrit `ai_mapping`
-- `fillExpenseTemplate({ reportId, templateId })` — applique mapping :
-  - Excel → SheetJS (`xlsx`)
-  - Word → `docx`
-  - PDF → `pdf-lib`
-  - Retourne `{ filename, mime, base64 }`
-- `generateExpensePDF({ reportId })` — jsPDF (déjà installé) : en-tête, identification, mission, tableau dépenses, récap, signature (Bordeaux, date, Dr S. LAFITTE), liste numérotée des PJ. Retourne base64.
-- Sauvegarde finalisée → insert dans `documents` (`source_type='expense'`).
+## UI
 
-## 5. Dépendances
+**`space-collaborators-tab.tsx`** — 2 sections ajoutées en haut :
 
-À ajouter : `xlsx`, `pdf-lib`, `docx`, `@dnd-kit/core`, `@dnd-kit/sortable`. `jspdf` et `jszip` déjà installés.
+1. **Lien d'invitation public** (carte repliable)
+   - Switch on/off
+   - Champ lecture seule avec l'URL + bouton Copier
+   - Bouton "Régénérer le lien" (invalide l'ancien)
 
-## 6. Module Documents
+2. **Demandes en attente** (n'apparaît que s'il y en a)
+   - Badge avec compteur
+   - Liste : Prénom Nom · email · date · boutons Approuver / Refuser
 
-Filtre « Notes de frais » via `source_type='expense'` — léger ajustement non intrusif.
+**Page publique `src/routes/join.$token.tsx`** (similaire à `space.$token.tsx`)
+- Hero avec icône/nom/description du projet
+- Formulaire prénom + nom + email
+- Confirmation : "Demande envoyée — vous recevrez un email après validation"
+- Gère token désactivé / projet introuvable
 
-## Détails techniques
+## Emails (templates React Email)
 
-- Storage : bucket privé `expense-receipts`, chemins `{userId}/{reportId}/{itemId}.ext` et `{userId}/templates/{templateId}.ext`
-- Imports server-only (`xlsx`, `pdf-lib`, `docx`) **dans le handler** via `await import(...)` pour éviter pollution du bundle client
-- `attachSupabaseAuth` déjà configuré (modules existants l'utilisent)
-- Dialog IA actuelle inchangée — coexiste avec ce nouveau module
+- **`space-join-request`** → owner : "Nouvelle demande pour [projet]" + bouton "Voir les demandes"
+- **`space-join-approved`** → demandeur : "Votre accès à [projet] est validé" + lien d'accès personnel (réutilise le système `collab_guests` existant)
 
-## Fichiers créés / modifiés
+## Hors scope (volontairement)
 
-**Créés** :
-- `supabase/migrations/<timestamp>_expense_reports.sql`
-- `src/routes/_authenticated/expenses.tsx`
-- `src/components/expenses/expense-report-form.tsx`
-- `src/components/expenses/expenses-list.tsx`
-- `src/components/expenses/import-from-email-dialog.tsx`
-- `src/components/expenses/template-upload-dialog.tsx`
-- `src/components/expenses/category-icons.tsx`
-- `src/lib/expense.functions.ts`
-
-**Modifiés** :
-- `src/components/app-sidebar.tsx` (entrée « Notes de frais »)
-- `src/components/documents/…` (filtre source_type='expense', minimal)
-
-Confirme et je lance migration + code.
+- Pas de lien nominatif (une seule URL publique par projet, comme demandé)
+- Pas de rattachement à un groupe de contacts existant — la personne devient un `collab_guest` (viewer) propre au projet, conformément au choix "intégré dans Collaborateurs uniquement"
+- Le owner peut promouvoir en "contributor" via les actions existantes après approbation

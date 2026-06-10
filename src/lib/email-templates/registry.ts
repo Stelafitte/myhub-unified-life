@@ -1,6 +1,8 @@
 import type { ComponentType } from 'react'
 import { template as spaceInvitation } from './space-invitation'
 import { template as spaceUpdate } from './space-update'
+import { template as spaceJoinRequest } from './space-join-request'
+import { template as spaceJoinApproved } from './space-join-approved'
 
 export interface TemplateEntry {
   component: ComponentType<any>
@@ -18,4 +20,6 @@ export interface TemplateEntry {
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'space-invitation': spaceInvitation,
   'space-update': spaceUpdate,
+  'space-join-request': spaceJoinRequest,
+  'space-join-approved': spaceJoinApproved,
 }
