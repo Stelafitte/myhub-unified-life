@@ -150,6 +150,19 @@ export function CollabDashboard({ onSelect }: Props) {
                       <c.icon className="mr-1 h-3.5 w-3.5" /> {c.label}
                     </DropdownMenuItem>
                   ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={async () => {
+                      const ok = await confirmDialog(
+                        `Supprimer l'espace « ${s.name} » et tout son contenu ?`,
+                        { destructive: true, confirmLabel: "Supprimer", cancelLabel: "Annuler" },
+                      );
+                      if (ok) deleteSpaceMut.mutate(s.id);
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-3.5 w-3.5" /> Supprimer
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
