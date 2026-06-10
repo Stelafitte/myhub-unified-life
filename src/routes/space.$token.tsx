@@ -17,6 +17,7 @@ import {
   Users,
   Send,
   Lock,
+  Trash2,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
