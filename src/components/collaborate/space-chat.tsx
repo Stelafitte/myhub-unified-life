@@ -341,7 +341,7 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
                           onClick={() => {
                             if (confirm("Supprimer ce message ?")) del.mutate(m.id);
                           }}
-                          className="opacity-0 group-hover:opacity-100 ml-1 hover:text-destructive"
+                          className="ml-1 opacity-70 hover:opacity-100 hover:text-destructive transition"
                           title="Supprimer"
                         >
                           <Trash2 className="h-3 w-3" />
