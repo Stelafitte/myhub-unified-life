@@ -581,9 +581,20 @@ function ContactsPage() {
                 placeholder="Nom, email, organisation…" withMic
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="h-8 pl-8"
+                className="h-8 pl-8 pr-8"
               />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Effacer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
+
             <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
               <Select value={sourceFilter} onValueChange={(v) => setSourceFilter(v as typeof sourceFilter)}>
                 <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs"><SelectValue placeholder="Source" /></SelectTrigger>
