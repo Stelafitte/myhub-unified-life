@@ -310,7 +310,8 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
             messages.map((m) => {
               const isImported = (m.metadata as { is_imported?: boolean } | null)?.is_imported === true;
               const isAi = m.type === "ai";
-              const isMine = m.user_id === currentUserId && !isImported && !isAi;
+              const isGuest = m.type === "guest";
+              const isMine = m.user_id === currentUserId && !isImported && !isAi && !isGuest;
               const atts = ((m.metadata as { attachments?: Attachment[] } | null)?.attachments ?? []);
               const palette = bubblePalette(m.sender_name ?? "—");
               return (
@@ -341,7 +342,7 @@ export function SpaceChat({ spaceId, currentUserId }: Props) {
                           onClick={() => {
                             if (confirm("Supprimer ce message ?")) del.mutate(m.id);
                           }}
-                          className="opacity-0 group-hover:opacity-100 ml-1 hover:text-destructive"
+                          className="ml-1 opacity-70 hover:opacity-100 hover:text-destructive transition"
                           title="Supprimer"
                         >
                           <Trash2 className="h-3 w-3" />
