@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -57,6 +58,7 @@ export function GroupFormDialog({
 }: Props) {
   const { user } = useAuth();
   const createFn = useServerFn(createContactGroup);
+  const qc = useQueryClient();
   const listSpacesFn = useServerFn(listCollabSpacesForGroups);
   const listSendersFn = useServerFn(listWhatsAppSendersForSpace);
 
@@ -171,6 +173,8 @@ export function GroupFormDialog({
       };
       await createFn({ data: payload });
       toast.success("Groupe créé");
+      qc.invalidateQueries({ queryKey: ["space-collaborators"] });
+      qc.invalidateQueries({ queryKey: ["contact-groups"] });
       onCreated();
       onOpenChange(false);
     } catch (e) {

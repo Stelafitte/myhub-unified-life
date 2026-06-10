@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -66,11 +67,16 @@ export function GroupMembersDialog({
   onChanged: () => void;
 }) {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const getFn = useServerFn(getGroupMembers);
   const removeFn = useServerFn(removeGroupMember);
   const syncFn = useServerFn(syncSmartGroup);
   const updateFn = useServerFn(updateContactGroup);
   const addFn = useServerFn(addGroupMembers);
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["space-collaborators"] });
+    qc.invalidateQueries({ queryKey: ["contact-groups"] });
+  };
   const [head, setHead] = useState<GroupHead | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
@@ -149,6 +155,7 @@ export function GroupMembersDialog({
     try {
       await removeFn({ data: { groupId, memberId } });
       setMembers((p) => p.filter((m) => m.id !== memberId));
+      invalidateAll();
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -162,6 +169,7 @@ export function GroupMembersDialog({
       const r = await syncFn({ data: { groupId } });
       toast.success(`Recalculé : +${r.added} / −${r.removed}`);
       await load();
+      invalidateAll();
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -187,6 +195,7 @@ export function GroupMembersDialog({
       toast.success("Groupe mis à jour");
       setEditing(false);
       await load();
+      invalidateAll();
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -206,6 +215,7 @@ export function GroupMembersDialog({
         },
       });
       await load();
+      invalidateAll();
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
@@ -235,6 +245,7 @@ export function GroupMembersDialog({
       });
       setExternalInput("");
       await load();
+      invalidateAll();
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erreur");
