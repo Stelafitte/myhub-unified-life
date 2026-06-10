@@ -591,10 +591,10 @@ function ChatPanel({
             return (
               <div
                 key={m.id}
-                className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                className={`group flex ${isMine ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[78%] rounded-2xl px-3 py-2 shadow-sm ${
+                  className={`relative max-w-[78%] rounded-2xl px-3 py-2 shadow-sm ${
                     isMine
                       ? "bg-primary text-primary-foreground rounded-br-sm"
                       : "rounded-bl-sm"
@@ -614,12 +614,24 @@ function ChatPanel({
                     {m.content}
                   </div>
                   <div
-                    className={`text-[10px] mt-1 ${
-                      isMine ? "opacity-80 text-right" : "opacity-70"
+                    className={`flex items-center gap-1 text-[10px] mt-1 ${
+                      isMine ? "opacity-80 justify-end" : "opacity-70"
                     }`}
                   >
-                    {format(new Date(m.message_at), "d MMM HH:mm", { locale: fr })}
-                    {m.type === "guest" && !isMine ? " · invité" : ""}
+                    <span>
+                      {format(new Date(m.message_at), "d MMM HH:mm", { locale: fr })}
+                    </span>
+                    {m.type === "guest" && !isMine ? <span>· invité</span> : null}
+                    {isMine && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(m.id)}
+                        className="opacity-0 group-hover:opacity-100 ml-1 hover:opacity-100 hover:text-destructive transition"
+                        title="Supprimer mon message"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
