@@ -158,8 +158,94 @@ export const syncOutlookContacts = createServerFn({ method: "POST" })
       }
     }
 
+    // Also pull from /me/people — covers contacts that exist only as
+    // "auto-suggested" entries in Outlook (frequent correspondents like
+    // "Villacèque" that never made it into a contactFolder)
+    type Person = {
+      id: string;
+      displayName?: string;
+      givenName?: string;
+      surname?: string;
+      companyName?: string;
+      jobTitle?: string;
+      scoredEmailAddresses?: Array<{ address?: string }>;
+      phones?: Array<{ number?: string }>;
+    };
+    let peopleNext: string | null = `${GRAPH}/me/people?$top=100`;
+    let peopleLoops = 0;
+    while (peopleNext && peopleLoops < 20) {
+      peopleLoops += 1;
+      const res: Response = await fetch(peopleNext, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const body: { value?: Person[]; ["@odata.nextLink"]?: string; error?: { message?: string } } =
+        await res.json().catch(() => ({}));
+      if (!res.ok) {
+        errors.push(`people (${res.status}): ${body.error?.message ?? "unknown"}`);
+        break;
+      }
+      for (const p of body.value ?? []) {
+        try {
+          const emails = (p.scoredEmailAddresses ?? []).map((e) => e.address).filter(Boolean) as string[];
+          if (!emails.length) continue; // skip people without an email — not useful
+          const phones = (p.phones ?? []).map((x) => x.number).filter(Boolean) as string[];
+          const primaryEmail = emails[0];
+
+          let existing: ExistingContact | null = null;
+          const { data: match } = await supabaseAdmin
+            .from("contacts")
+            .select("id, sources, external_ids")
+            .eq("user_id", userId)
+            .contains("email", [primaryEmail])
+            .maybeSingle();
+          existing = (match as ExistingContact | null) ?? null;
+          if (!existing) {
+            const { data: byId } = await supabaseAdmin
+              .from("contacts")
+              .select("id, sources, external_ids")
+              .eq("user_id", userId)
+              .contains("external_ids", { outlook_people: p.id })
+              .maybeSingle();
+            existing = (byId as ExistingContact | null) ?? null;
+          }
+
+          if (existing) {
+            const mergedSources = Array.from(new Set([...(existing.sources ?? []), "outlook"]));
+            const mergedExt = { ...(existing.external_ids ?? {}), outlook_people: p.id };
+            await supabaseAdmin
+              .from("contacts")
+              .update({
+                sources: mergedSources,
+                external_ids: mergedExt,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", existing.id);
+            updated += 1;
+          } else {
+            await supabaseAdmin.from("contacts").insert({
+              user_id: userId,
+              first_name: p.givenName ?? (p.displayName?.split(" ")[0] ?? null),
+              last_name: p.surname ?? (p.displayName?.split(" ").slice(1).join(" ") || null),
+              email: emails,
+              phone: phones,
+              organization: p.companyName ?? null,
+              role: p.jobTitle ?? null,
+              sources: ["outlook"],
+              external_ids: { outlook_people: p.id },
+            });
+            created += 1;
+          }
+          synced += 1;
+        } catch (err) {
+          errors.push((err as Error).message);
+        }
+      }
+      peopleNext = body["@odata.nextLink"] ?? null;
+    }
+
     return { synced, created, updated, errors };
   });
+
 
 
 export const pushContactToOutlook = createServerFn({ method: "POST" })
