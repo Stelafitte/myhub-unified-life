@@ -62,7 +62,7 @@ const PRESETS: Preset[] = [
   { key: "gmail", label: "Gmail", emoji: "📧", type: "gmail", server: "imap.gmail.com", port: "993", ssl: true },
   { key: "outlook", label: "Outlook", emoji: "📨", type: "outlook", server: "outlook.office365.com", port: "993", ssl: true },
   { key: "ovh", label: "OVH / CHU", emoji: "🏥", type: "imap", server: "imap.mail.ovh.net", port: "993", ssl: true, domain: "myhub-pro.fr", smtp_server: "ssl0.ovh.net", smtp_port: 465 },
-  { key: "univ", label: "Université Bordeaux", emoji: "🎓", type: "imap", server: "webmel.u-bordeaux.fr", port: "7993", ssl: true, domain: "u-bordeaux.fr" },
+  { key: "univ", label: "Université Bordeaux", emoji: "🎓", type: "imap", server: "webmel.u-bordeaux.fr", port: "993", ssl: true, domain: "u-bordeaux.fr" },
   { key: "echo", label: "Echo Bordeaux", emoji: "💼", type: "imap", server: "pro3.mail.ovh.net", port: "993", ssl: true, domain: "echobordeaux.com", smtp_server: "pro3.mail.ovh.net", smtp_port: 587 },
   { key: "imap", label: "IMAP personnalisé", emoji: "⚙️", type: "imap", server: "", port: "993", ssl: true },
 ];
@@ -407,6 +407,7 @@ function AccountWizard({
   const [icon, setIcon] = useState(ICONS[0]);
   const [testing, setTesting] = useState(false);
   const [tested, setTested] = useState<null | "ok" | "fail">(null);
+  const [testError, setTestError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -419,6 +420,7 @@ function AccountWizard({
       setColor(COLORS[0]);
       setIcon(ICONS[0]);
       setTested(null);
+      setTestError(null);
     }
   }, [open]);
 
@@ -472,6 +474,7 @@ function AccountWizard({
   const runTest = async () => {
     setTesting(true);
     setTested(null);
+    setTestError(null);
     if (type === "imap" && imap.server && imap.username && imap.password) {
       try {
         const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-imap`, {
@@ -492,8 +495,10 @@ function AccountWizard({
         });
         const data = await res.json().catch(() => ({ ok: false }));
         setTested(data.ok ? "ok" : "fail");
+        if (!data.ok) setTestError(data.error ?? "Connexion refusée");
       } catch {
         setTested("fail");
+        setTestError("Serveur inaccessible ou délai dépassé");
       }
     } else {
       await new Promise((r) => setTimeout(r, 600));
@@ -644,8 +649,9 @@ function AccountWizard({
               </div>
             )}
             {tested === "fail" && (
-              <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4" /> Échec — vérifiez les paramètres
+              <div className="flex items-start gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>Échec — {testError ?? "vérifiez les paramètres"}</span>
               </div>
             )}
           </div>
