@@ -257,119 +257,143 @@ export function CollabDashboard({ onSelect }: Props) {
       )}
 
       {view === "list" && (
-        <div className="flex-1 overflow-y-auto rounded-xl border bg-card divide-y">
-          {allSpaces.length === 0 && (
-            <div className="py-8 text-center text-sm text-muted-foreground">Aucun espace</div>
-          )}
-          {allSpaces.map((s) => {
-            const st: Status = s.archived_at
-              ? "archived"
-              : ((s.lifecycle_status as Status) || "active");
-            const sec = SECTIONS.find((c) => c.id === st)!;
-            const Icon = sec.icon;
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto pb-2">
+          {SECTIONS.map((col) => {
+            const items = grouped[col.id] ?? [];
+            const isCollapsed = collapsed[col.id];
+            const Icon = col.icon;
             return (
-              <div
-                key={s.id}
-                className="flex items-center gap-3 px-3 py-2 hover:bg-accent/50 cursor-pointer"
-                onClick={() => onSelect(s.id)}
-              >
-                <span className="text-base">{s.icon ?? "📁"}</span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium truncate">{s.name}</div>
-                  <div className="text-[11px] text-muted-foreground truncate">
-                    {s.type && <span className="capitalize">{s.type} · </span>}
-                    {s.updated_at
-                      ? formatDistanceToNow(new Date(s.updated_at), { addSuffix: true, locale: fr })
-                      : null}
-                  </div>
-                </div>
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <Icon className="h-3.5 w-3.5" /> {sec.label}
-                </span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenuLabel className="text-xs">Déplacer vers</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {SECTIONS.filter((c) => c.id !== st).map((c) => (
-                      <DropdownMenuItem
-                        key={c.id}
-                        onClick={() => setStatus.mutate({ spaceId: s.id, status: c.id })}
+              <section key={col.id} className="flex flex-col rounded-xl border bg-muted/30">
+                <header className="flex items-center gap-2 border-b bg-background/60 px-3 py-2">
+                  <button
+                    onClick={() => setCollapsed((c) => ({ ...c, [col.id]: !c[col.id] }))}
+                    className="flex items-center gap-1.5 text-left"
+                  >
+                    {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    <Icon className="h-4 w-4" />
+                    <h3 className="text-sm font-semibold">{col.label}</h3>
+                  </button>
+                  <span className="ml-auto text-xs text-muted-foreground">{items.length}</span>
+                </header>
+                {!isCollapsed && (
+                  <div className="divide-y">
+                    {items.length === 0 && (
+                      <div className="py-4 text-center text-xs text-muted-foreground">Aucun espace</div>
+                    )}
+                    {items.map((s) => (
+                      <div
+                        key={s.id}
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-accent/50 cursor-pointer"
+                        onClick={() => onSelect(s.id)}
                       >
-                        <c.icon className="mr-2 h-3.5 w-3.5" /> {c.label}
-                      </DropdownMenuItem>
+                        <span className="text-base">{s.icon ?? "📁"}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium truncate">{s.name}</div>
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {s.type && <span className="capitalize">{s.type} · </span>}
+                            {s.updated_at
+                              ? formatDistanceToNow(new Date(s.updated_at), { addSuffix: true, locale: fr })
+                              : null}
+                          </div>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuLabel className="text-xs">Déplacer vers</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {SECTIONS.filter((c) => c.id !== col.id).map((c) => (
+                              <DropdownMenuItem
+                                key={c.id}
+                                onClick={() => setStatus.mutate({ spaceId: s.id, status: c.id })}
+                              >
+                                <c.icon className="mr-2 h-3.5 w-3.5" /> {c.label}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+                  </div>
+                )}
+              </section>
             );
           })}
         </div>
       )}
 
       {view === "gantt" && (
-        <div className="flex-1 overflow-y-auto rounded-xl border bg-card p-3 space-y-3">
+        <div className="flex flex-1 flex-col gap-3 overflow-y-auto pb-2">
           {SECTIONS.map((col) => {
             const items = grouped[col.id] ?? [];
-            if (items.length === 0) return null;
+            const isCollapsed = collapsed[col.id];
             const Icon = col.icon;
             return (
-              <div key={col.id}>
-                <div className="flex items-center gap-1.5 mb-1.5 text-sm font-medium">
-                  <Icon className="h-4 w-4" /> {col.label}
-                  <span className="text-xs text-muted-foreground">({items.length})</span>
-                </div>
-                <div className="space-y-1.5 pl-5">
-                  {items.map((s) => {
-                    const updated = s.updated_at ? new Date(s.updated_at) : null;
-                    const now = Date.now();
-                    const ageDays = updated
-                      ? Math.max(1, Math.min(60, (now - updated.getTime()) / 86400000))
-                      : 30;
-                    const widthPct = Math.max(8, 100 - (ageDays / 60) * 92);
-                    return (
-                      <button
-                        key={s.id}
-                        onClick={() => onSelect(s.id)}
-                        className="w-full text-left group"
-                      >
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="w-44 truncate font-medium">
-                            {s.icon ?? "📁"} {s.name}
-                          </span>
-                          <div className="flex-1 h-4 rounded bg-muted relative overflow-hidden">
-                            <div
-                              className="absolute inset-y-0 left-0 bg-primary/40 group-hover:bg-primary/60 transition-colors"
-                              style={{ width: `${widthPct}%` }}
-                            />
+              <section key={col.id} className="flex flex-col rounded-xl border bg-muted/30">
+                <header className="flex items-center gap-2 border-b bg-background/60 px-3 py-2">
+                  <button
+                    onClick={() => setCollapsed((c) => ({ ...c, [col.id]: !c[col.id] }))}
+                    className="flex items-center gap-1.5 text-left"
+                  >
+                    {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    <Icon className="h-4 w-4" />
+                    <h3 className="text-sm font-semibold">{col.label}</h3>
+                  </button>
+                  <span className="ml-auto text-xs text-muted-foreground">{items.length}</span>
+                </header>
+                {!isCollapsed && (
+                  <div className="space-y-1.5 p-3">
+                    {items.length === 0 && (
+                      <div className="py-3 text-center text-xs text-muted-foreground">Aucun espace</div>
+                    )}
+                    {items.map((s) => {
+                      const updated = s.updated_at ? new Date(s.updated_at) : null;
+                      const now = Date.now();
+                      const ageDays = updated
+                        ? Math.max(1, Math.min(60, (now - updated.getTime()) / 86400000))
+                        : 30;
+                      const widthPct = Math.max(8, 100 - (ageDays / 60) * 92);
+                      return (
+                        <button
+                          key={s.id}
+                          onClick={() => onSelect(s.id)}
+                          className="w-full text-left group"
+                        >
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="w-44 truncate font-medium">
+                              {s.icon ?? "📁"} {s.name}
+                            </span>
+                            <div className="flex-1 h-4 rounded bg-muted relative overflow-hidden">
+                              <div
+                                className="absolute inset-y-0 left-0 bg-primary/40 group-hover:bg-primary/60 transition-colors"
+                                style={{ width: `${widthPct}%` }}
+                              />
+                            </div>
+                            <span className="w-24 text-right text-muted-foreground tabular-nums">
+                              {updated
+                                ? formatDistanceToNow(updated, { addSuffix: true, locale: fr })
+                                : "—"}
+                            </span>
                           </div>
-                          <span className="w-24 text-right text-muted-foreground tabular-nums">
-                            {updated
-                              ? formatDistanceToNow(updated, { addSuffix: true, locale: fr })
-                              : "—"}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
             );
           })}
-          {allSpaces.length === 0 && (
-            <div className="py-8 text-center text-sm text-muted-foreground">Aucun espace</div>
-          )}
         </div>
       )}
+
     </div>
   );
 }
