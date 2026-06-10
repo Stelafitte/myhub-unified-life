@@ -2294,8 +2294,10 @@ export const setSpaceLifecycleStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const patch: Record<string, unknown> = { lifecycle_status: data.status };
-    patch.archived_at = data.status === "archived" ? new Date().toISOString() : null;
+    const patch = {
+      lifecycle_status: data.status,
+      archived_at: data.status === "archived" ? new Date().toISOString() : null,
+    } as never;
     const { error } = await supabase
       .from("collab_spaces")
       .update(patch)
