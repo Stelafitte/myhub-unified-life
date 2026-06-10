@@ -777,6 +777,7 @@ export type Database = {
           id: string
           is_public: boolean
           level: number
+          lifecycle_status: string
           name: string
           parent_id: string | null
           position: number
@@ -798,6 +799,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           level?: number
+          lifecycle_status?: string
           name: string
           parent_id?: string | null
           position?: number
@@ -819,6 +821,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           level?: number
+          lifecycle_status?: string
           name?: string
           parent_id?: string | null
           position?: number
