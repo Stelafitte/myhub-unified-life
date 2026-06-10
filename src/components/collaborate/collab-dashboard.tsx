@@ -55,6 +55,7 @@ const PRIMARY: Status[] = ["construction", "active"];
 export function CollabDashboard({ onSelect }: Props) {
   const listFn = useServerFn(listSpacesForDashboard);
   const setStatusFn = useServerFn(setSpaceLifecycleStatus);
+  const deleteFn = useServerFn(deleteSpace);
   const qc = useQueryClient();
 
   const [view, setView] = useState<View>("kanban");
