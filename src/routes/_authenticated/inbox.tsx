@@ -1899,6 +1899,14 @@ function InboxPage() {
             onAction={counts.trash > 0 ? emptyTrash : undefined}
             actionLabel="Vider la corbeille"
           />
+          <FilterRow
+            label="Envoyés"
+            icon={<Send className="h-4 w-4" />}
+            count={counts.sent}
+            active={filter === "sent"}
+            onClick={() => setFilter("sent")}
+          />
+
 
           {/* Comptes first */}
           <div className="mt-4 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
