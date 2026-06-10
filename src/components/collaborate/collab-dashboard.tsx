@@ -15,6 +15,7 @@ import {
   GanttChart,
   ArrowRight,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { listSpacesForDashboard, setSpaceLifecycleStatus } from "@/lib/collab.functions";
+import { listSpacesForDashboard, setSpaceLifecycleStatus, deleteSpace } from "@/lib/collab.functions";
+import { confirmDialog } from "@/lib/confirm-dialog";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -53,6 +55,7 @@ const PRIMARY: Status[] = ["construction", "active"];
 export function CollabDashboard({ onSelect }: Props) {
   const listFn = useServerFn(listSpacesForDashboard);
   const setStatusFn = useServerFn(setSpaceLifecycleStatus);
+  const deleteFn = useServerFn(deleteSpace);
   const qc = useQueryClient();
 
   const [view, setView] = useState<View>("kanban");
@@ -72,6 +75,16 @@ export function CollabDashboard({ onSelect }: Props) {
     mutationFn: (vars: { spaceId: string; status: Status }) => setStatusFn({ data: vars }),
     onSuccess: (_r, vars) => {
       toast.success(`Espace déplacé vers « ${SECTIONS.find((c) => c.id === vars.status)?.label} »`);
+      qc.invalidateQueries({ queryKey: ["collab-dashboard-spaces"] });
+      qc.invalidateQueries({ queryKey: ["collab-tree"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteSpaceMut = useMutation({
+    mutationFn: (spaceId: string) => deleteFn({ data: { spaceId } }),
+    onSuccess: () => {
+      toast.success("Espace supprimé");
       qc.invalidateQueries({ queryKey: ["collab-dashboard-spaces"] });
       qc.invalidateQueries({ queryKey: ["collab-tree"] });
     },
@@ -137,6 +150,19 @@ export function CollabDashboard({ onSelect }: Props) {
                       <c.icon className="mr-1 h-3.5 w-3.5" /> {c.label}
                     </DropdownMenuItem>
                   ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={async () => {
+                      const ok = await confirmDialog(
+                        `Supprimer l'espace « ${s.name} » et tout son contenu ?`,
+                        { destructive: true, confirmLabel: "Supprimer", cancelLabel: "Annuler" },
+                      );
+                      if (ok) deleteSpaceMut.mutate(s.id);
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-3.5 w-3.5" /> Supprimer
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -318,6 +344,19 @@ export function CollabDashboard({ onSelect }: Props) {
                                 <c.icon className="mr-2 h-3.5 w-3.5" /> {c.label}
                               </DropdownMenuItem>
                             ))}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={async () => {
+                                const ok = await confirmDialog(
+                                  `Supprimer l'espace « ${s.name} » et tout son contenu ?`,
+                                  { destructive: true, confirmLabel: "Supprimer", cancelLabel: "Annuler" },
+                                );
+                                if (ok) deleteSpaceMut.mutate(s.id);
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-3.5 w-3.5" /> Supprimer
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
