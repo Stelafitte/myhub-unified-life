@@ -591,13 +591,13 @@ function ChatPanel({
             return (
               <div
                 key={m.id}
-                className={`group flex ${isMine ? "justify-end" : "justify-start"}`}
+                className={`group flex ${isMine ? "justify-start" : "justify-end"}`}
               >
                 <div
                   className={`relative max-w-[78%] rounded-2xl px-3 py-2 shadow-sm ${
                     isMine
-                      ? "bg-primary text-primary-foreground rounded-br-sm"
-                      : "rounded-bl-sm"
+                      ? "bg-primary text-primary-foreground rounded-bl-sm"
+                      : "rounded-br-sm"
                   }`}
                   style={
                     isMine
