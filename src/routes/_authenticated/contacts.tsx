@@ -602,16 +602,16 @@ function ContactsPage() {
             <div className="relative flex-1 min-w-0">
               <Search className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Nom, email, organisation…" withMic
+                placeholder="Nom, email, organisation…"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="h-8 pl-8 pr-16"
+                className="h-8 pl-8 pr-10"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery("")}
-                  className="absolute right-9 top-1/2 z-10 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-1.5 top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
                   aria-label="Effacer"
                 >
                   <X className="h-4 w-4" />
