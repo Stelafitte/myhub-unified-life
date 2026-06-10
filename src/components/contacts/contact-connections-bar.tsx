@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Cloud, Mail as MailIcon, RefreshCw, Trash2, Apple } from "lucide-react";
+import { Cloud, Mail as MailIcon, RefreshCw, Trash2, Apple, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 import { syncGoogleContacts } from "@/lib/api/google-contacts.functions";
 import { listGoogleCalendarConnections } from "@/lib/api/google-calendar.functions";
@@ -120,9 +120,64 @@ export function ContactConnectionsBar({ onSynced }: { onSynced?: () => void }) {
     }
   };
 
+  const handleSyncAll = async () => {
+    setBusy("all");
+    let totalCreated = 0;
+    let totalUpdated = 0;
+    const errors: string[] = [];
+    const runs: Array<{ label: string; fn: () => Promise<unknown> }> = [
+      ...google.map((c) => ({
+        label: c.google_email ?? c.label,
+        fn: () => syncGoogle({ data: { connectionId: c.id } }),
+      })),
+      ...outlook.map((c) => ({
+        label: c.outlook_email ?? c.label,
+        fn: () => syncOutlook({ data: { connectionId: c.id } }),
+      })),
+      ...icloud.map((c) => ({
+        label: c.apple_id,
+        fn: () => syncICloud({ data: { connectionId: c.id } }),
+      })),
+    ];
+    if (runs.length === 0) {
+      toast.info("Aucun compte connecté");
+      setBusy(null);
+      return;
+    }
+    for (const r of runs) {
+      try {
+        const res = (await r.fn()) as { created?: number; updated?: number };
+        totalCreated += res.created ?? 0;
+        totalUpdated += res.updated ?? 0;
+      } catch (e) {
+        errors.push(`${r.label}: ${e instanceof Error ? e.message : "erreur"}`);
+      }
+    }
+    if (errors.length) {
+      toast.error(`Sync partielle — ${totalCreated} créé(s), ${totalUpdated} mis à jour. ${errors.length} erreur(s)`);
+    } else {
+      toast.success(`Sync OK — ${totalCreated} créé(s), ${totalUpdated} mis à jour sur ${runs.length} compte(s)`);
+    }
+    onSynced?.();
+    setBusy(null);
+  };
+
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
+        {/* Tout synchroniser */}
+        <Button
+          size="sm"
+          variant="default"
+          className="h-8 gap-1 px-2 sm:px-3"
+          onClick={handleSyncAll}
+          disabled={busy !== null}
+        >
+          <RefreshCcw className={`h-3.5 w-3.5 ${busy === "all" ? "animate-spin" : ""}`} />
+          <span className="hidden sm:inline">{busy === "all" ? "Sync…" : "Tout synchroniser"}</span>
+        </Button>
+
+
         {/* Google */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
