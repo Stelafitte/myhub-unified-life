@@ -774,6 +774,8 @@ function InboxPage() {
     let list = emails;
     if (filter === "trash") {
       list = list.filter(isTrashed);
+    } else if (filter === "sent") {
+      list = list.filter((e) => !isTrashed(e) && e.direction === "outbound");
     } else {
       list = list.filter((e) => !isTrashed(e));
       if (filter.startsWith("account:")) {
